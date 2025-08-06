@@ -218,10 +218,17 @@ export const useStore = create<AppState>()(
 
       checkOverdueTasks: () => {
         const state = get();
-        if (!state.cleaningTask || state.cleaningTask.status !== 'pending') return;
+        if (!state.cleaningTask || state.cleaningTask.status !== 'pending' || !state.cleaningTask.dueDate) return;
 
         const now = new Date();
-        const dueDate = new Date(state.cleaningTask.dueDate);
+        let dueDate: Date;
+        
+        try {
+          dueDate = new Date(state.cleaningTask.dueDate);
+          if (isNaN(dueDate.getTime())) return;
+        } catch {
+          return;
+        }
 
         if (now > dueDate) {
           // Task is overdue, mark as skipped and create new task

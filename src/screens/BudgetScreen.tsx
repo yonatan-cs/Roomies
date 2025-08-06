@@ -48,9 +48,14 @@ export default function BudgetScreen() {
   const monthlyExpenses = useMemo(() => {
     const now = new Date();
     const thisMonth = expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
-      return expenseDate.getMonth() === now.getMonth() && 
-             expenseDate.getFullYear() === now.getFullYear();
+      try {
+        const expenseDate = new Date(expense.date);
+        if (isNaN(expenseDate.getTime())) return false;
+        return expenseDate.getMonth() === now.getMonth() && 
+               expenseDate.getFullYear() === now.getFullYear();
+      } catch {
+        return false;
+      }
     });
     return thisMonth.reduce((sum, expense) => sum + expense.amount, 0);
   }, [expenses]);
@@ -59,11 +64,19 @@ export default function BudgetScreen() {
     return `₪${amount.toFixed(0)}`;
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('he-IL', {
-      day: 'numeric',
-      month: 'short'
-    }).format(new Date(date));
+  const formatDate = (date: Date | string) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) {
+        return 'תאריך לא תקין';
+      }
+      return new Intl.DateTimeFormat('he-IL', {
+        day: 'numeric',
+        month: 'short'
+      }).format(dateObj);
+    } catch (error) {
+      return 'תאריך לא תקין';
+    }
   };
 
   const getUserName = (userId: string) => {
