@@ -10,7 +10,10 @@ import {
   ShoppingItem, 
   Balance,
   ExpenseCategory,
-  CleaningHistory 
+  CleaningHistory,
+  CleaningChecklist,
+  CleaningTaskCompletion,
+  DebtSettlement
 } from '../types';
 
 interface AppState {
@@ -20,9 +23,12 @@ interface AppState {
   
   // Cleaning
   cleaningTask?: CleaningTask;
+  cleaningChecklist: CleaningChecklist[];
+  cleaningCompletions: CleaningTaskCompletion[];
   
   // Expenses & Budget
   expenses: Expense[];
+  debtSettlements: DebtSettlement[];
   
   // Shopping
   shoppingItems: ShoppingItem[];
@@ -35,9 +41,13 @@ interface AppState {
   // Actions - Cleaning
   initializeCleaning: (userIds: string[]) => void;
   markCleaned: (userId: string) => void;
+  addCleaningTask: (name: string) => void;
+  toggleCleaningTask: (taskId: string, completed: boolean) => void;
+  checkOverdueTasks: () => void;
   
   // Actions - Expenses
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => void;
+  addDebtSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => void;
   getBalances: () => Balance[];
   
   // Actions - Shopping
@@ -51,7 +61,16 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       // Initial state
       expenses: [],
+      debtSettlements: [],
       shoppingItems: [],
+      cleaningChecklist: [
+        { id: '1', name: 'ניקוי מטבח', isDefault: true, isCompleted: false },
+        { id: '2', name: 'שטיפת רצפות', isDefault: true, isCompleted: false },
+        { id: '3', name: 'ניקוי שירותים', isDefault: true, isCompleted: false },
+        { id: '4', name: 'פינוי אשפה', isDefault: true, isCompleted: false },
+        { id: '5', name: 'אבק רהיטים', isDefault: true, isCompleted: false },
+      ],
+      cleaningCompletions: [],
       
       // User & Apartment actions
       setCurrentUser: (user) => set({ currentUser: user }),
@@ -87,10 +106,16 @@ export const useStore = create<AppState>()(
       
       // Cleaning actions
       initializeCleaning: (userIds) => {
+        const now = new Date();
+        const dueDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+        
         const cleaningTask: CleaningTask = {
           id: uuidv4(),
           currentTurn: userIds[0],
           queue: [...userIds],
+          dueDate,
+          intervalDays: 7,
+          status: 'pending',
           history: [],
         };
         set({ cleaningTask });
@@ -100,24 +125,140 @@ export const useStore = create<AppState>()(
         const state = get();
         if (!state.cleaningTask) return;
         
+        // Check if all tasks are completed
+        const currentTaskCompletions = state.cleaningCompletions.filter(
+          c => c.taskId === state.cleaningTask!.id
+        );
+        const completedTasks = currentTaskCompletions.filter(c => c.completed);
+        
+        if (completedTasks.length < state.cleaningChecklist.length) {
+          // Not all tasks completed yet
+          return;
+        }
+        
         const history: CleaningHistory = {
           id: uuidv4(),
           userId,
           cleanedAt: new Date(),
+          status: 'completed',
         };
         
         const currentIndex = state.cleaningTask.queue.indexOf(userId);
         const nextIndex = (currentIndex + 1) % state.cleaningTask.queue.length;
+        const nextDueDate = new Date(Date.now() + state.cleaningTask.intervalDays * 24 * 60 * 60 * 1000);
         
-        const updatedTask: CleaningTask = {
+        // Mark current task as completed
+        const completedTask: CleaningTask = {
           ...state.cleaningTask,
-          currentTurn: state.cleaningTask.queue[nextIndex],
+          status: 'completed',
           lastCleaned: new Date(),
           lastCleanedBy: userId,
           history: [...state.cleaningTask.history, history],
         };
         
-        set({ cleaningTask: updatedTask });
+        // Create new task for next person
+        const newTask: CleaningTask = {
+          id: uuidv4(),
+          currentTurn: state.cleaningTask.queue[nextIndex],
+          queue: [...state.cleaningTask.queue],
+          dueDate: nextDueDate,
+          intervalDays: state.cleaningTask.intervalDays,
+          status: 'pending',
+          history: [...completedTask.history],
+        };
+        
+        set({ 
+          cleaningTask: newTask,
+          cleaningCompletions: [] // Reset completions for new task
+        });
+      },
+
+      addCleaningTask: (name) => {
+        const newTask: CleaningChecklist = {
+          id: uuidv4(),
+          name,
+          isDefault: false,
+          isCompleted: false,
+        };
+        set((state) => ({
+          cleaningChecklist: [...state.cleaningChecklist, newTask]
+        }));
+      },
+
+      toggleCleaningTask: (taskId, completed) => {
+        const state = get();
+        if (!state.cleaningTask) return;
+
+        const existingCompletion = state.cleaningCompletions.find(
+          c => c.taskId === state.cleaningTask!.id && c.checklistItemId === taskId
+        );
+
+        if (existingCompletion) {
+          // Update existing completion
+          set((state) => ({
+            cleaningCompletions: state.cleaningCompletions.map(c =>
+              c.id === existingCompletion.id
+                ? { ...c, completed }
+                : c
+            )
+          }));
+        } else {
+          // Create new completion
+          const newCompletion: CleaningTaskCompletion = {
+            id: uuidv4(),
+            taskId: state.cleaningTask.id,
+            checklistItemId: taskId,
+            completed,
+          };
+          set((state) => ({
+            cleaningCompletions: [...state.cleaningCompletions, newCompletion]
+          }));
+        }
+      },
+
+      checkOverdueTasks: () => {
+        const state = get();
+        if (!state.cleaningTask || state.cleaningTask.status !== 'pending') return;
+
+        const now = new Date();
+        const dueDate = new Date(state.cleaningTask.dueDate);
+
+        if (now > dueDate) {
+          // Task is overdue, mark as skipped and create new task
+          const history: CleaningHistory = {
+            id: uuidv4(),
+            userId: state.cleaningTask.currentTurn,
+            cleanedAt: now,
+            status: 'skipped',
+          };
+
+          const currentIndex = state.cleaningTask.queue.indexOf(state.cleaningTask.currentTurn);
+          const nextIndex = (currentIndex + 1) % state.cleaningTask.queue.length;
+          const nextDueDate = new Date(Date.now() + state.cleaningTask.intervalDays * 24 * 60 * 60 * 1000);
+
+          // Mark current task as skipped
+          const skippedTask: CleaningTask = {
+            ...state.cleaningTask,
+            status: 'skipped',
+            history: [...state.cleaningTask.history, history],
+          };
+
+          // Create new task for next person
+          const newTask: CleaningTask = {
+            id: uuidv4(),
+            currentTurn: state.cleaningTask.queue[nextIndex],
+            queue: [...state.cleaningTask.queue],
+            dueDate: nextDueDate,
+            intervalDays: state.cleaningTask.intervalDays,
+            status: 'pending',
+            history: [...skippedTask.history],
+          };
+
+          set({ 
+            cleaningTask: newTask,
+            cleaningCompletions: [] // Reset completions for new task
+          });
+        }
       },
       
       // Expense actions
@@ -130,8 +271,20 @@ export const useStore = create<AppState>()(
         set((state) => ({ expenses: [...state.expenses, newExpense] }));
       },
       
+      addDebtSettlement: (fromUserId, toUserId, amount, description) => {
+        const settlement: DebtSettlement = {
+          id: uuidv4(),
+          fromUserId,
+          toUserId,
+          amount,
+          date: new Date(),
+          description,
+        };
+        set((state) => ({ debtSettlements: [...state.debtSettlements, settlement] }));
+      },
+
       getBalances: () => {
-        const { expenses, currentApartment } = get();
+        const { expenses, debtSettlements, currentApartment } = get();
         if (!currentApartment) return [];
         
         const balances: { [userId: string]: Balance } = {};
@@ -164,6 +317,25 @@ export const useStore = create<AppState>()(
               balances[expense.paidBy].owed[participantId] += perPersonAmount;
             }
           });
+        });
+
+        // Apply debt settlements
+        debtSettlements.forEach(settlement => {
+          if (balances[settlement.fromUserId] && balances[settlement.toUserId]) {
+            // Reduce the debt between the users
+            if (balances[settlement.fromUserId].owes[settlement.toUserId]) {
+              balances[settlement.fromUserId].owes[settlement.toUserId] -= settlement.amount;
+              if (balances[settlement.fromUserId].owes[settlement.toUserId] <= 0) {
+                delete balances[settlement.fromUserId].owes[settlement.toUserId];
+              }
+            }
+            if (balances[settlement.toUserId].owed[settlement.fromUserId]) {
+              balances[settlement.toUserId].owed[settlement.fromUserId] -= settlement.amount;
+              if (balances[settlement.toUserId].owed[settlement.fromUserId] <= 0) {
+                delete balances[settlement.toUserId].owed[settlement.fromUserId];
+              }
+            }
+          }
         });
         
         // Calculate net balances
@@ -233,7 +405,10 @@ export const useStore = create<AppState>()(
         currentUser: state.currentUser,
         currentApartment: state.currentApartment,
         cleaningTask: state.cleaningTask,
+        cleaningChecklist: state.cleaningChecklist,
+        cleaningCompletions: state.cleaningCompletions,
         expenses: state.expenses,
+        debtSettlements: state.debtSettlements,
         shoppingItems: state.shoppingItems,
       }),
     }

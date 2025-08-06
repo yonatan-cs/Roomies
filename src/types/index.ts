@@ -17,8 +17,11 @@ export interface CleaningTask {
   id: string;
   currentTurn: string; // user id
   queue: string[]; // array of user ids in rotation
+  dueDate: Date;
+  intervalDays: number;
   lastCleaned?: Date;
   lastCleanedBy?: string;
+  status: 'pending' | 'completed' | 'skipped';
   history: CleaningHistory[];
 }
 
@@ -26,6 +29,21 @@ export interface CleaningHistory {
   id: string;
   userId: string;
   cleanedAt: Date;
+  status: 'completed' | 'skipped';
+}
+
+export interface CleaningChecklist {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  isCompleted: boolean;
+}
+
+export interface CleaningTaskCompletion {
+  id: string;
+  taskId: string;
+  checklistItemId: string;
+  completed: boolean;
 }
 
 export interface Expense {
@@ -63,4 +81,13 @@ export interface Balance {
   owes: { [userId: string]: number };
   owed: { [userId: string]: number };
   netBalance: number;
+}
+
+export interface DebtSettlement {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+  date: Date;
+  description?: string;
 }

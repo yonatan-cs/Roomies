@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
-  FlatList
+  FlatList,
+  TextInput,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -32,7 +34,13 @@ const CATEGORY_NAMES: Record<ExpenseCategory, string> = {
 
 export default function BudgetScreen() {
   const navigation = useNavigation();
-  const { expenses, currentUser, currentApartment, getBalances } = useStore();
+  const [showSettlementModal, setShowSettlementModal] = useState(false);
+  const [settlementAmount, setSettlementAmount] = useState('');
+  const [settlementFromUser, setSettlementFromUser] = useState('');
+  const [settlementToUser, setSettlementToUser] = useState('');
+  const [settlementOriginalAmount, setSettlementOriginalAmount] = useState(0);
+  
+  const { expenses, currentUser, currentApartment, getBalances, addDebtSettlement } = useStore();
 
   const balances = useMemo(() => getBalances(), [expenses]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
@@ -61,6 +69,35 @@ export default function BudgetScreen() {
   const getUserName = (userId: string) => {
     if (userId === currentUser?.id) return 'אתה';
     return currentApartment?.members.find(m => m.id === userId)?.name || 'לא ידוע';
+  };
+
+  const handleSettleDebt = (fromUserId: string, toUserId: string, amount: number) => {
+    setSettlementFromUser(fromUserId);
+    setSettlementToUser(toUserId);
+    setSettlementOriginalAmount(amount);
+    setSettlementAmount(amount.toString());
+    setShowSettlementModal(true);
+  };
+
+  const confirmSettlement = () => {
+    const amount = parseFloat(settlementAmount);
+    if (!amount || amount <= 0 || amount > settlementOriginalAmount) {
+      Alert.alert('שגיאה', 'הכנס סכום תקין');
+      return;
+    }
+
+    addDebtSettlement(
+      settlementFromUser,
+      settlementToUser,
+      amount,
+      `סילוק חוב`
+    );
+
+    setShowSettlementModal(false);
+    setSettlementAmount('');
+    setSettlementFromUser('');
+    setSettlementToUser('');
+    setSettlementOriginalAmount(0);
   };
 
   const renderExpenseItem = ({ item: expense }) => (
@@ -157,24 +194,40 @@ export default function BudgetScreen() {
               {/* Who owes me */}
               {Object.entries(myBalance.owed).filter(([_, amount]) => amount > 0).map(([userId, amount]) => (
                 <View key={`owed-${userId}`} className="flex-row justify-between items-center py-2">
-                  <Text className="text-gray-700">
-                    {getUserName(userId)} חייב לך
-                  </Text>
-                  <Text className="text-green-600 font-medium">
+                  <View className="flex-1">
+                    <Text className="text-gray-700">
+                      {getUserName(userId)} חייב לך
+                    </Text>
+                  </View>
+                  <Text className="text-green-600 font-medium ml-2">
                     {formatCurrency(amount)}
                   </Text>
+                  <Pressable
+                    onPress={() => handleSettleDebt(userId, currentUser!.id, amount)}
+                    className="bg-green-100 py-1 px-3 rounded-lg"
+                  >
+                    <Text className="text-green-700 text-sm">סלק</Text>
+                  </Pressable>
                 </View>
               ))}
               
               {/* Who I owe */}
               {Object.entries(myBalance.owes).filter(([_, amount]) => amount > 0).map(([userId, amount]) => (
                 <View key={`owes-${userId}`} className="flex-row justify-between items-center py-2">
-                  <Text className="text-gray-700">
-                    אתה חייב ל{getUserName(userId)}
-                  </Text>
-                  <Text className="text-red-600 font-medium">
+                  <View className="flex-1">
+                    <Text className="text-gray-700">
+                      אתה חייב ל{getUserName(userId)}
+                    </Text>
+                  </View>
+                  <Text className="text-red-600 font-medium ml-2">
                     {formatCurrency(amount)}
                   </Text>
+                  <Pressable
+                    onPress={() => handleSettleDebt(currentUser!.id, userId, amount)}
+                    className="bg-red-100 py-1 px-3 rounded-lg"
+                  >
+                    <Text className="text-red-700 text-sm">סלק</Text>
+                  </Pressable>
                 </View>
               ))}
             </View>
@@ -242,6 +295,63 @@ export default function BudgetScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Debt Settlement Modal */}
+      {showSettlementModal && (
+        <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">
+              סילוק חוב
+            </Text>
+            
+            <Text className="text-gray-600 text-center mb-4">
+              חוב מקורי: {formatCurrency(settlementOriginalAmount)}
+            </Text>
+            <Text className="text-gray-600 text-center mb-4">
+              {getUserName(settlementFromUser)} ← {getUserName(settlementToUser)}
+            </Text>
+
+            <Text className="text-gray-700 mb-2">סכום לסילוק:</Text>
+            <View className="flex-row items-center mb-6">
+              <TextInput
+                value={settlementAmount}
+                onChangeText={setSettlementAmount}
+                placeholder="0"
+                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+                keyboardType="numeric"
+                textAlign="center"
+              />
+              <Text className="text-gray-700 text-lg mr-3">₪</Text>
+            </View>
+
+            <View className="flex-row space-x-3">
+              <Pressable
+                onPress={() => {
+                  setShowSettlementModal(false);
+                  setSettlementAmount('');
+                  setSettlementFromUser('');
+                  setSettlementToUser('');
+                  setSettlementOriginalAmount(0);
+                }}
+                className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+              >
+                <Text className="text-gray-700 font-medium text-center">
+                  ביטול
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={confirmSettlement}
+                className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
+              >
+                <Text className="text-white font-medium text-center">
+                  אישור סילוק
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
