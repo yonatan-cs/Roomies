@@ -4,9 +4,11 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 // Screens
+import DashboardScreen from '../screens/DashboardScreen';
 import CleaningScreen from '../screens/CleaningScreen';
 import BudgetScreen from '../screens/BudgetScreen';
 import ShoppingScreen from '../screens/ShoppingScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 
@@ -22,12 +24,16 @@ function MainTabs() {
         tabBarIcon: ({ focused, color, size }) => {
           let iconName: keyof typeof Ionicons.glyphMap;
 
-          if (route.name === 'Cleaning') {
+          if (route.name === 'Dashboard') {
+            iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Cleaning') {
             iconName = focused ? 'brush' : 'brush-outline';
           } else if (route.name === 'Budget') {
             iconName = focused ? 'wallet' : 'wallet-outline';
           } else if (route.name === 'Shopping') {
             iconName = focused ? 'basket' : 'basket-outline';
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'settings' : 'settings-outline';
           } else {
             iconName = 'home-outline';
           }
@@ -39,6 +45,11 @@ function MainTabs() {
         headerShown: false,
       })}
     >
+      <Tab.Screen 
+        name="Dashboard" 
+        component={DashboardScreen}
+        options={{ title: 'בית' }}
+      />
       <Tab.Screen 
         name="Cleaning" 
         component={CleaningScreen}
@@ -53,6 +64,11 @@ function MainTabs() {
         name="Shopping" 
         component={ShoppingScreen}
         options={{ title: 'קניות' }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{ title: 'הגדרות' }}
       />
     </Tab.Navigator>
   );

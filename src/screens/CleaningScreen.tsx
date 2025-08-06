@@ -1,31 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
-  Alert
+  Alert,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 
 export default function CleaningScreen() {
+  const [newTaskName, setNewTaskName] = useState('');
   const { 
     currentUser, 
     currentApartment, 
     cleaningTask, 
+    cleaningChecklist,
+    cleaningCompletions,
     markCleaned, 
-    initializeCleaning 
+    initializeCleaning,
+    addCleaningTask,
+    toggleCleaningTask,
+    checkOverdueTasks
   } = useStore();
 
-  // Initialize cleaning if not exists
-  React.useEffect(() => {
+  // Initialize cleaning if not exists and check for overdue tasks
+  useEffect(() => {
     if (currentApartment && currentApartment.members.length > 0 && !cleaningTask) {
       const userIds = currentApartment.members.map(member => member.id);
       initializeCleaning(userIds);
     }
-  }, [currentApartment, cleaningTask, initializeCleaning]);
+    
+    // Check for overdue tasks
+    checkOverdueTasks();
+  }, [currentApartment, cleaningTask, initializeCleaning, checkOverdueTasks]);
 
   const handleMarkCleaned = () => {
     if (!currentUser || !cleaningTask) return;
@@ -36,19 +46,66 @@ export default function CleaningScreen() {
       return;
     }
 
+    // Check if all tasks are completed
+    const currentTaskCompletions = cleaningCompletions.filter(
+      c => c.taskId === cleaningTask.id
+    );
+    const completedTasks = currentTaskCompletions.filter(c => c.completed);
+
+    if (completedTasks.length < cleaningChecklist.length) {
+      Alert.alert(
+        'משימות לא הושלמו',
+        'אנא השלם את כל המשימות לפני סיום הניקיון',
+        [{ text: 'הבנתי' }]
+      );
+      return;
+    }
+
     Alert.alert(
       'אישור ניקיון',
-      'האם באמת ניקית את הדירה?',
+      'האם באמת השלמת את כל משימות הניקיון?',
       [
         { text: 'ביטול', style: 'cancel' },
         { 
-          text: 'כן, ניקיתי!', 
+          text: 'כן, סיימתי!', 
           onPress: () => {
             markCleaned(currentUser.id);
           }
         }
       ]
     );
+  };
+
+  const handleAddTask = () => {
+    if (!newTaskName.trim()) return;
+    addCleaningTask(newTaskName.trim());
+    setNewTaskName('');
+  };
+
+  const handleToggleTask = (taskId: string, completed: boolean) => {
+    toggleCleaningTask(taskId, completed);
+  };
+
+  const getTaskCompletion = (taskId: string) => {
+    if (!cleaningTask) return false;
+    const completion = cleaningCompletions.find(
+      c => c.taskId === cleaningTask.id && c.checklistItemId === taskId
+    );
+    return completion?.completed || false;
+  };
+
+  const getCompletionPercentage = () => {
+    if (!cleaningTask) return 0;
+    const currentTaskCompletions = cleaningCompletions.filter(
+      c => c.taskId === cleaningTask.id
+    );
+    const completedTasks = currentTaskCompletions.filter(c => c.completed);
+    return Math.round((completedTasks.length / cleaningChecklist.length) * 100);
+  };
+
+  const isOverdue = () => {
+    if (!cleaningTask) return false;
+    return new Date() > new Date(cleaningTask.dueDate);
   };
 
   const getCurrentTurnUser = () => {
@@ -76,7 +133,15 @@ export default function CleaningScreen() {
       month: 'short',
       hour: '2-digit',
       minute: '2-digit'
-    }).format(date);
+    }).format(new Date(date));
+  };
+
+  const formatDueDate = (date: Date) => {
+    return new Intl.DateTimeFormat('he-IL', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short'
+    }).format(new Date(date));
   };
 
   const currentTurnUser = getCurrentTurnUser();
@@ -125,7 +190,7 @@ export default function CleaningScreen() {
             </Text>
             
             <View className={cn(
-              "px-4 py-2 rounded-full mb-4",
+              "px-4 py-2 rounded-full mb-2",
               isMyTurn ? "bg-blue-100" : "bg-gray-100"
             )}>
               <Text className={cn(
@@ -136,15 +201,41 @@ export default function CleaningScreen() {
               </Text>
             </View>
 
+            <Text className={cn(
+              "text-sm mb-4",
+              isOverdue() ? "text-red-600" : "text-gray-600"
+            )}>
+              עד {formatDueDate(cleaningTask.dueDate)}
+              {isOverdue() && ' (באיחור)'}
+            </Text>
+
             {isMyTurn && (
-              <Pressable
-                onPress={handleMarkCleaned}
-                className="bg-green-500 py-3 px-8 rounded-xl"
-              >
-                <Text className="text-white font-semibold text-lg">
-                  ניקיתי! ✨
+              <>
+                <Text className="text-sm text-gray-600 mb-2">
+                  התקדמות: {getCompletionPercentage()}%
                 </Text>
-              </Pressable>
+                <View className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                  <View 
+                    className="bg-blue-500 h-2 rounded-full" 
+                    style={{ width: `${getCompletionPercentage()}%` }}
+                  />
+                </View>
+                <Pressable
+                  onPress={handleMarkCleaned}
+                  className={cn(
+                    "py-3 px-8 rounded-xl",
+                    getCompletionPercentage() === 100 ? "bg-green-500" : "bg-gray-300"
+                  )}
+                  disabled={getCompletionPercentage() !== 100}
+                >
+                  <Text className={cn(
+                    "font-semibold text-lg text-center",
+                    getCompletionPercentage() === 100 ? "text-white" : "text-gray-500"
+                  )}>
+                    {getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות'}
+                  </Text>
+                </Pressable>
+              </>
             )}
           </View>
         </View>
@@ -168,6 +259,60 @@ export default function CleaningScreen() {
             </View>
           ))}
         </View>
+
+        {/* Cleaning Tasks */}
+        {isMyTurn && (
+          <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+            <Text className="text-lg font-semibold text-gray-900 mb-4">
+              רשימת משימות ניקיון
+            </Text>
+            
+            {cleaningChecklist.map((task) => {
+              const isCompleted = getTaskCompletion(task.id);
+              return (
+                <Pressable
+                  key={task.id}
+                  onPress={() => handleToggleTask(task.id, !isCompleted)}
+                  className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50"
+                >
+                  <View className={cn(
+                    "w-6 h-6 rounded border-2 items-center justify-center ml-3",
+                    isCompleted ? "bg-green-500 border-green-500" : "border-gray-300"
+                  )}>
+                    {isCompleted && (
+                      <Ionicons name="checkmark" size={16} color="white" />
+                    )}
+                  </View>
+                  <Text className={cn(
+                    "flex-1 text-base",
+                    isCompleted ? "text-gray-500 line-through" : "text-gray-900"
+                  )}>
+                    {task.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            
+            {/* Add new task */}
+            <View className="flex-row items-center mt-4">
+              <TextInput
+                value={newTaskName}
+                onChangeText={setNewTaskName}
+                placeholder="הוסף משימה חדשה..."
+                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+                textAlign="right"
+                onSubmitEditing={handleAddTask}
+                returnKeyType="done"
+              />
+              <Pressable
+                onPress={handleAddTask}
+                className="bg-blue-500 w-12 h-12 rounded-xl items-center justify-center mr-3"
+              >
+                <Ionicons name="add" size={24} color="white" />
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Last Cleaning Info */}
         {cleaningTask.lastCleaned && (
