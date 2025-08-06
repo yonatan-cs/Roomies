@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
-import * as Clipboard from '@expo/clipboard';
+import Clipboard from '@react-native-clipboard/clipboard';
 
 export default function SettingsScreen() {
   const { currentUser, currentApartment, setCurrentUser } = useStore();
@@ -36,7 +36,7 @@ export default function SettingsScreen() {
     if (!currentApartment?.code) return;
     
     try {
-      await Clipboard.setStringAsync(currentApartment.code);
+      Clipboard.setString(currentApartment.code);
       Alert.alert('הועתק!', 'קוד הדירה הועתק ללוח');
     } catch (error) {
       Alert.alert('שגיאה', 'לא ניתן להעתיק את הקוד');

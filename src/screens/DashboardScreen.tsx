@@ -106,11 +106,11 @@ export default function DashboardScreen() {
         </View>
 
         {/* Quick Stats Cards */}
-        <View className="grid grid-cols-2 gap-3 mb-6">
+        <View className="flex-row flex-wrap mb-6">
           {/* My Balance */}
           <Pressable
             onPress={() => navigation.navigate('Budget')}
-            className="bg-white p-4 rounded-2xl shadow-sm"
+            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3 mr-2"
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="wallet-outline" size={20} color="#6b7280" />
@@ -130,7 +130,7 @@ export default function DashboardScreen() {
           {/* Cleaning Turn */}
           <Pressable
             onPress={() => navigation.navigate('Cleaning')}
-            className="bg-white p-4 rounded-2xl shadow-sm"
+            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3"
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="brush-outline" size={20} color="#6b7280" />
@@ -150,7 +150,7 @@ export default function DashboardScreen() {
           {/* Shopping Items */}
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-white p-4 rounded-2xl shadow-sm"
+            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3 mr-2"
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="basket-outline" size={20} color="#6b7280" />
@@ -167,7 +167,7 @@ export default function DashboardScreen() {
           {/* Roommates */}
           <Pressable
             onPress={() => navigation.navigate('Settings')}
-            className="bg-white p-4 rounded-2xl shadow-sm"
+            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3"
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="people-outline" size={20} color="#6b7280" />
@@ -303,29 +303,29 @@ export default function DashboardScreen() {
             הייליטס של הדירה
           </Text>
           
-          <View className="grid grid-cols-2 gap-4">
-            <View className="items-center">
+          <View className="flex-row flex-wrap justify-between">
+            <View className="items-center w-[48%] mb-4">
               <Text className="text-2xl font-bold text-blue-600">
                 {formatCurrency(totalExpenses)}
               </Text>
               <Text className="text-sm text-gray-500">סך הוצאות</Text>
             </View>
 
-            <View className="items-center">
+            <View className="items-center w-[48%] mb-4">
               <Text className="text-2xl font-bold text-green-600">
                 {cleaningCount}
               </Text>
               <Text className="text-sm text-gray-500">ניקיונות</Text>
             </View>
 
-            <View className="items-center">
+            <View className="items-center w-[48%]">
               <Text className="text-2xl font-bold text-orange-600">
                 {purchasedItemsCount}
               </Text>
               <Text className="text-sm text-gray-500">קניות</Text>
             </View>
 
-            <View className="items-center">
+            <View className="items-center w-[48%]">
               <Text className="text-2xl font-bold text-purple-600">
                 {formatCurrency(monthlyExpenses)}
               </Text>
