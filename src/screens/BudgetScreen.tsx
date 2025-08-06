@@ -324,7 +324,7 @@ export default function BudgetScreen() {
               <Text className="text-gray-700 text-lg mr-3">₪</Text>
             </View>
 
-            <View className="flex-row space-x-3">
+            <View className="flex-row">
               <Pressable
                 onPress={() => {
                   setShowSettlementModal(false);
