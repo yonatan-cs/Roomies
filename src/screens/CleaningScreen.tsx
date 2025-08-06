@@ -104,8 +104,14 @@ export default function CleaningScreen() {
   };
 
   const isOverdue = () => {
-    if (!cleaningTask) return false;
-    return new Date() > new Date(cleaningTask.dueDate);
+    if (!cleaningTask || !cleaningTask.dueDate) return false;
+    try {
+      const dueDate = new Date(cleaningTask.dueDate);
+      if (isNaN(dueDate.getTime())) return false;
+      return new Date() > dueDate;
+    } catch (error) {
+      return false;
+    }
   };
 
   const getCurrentTurnUser = () => {
@@ -127,21 +133,37 @@ export default function CleaningScreen() {
     return nextUsers;
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('he-IL', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date));
+  const formatDate = (date: Date | string) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) {
+        return 'תאריך לא תקין';
+      }
+      return new Intl.DateTimeFormat('he-IL', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(dateObj);
+    } catch (error) {
+      return 'תאריך לא תקין';
+    }
   };
 
-  const formatDueDate = (date: Date) => {
-    return new Intl.DateTimeFormat('he-IL', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'short'
-    }).format(new Date(date));
+  const formatDueDate = (date: Date | string) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) {
+        return 'תאריך לא תקין';
+      }
+      return new Intl.DateTimeFormat('he-IL', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short'
+      }).format(dateObj);
+    } catch (error) {
+      return 'תאריך לא תקין';
+    }
   };
 
   const currentTurnUser = getCurrentTurnUser();
@@ -201,13 +223,15 @@ export default function CleaningScreen() {
               </Text>
             </View>
 
-            <Text className={cn(
-              "text-sm mb-4",
-              isOverdue() ? "text-red-600" : "text-gray-600"
-            )}>
-              עד {formatDueDate(cleaningTask.dueDate)}
-              {isOverdue() && ' (באיחור)'}
-            </Text>
+            {cleaningTask.dueDate && (
+              <Text className={cn(
+                "text-sm mb-4",
+                isOverdue() ? "text-red-600" : "text-gray-600"
+              )}>
+                עד {formatDueDate(cleaningTask.dueDate)}
+                {isOverdue() && ' (באיחור)'}
+              </Text>
+            )}
 
             {isMyTurn && (
               <>

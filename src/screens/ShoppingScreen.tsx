@@ -91,13 +91,21 @@ export default function ShoppingScreen() {
     setPurchasePrice('');
   };
 
-  const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat('he-IL', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(date));
+  const formatDate = (date: Date | string) => {
+    try {
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(dateObj.getTime())) {
+        return 'תאריך לא תקין';
+      }
+      return new Intl.DateTimeFormat('he-IL', {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(dateObj);
+    } catch (error) {
+      return 'תאריך לא תקין';
+    }
   };
 
   const getUserName = (userId: string) => {
