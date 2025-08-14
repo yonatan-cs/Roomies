@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   Pressable,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -13,68 +12,40 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
-import { cn } from '../utils/cn';
 
 export default function WelcomeScreen() {
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [apartmentName, setApartmentName] = useState('');
   const [userName, setUserName] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [roommateNames, setRoommateNames] = useState(['']);
+  const [error, setError] = useState<string | null>(null);
 
-  const { setCurrentUser, createApartment, joinApartment, initializeCleaning } = useStore();
+  const { setCurrentUser, createApartment, joinApartment } = useStore();
 
   const handleCreateApartment = () => {
+    setError(null);
     if (!apartmentName.trim() || !userName.trim()) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות');
-      return;
-    }
-
-    const validRoommates = roommateNames.filter(name => name.trim());
-    if (validRoommates.length === 0) {
-      Alert.alert('שגיאה', 'הוסף לפחות שותף אחד');
+      setError('אנא מלא את כל השדות');
       return;
     }
 
     // Create user
     const userId = Date.now().toString();
-    const user = {
-      id: userId,
-      name: userName.trim(),
-    };
+    const user = { id: userId, name: userName.trim() };
     setCurrentUser(user);
 
-    // Create apartment
+    // Create apartment with only creator; rotation will initialize on first visit to Cleaning
     createApartment(apartmentName.trim());
-
-    // Initialize cleaning rotation
-    const allUserIds = [userId, ...validRoommates.map((_, index) => `roommate_${index + 1}`)];
-    initializeCleaning(allUserIds);
   };
 
   const handleJoinApartment = () => {
+    setError(null);
     if (!userName.trim() || !joinCode.trim()) {
-      Alert.alert('שגיאה', 'אנא מלא את כל השדות');
+      setError('אנא מלא את כל השדות');
       return;
     }
 
     joinApartment(joinCode.trim().toUpperCase(), userName.trim());
-  };
-
-  const addRoommateField = () => {
-    setRoommateNames([...roommateNames, '']);
-  };
-
-  const updateRoommateName = (index: number, name: string) => {
-    const updated = [...roommateNames];
-    updated[index] = name;
-    setRoommateNames(updated);
-  };
-
-  const removeRoommateField = (index: number) => {
-    if (roommateNames.length > 1) {
-      setRoommateNames(roommateNames.filter((_, i) => i !== index));
-    }
   };
 
   if (mode === 'select') {
@@ -96,7 +67,7 @@ export default function WelcomeScreen() {
               onPress={() => setMode('create')}
               className="bg-blue-500 py-4 px-6 rounded-xl flex-row items-center justify-center"
             >
-              <Ionicons name="add-circle-outline" size={24} color="white" className="mr-2" />
+              <Ionicons name="add-circle-outline" size={24} color="white" />
               <Text className="text-white text-lg font-semibold mr-2">יצירת דירה חדשה</Text>
             </Pressable>
 
@@ -104,7 +75,7 @@ export default function WelcomeScreen() {
               onPress={() => setMode('join')}
               className="bg-gray-100 py-4 px-6 rounded-xl flex-row items-center justify-center"
             >
-              <Ionicons name="people-outline" size={24} color="#007AFF" className="mr-2" />
+              <Ionicons name="people-outline" size={24} color="#007AFF" />
               <Text className="text-blue-500 text-lg font-semibold mr-2">הצטרפות לדירה קיימת</Text>
             </Pressable>
           </View>
@@ -114,17 +85,14 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
-      className="flex-1 bg-white" 
+    <KeyboardAvoidingView
+      className="flex-1 bg-white"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView className="flex-1 px-6">
           <View className="pt-16 pb-8">
-            <Pressable
-              onPress={() => setMode('select')}
-              className="flex-row items-center mb-6"
-            >
+            <Pressable onPress={() => setMode('select')} className="flex-row items-center mb-6">
               <Ionicons name="arrow-back" size={24} color="#007AFF" />
               <Text className="text-blue-500 text-lg mr-2">חזור</Text>
             </Pressable>
@@ -146,48 +114,16 @@ export default function WelcomeScreen() {
               </View>
 
               {mode === 'create' && (
-                <>
-                  <View>
-                    <Text className="text-gray-700 text-base mb-2">שם הדירה</Text>
-                    <TextInput
-                      value={apartmentName}
-                      onChangeText={setApartmentName}
-                      placeholder="דירת השותפים שלנו"
-                      className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                      textAlign="right"
-                    />
-                  </View>
-
-                  <View>
-                    <Text className="text-gray-700 text-base mb-2">שותפים בדירה</Text>
-                    {roommateNames.map((name, index) => (
-                      <View key={index} className="flex-row items-center mb-2">
-                        <TextInput
-                          value={name}
-                          onChangeText={(text) => updateRoommateName(index, text)}
-                          placeholder={`שותף ${index + 1}`}
-                          className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base mr-2"
-                          textAlign="right"
-                        />
-                        {roommateNames.length > 1 && (
-                          <Pressable
-                            onPress={() => removeRoommateField(index)}
-                            className="p-2"
-                          >
-                            <Ionicons name="remove-circle-outline" size={24} color="#ef4444" />
-                          </Pressable>
-                        )}
-                      </View>
-                    ))}
-                    <Pressable
-                      onPress={addRoommateField}
-                      className="flex-row items-center justify-center py-3 border-2 border-dashed border-gray-300 rounded-xl"
-                    >
-                      <Ionicons name="add" size={20} color="#6b7280" />
-                      <Text className="text-gray-500 mr-2">הוסף שותף</Text>
-                    </Pressable>
-                  </View>
-                </>
+                <View>
+                  <Text className="text-gray-700 text-base mb-2">שם הדירה</Text>
+                  <TextInput
+                    value={apartmentName}
+                    onChangeText={setApartmentName}
+                    placeholder="דירת השותפים שלנו"
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                    textAlign="right"
+                  />
+                </View>
               )}
 
               {mode === 'join' && (
@@ -205,6 +141,10 @@ export default function WelcomeScreen() {
                 </View>
               )}
             </View>
+
+            {error && (
+              <Text className="text-red-600 text-center mt-4">{error}</Text>
+            )}
 
             <Pressable
               onPress={mode === 'create' ? handleCreateApartment : handleJoinApartment}

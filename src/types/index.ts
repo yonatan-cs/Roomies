@@ -13,6 +13,13 @@ export interface Apartment {
   createdAt: Date;
 }
 
+export interface CleaningSettings {
+  intervalDays: number; // length of one cleaning period
+  anchorDow: number; // 0=Sun .. 6=Sat, period flips on this weekday
+  preferredDayByUser: { [userId: string]: number | undefined }; // optional preferred day per user
+  cycleStartAt?: Date; // optional anchor for custom cycles
+}
+
 export interface CleaningTask {
   id: string;
   currentTurn: string; // user id
@@ -57,7 +64,7 @@ export interface Expense {
   description?: string;
 }
 
-export type ExpenseCategory = 
+export type ExpenseCategory =
   | 'groceries'
   | 'utilities'
   | 'rent'
