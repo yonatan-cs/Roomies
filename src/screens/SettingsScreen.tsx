@@ -1,83 +1,65 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  Alert,
-  Share
-} from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import Clipboard from '@react-native-clipboard/clipboard';
+import ConfirmModal from '../components/ConfirmModal';
+
+const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export default function SettingsScreen() {
-  const { currentUser, currentApartment, setCurrentUser } = useStore();
+  const {
+    currentUser,
+    currentApartment,
+    setCurrentUser,
+    cleaningSettings,
+    setCleaningIntervalDays,
+    setCleaningAnchorDow,
+    setPreferredDay,
+    cleaningChecklist,
+    addCleaningTask,
+    renameCleaningTask,
+    removeCleaningTask,
+  } = useStore();
+
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(currentUser?.name || '');
+  const [copied, setCopied] = useState(false);
+  const [confirmLeaveVisible, setConfirmLeaveVisible] = useState(false);
+
+  const [newChore, setNewChore] = useState('');
+  const [editingChoreId, setEditingChoreId] = useState<string | null>(null);
+  const [editingChoreName, setEditingChoreName] = useState('');
 
   const handleSaveName = () => {
-    if (!newName.trim()) {
-      Alert.alert('שגיאה', 'השם לא יכול להיות ריק');
-      return;
-    }
-
-    if (currentUser) {
-      setCurrentUser({
-        ...currentUser,
-        name: newName.trim()
-      });
-    }
+    if (!newName.trim() || !currentUser) return;
+    setCurrentUser({ ...currentUser, name: newName.trim() });
     setEditingName(false);
   };
 
   const handleCopyCode = async () => {
     if (!currentApartment?.code) return;
-    
     try {
       Clipboard.setString(currentApartment.code);
-      Alert.alert('הועתק!', 'קוד הדירה הועתק ללוח');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן להעתיק את הקוד');
+      setCopied(false);
     }
   };
 
   const handleShareCode = async () => {
     if (!currentApartment) return;
-
     try {
       await Share.share({
         message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.code}`,
-        title: 'הצטרפות לדירת שותפים'
+        title: 'הצטרפות לדירת שותפים',
       });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
+    } catch (error) {}
   };
 
   const handleLeaveApartment = () => {
-    Alert.alert(
-      'עזיבת דירה',
-      'האם אתה בטוח שברצונך לעזוב את הדירה? פעולה זו אינה ניתנת לביטול.',
-      [
-        { text: 'ביטול', style: 'cancel' },
-        {
-          text: 'כן, עזוב דירה',
-          style: 'destructive',
-          onPress: () => {
-            // In a real app, this would call an API to remove the user from the apartment
-            // For now, we'll just reset the current apartment
-            useStore.setState({ 
-              currentApartment: undefined,
-              cleaningTask: undefined,
-              expenses: [],
-              shoppingItems: []
-            });
-          }
-        }
-      ]
-    );
+    setConfirmLeaveVisible(true);
   };
 
   if (!currentUser || !currentApartment) {
@@ -91,51 +73,36 @@ export default function SettingsScreen() {
   return (
     <View className="flex-1 bg-gray-50">
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 text-center">
-          הגדרות
-        </Text>
+        <Text className="text-2xl font-bold text-gray-900 text-center">הגדרות</Text>
       </View>
 
       <ScrollView className="flex-1 px-6 py-6">
         {/* Apartment Details */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            פרטי הדירה
-          </Text>
-          
-          <View className="mb-4">
-            <Text className="text-gray-600 text-sm mb-1">שם הדירה</Text>
-            <Text className="text-gray-900 text-lg font-medium">
-              {currentApartment.name}
-            </Text>
-          </View>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">פרטי הדירה</Text>
 
           <View className="mb-4">
+            <Text className="text-gray-600 text-sm mb-1">שם הדירה</Text>
+            <Text className="text-gray-900 text-lg font-medium">{currentApartment.name}</Text>
+          </View>
+
+          <View className="mb-1">
             <Text className="text-gray-600 text-sm mb-1">קוד הצטרפות</Text>
             <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
-              <Text className="text-gray-900 text-lg font-mono font-bold">
-                {currentApartment.code}
-              </Text>
+              <Text className="text-gray-900 text-lg font-mono font-bold">{currentApartment.code}</Text>
               <View className="flex-row">
-                <Pressable
-                  onPress={handleCopyCode}
-                  className="bg-blue-100 p-2 rounded-lg ml-2"
-                >
+                <Pressable onPress={handleCopyCode} className="bg-blue-100 p-2 rounded-lg ml-2">
                   <Ionicons name="copy-outline" size={20} color="#007AFF" />
                 </Pressable>
-                <Pressable
-                  onPress={handleShareCode}
-                  className="bg-green-100 p-2 rounded-lg"
-                >
+                <Pressable onPress={handleShareCode} className="bg-green-100 p-2 rounded-lg">
                   <Ionicons name="share-outline" size={20} color="#10b981" />
                 </Pressable>
               </View>
             </View>
           </View>
+          {copied && <Text className="text-xs text-green-600 mt-1">הקוד הועתק ללוח</Text>}
 
-          <Text className="text-xs text-gray-500">
-            שתף את הקוד עם שותפים חדשים כדי שיוכלו להצטרף לדירה
-          </Text>
+          <Text className="text-xs text-gray-500 mt-2">שתף את הקוד עם שותפים חדשים כדי שיוכלו להצטרף לדירה</Text>
         </View>
 
         {/* Roommates */}
@@ -143,21 +110,34 @@ export default function SettingsScreen() {
           <Text className="text-lg font-semibold text-gray-900 mb-4">
             שותפים בדירה ({currentApartment.members.length})
           </Text>
-          
           {currentApartment.members.map((member) => (
-            <View key={member.id} className="flex-row items-center py-3">
-              <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
-                <Text className="text-blue-700 font-semibold text-lg">
-                  {member.name.charAt(0)}
-                </Text>
+            <View key={member.id} className="mb-4">
+              <View className="flex-row items-center">
+                <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
+                  <Text className="text-blue-700 font-semibold text-lg">{member.name.charAt(0)}</Text>
+                </View>
+                <View className="mr-3 flex-1">
+                  <Text className="text-gray-900 font-medium">
+                    {member.name} {member.id === currentUser.id && '(אתה)'}
+                  </Text>
+                  <Text className="text-gray-500 text-sm">{member.email || 'אין אימייל'}</Text>
+                </View>
               </View>
-              <View className="mr-3 flex-1">
-                <Text className="text-gray-900 font-medium">
-                  {member.name} {member.id === currentUser.id && '(אתה)'}
-                </Text>
-                <Text className="text-gray-500 text-sm">
-                  {member.email || 'אין אימייל'}
-                </Text>
+
+              {/* Preferred day selector */}
+              <View className="flex-row mt-2">
+                {HEBREW_DAYS.map((d, idx) => {
+                  const selected = cleaningSettings.preferredDayByUser[member.id] === idx;
+                  return (
+                    <Pressable
+                      key={`${member.id}-${idx}`}
+                      onPress={() => setPreferredDay(member.id, idx)}
+                      className={"px-2 py-1 rounded-lg mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
+                    >
+                      <Text className={selected ? 'text-white text-xs' : 'text-gray-700 text-xs'}>{d}</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
           ))}
@@ -165,10 +145,7 @@ export default function SettingsScreen() {
 
         {/* My Profile */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            הפרופיל שלי
-          </Text>
-          
+          <Text className="text-lg font-semibold text-gray-900 mb-4">הפרופיל שלי</Text>
           <View className="mb-4">
             <Text className="text-gray-600 text-sm mb-2">שם מלא</Text>
             {editingName ? (
@@ -181,11 +158,8 @@ export default function SettingsScreen() {
                   autoFocus
                 />
                 <View className="flex-row mr-3">
-                  <Pressable
-                    onPress={handleSaveName}
-                    className="bg-green-100 p-2 rounded-lg ml-2"
-                  >
-                    <Ionicons name="checkmark" size={20} color="#10b981" />
+                  <Pressable onPress={handleSaveName} className={"p-2 rounded-lg ml-2 " + (newName.trim() ? 'bg-green-100' : 'bg-gray-100')}>
+                    <Ionicons name="checkmark" size={20} color={newName.trim() ? '#10b981' : '#9ca3af'} />
                   </Pressable>
                   <Pressable
                     onPress={() => {
@@ -199,13 +173,8 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <Pressable
-                onPress={() => setEditingName(true)}
-                className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl"
-              >
-                <Text className="text-gray-900 text-base">
-                  {currentUser.name}
-                </Text>
+              <Pressable onPress={() => setEditingName(true)} className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
+                <Text className="text-gray-900 text-base">{currentUser.name}</Text>
                 <Ionicons name="pencil-outline" size={20} color="#6b7280" />
               </Pressable>
             )}
@@ -213,32 +182,161 @@ export default function SettingsScreen() {
 
           <View className="mb-4">
             <Text className="text-gray-600 text-sm mb-1">אימייל</Text>
-            <Text className="text-gray-500">
-              {currentUser.email || 'לא מוגדר'}
-            </Text>
+            <Text className="text-gray-500">{currentUser.email || 'לא מוגדר'}</Text>
+          </View>
+        </View>
+
+        {/* Cleaning Schedule */}
+        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+          <Text className="text-lg font-semibold text-gray-900 mb-4">סבב ניקיון</Text>
+
+          <Text className="text-gray-700 mb-2">תדירות</Text>
+          <View className="flex-row mb-4">
+            {[7, 14, 30].map((days) => {
+              const selected = cleaningSettings.intervalDays === days;
+              const label = days === 7 ? 'שבועי' : days === 14 ? 'דו שבועי' : 'חודשי';
+              return (
+                <Pressable
+                  key={days}
+                  onPress={() => setCleaningIntervalDays(days)}
+                  className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
+                >
+                  <Text className={selected ? 'text-white' : 'text-gray-700'}>{label}</Text>
+                </Pressable>
+              );
+            })}
+            {/* Custom days input could be added later */}
+          </View>
+
+          <Text className="text-gray-700 mb-2">יום התחלפות (ברירת מחדל ראשון)</Text>
+          <View className="flex-row flex-wrap">
+            {HEBREW_DAYS.map((d, idx) => {
+              const selected = cleaningSettings.anchorDow === idx;
+              return (
+                <Pressable
+                  key={idx}
+                  onPress={() => setCleaningAnchorDow(idx)}
+                  className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
+                >
+                  <Text className={selected ? 'text-white' : 'text-gray-700'}>{d}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Cleaning Chores */}
+        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+          <Text className="text-lg font-semibold text-gray-900 mb-4">משימות ניקיון</Text>
+          {cleaningChecklist.map((task) => {
+            const isEditing = editingChoreId === task.id;
+            return (
+              <View key={task.id} className="flex-row items-center py-2">
+                {isEditing ? (
+                  <TextInput
+                    value={editingChoreName}
+                    onChangeText={setEditingChoreName}
+                    className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-base"
+                    textAlign="right"
+                    onSubmitEditing={() => {
+                      if (editingChoreName.trim()) {
+                        renameCleaningTask(task.id, editingChoreName.trim());
+                        setEditingChoreId(null);
+                        setEditingChoreName('');
+                      } else {
+                        setEditingChoreId(null);
+                      }
+                    }}
+                  />
+                ) : (
+                  <Text className="flex-1 text-base text-gray-900">{task.name}</Text>
+                )}
+                {!isEditing ? (
+                  <View className="flex-row ml-2">
+                    <Pressable
+                      onPress={() => {
+                        setEditingChoreId(task.id);
+                        setEditingChoreName(task.name);
+                      }}
+                      className="p-2"
+                    >
+                      <Ionicons name="pencil" size={18} color="#6b7280" />
+                    </Pressable>
+                    <Pressable onPress={() => removeCleaningTask(task.id)} className="p-2">
+                      <Ionicons name="trash" size={18} color="#ef4444" />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => {
+                      setEditingChoreId(null);
+                      setEditingChoreName('');
+                    }}
+                    className="p-2 ml-2"
+                  >
+                    <Ionicons name="close" size={18} color="#ef4444" />
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+
+          <View className="flex-row items-center mt-4">
+            <TextInput
+              value={newChore}
+              onChangeText={setNewChore}
+              placeholder="הוסף משימה חדשה..."
+              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+              textAlign="right"
+              onSubmitEditing={() => {
+                if (!newChore.trim()) return;
+                addCleaningTask(newChore.trim());
+                setNewChore('');
+              }}
+              returnKeyType="done"
+            />
+            <Pressable
+              onPress={() => {
+                if (!newChore.trim()) return;
+                addCleaningTask(newChore.trim());
+                setNewChore('');
+              }}
+              className="bg-blue-500 w-12 h-12 rounded-xl items-center justify-center mr-3"
+            >
+              <Ionicons name="add" size={24} color="white" />
+            </Pressable>
           </View>
         </View>
 
         {/* Danger Zone */}
         <View className="bg-white rounded-2xl p-6 shadow-sm border-2 border-red-100">
-          <Text className="text-lg font-semibold text-red-600 mb-4">
-            אזור סכנה
-          </Text>
-          
-          <Pressable
-            onPress={handleLeaveApartment}
-            className="bg-red-500 py-3 px-6 rounded-xl"
-          >
-            <Text className="text-white font-semibold text-center">
-              עזיבת הדירה
-            </Text>
+          <Text className="text-lg font-semibold text-red-600 mb-4">אזור סכנה</Text>
+          <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
+            <Text className="text-white font-semibold text-center">עזיבת הדירה</Text>
           </Pressable>
-          
-          <Text className="text-xs text-gray-500 text-center mt-2">
-            פעולה זו תסיר אותך מהדירה ותמחק את כל הנתונים המקומיים
-          </Text>
+          <Text className="text-xs text-gray-500 text-center mt-2">פעולה זו תסיר אותך מהדירה ותמחק את כל הנתונים המקומיים</Text>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={confirmLeaveVisible}
+        title="עזיבת דירה"
+        message="האם אתה בטוח שברצונך לעזוב את הדירה? פעולה זו אינה ניתנת לביטול."
+        confirmText="כן, עזוב דירה"
+        cancelText="ביטול"
+        onConfirm={() => {
+          // reset local state for apartment-scope data
+          useStore.setState({
+            currentApartment: undefined,
+            cleaningTask: undefined,
+            expenses: [],
+            shoppingItems: [],
+            cleaningCompletions: [],
+          });
+          setConfirmLeaveVisible(false);
+        }}
+        onCancel={() => setConfirmLeaveVisible(false)}
+      />
     </View>
   );
 }
