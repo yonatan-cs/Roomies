@@ -854,10 +854,37 @@ export class FirestoreService {
       const membershipResult = await this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
       console.log('✅ Membership record created');
       
-      // Update user's current_apartment_id
+      // Update user's current_apartment_id with a short retry in case rules check races the membership propagation
       console.log('👤 Updating user profile with apartment ID...');
-      await this.updateUser(userId, { current_apartment_id: apartmentId });
-      console.log('✅ User profile updated');
+      {
+        const maxUpdateAttempts = 5;
+        let attempt = 0;
+        let updated = false;
+        let lastError: any = null;
+        while (attempt < maxUpdateAttempts && !updated) {
+          try {
+            await this.updateUser(userId, { current_apartment_id: apartmentId });
+            updated = true;
+            console.log('✅ User profile updated');
+          } catch (e: any) {
+            lastError = e;
+            const message = String(e?.message || e || '');
+            // Only retry on permission errors that may be due to immediate consistency on rules exists()
+            if (message.includes('Missing or insufficient permissions')) {
+              attempt++;
+              console.warn(`⚠️ Update permission not ready (attempt ${attempt}/${maxUpdateAttempts}). Retrying shortly...`);
+              await new Promise(r => setTimeout(r, 150 * attempt));
+              continue;
+            }
+            // Non-retryable
+            throw e;
+          }
+        }
+        if (!updated) {
+          console.error('❌ Failed to update user after retries:', lastError);
+          throw lastError;
+        }
+      }
       
       return membershipResult;
     } catch (error) {
