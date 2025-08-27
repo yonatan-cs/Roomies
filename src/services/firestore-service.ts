@@ -613,6 +613,19 @@ export class FirestoreService {
     name: string;
     description?: string;
   }): Promise<any> {
+    // First check if user is already in an apartment
+    const currentUser = await firebaseAuth.getCurrentUser();
+    if (!currentUser) {
+      throw new Error('User not authenticated');
+    }
+
+    console.log('🏠 Checking if user already has an apartment...');
+    const existingApartment = await this.getUserCurrentApartment(currentUser.localId);
+    if (existingApartment) {
+      console.log('⚠️ User already has an apartment:', existingApartment.name);
+      throw new Error('You are already a member of an apartment. Leave your current apartment before creating a new one.');
+    }
+
     const maxAttempts = 10;
     let attempts = 0;
 
@@ -653,9 +666,16 @@ export class FirestoreService {
             try {
               await this.joinApartment(apartment.id, currentUser.localId);
               console.log('✅ Creator added as apartment member');
-            } catch (memberError) {
+            } catch (memberError: any) {
               console.error('⚠️ Failed to add creator as member:', memberError);
-              // Don't fail the apartment creation for this
+              // If user is already a member, that's fine
+              if (!memberError.message.includes('Document already exists')) {
+                console.error('💥 Unexpected error adding creator as member');
+                // For other errors, we might want to fail the apartment creation
+                throw memberError;
+              } else {
+                console.log('✅ Creator was already a member - continuing');
+              }
             }
           }
           
@@ -805,8 +825,26 @@ export class FirestoreService {
       if (!currentUser || currentUser.localId !== userId) {
         throw new Error('User can only add themselves to apartments');
       }
+
+      // Check if user is already a member of another apartment
+      const existingApartment = await this.getUserCurrentApartment(userId);
+      if (existingApartment && existingApartment.id !== apartmentId) {
+        throw new Error('User is already a member of another apartment');
+      }
       
       const memberId = `${apartmentId}_${userId}`;
+      
+      // Check if membership already exists
+      try {
+        const existingMembership = await this.getDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
+        if (existingMembership) {
+          console.log('✅ User is already a member of this apartment');
+          return existingMembership;
+        }
+      } catch (error) {
+        // Document doesn't exist, continue with creation
+      }
+      
       const memberData = {
         apartment_id: apartmentId,
         user_id: userId,

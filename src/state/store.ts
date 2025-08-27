@@ -389,8 +389,18 @@ export const useStore = create<AppState>()(
 
         const balances: { [userId: string]: Balance } = {};
 
-        // Initialize balances
+        // Initialize balances - with safety check
+        if (!currentApartment.members || currentApartment.members.length === 0) {
+          console.warn('⚠️ No apartment members found for balance calculation');
+          return [];
+        }
+
         currentApartment.members.forEach((member) => {
+          if (!member || !member.id) {
+            console.warn('⚠️ Invalid member object found:', member);
+            return;
+          }
+          
           balances[member.id] = {
             userId: member.id,
             owes: {},
