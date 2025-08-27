@@ -38,13 +38,17 @@ export default function WelcomeScreen() {
 
   const checkUserSession = async () => {
     try {
+      console.log('Checking user session...');
       const authUser = await firebaseAuth.restoreUserSession();
       if (authUser) {
+        console.log('Auth user found, getting user data...');
         // Get user data from Firestore
         const userData = await firestoreService.getUser(authUser.localId);
         if (userData) {
+          console.log('User data found, getting current apartment...');
           // Get user's current apartment based on membership
           const currentApartment = await firestoreService.getUserCurrentApartment(authUser.localId);
+          console.log('Current apartment from Firestore:', currentApartment);
           
           const user = {
             id: authUser.localId,
@@ -57,6 +61,12 @@ export default function WelcomeScreen() {
           
           // If user has apartment, set it in local state
           if (currentApartment) {
+            console.log('Setting apartment in local state:', {
+              id: currentApartment.id,
+              name: currentApartment.name,
+              invite_code: currentApartment.invite_code,
+            });
+            
             // Update local apartment state
             useStore.setState({
               currentApartment: {
@@ -128,7 +138,16 @@ export default function WelcomeScreen() {
       setCurrentUser(updatedUser);
       
       // Create apartment object for local state
-      createApartment(apartmentName.trim());
+      const localApartment = {
+        id: apartment.id,
+        name: apartment.name,
+        invite_code: apartment.invite_code,
+        members: [updatedUser], // Add current user as member
+        createdAt: new Date(),
+      };
+      
+      console.log('Setting local apartment:', localApartment);
+      useStore.setState({ currentApartment: localApartment });
       
       console.log('Apartment creation completed successfully');
       
@@ -170,8 +189,17 @@ export default function WelcomeScreen() {
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
       setCurrentUser(updatedUser);
       
-      // Update local apartment state
-      joinApartment(joinCode.trim().toUpperCase(), currentUser.name);
+      // Create apartment object for local state
+      const localApartment = {
+        id: apartment.id,
+        name: apartment.name,
+        invite_code: apartment.invite_code,
+        members: [updatedUser], // Will be loaded properly later
+        createdAt: new Date(),
+      };
+      
+      console.log('Setting local apartment after join:', localApartment);
+      useStore.setState({ currentApartment: localApartment });
       
     } catch (error: any) {
       console.error('Join apartment error:', error);

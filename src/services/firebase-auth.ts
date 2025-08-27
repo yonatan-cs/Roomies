@@ -288,9 +288,16 @@ export class FirebaseAuthService {
    */
   async restoreUserSession(): Promise<AuthUser | null> {
     try {
+      console.log('Attempting to restore user session...');
       const idToken = await this.getCurrentIdToken();
       const userId = await SecureStore.getItemAsync(STORAGE_KEYS.USER_ID);
       const userEmail = await SecureStore.getItemAsync(STORAGE_KEYS.USER_EMAIL);
+
+      console.log('Session restoration check:', {
+        hasIdToken: !!idToken,
+        hasUserId: !!userId,
+        hasUserEmail: !!userEmail
+      });
 
       if (idToken && userId && userEmail) {
         const refreshToken = await SecureStore.getItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
@@ -303,9 +310,11 @@ export class FirebaseAuthService {
           expiresIn: '3600', // Default 1 hour
         };
 
+        console.log('User session restored successfully');
         return this.currentUser;
       }
 
+      console.log('No valid session found');
       return null;
     } catch (error) {
       console.error('Restore session error:', error);

@@ -461,6 +461,13 @@ export class FirestoreService {
    */
   async getUserCurrentApartment(userId: string): Promise<any | null> {
     try {
+      // Check if user is authenticated first
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (!idToken) {
+        console.log('No authentication token, skipping apartment lookup');
+        return null;
+      }
+
       // Get all apartment members and filter by user
       const allMembers = await this.getCollection(COLLECTIONS.APARTMENT_MEMBERS);
       const userMembership = allMembers.find(member => member.user_id === userId);
