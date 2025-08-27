@@ -405,14 +405,42 @@ export class FirestoreService {
   }
 
   /**
-   * Apartment management
+   * Apartment management - Now using Cloud Functions for secure creation
    */
   async createApartment(apartmentData: {
     name: string;
     description?: string;
-    invite_code: string;
   }): Promise<any> {
-    return this.createDocument(COLLECTIONS.APARTMENTS, apartmentData);
+    try {
+      console.log('Creating apartment via Cloud Function...');
+      
+      // Call Cloud Function for secure apartment creation
+      const response = await fetch(`https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/createApartmentWithInvite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await firebaseAuth.getCurrentIdToken()}`,
+        },
+        body: JSON.stringify({
+          data: {
+            name: apartmentData.name,
+            description: apartmentData.description || '',
+          }
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Failed to create apartment');
+      }
+
+      console.log('Apartment created successfully via Cloud Function:', result.result);
+      return result.result.apartment;
+    } catch (error) {
+      console.error('Create apartment error:', error);
+      throw error;
+    }
   }
 
   async getApartment(apartmentId: string): Promise<any | null> {
@@ -421,14 +449,51 @@ export class FirestoreService {
 
   async getApartmentByInviteCode(inviteCode: string): Promise<any | null> {
     try {
-      // Get all apartments and filter by invite code
-      // This is less efficient but more reliable than structured queries
-      const apartments = await this.getCollection(COLLECTIONS.APARTMENTS);
-      const foundApartment = apartments.find(apt => apt.invite_code === inviteCode);
-      return foundApartment || null;
+      console.log('Searching for apartment with invite code:', inviteCode);
+      
+      // Look up the invite record first (this should be publicly readable)
+      const inviteRecord = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, inviteCode);
+      console.log('Invite record found:', !!inviteRecord);
+      
+      if (!inviteRecord) {
+        console.log('No invite record found for code:', inviteCode);
+        return null;
+      }
+      
+      console.log('Invite record details:', inviteRecord);
+      
+      // Now get the actual apartment using the apartment_id from the invite record
+      const apartment = await this.getApartment(inviteRecord.apartment_id);
+      console.log('Apartment found via invite lookup:', !!apartment);
+      
+      if (apartment) {
+        // Ensure the invite code matches (double check)
+        if (apartment.invite_code === inviteCode) {
+          return apartment;
+        } else {
+          console.warn('Invite code mismatch in apartment document');
+          return null;
+        }
+      }
+      
+      return null;
     } catch (error) {
       console.error('Get apartment by invite code error:', error);
-      return null;
+      
+      // Fallback: try the old method if the new structure doesn't exist yet
+      try {
+        console.log('Falling back to collection scan method...');
+        const apartments = await this.getCollection(COLLECTIONS.APARTMENTS);
+        console.log('Retrieved apartments via fallback:', apartments.length);
+        
+        const foundApartment = apartments.find(apt => apt.invite_code === inviteCode);
+        console.log('Found apartment via fallback:', foundApartment ? 'YES' : 'NO');
+        
+        return foundApartment || null;
+      } catch (fallbackError) {
+        console.error('Fallback method also failed:', fallbackError);
+        return null;
+      }
     }
   }
 
@@ -436,6 +501,8 @@ export class FirestoreService {
    * Apartment members management
    */
   async joinApartment(apartmentId: string, userId: string): Promise<any> {
+    // This method is now deprecated in favor of joinApartmentByInviteCode
+    // Keeping for backward compatibility
     const memberId = `${apartmentId}_${userId}`;
     const memberData = {
       apartment_id: apartmentId,
@@ -445,6 +512,41 @@ export class FirestoreService {
     };
     
     return this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
+  }
+
+  /**
+   * Join apartment using invite code via Cloud Function
+   */
+  async joinApartmentByInviteCode(inviteCode: string): Promise<any> {
+    try {
+      console.log('Joining apartment via Cloud Function with code:', inviteCode);
+      
+      // Call Cloud Function for secure apartment joining
+      const response = await fetch(`https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/joinApartment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await firebaseAuth.getCurrentIdToken()}`,
+        },
+        body: JSON.stringify({
+          data: {
+            inviteCode: inviteCode.toUpperCase(),
+          }
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Failed to join apartment');
+      }
+
+      console.log('Joined apartment successfully via Cloud Function:', result.result);
+      return result.result.apartment;
+    } catch (error) {
+      console.error('Join apartment error:', error);
+      throw error;
+    }
   }
 
   async leaveApartment(apartmentId: string, userId: string): Promise<void> {
