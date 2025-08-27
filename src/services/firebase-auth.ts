@@ -228,9 +228,13 @@ export class FirebaseAuthService {
    */
   async getCurrentIdToken(): Promise<string | null> {
     try {
+      console.log('🔑 Getting current ID token...');
+      
       const idToken = await SecureStore.getItemAsync(STORAGE_KEYS.ID_TOKEN);
+      console.log('🔑 Stored ID token:', idToken ? `Present (${idToken.substring(0, 20)}...)` : 'NULL');
       
       if (!idToken) {
+        console.log('❌ No ID token found in storage');
         return null;
       }
 
@@ -238,14 +242,30 @@ export class FirebaseAuthService {
       const tokenData = this.decodeJWT(idToken);
       const currentTime = Math.floor(Date.now() / 1000);
       
-      if (tokenData.exp && tokenData.exp < currentTime) {
-        // Token expired, refresh it
-        return await this.refreshToken();
+      if (tokenData && tokenData.exp) {
+        const timeUntilExpiry = tokenData.exp - currentTime;
+        const minutesUntilExpiry = Math.floor(timeUntilExpiry / 60);
+        console.log(`⏰ Token expires in ${minutesUntilExpiry} minutes`);
+        
+        if (tokenData.exp < currentTime) {
+          // Token expired, refresh it
+          console.log('🔄 Token expired, refreshing...');
+          try {
+            const newToken = await this.refreshToken();
+            console.log('✅ Token refreshed successfully');
+            return newToken;
+          } catch (error) {
+            console.error('❌ Token refresh failed:', error);
+            await this.signOut();
+            return null;
+          }
+        }
       }
 
+      console.log('✅ ID token is valid');
       return idToken;
     } catch (error) {
-      console.error('Get current token error:', error);
+      console.error('❌ Get current token error:', error);
       return null;
     }
   }
