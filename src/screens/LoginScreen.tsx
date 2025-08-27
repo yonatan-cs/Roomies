@@ -60,13 +60,16 @@ export default function LoginScreen({
         throw new Error('נתוני המשתמש לא נמצאו');
       }
 
+      // Get user's current apartment based on membership
+      const currentApartment = await firestoreService.getUserCurrentApartment(authUser.localId);
+
       // Combine auth and user data
       const user = {
         id: authUser.localId,
         email: authUser.email,
         name: userData.full_name,
         phone: userData.phone,
-        current_apartment_id: userData.current_apartment_id,
+        current_apartment_id: currentApartment?.id,
       };
 
       onLogin(user);

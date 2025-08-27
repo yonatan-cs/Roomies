@@ -457,6 +457,27 @@ export class FirestoreService {
   }
 
   /**
+   * Get user's current apartment based on apartment membership
+   */
+  async getUserCurrentApartment(userId: string): Promise<any | null> {
+    try {
+      // Get all apartment members and filter by user
+      const allMembers = await this.getCollection(COLLECTIONS.APARTMENT_MEMBERS);
+      const userMembership = allMembers.find(member => member.user_id === userId);
+      
+      if (!userMembership) {
+        return null;
+      }
+
+      // Get the apartment details
+      return await this.getApartment(userMembership.apartment_id);
+    } catch (error) {
+      console.error('Get user current apartment error:', error);
+      return null;
+    }
+  }
+
+  /**
    * Generate unique 6-character invite code
    * Uses timestamp + random for better uniqueness without needing to query existing codes
    */

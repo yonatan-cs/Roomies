@@ -368,10 +368,7 @@ export default function SettingsScreen() {
               // Leave apartment in Firestore
               await firestoreService.leaveApartment(currentApartment.id, currentUser.id);
               
-              // Update user's current apartment to null
-              await firestoreService.updateUser(currentUser.id, {
-                current_apartment_id: undefined,
-              });
+              // current_apartment_id is managed automatically through apartmentMembers
             }
             
             // Reset local state for apartment-scope data
