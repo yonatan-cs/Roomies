@@ -631,6 +631,19 @@ export class FirestoreService {
           await this.createDocument(COLLECTIONS.APARTMENT_INVITES, inviteData, inviteCode);
           console.log('Invite record created successfully');
           
+          // Add the creator as the first member of the apartment
+          const currentUser = await firebaseAuth.getCurrentUser();
+          if (currentUser) {
+            console.log('👤 Adding apartment creator as first member...');
+            try {
+              await this.joinApartment(apartment.id, currentUser.localId);
+              console.log('✅ Creator added as apartment member');
+            } catch (memberError) {
+              console.error('⚠️ Failed to add creator as member:', memberError);
+              // Don't fail the apartment creation for this
+            }
+          }
+          
           // Success! Return the apartment
           return apartment;
           
@@ -769,17 +782,32 @@ export class FirestoreService {
    * Apartment members management
    */
   async joinApartment(apartmentId: string, userId: string): Promise<any> {
-    // This method is now deprecated in favor of joinApartmentByInviteCode
-    // Keeping for backward compatibility
-    const memberId = `${apartmentId}_${userId}`;
-    const memberData = {
-      apartment_id: apartmentId,
-      user_id: userId,
-      role: 'member',
-      joined_at: new Date(),
-    };
-    
-    return this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
+    try {
+      console.log(`🤝 Adding user ${userId} to apartment ${apartmentId}`);
+      
+      const memberId = `${apartmentId}_${userId}`;
+      const memberData = {
+        apartment_id: apartmentId,
+        user_id: userId,
+        role: 'member',
+        joined_at: new Date(),
+      };
+      
+      // Create the membership record
+      console.log('📝 Creating apartment membership record...');
+      const membershipResult = await this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
+      console.log('✅ Membership record created');
+      
+      // Update user's current_apartment_id
+      console.log('👤 Updating user profile with apartment ID...');
+      await this.updateUser(userId, { current_apartment_id: apartmentId });
+      console.log('✅ User profile updated');
+      
+      return membershipResult;
+    } catch (error) {
+      console.error('❌ Join apartment error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -805,8 +833,25 @@ export class FirestoreService {
   }
 
   async leaveApartment(apartmentId: string, userId: string): Promise<void> {
-    const memberId = `${apartmentId}_${userId}`;
-    return this.deleteDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
+    try {
+      console.log(`👋 User ${userId} leaving apartment ${apartmentId}`);
+      
+      const memberId = `${apartmentId}_${userId}`;
+      
+      // Remove membership record
+      console.log('🗑️ Removing apartment membership record...');
+      await this.deleteDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
+      console.log('✅ Membership record removed');
+      
+      // Clear user's current_apartment_id
+      console.log('👤 Clearing user profile apartment reference...');
+      await this.updateUser(userId, { current_apartment_id: undefined });
+      console.log('✅ User profile updated');
+      
+    } catch (error) {
+      console.error('❌ Leave apartment error:', error);
+      throw error;
+    }
   }
 
   async getApartmentMembers(apartmentId: string): Promise<any[]> {
@@ -814,7 +859,8 @@ export class FirestoreService {
   }
 
   /**
-   * Get user's current apartment based on apartment membership
+   * Get user's current apartment based on user profile
+   * Updated to avoid the circular permission issue with apartmentMembers
    */
   async getUserCurrentApartment(userId: string): Promise<any | null> {
     try {
@@ -825,16 +871,21 @@ export class FirestoreService {
         return null;
       }
 
-      // Get all apartment members and filter by user
-      const allMembers = await this.getCollection(COLLECTIONS.APARTMENT_MEMBERS);
-      const userMembership = allMembers.find(member => member.user_id === userId);
+      console.log(`🔍 Looking for current apartment for user: ${userId}`);
       
-      if (!userMembership) {
+      // Get user's profile to find their current_apartment_id
+      const userData = await this.getDocument(COLLECTIONS.USERS, userId);
+      
+      if (!userData || !userData.current_apartment_id) {
+        console.log('📋 User has no current apartment ID in profile');
         return null;
       }
-
+      
+      console.log(`🏠 User has apartment ID in profile: ${userData.current_apartment_id}`);
+      
       // Get the apartment details
-      return await this.getApartment(userMembership.apartment_id);
+      return await this.getApartment(userData.current_apartment_id);
+      
     } catch (error) {
       console.error('Get user current apartment error:', error);
       return null;

@@ -1,7 +1,12 @@
-# 🔧 פתרון בעיית Timing Authentication
+# 🔧 פתרון בעיות Authentication ו-Permissions
 
-## 🎯 הבעיה שפתרנו
-הבעיה הייתה **race condition** בין האימות ל-Firebase לבין קריאות ל-Firestore.
+## 🎯 הבעיות שפתרנו
+
+### 1. **Race Condition בין Authentication לקריאות Firestore**
+הבעיה הייתה **timing issue** בין האימות ל-Firebase לבין קריאות ל-Firestore.
+
+### 2. **בעיית הרשאות apartmentMembers**  
+פונקציית `getUserCurrentApartment()` ניסתה לקרוא את **כל** קולקציית `apartmentMembers`, אבל הכללים מאפשרים קריאה רק לחברי דירה קיימים - מעגל סגור!
 
 ### מה קרה:
 1. המשתמש מתחבר ומקבל token
@@ -10,9 +15,11 @@
 4. Firestore רואה `request.auth = null`
 5. התוצאה: "Missing or insufficient permissions"
 
-## ✅ הפתרון שיישמנו
+## ✅ הפתרונות שיישמנו
 
-### 1. **מנגנון המתנה ב-FirestoreService**
+### 1. **פתרון Race Condition**
+
+#### **מנגנון המתנה ב-FirestoreService**
 ```typescript
 private async waitForAuth(maxWaitMs: number = 5000): Promise<void> {
   while (Date.now() - startTime < maxWaitMs) {
@@ -28,8 +35,20 @@ private async waitForAuth(maxWaitMs: number = 5000): Promise<void> {
 - WelcomeScreen: המתנה של 300ms אחרי session restore
 - JoinApartment: המתנה של 500ms לפני חיפוש דירה
 
-### 3. **קריאה אוטומטית ל-waitForAuth**
+#### **קריאה אוטומטית ל-waitForAuth**
 כל קריאה ל-Firestore עכשיו מחכה שהאימות יהיה מוכן.
+
+### 2. **פתרון בעיית apartmentMembers**
+
+#### **שינוי getUserCurrentApartment()**
+במקום לקרוא את כל קולקציית `apartmentMembers`, עכשיו:
+1. קוראים את `current_apartment_id` מפרופיל המשתמש
+2. אם קיים - מחזירים את פרטי הדירה ישירות
+
+#### **עדכון פרופיל משתמש**
+- `joinApartment()` עכשיו מעדכן את `current_apartment_id` בפרופיל
+- `leaveApartment()` מנקה את `current_apartment_id`
+- `createApartment()` מוסיף את היוצר כחבר ראשון
 
 ## 🎯 מדוע זה עובד
 
