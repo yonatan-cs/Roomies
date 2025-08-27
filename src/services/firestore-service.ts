@@ -216,7 +216,9 @@ export class FirestoreService {
    */
   async createDocument(collectionName: string, data: any, documentId?: string): Promise<any> {
     try {
-      console.log(`Creating document in collection: ${collectionName}`, data);
+      console.log(`📝 Creating document in collection: ${collectionName}`);
+      console.log(`📋 Document data:`, data);
+      console.log(`🆔 Document ID:`, documentId || 'auto-generated');
       
       const headers = await this.getAuthHeaders();
       let url = `${FIRESTORE_BASE_URL}/${collectionName}`;
@@ -225,13 +227,12 @@ export class FirestoreService {
         url += `?documentId=${documentId}`;
       }
 
-      console.log('Request URL:', url);
-      console.log('Request headers:', headers);
+      console.log('🌐 Request URL:', url);
 
       const requestBody = {
         fields: this.toFirestoreFormat(data)
       };
-      console.log('Request body:', JSON.stringify(requestBody, null, 2));
+      console.log('📤 Request body fields:', Object.keys(requestBody.fields));
 
       const response = await fetch(url, {
         method: 'POST',
@@ -240,11 +241,17 @@ export class FirestoreService {
       });
 
       const responseData = await response.json();
-      console.log('Response status:', response.status);
-      console.log('Response data:', responseData);
+      console.log(`📊 Response status: ${response.status} (${response.statusText})`);
 
       if (!response.ok) {
-        throw new Error(`Failed to create document: ${responseData.error?.message || 'Unknown error'}`);
+        console.error('❌ Create document failed!');
+        console.error(`📂 Collection: ${collectionName}`);
+        console.error(`🆔 Document ID: ${documentId || 'auto-generated'}`);
+        console.error(`📋 Data: ${JSON.stringify(data, null, 2)}`);
+        console.error(`📤 Request body: ${JSON.stringify(requestBody, null, 2)}`);
+        console.error(`📨 Response: ${JSON.stringify(responseData, null, 2)}`);
+        
+        throw new Error(`Failed to create document in '${collectionName}': ${responseData.error?.message || 'Unknown error'}`);
       }
 
       const convertedData = this.fromFirestoreFormat(responseData.fields);
@@ -580,7 +587,15 @@ export class FirestoreService {
       throw new Error('User not authenticated');
     }
 
-    return this.createDocument(COLLECTIONS.USERS, userData, user.localId);
+    // Ensure no current_apartment_id in user creation (per security rules)
+    const cleanUserData = {
+      email: userData.email,
+      full_name: userData.full_name,
+      ...(userData.phone && { phone: userData.phone })
+    };
+
+    console.log('🆕 Creating user with clean data (no apartment ID):', cleanUserData);
+    return this.createDocument(COLLECTIONS.USERS, cleanUserData, user.localId);
   }
 
   async getUser(userId: string): Promise<any | null> {
