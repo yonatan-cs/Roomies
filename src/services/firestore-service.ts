@@ -800,6 +800,12 @@ export class FirestoreService {
     try {
       console.log(`🤝 Adding user ${userId} to apartment ${apartmentId}`);
       
+      // Ensure the current user is the one being added (security rule requirement)
+      const currentUser = await firebaseAuth.getCurrentUser();
+      if (!currentUser || currentUser.localId !== userId) {
+        throw new Error('User can only add themselves to apartments');
+      }
+      
       const memberId = `${apartmentId}_${userId}`;
       const memberData = {
         apartment_id: apartmentId,
@@ -808,8 +814,11 @@ export class FirestoreService {
         joined_at: new Date(),
       };
       
-      // Create the membership record
       console.log('📝 Creating apartment membership record...');
+      console.log(`🆔 Member ID: ${memberId}`);
+      console.log(`📋 Member data:`, memberData);
+      
+      // Create the membership record
       const membershipResult = await this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
       console.log('✅ Membership record created');
       
