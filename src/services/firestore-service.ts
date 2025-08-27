@@ -658,55 +658,49 @@ export class FirestoreService {
         try {
           await this.createDocument(COLLECTIONS.APARTMENT_INVITES, inviteData, inviteCode);
           console.log('Invite record created successfully');
-          
-          // Add the creator as the first member of the apartment
-          const currentUser = await firebaseAuth.getCurrentUser();
-          if (currentUser) {
-            console.log('👤 Adding apartment creator as first member...');
-            try {
-              await this.joinApartment(apartment.id, currentUser.localId);
-              console.log('✅ Creator added as apartment member');
-            } catch (memberError: any) {
-              console.error('⚠️ Failed to add creator as member:', memberError);
-              // If user is already a member, that's fine
-              if (!memberError.message.includes('Document already exists')) {
-                console.error('💥 Unexpected error adding creator as member');
-                // For other errors, we might want to fail the apartment creation
-                throw memberError;
-              } else {
-                console.log('✅ Creator was already a member - continuing');
-              }
-            }
-          }
-          
-          // Success! Return the apartment
+          // Success! Return the apartment. Do NOT attempt to auto-add creator here.
+          // The caller (UI) is responsible for joining the apartment once.
           return apartment;
-          
         } catch (inviteError: any) {
-          console.warn('Failed to create invite record (code collision), cleaning up apartment...');
-          
-          // Clean up the apartment we just created since invite code collided
+          const message = String(inviteError?.message || inviteError || 'Unknown invite creation error');
+          const isCollision = message.includes('ALREADY_EXISTS') || message.includes('already exists') || message.includes('collision');
+
+          console.warn('Invite record creation failed:', message);
+
+          // Always cleanup the apartment we just created to avoid orphans
           try {
             await this.deleteDocument(COLLECTIONS.APARTMENTS, apartment.id);
-            console.log('Apartment cleaned up successfully');
+            console.log('Apartment cleaned up after invite failure');
           } catch (cleanupError) {
-            console.error('Failed to cleanup apartment:', cleanupError);
+            console.error('Failed to cleanup apartment after invite failure:', cleanupError);
           }
-          
-          // This will trigger a retry with a new code
-          throw new Error('Invite code collision detected');
+
+          if (isCollision) {
+            // Retry loop will handle trying again with a fresh code
+            throw new Error('Invite code collision detected');
+          } else {
+            // Non-retryable error (e.g., permissions). Bubble up to stop the loop immediately.
+            throw new Error(`Invite creation failed: ${message}`);
+          }
         }
         
       } catch (error: any) {
-        console.error(`Create apartment error (attempt ${attempts + 1}):`, error);
-        attempts++;
-        
-        if (attempts >= maxAttempts) {
-          throw new Error(`Failed to create apartment after ${maxAttempts} attempts: ${error.message}`);
+        const message = String(error?.message || error || 'Unknown error');
+        console.error(`Create apartment error (attempt ${attempts + 1}):`, message);
+
+        // Only retry on explicit collision
+        if (message.includes('Invite code collision detected')) {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            throw new Error(`Failed to create apartment after ${maxAttempts} attempts: ${message}`);
+          }
+          // Wait a bit before retrying with a new code
+          await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+          continue;
         }
-        
-        // Wait a bit before retrying
-        await new Promise(resolve => setTimeout(resolve, 100 * attempts));
+
+        // For non-retryable errors, stop immediately
+        throw new Error(`Failed to create apartment: ${message}`);
       }
     }
     
