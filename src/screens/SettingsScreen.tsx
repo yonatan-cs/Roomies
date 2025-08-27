@@ -17,7 +17,6 @@ export default function SettingsScreen() {
     cleaningSettings,
     setCleaningIntervalDays,
     setCleaningAnchorDow,
-    setPreferredDay,
     cleaningChecklist,
     addCleaningTask,
     renameCleaningTask,
@@ -138,21 +137,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
 
-              {/* Preferred day selector */}
-              <View className="flex-row mt-2">
-                {HEBREW_DAYS.map((d, idx) => {
-                  const selected = cleaningSettings.preferredDayByUser[member.id] === idx;
-                  return (
-                    <Pressable
-                      key={`${member.id}-${idx}`}
-                      onPress={() => setPreferredDay(member.id, idx)}
-                      className={"px-2 py-1 rounded-lg mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
-                    >
-                      <Text className={selected ? 'text-white text-xs' : 'text-gray-700 text-xs'}>{d}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+
             </View>
           ))}
         </View>
