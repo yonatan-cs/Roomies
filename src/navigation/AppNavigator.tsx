@@ -78,9 +78,12 @@ export default function AppNavigator() {
   const currentUser = useStore(state => state.currentUser);
   const currentApartment = useStore(state => state.currentApartment);
 
+  // Show welcome screen if no user or no apartment
+  const showWelcome = !currentUser || !currentUser.current_apartment_id || !currentApartment;
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {(!currentUser || !currentApartment) ? (
+      {showWelcome ? (
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
       ) : (
         <>

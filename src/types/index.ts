@@ -1,14 +1,17 @@
 export interface User {
   id: string;
   name: string;
-  email?: string;
+  email: string;
+  phone?: string;
   avatar?: string;
+  current_apartment_id?: string;
 }
 
 export interface Apartment {
   id: string;
   name: string;
-  code: string;
+  description?: string;
+  invite_code: string;
   members: User[];
   createdAt: Date;
 }

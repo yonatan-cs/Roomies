@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,54 +8,251 @@ import {
   Platform,
   ScrollView,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
+import LoginScreen from './LoginScreen';
+import RegisterScreen from './RegisterScreen';
+import ForgotPasswordScreen from './ForgotPasswordScreen';
+import { firebaseAuth } from '../services/firebase-auth';
+import { firestoreService } from '../services/firestore-service';
 
 export default function WelcomeScreen() {
-  const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
+  const [mode, setMode] = useState<'select' | 'auth' | 'login' | 'register' | 'forgot-password' | 'create' | 'join'>('select');
+  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password'>('login');
   const [apartmentName, setApartmentName] = useState('');
   const [userName, setUserName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
 
   const { setCurrentUser, createApartment, joinApartment } = useStore();
 
-  const handleCreateApartment = () => {
-    setError(null);
-    if (!apartmentName.trim() || !userName.trim()) {
-      setError('אנא מלא את כל השדות');
-      return;
-    }
+  // Check for existing user session on component mount
+  useEffect(() => {
+    checkUserSession();
+  }, []);
 
-    // Create user
-    const userId = Date.now().toString();
-    const user = { id: userId, name: userName.trim() };
+  const checkUserSession = async () => {
+    try {
+      const authUser = await firebaseAuth.restoreUserSession();
+      if (authUser) {
+        // Get user data from Firestore
+        const userData = await firestoreService.getUser(authUser.localId);
+        if (userData) {
+          const user = {
+            id: authUser.localId,
+            email: authUser.email,
+            name: userData.full_name,
+            phone: userData.phone,
+            current_apartment_id: userData.current_apartment_id,
+          };
+          setCurrentUser(user);
+          // Navigation will handle apartment redirect
+        }
+      }
+    } catch (error) {
+      console.error('Session restore error:', error);
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  const handleLogin = async (user: any) => {
     setCurrentUser(user);
-
-    // Create apartment with only creator; rotation will initialize on first visit to Cleaning
-    createApartment(apartmentName.trim());
+    setMode('select');
   };
 
-  const handleJoinApartment = () => {
+  const handleRegister = async (user: any) => {
+    setCurrentUser(user);
+    setMode('select');
+  };
+
+  const handleCreateApartment = async () => {
     setError(null);
-    if (!userName.trim() || !joinCode.trim()) {
-      setError('אנא מלא את כל השדות');
+    if (!apartmentName.trim()) {
+      setError('אנא הכנס שם דירה');
       return;
     }
 
-    joinApartment(joinCode.trim().toUpperCase(), userName.trim());
+    setLoading(true);
+    try {
+      // Generate unique invite code
+      const inviteCode = await firestoreService.generateUniqueInviteCode();
+      
+      // Create apartment in Firestore
+      const apartmentData = {
+        name: apartmentName.trim(),
+        description: '',
+        invite_code: inviteCode,
+      };
+      
+      const apartment = await firestoreService.createApartment(apartmentData);
+      
+      // Get current user
+      const currentUser = useStore.getState().currentUser;
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Join the apartment as admin
+      await firestoreService.joinApartment(apartment.id, currentUser.id);
+      
+      // Update user's current apartment
+      await firestoreService.updateUser(currentUser.id, {
+        current_apartment_id: apartment.id,
+      });
+
+      // Update local state
+      const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
+      setCurrentUser(updatedUser);
+      
+      // Create apartment object for local state
+      createApartment(apartmentName.trim());
+      
+    } catch (error: any) {
+      console.error('Create apartment error:', error);
+      setError(error.message || 'שגיאה ביצירת הדירה');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleJoinApartment = async () => {
+    setError(null);
+    if (!joinCode.trim()) {
+      setError('אנא הכנס קוד דירה');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Find apartment by invite code
+      const apartment = await firestoreService.getApartmentByInviteCode(joinCode.trim().toUpperCase());
+      
+      if (!apartment) {
+        throw new Error('קוד דירה לא נמצא');
+      }
+
+      // Get current user
+      const currentUser = useStore.getState().currentUser;
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
+      // Join the apartment
+      await firestoreService.joinApartment(apartment.id, currentUser.id);
+      
+      // Update user's current apartment
+      await firestoreService.updateUser(currentUser.id, {
+        current_apartment_id: apartment.id,
+      });
+
+      // Update local state
+      const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
+      setCurrentUser(updatedUser);
+      
+      // Update local apartment state
+      joinApartment(joinCode.trim().toUpperCase(), currentUser.name);
+      
+    } catch (error: any) {
+      console.error('Join apartment error:', error);
+      setError(error.message || 'שגיאה בהצטרפות לדירה');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show loading spinner while initializing
+  if (initializing) {
+    return (
+      <View className="flex-1 bg-white justify-center items-center">
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text className="text-gray-600 mt-4">טוען...</Text>
+      </View>
+    );
+  }
+
+  // Authentication screens
+  if (mode === 'login') {
+    return (
+      <LoginScreen
+        onLogin={handleLogin}
+        onSwitchToRegister={() => setMode('register')}
+        onSwitchToForgotPassword={() => setMode('forgot-password')}
+      />
+    );
+  }
+
+  if (mode === 'register') {
+    return (
+      <RegisterScreen
+        onRegister={handleRegister}
+        onSwitchToLogin={() => setMode('login')}
+      />
+    );
+  }
+
+  if (mode === 'forgot-password') {
+    return (
+      <ForgotPasswordScreen
+        onBack={() => setMode('login')}
+      />
+    );
+  }
+
+  // Main selection screen
   if (mode === 'select') {
+    const currentUser = useStore.getState().currentUser;
+    
+    // If no user is authenticated, show auth options
+    if (!currentUser) {
+      return (
+        <View className="flex-1 bg-white px-6">
+          <View className="flex-1 justify-center">
+            <View className="items-center mb-12">
+              <Ionicons name="home" size={80} color="#007AFF" />
+              <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
+                דירת שותפים
+              </Text>
+              <Text className="text-lg text-gray-600 mt-2 text-center">
+                ניהול חכם לחיים משותפים
+              </Text>
+            </View>
+
+            <View className="space-y-4">
+              <Pressable
+                onPress={() => setMode('login')}
+                className="bg-blue-500 py-4 px-6 rounded-xl flex-row items-center justify-center"
+              >
+                <Ionicons name="log-in-outline" size={24} color="white" />
+                <Text className="text-white text-lg font-semibold mr-2">התחבר</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setMode('register')}
+                className="bg-gray-100 py-4 px-6 rounded-xl flex-row items-center justify-center"
+              >
+                <Ionicons name="person-add-outline" size={24} color="#007AFF" />
+                <Text className="text-blue-500 text-lg font-semibold mr-2">הרשם</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      );
+    }
+
+    // User is authenticated, show apartment options
     return (
       <View className="flex-1 bg-white px-6">
         <View className="flex-1 justify-center">
           <View className="items-center mb-12">
             <Ionicons name="home" size={80} color="#007AFF" />
             <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
-              דירת שותפים
+              שלום {currentUser.name}!
             </Text>
             <Text className="text-lg text-gray-600 mt-2 text-center">
               ניהול חכם לחיים משותפים
@@ -77,6 +274,21 @@ export default function WelcomeScreen() {
             >
               <Ionicons name="people-outline" size={24} color="#007AFF" />
               <Text className="text-blue-500 text-lg font-semibold mr-2">הצטרפות לדירה קיימת</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={async () => {
+                try {
+                  await firebaseAuth.signOut();
+                  setCurrentUser(undefined as any);
+                } catch (error) {
+                  console.error('Sign out error:', error);
+                }
+              }}
+              className="bg-red-100 py-3 px-6 rounded-xl flex-row items-center justify-center mt-8"
+            >
+              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+              <Text className="text-red-500 text-base font-medium mr-2">התנתק</Text>
             </Pressable>
           </View>
         </View>
@@ -102,17 +314,6 @@ export default function WelcomeScreen() {
             </Text>
 
             <View className="space-y-4">
-              <View>
-                <Text className="text-gray-700 text-base mb-2">השם שלך</Text>
-                <TextInput
-                  value={userName}
-                  onChangeText={setUserName}
-                  placeholder="הכנס את שמך"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                  textAlign="right"
-                />
-              </View>
-
               {mode === 'create' && (
                 <View>
                   <Text className="text-gray-700 text-base mb-2">שם הדירה</Text>
@@ -122,6 +323,7 @@ export default function WelcomeScreen() {
                     placeholder="דירת השותפים שלנו"
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="right"
+                    editable={!loading}
                   />
                 </View>
               )}
@@ -137,6 +339,7 @@ export default function WelcomeScreen() {
                     textAlign="center"
                     autoCapitalize="characters"
                     maxLength={6}
+                    editable={!loading}
                   />
                 </View>
               )}
@@ -148,11 +351,18 @@ export default function WelcomeScreen() {
 
             <Pressable
               onPress={mode === 'create' ? handleCreateApartment : handleJoinApartment}
-              className="bg-blue-500 py-4 px-6 rounded-xl mt-8"
+              className={`py-4 px-6 rounded-xl mt-8 ${
+                loading ? 'bg-gray-400' : 'bg-blue-500'
+              }`}
+              disabled={loading}
             >
-              <Text className="text-white text-lg font-semibold text-center">
-                {mode === 'create' ? 'יצירת הדירה' : 'הצטרפות'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text className="text-white text-lg font-semibold text-center">
+                  {mode === 'create' ? 'יצירת הדירה' : 'הצטרפות'}
+                </Text>
+              )}
             </Pressable>
           </View>
         </ScrollView>

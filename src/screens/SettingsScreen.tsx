@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Share } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import Clipboard from '@react-native-clipboard/clipboard';
 import ConfirmModal from '../components/ConfirmModal';
+import { firebaseAuth } from '../services/firebase-auth';
+import { firestoreService } from '../services/firestore-service';
 
 const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -31,16 +33,28 @@ export default function SettingsScreen() {
   const [editingChoreId, setEditingChoreId] = useState<string | null>(null);
   const [editingChoreName, setEditingChoreName] = useState('');
 
-  const handleSaveName = () => {
+  const handleSaveName = async () => {
     if (!newName.trim() || !currentUser) return;
-    setCurrentUser({ ...currentUser, name: newName.trim() });
-    setEditingName(false);
+    
+    try {
+      // Update user name in Firestore
+      await firestoreService.updateUser(currentUser.id, {
+        full_name: newName.trim(),
+      });
+      
+      // Update local state
+      setCurrentUser({ ...currentUser, name: newName.trim() });
+      setEditingName(false);
+    } catch (error: any) {
+      console.error('Update name error:', error);
+      Alert.alert('שגיאה', 'לא ניתן לעדכן את השם');
+    }
   };
 
   const handleCopyCode = async () => {
-    if (!currentApartment?.code) return;
+    if (!currentApartment?.invite_code) return;
     try {
-      Clipboard.setString(currentApartment.code);
+      Clipboard.setString(currentApartment.invite_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (error) {
@@ -52,7 +66,7 @@ export default function SettingsScreen() {
     if (!currentApartment) return;
     try {
       await Share.share({
-        message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.code}`,
+        message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
         title: 'הצטרפות לדירת שותפים',
       });
     } catch (error) {}
@@ -89,7 +103,7 @@ export default function SettingsScreen() {
           <View className="mb-1">
             <Text className="text-gray-600 text-sm mb-1">קוד הצטרפות</Text>
             <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
-              <Text className="text-gray-900 text-lg font-mono font-bold">{currentApartment.code}</Text>
+              <Text className="text-gray-900 text-lg font-mono font-bold">{currentApartment.invite_code}</Text>
               <View className="flex-row">
                 <Pressable onPress={handleCopyCode} className="bg-blue-100 p-2 rounded-lg ml-2">
                   <Ionicons name="copy-outline" size={20} color="#007AFF" />
@@ -311,6 +325,30 @@ export default function SettingsScreen() {
         {/* Danger Zone */}
         <View className="bg-white rounded-2xl p-6 shadow-sm border-2 border-red-100">
           <Text className="text-lg font-semibold text-red-600 mb-4">אזור סכנה</Text>
+          
+          <Pressable 
+            onPress={async () => {
+              try {
+                await firebaseAuth.signOut();
+                // Clear local state
+                useStore.setState({
+                  currentUser: undefined,
+                  currentApartment: undefined,
+                  cleaningTask: undefined,
+                  expenses: [],
+                  shoppingItems: [],
+                  cleaningCompletions: [],
+                });
+              } catch (error) {
+                console.error('Sign out error:', error);
+                Alert.alert('שגיאה', 'לא ניתן להתנתק');
+              }
+            }}
+            className="bg-orange-500 py-3 px-6 rounded-xl mb-3"
+          >
+            <Text className="text-white font-semibold text-center">התנתקות מהחשבון</Text>
+          </Pressable>
+          
           <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
             <Text className="text-white font-semibold text-center">עזיבת הדירה</Text>
           </Pressable>
@@ -324,16 +362,41 @@ export default function SettingsScreen() {
         message="האם אתה בטוח שברצונך לעזוב את הדירה? פעולה זו אינה ניתנת לביטול."
         confirmText="כן, עזוב דירה"
         cancelText="ביטול"
-        onConfirm={() => {
-          // reset local state for apartment-scope data
-          useStore.setState({
-            currentApartment: undefined,
-            cleaningTask: undefined,
-            expenses: [],
-            shoppingItems: [],
-            cleaningCompletions: [],
-          });
-          setConfirmLeaveVisible(false);
+        onConfirm={async () => {
+          try {
+            if (currentUser && currentApartment) {
+              // Leave apartment in Firestore
+              await firestoreService.leaveApartment(currentApartment.id, currentUser.id);
+              
+              // Update user's current apartment to null
+              await firestoreService.updateUser(currentUser.id, {
+                current_apartment_id: undefined,
+              });
+            }
+            
+            // Reset local state for apartment-scope data
+            useStore.setState({
+              currentApartment: undefined,
+              cleaningTask: undefined,
+              expenses: [],
+              shoppingItems: [],
+              cleaningCompletions: [],
+            });
+            
+            // Update current user to remove apartment reference
+            if (currentUser) {
+              setCurrentUser({ 
+                ...currentUser, 
+                current_apartment_id: undefined 
+              });
+            }
+            
+            setConfirmLeaveVisible(false);
+          } catch (error: any) {
+            console.error('Leave apartment error:', error);
+            Alert.alert('שגיאה', 'לא ניתן לעזוב את הדירה');
+            setConfirmLeaveVisible(false);
+          }
         }}
         onCancel={() => setConfirmLeaveVisible(false)}
       />
