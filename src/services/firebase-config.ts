@@ -32,6 +32,7 @@ export const COLLECTIONS = {
   USERS: 'users',
   APARTMENTS: 'apartments',
   APARTMENT_MEMBERS: 'apartmentMembers',
+  APARTMENT_INVITES: 'apartmentInvites', // Public collection for invite codes
   EXPENSES: 'expenses',
   DEBT_SETTLEMENTS: 'debtSettlements',
   CLEANING_TASKS: 'cleaningTasks',
