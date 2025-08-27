@@ -80,8 +80,11 @@ export default function WelcomeScreen() {
 
     setLoading(true);
     try {
+      console.log('Starting apartment creation...');
+      
       // Generate unique invite code
-      const inviteCode = await firestoreService.generateUniqueInviteCode();
+      const inviteCode = firestoreService.generateUniqueInviteCode();
+      console.log('Generated invite code:', inviteCode);
       
       // Create apartment in Firestore
       const apartmentData = {
@@ -90,7 +93,9 @@ export default function WelcomeScreen() {
         invite_code: inviteCode,
       };
       
+      console.log('Creating apartment with data:', apartmentData);
       const apartment = await firestoreService.createApartment(apartmentData);
+      console.log('Apartment created:', apartment);
       
       // Get current user
       const currentUser = useStore.getState().currentUser;
@@ -98,13 +103,15 @@ export default function WelcomeScreen() {
         throw new Error('User not authenticated');
       }
 
+      console.log('Joining apartment as member...');
       // Join the apartment as admin
       await firestoreService.joinApartment(apartment.id, currentUser.id);
       
+      console.log('Updating user apartment reference...');
       // Update user's current apartment
       await firestoreService.updateUser(currentUser.id, {
         current_apartment_id: apartment.id,
-      });
+      } as any);
 
       // Update local state
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
@@ -113,8 +120,11 @@ export default function WelcomeScreen() {
       // Create apartment object for local state
       createApartment(apartmentName.trim());
       
+      console.log('Apartment creation completed successfully');
+      
     } catch (error: any) {
       console.error('Create apartment error:', error);
+      console.error('Error stack:', error.stack);
       setError(error.message || 'שגיאה ביצירת הדירה');
     } finally {
       setLoading(false);
@@ -149,7 +159,7 @@ export default function WelcomeScreen() {
       // Update user's current apartment
       await firestoreService.updateUser(currentUser.id, {
         current_apartment_id: apartment.id,
-      });
+      } as any);
 
       // Update local state
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };

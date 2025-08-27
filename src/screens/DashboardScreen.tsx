@@ -156,7 +156,7 @@ export default function DashboardScreen() {
               "text-xs",
               isMyTurn ? "text-blue-600" : "text-gray-500"
             )}>
-              {isMyTurn ? 'התורה שלך!' : 'התורה שלו/שלה'}
+              {isMyTurn ? 'התור שלך!' : 'התור שלו/שלה'}
             </Text>
           </Pressable>
 

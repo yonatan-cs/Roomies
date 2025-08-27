@@ -189,7 +189,7 @@ export default function LoginScreen({
                 onPress={onSwitchToRegister}
                 disabled={loading}
               >
-                <Text className="text-blue-500 text-base font-medium">הרשם כאן</Text>
+                <Text className="text-blue-500 text-base font-medium"> הרשם כאן </Text>
               </Pressable>
               <Text className="text-gray-600 text-base mr-1">אין לך חשבון? </Text>
             </View>

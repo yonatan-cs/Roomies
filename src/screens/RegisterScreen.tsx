@@ -271,7 +271,7 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
                 onPress={onSwitchToLogin}
                 disabled={loading}
               >
-                <Text className="text-blue-500 text-base font-medium">התחבר כאן</Text>
+                <Text className="text-blue-500 text-base font-medium"> התחבר כאן </Text>
               </Pressable>
               <Text className="text-gray-600 text-base mr-1">יש לך כבר חשבון? </Text>
             </View>
