@@ -43,15 +43,31 @@ export default function WelcomeScreen() {
         // Get user data from Firestore
         const userData = await firestoreService.getUser(authUser.localId);
         if (userData) {
+          // Get user's current apartment based on membership
+          const currentApartment = await firestoreService.getUserCurrentApartment(authUser.localId);
+          
           const user = {
             id: authUser.localId,
             email: authUser.email,
             name: userData.full_name,
             phone: userData.phone,
-            current_apartment_id: userData.current_apartment_id,
+            current_apartment_id: currentApartment?.id,
           };
           setCurrentUser(user);
-          // Navigation will handle apartment redirect
+          
+          // If user has apartment, set it in local state
+          if (currentApartment) {
+            // Update local apartment state
+            useStore.setState({
+              currentApartment: {
+                id: currentApartment.id,
+                name: currentApartment.name,
+                invite_code: currentApartment.invite_code,
+                members: [], // Will be loaded separately if needed
+                createdAt: new Date(),
+              }
+            });
+          }
         }
       }
     } catch (error) {
@@ -107,13 +123,7 @@ export default function WelcomeScreen() {
       // Join the apartment as admin
       await firestoreService.joinApartment(apartment.id, currentUser.id);
       
-      console.log('Updating user apartment reference...');
-      // Update user's current apartment
-      await firestoreService.updateUser(currentUser.id, {
-        current_apartment_id: apartment.id,
-      } as any);
-
-      // Update local state
+      // Update local state - current_apartment_id is managed through apartmentMembers
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
       setCurrentUser(updatedUser);
       
@@ -156,12 +166,7 @@ export default function WelcomeScreen() {
       // Join the apartment
       await firestoreService.joinApartment(apartment.id, currentUser.id);
       
-      // Update user's current apartment
-      await firestoreService.updateUser(currentUser.id, {
-        current_apartment_id: apartment.id,
-      } as any);
-
-      // Update local state
+      // Update local state - current_apartment_id is managed through apartmentMembers
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
       setCurrentUser(updatedUser);
       
