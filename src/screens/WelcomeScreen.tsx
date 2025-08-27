@@ -41,7 +41,11 @@ export default function WelcomeScreen() {
       console.log('Checking user session...');
       const authUser = await firebaseAuth.restoreUserSession();
       if (authUser) {
-        console.log('Auth user found, getting user data...');
+        console.log('Auth user found, waiting for auth to stabilize...');
+        // Wait a moment for authentication to be fully ready
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        console.log('Getting user data...');
         // Get user data from Firestore
         const userData = await firestoreService.getUser(authUser.localId);
         if (userData) {
@@ -164,23 +168,38 @@ export default function WelcomeScreen() {
 
     setLoading(true);
     try {
-      // Find apartment by invite code
+      console.log('🚀 Starting apartment join process...');
+      
+      // Step 1: Check authentication first
+      const currentUser = useStore.getState().currentUser;
+      console.log('🧑‍💻 Current user check:', currentUser ? `${currentUser.id} (${currentUser.email})` : 'NULL');
+      
+      if (!currentUser) {
+        throw new Error('User not authenticated - Please sign in again');
+      }
+
+      // Step 2: Wait a moment for authentication to stabilize after login
+      console.log('⏳ Waiting for authentication to stabilize...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      console.log(`🔍 Attempting to join apartment with code: "${joinCode.trim()}"`);
+      
+      // Step 3: Find apartment by invite code
       const apartment = await firestoreService.getApartmentByInviteCode(joinCode.trim().toUpperCase());
       
       if (!apartment) {
+        console.error(`❌ No apartment found with code: "${joinCode.trim()}"`);
         throw new Error('קוד דירה לא נמצא. וודא שהקוד נכון ושהדירה קיימת.');
       }
 
-      // Get current user
-      const currentUser = useStore.getState().currentUser;
-      if (!currentUser) {
-        throw new Error('User not authenticated');
-      }
+      console.log(`🏠 Found apartment: ${apartment.name} (ID: ${apartment.id})`);
 
-      // Join the apartment
+      // Step 4: Join the apartment
+      console.log('🤝 Adding user to apartment...');
       await firestoreService.joinApartment(apartment.id, currentUser.id);
+      console.log('✅ Successfully joined apartment');
       
-      // Update local state - current_apartment_id is managed through apartmentMembers
+      // Step 5: Update local state - current_apartment_id is managed through apartmentMembers
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
       setCurrentUser(updatedUser);
       
@@ -193,12 +212,35 @@ export default function WelcomeScreen() {
         createdAt: new Date(),
       };
       
-      console.log('Setting local apartment after join:', localApartment);
+      console.log('🏠 Setting local apartment after join:', {
+        id: localApartment.id,
+        name: localApartment.name,
+        invite_code: localApartment.invite_code,
+        memberCount: localApartment.members.length
+      });
       useStore.setState({ currentApartment: localApartment });
       
+      console.log('🎉 Apartment join process completed successfully!');
+      
     } catch (error: any) {
-      console.error('Join apartment error:', error);
-      setError(error.message || 'שגיאה בהצטרפות לדירה');
+      console.error('❌ Join apartment error:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'שגיאה בהצטרפות לדירה';
+      
+      if (error.message.includes('not authenticated') || error.message.includes('User needs to sign in')) {
+        errorMessage = 'נדרש להתחבר מחדש למערכת';
+      } else if (error.message.includes('Missing or insufficient permissions')) {
+        errorMessage = 'אין הרשאה לגשת למידע הדירה. יתכן שהמשתמש לא מחובר כראוי';
+      } else if (error.message.includes('קוד דירה לא נמצא')) {
+        errorMessage = error.message;
+      } else if (error.message.includes('Network') || error.message.includes('בדיקת חיבור נכשלה')) {
+        errorMessage = 'בעיית חיבור ל-Firebase. בדוק חיבור לאינטרנט';
+      } else if (error.message.includes('Token expired')) {
+        errorMessage = 'תוקף ההתחברות פג. התחבר מחדש';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -52,6 +52,10 @@ export default function LoginScreen({
       // Sign in with Firebase Auth
       const authUser = await firebaseAuth.signIn(email.trim(), password);
       
+      // Wait a moment for authentication to be fully ready
+      console.log('⏳ Waiting for authentication to stabilize after sign in...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Get user data from Firestore
       const userData = await firestoreService.getUser(authUser.localId);
       

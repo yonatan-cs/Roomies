@@ -46,15 +46,82 @@ export class FirestoreService {
   }
 
   /**
+   * Wait for authentication to be ready
+   * This is crucial when using REST API instead of Firebase SDK
+   */
+  private async waitForAuth(maxWaitMs: number = 5000): Promise<void> {
+    const startTime = Date.now();
+    console.log('⏳ Waiting for authentication to be ready...');
+    
+    while (Date.now() - startTime < maxWaitMs) {
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (idToken) {
+        console.log('✅ Authentication is ready');
+        return;
+      }
+      
+      // Wait 100ms before checking again
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log('⏰ Auth wait timeout reached');
+    // Don't throw here, let the caller handle missing auth
+  }
+
+  /**
    * Get authenticated headers for requests
    */
   private async getAuthHeaders(): Promise<HeadersInit> {
-    console.log('Getting auth headers...');
+    console.log('🔐 Getting auth headers...');
+    
+    // Wait for authentication to be ready
+    await this.waitForAuth();
+    
+    // Check current user first
+    const currentUser = await firebaseAuth.getCurrentUser();
+    console.log('🧑‍💻 Current user:', currentUser ? `${currentUser.localId} (${currentUser.email})` : 'NULL');
+    
     const idToken = await firebaseAuth.getCurrentIdToken();
-    console.log('ID Token:', idToken ? 'Present' : 'Missing');
+    console.log('🔑 ID Token:', idToken ? `Present (${idToken.substring(0, 20)}...)` : 'MISSING');
     
     if (!idToken) {
-      throw new Error('User not authenticated');
+      console.error('❌ Authentication failed: No ID token available');
+      console.error('🔍 Debug info:');
+      console.error('  - Current user object:', currentUser);
+      console.error('  - This usually means the user needs to sign in again');
+      throw new Error('User not authenticated - Please sign in again');
+    }
+
+    // Validate token format
+    try {
+      const tokenParts = idToken.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error('Invalid token format');
+      }
+      
+      // Decode header and payload for debugging (not verification)
+      const header = JSON.parse(atob(tokenParts[0]));
+      const payload = JSON.parse(atob(tokenParts[1]));
+      
+      console.log('🔍 Token info:', {
+        algorithm: header.alg,
+        type: header.typ,
+        userId: payload.user_id || payload.sub,
+        email: payload.email,
+        expiresAt: new Date(payload.exp * 1000).toISOString(),
+        issuedAt: new Date(payload.iat * 1000).toISOString()
+      });
+      
+      // Check if token is expired
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp < now) {
+        console.error('❌ Token is expired!');
+        throw new Error('Token expired - Please sign in again');
+      }
+      
+    } catch (tokenError) {
+      console.error('❌ Token validation error:', tokenError);
+      throw new Error('Invalid authentication token - Please sign in again');
     }
 
     const headers = {
@@ -62,7 +129,7 @@ export class FirestoreService {
       'Content-Type': 'application/json',
     };
     
-    console.log('Auth headers prepared');
+    console.log('✅ Auth headers prepared successfully');
     return headers;
   }
 
@@ -232,40 +299,67 @@ export class FirestoreService {
    */
   async getCollection(collectionName: string): Promise<any[]> {
     try {
+      console.log(`📂 Attempting to read collection: ${collectionName}`);
+      
       const headers = await this.getAuthHeaders();
       const url = `${FIRESTORE_BASE_URL}/${collectionName}`;
+      console.log(`🌐 Request URL: ${url}`);
 
       const response = await fetch(url, {
         method: 'GET',
         headers,
       });
 
+      console.log(`📊 Response status: ${response.status} (${response.statusText})`);
+
       if (response.status === 404) {
-        // Collection doesn't exist yet, return empty array
+        console.log(`📁 Collection '${collectionName}' doesn't exist yet, returning empty array`);
         return [];
       }
 
       const responseData = await response.json();
 
       if (!response.ok) {
+        console.error(`❌ Firestore error response:`, responseData);
+        
         // Handle specific Firestore errors
         if (responseData.error?.status === 'NOT_FOUND') {
+          console.log(`📁 Collection '${collectionName}' not found, returning empty array`);
           return [];
         }
-        throw new Error(`Failed to get collection: ${responseData.error?.message || 'Unknown error'}`);
+        
+        // This is likely a permissions issue
+        if (responseData.error?.status === 'PERMISSION_DENIED') {
+          console.error(`🚫 PERMISSION DENIED for collection '${collectionName}' - Check Firestore security rules!`);
+          throw new Error(`Missing or insufficient permissions for collection '${collectionName}'. Check your Firestore security rules.`);
+        }
+        
+        throw new Error(`Failed to get collection '${collectionName}': ${responseData.error?.message || 'Unknown error'}`);
       }
 
       if (!responseData.documents) {
+        console.log(`📁 Collection '${collectionName}' exists but is empty`);
         return [];
       }
 
-      return responseData.documents.map((doc: FirestoreDocument) => ({
+      const documents = responseData.documents.map((doc: FirestoreDocument) => ({
         id: this.extractDocumentId(doc.name),
         ...this.fromFirestoreFormat(doc.fields)
       }));
+      
+      console.log(`✅ Successfully retrieved ${documents.length} documents from '${collectionName}'`);
+      return documents;
+      
     } catch (error) {
-      console.error('Get collection error:', error);
-      // Return empty array instead of throwing for collection access errors
+      console.error(`❌ Get collection '${collectionName}' error:`, error);
+      
+      // If it's an authentication error, re-throw it instead of returning empty array
+      if (error instanceof Error && error.message.includes('not authenticated')) {
+        throw error;
+      }
+      
+      // For other errors, log but return empty array to prevent app crashes
+      console.warn(`⚠️ Returning empty array for collection '${collectionName}' due to error`);
       return [];
     }
   }
@@ -378,6 +472,99 @@ export class FirestoreService {
     }
   }
 
+  /**
+   * Test Firebase connection and authentication
+   */
+  async testConnection(): Promise<{success: boolean, details: any}> {
+    try {
+      console.log('🧪 Testing Firebase connection...');
+      
+      // Test 1: Check if we can get auth headers
+      let authHeaders;
+      try {
+        authHeaders = await this.getAuthHeaders();
+        console.log('✅ Authentication test passed');
+      } catch (authError: any) {
+        console.error('❌ Authentication test failed:', authError);
+        return {
+          success: false,
+          details: {
+            step: 'authentication',
+            error: authError?.message || 'Authentication failed',
+            recommendation: 'User needs to sign in again'
+          }
+        };
+      }
+      
+      // Test 2: Try to access a simple collection that should be readable
+      try {
+        console.log('🔍 Testing Firestore access with current authentication...');
+        const url = `${FIRESTORE_BASE_URL}/apartmentInvites`;
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: authHeaders,
+        });
+        
+        console.log(`📊 Firestore response: ${response.status} (${response.statusText})`);
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          console.log('✅ Firestore access test passed');
+          const inviteCount = data.documents ? data.documents.length : 0;
+          console.log(`📄 Found ${inviteCount} apartment invites`);
+          
+          return {
+            success: true,
+            details: {
+              step: 'firestore_access',
+              inviteCodesCount: inviteCount,
+              availableCodes: data.documents?.map((doc: any) => doc.name.split('/').pop()) || []
+            }
+          };
+        } else {
+          console.error('❌ Firestore access test failed');
+          console.error('Error response:', data);
+          
+          return {
+            success: false,
+            details: {
+              step: 'firestore_access',
+              status: response.status,
+              error: data.error?.message || 'Unknown Firestore error',
+              recommendation: response.status === 403 ? 
+                'Check Firestore security rules' : 
+                'Check Firebase project configuration'
+            }
+          };
+        }
+        
+      } catch (networkError: any) {
+        console.error('❌ Network test failed:', networkError);
+        return {
+          success: false,
+          details: {
+            step: 'network',
+            error: networkError?.message || 'Network error',
+            recommendation: 'Check internet connection and Firebase URLs'
+          }
+        };
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Connection test failed:', error);
+      return {
+        success: false,
+        details: {
+          step: 'unknown',
+          error: error?.message || 'Unknown error',
+          recommendation: 'Contact support with this error message'
+        }
+      };
+    }
+  }
+
   // Specific methods for your app's collections
 
   /**
@@ -484,49 +671,95 @@ export class FirestoreService {
 
   async getApartmentByInviteCode(inviteCode: string): Promise<any | null> {
     try {
-      console.log('Searching for apartment with invite code:', inviteCode);
+      console.log(`🔍 Searching for apartment with invite code: "${inviteCode}"`);
+      console.log(`📏 Code length: ${inviteCode.length} characters`);
+      console.log(`🔤 Code format: ${inviteCode} (uppercase: ${inviteCode.toUpperCase()})`);
+      
+      // Normalize the invite code (trim whitespace and convert to uppercase)
+      const normalizedCode = inviteCode.trim().toUpperCase();
+      console.log(`🔧 Normalized code: "${normalizedCode}"`);
       
       // Look up the invite record first (this should be publicly readable)
-      const inviteRecord = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, inviteCode);
-      console.log('Invite record found:', !!inviteRecord);
+      console.log(`📊 Looking up invite record in collection: ${COLLECTIONS.APARTMENT_INVITES}`);
+      const inviteRecord = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, normalizedCode);
+      console.log('📋 Invite record found:', !!inviteRecord);
       
       if (!inviteRecord) {
-        console.log('No invite record found for code:', inviteCode);
-        return null;
-      }
-      
-      console.log('Invite record details:', inviteRecord);
-      
-      // Now get the actual apartment using the apartment_id from the invite record
-      const apartment = await this.getApartment(inviteRecord.apartment_id);
-      console.log('Apartment found via invite lookup:', !!apartment);
-      
-      if (apartment) {
-        // Ensure the invite code matches (double check)
-        if (apartment.invite_code === inviteCode) {
-          return apartment;
+        console.log(`❌ No invite record found for code: "${normalizedCode}"`);
+        console.log('🔍 Attempting fallback search through all apartments...');
+        
+        // Fallback: scan all apartments
+        const apartments = await this.getCollection(COLLECTIONS.APARTMENTS);
+        console.log(`📁 Retrieved ${apartments.length} apartments for fallback search`);
+        
+        const foundApartment = apartments.find(apt => 
+          apt.invite_code && apt.invite_code.toUpperCase() === normalizedCode
+        );
+        
+        if (foundApartment) {
+          console.log(`✅ Found apartment via fallback: ${foundApartment.name} (ID: ${foundApartment.id})`);
+          return foundApartment;
         } else {
-          console.warn('Invite code mismatch in apartment document');
+          console.log(`❌ No apartment found with invite code "${normalizedCode}" in fallback search either`);
+          // Log all available invite codes for debugging
+          const availableCodes = apartments
+            .filter(apt => apt.invite_code)
+            .map(apt => apt.invite_code);
+          console.log('🔎 Available invite codes in database:', availableCodes);
           return null;
         }
       }
       
-      return null;
-    } catch (error) {
-      console.error('Get apartment by invite code error:', error);
+      console.log('📋 Invite record details:', inviteRecord);
       
-      // Fallback: try the old method if the new structure doesn't exist yet
+      // Now get the actual apartment using the apartment_id from the invite record
+      console.log(`🏠 Looking up apartment ID: ${inviteRecord.apartment_id}`);
+      const apartment = await this.getApartment(inviteRecord.apartment_id);
+      console.log('🏠 Apartment found via invite lookup:', !!apartment);
+      
+      if (apartment) {
+        // Ensure the invite code matches (double check)
+        if (apartment.invite_code === normalizedCode) {
+          console.log(`✅ Apartment found and verified: ${apartment.name} (ID: ${apartment.id})`);
+          return apartment;
+        } else {
+          console.warn(`⚠️ Invite code mismatch! Expected: "${normalizedCode}", Found: "${apartment.invite_code}"`);
+          return null;
+        }
+      }
+      
+      console.log(`❌ Apartment with ID ${inviteRecord.apartment_id} not found`);
+      return null;
+      
+    } catch (error) {
+      console.error(`❌ Get apartment by invite code error for "${inviteCode}":`, error);
+      
+      // If it's an authentication error, re-throw it
+      if (error instanceof Error && error.message.includes('not authenticated')) {
+        throw error;
+      }
+      
+      // For other errors, still try fallback but with better error handling
       try {
-        console.log('Falling back to collection scan method...');
+        console.log('🔄 Attempting fallback collection scan method...');
         const apartments = await this.getCollection(COLLECTIONS.APARTMENTS);
-        console.log('Retrieved apartments via fallback:', apartments.length);
+        console.log(`📁 Retrieved ${apartments.length} apartments via fallback`);
         
-        const foundApartment = apartments.find(apt => apt.invite_code === inviteCode);
-        console.log('Found apartment via fallback:', foundApartment ? 'YES' : 'NO');
+        const normalizedCode = inviteCode.trim().toUpperCase();
+        const foundApartment = apartments.find(apt => 
+          apt.invite_code && apt.invite_code.toUpperCase() === normalizedCode
+        );
         
-        return foundApartment || null;
+        if (foundApartment) {
+          console.log(`✅ Found apartment via fallback: ${foundApartment.name}`);
+          return foundApartment;
+        } else {
+          console.log(`❌ No apartment found with code "${normalizedCode}" in fallback either`);
+          return null;
+        }
+        
       } catch (fallbackError) {
-        console.error('Fallback method also failed:', fallbackError);
+        console.error('❌ Fallback method also failed:', fallbackError);
         return null;
       }
     }
