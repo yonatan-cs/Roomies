@@ -1,0 +1,70 @@
+[debug] [2025-08-27T09:48:53.471Z] ----------------------------------------------------------------------
+[debug] [2025-08-27T09:48:53.473Z] Command:       /usr/local/bin/node /home/user/.npm-global/bin/firebase init functions
+[debug] [2025-08-27T09:48:53.474Z] CLI Version:   14.14.0
+[debug] [2025-08-27T09:48:53.474Z] Platform:      linux
+[debug] [2025-08-27T09:48:53.474Z] Node Version:  v21.7.3
+[debug] [2025-08-27T09:48:53.474Z] Time:          Wed Aug 27 2025 09:48:53 GMT+0000 (Coordinated Universal Time)
+[debug] [2025-08-27T09:48:53.474Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-08-27T09:48:53.756Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-27T09:48:53.757Z] > authorizing via FIREBASE_TOKEN environment variable
+[warn] ⚠  Authenticating with `FIREBASE_TOKEN` is deprecated and will be removed in a future major version of `firebase-tools`. Instead, use a service account key with `GOOGLE_APPLICATION_CREDENTIALS`: https://cloud.google.com/docs/authentication/getting-started 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /home/user/workspace
+
+Before we get started, keep in mind:
+
+  * You are initializing within an existing Firebase project directory
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] but for now we'll just set up a default project.
+[info] 
+[debug] [2025-08-27T09:48:53.762Z] Using project from CLI flag: roomies-hub
+[debug] [2025-08-27T09:48:53.763Z] No OAuth tokens found
+[debug] [2025-08-27T09:48:53.763Z] No OAuth tokens found
+[debug] [2025-08-27T09:48:53.763Z] > refreshing access token with scopes: []
+[debug] [2025-08-27T09:48:53.766Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-08-27T09:48:53.766Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-08-27T09:48:53.872Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-08-27T09:48:53.873Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-08-27T09:48:53.874Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/roomies-hub [none]
+[debug] [2025-08-27T09:48:54.091Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/roomies-hub 200
+[debug] [2025-08-27T09:48:54.091Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/roomies-hub {"projectId":"roomies-hub","projectNumber":"845572884017","displayName":"Roomies Hub","name":"projects/roomies-hub","resources":{"hostingSite":"roomies-hub"},"state":"ACTIVE","etag":"1_094aa8ca-8224-4e14-af89-c039f56098c4"}
+[info] i  Using project roomies-hub (Roomies Hub) 
+[info] 
+=== Functions Setup
+[debug] [2025-08-27T09:48:54.162Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-08-27T09:48:54.162Z] > authorizing via FIREBASE_TOKEN environment variable
+[warn] ⚠  Authenticating with `FIREBASE_TOKEN` is deprecated and will be removed in a future major version of `firebase-tools`. Instead, use a service account key with `GOOGLE_APPLICATION_CREDENTIALS`: https://cloud.google.com/docs/authentication/getting-started 
+[debug] [2025-08-27T09:48:54.162Z] [iam] checking project roomies-hub for permissions ["firebase.projects.get"]
+[debug] [2025-08-27T09:48:54.163Z] Checked if tokens are valid: true, expires at: 1756291732873
+[debug] [2025-08-27T09:48:54.163Z] Checked if tokens are valid: true, expires at: 1756291732873
+[debug] [2025-08-27T09:48:54.163Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/roomies-hub:testIamPermissions [none]
+[debug] [2025-08-27T09:48:54.163Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/roomies-hub:testIamPermissions x-goog-quota-user=projects/roomies-hub
+[debug] [2025-08-27T09:48:54.163Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/roomies-hub:testIamPermissions {"permissions":["firebase.projects.get"]}
+[debug] [2025-08-27T09:48:54.292Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/roomies-hub:testIamPermissions 200
+[debug] [2025-08-27T09:48:54.292Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/roomies-hub:testIamPermissions {"permissions":["firebase.projects.get"]}
+[info] 
+Detected existing codebase(s): default
+
+[info] Let's create a new codebase for your functions.
+[info] A directory corresponding to the codebase will be created in your project
+[info] with sample code pre-configured.
+
+[info] See https://firebase.google.com/docs/functions/organize-functions for
+[info] more information on organizing your functions using codebases.
+
+[info] Functions can be deployed with firebase deploy.
+
