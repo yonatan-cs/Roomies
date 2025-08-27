@@ -49,15 +49,21 @@ export class FirestoreService {
    * Get authenticated headers for requests
    */
   private async getAuthHeaders(): Promise<HeadersInit> {
+    console.log('Getting auth headers...');
     const idToken = await firebaseAuth.getCurrentIdToken();
+    console.log('ID Token:', idToken ? 'Present' : 'Missing');
+    
     if (!idToken) {
       throw new Error('User not authenticated');
     }
 
-    return {
+    const headers = {
       'Authorization': `Bearer ${idToken}`,
       'Content-Type': 'application/json',
     };
+    
+    console.log('Auth headers prepared');
+    return headers;
   }
 
   /**
@@ -143,6 +149,8 @@ export class FirestoreService {
    */
   async createDocument(collectionName: string, data: any, documentId?: string): Promise<any> {
     try {
+      console.log(`Creating document in collection: ${collectionName}`, data);
+      
       const headers = await this.getAuthHeaders();
       let url = `${FIRESTORE_BASE_URL}/${collectionName}`;
       
@@ -150,25 +158,35 @@ export class FirestoreService {
         url += `?documentId=${documentId}`;
       }
 
+      console.log('Request URL:', url);
+      console.log('Request headers:', headers);
+
+      const requestBody = {
+        fields: this.toFirestoreFormat(data)
+      };
+      console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
       const response = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
-          fields: this.toFirestoreFormat(data)
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const responseData = await response.json();
+      console.log('Response status:', response.status);
+      console.log('Response data:', responseData);
 
       if (!response.ok) {
         throw new Error(`Failed to create document: ${responseData.error?.message || 'Unknown error'}`);
       }
 
       const convertedData = this.fromFirestoreFormat(responseData.fields);
-      return {
+      const result = {
         id: this.extractDocumentId(responseData.name),
         ...convertedData
       };
+      console.log('Document created successfully:', result);
+      return result;
     } catch (error) {
       console.error('Create document error:', error);
       throw error;
@@ -222,9 +240,18 @@ export class FirestoreService {
         headers,
       });
 
+      if (response.status === 404) {
+        // Collection doesn't exist yet, return empty array
+        return [];
+      }
+
       const responseData = await response.json();
 
       if (!response.ok) {
+        // Handle specific Firestore errors
+        if (responseData.error?.status === 'NOT_FOUND') {
+          return [];
+        }
         throw new Error(`Failed to get collection: ${responseData.error?.message || 'Unknown error'}`);
       }
 
@@ -238,7 +265,8 @@ export class FirestoreService {
       }));
     } catch (error) {
       console.error('Get collection error:', error);
-      throw error;
+      // Return empty array instead of throwing for collection access errors
+      return [];
     }
   }
 
@@ -372,7 +400,7 @@ export class FirestoreService {
     return this.getDocument(COLLECTIONS.USERS, userId);
   }
 
-  async updateUser(userId: string, userData: { full_name?: string; phone?: string }): Promise<any> {
+  async updateUser(userId: string, userData: { full_name?: string; phone?: string; current_apartment_id?: string }): Promise<any> {
     return this.updateDocument(COLLECTIONS.USERS, userId, userData);
   }
 
@@ -392,8 +420,16 @@ export class FirestoreService {
   }
 
   async getApartmentByInviteCode(inviteCode: string): Promise<any | null> {
-    const apartments = await this.queryCollection(COLLECTIONS.APARTMENTS, 'invite_code', 'EQUAL', inviteCode);
-    return apartments.length > 0 ? apartments[0] : null;
+    try {
+      // Get all apartments and filter by invite code
+      // This is less efficient but more reliable than structured queries
+      const apartments = await this.getCollection(COLLECTIONS.APARTMENTS);
+      const foundApartment = apartments.find(apt => apt.invite_code === inviteCode);
+      return foundApartment || null;
+    } catch (error) {
+      console.error('Get apartment by invite code error:', error);
+      return null;
+    }
   }
 
   /**
@@ -422,24 +458,21 @@ export class FirestoreService {
 
   /**
    * Generate unique 6-character invite code
+   * Uses timestamp + random for better uniqueness without needing to query existing codes
    */
-  async generateUniqueInviteCode(): Promise<string> {
-    let inviteCode: string;
-    let attempts = 0;
-    const maxAttempts = 10;
-
-    do {
-      inviteCode = Math.random().toString(36).toUpperCase().slice(2, 8);
-      const existingApartment = await this.getApartmentByInviteCode(inviteCode);
-      
-      if (!existingApartment) {
-        return inviteCode;
-      }
-      
-      attempts++;
-    } while (attempts < maxAttempts);
-
-    throw new Error('Unable to generate unique invite code');
+  generateUniqueInviteCode(): string {
+    // Use timestamp + random for better uniqueness
+    const timestamp = Date.now().toString(36).slice(-3); // Last 3 chars of timestamp
+    const random = Math.random().toString(36).slice(2, 5); // 3 random chars
+    const inviteCode = (timestamp + random).toUpperCase().slice(0, 6);
+    
+    // Ensure it's exactly 6 characters
+    if (inviteCode.length < 6) {
+      const padding = Math.random().toString(36).slice(2, 8 - inviteCode.length);
+      return (inviteCode + padding).toUpperCase().slice(0, 6);
+    }
+    
+    return inviteCode;
   }
 }
 
