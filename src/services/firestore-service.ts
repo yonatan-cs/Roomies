@@ -405,42 +405,77 @@ export class FirestoreService {
   }
 
   /**
-   * Apartment management - Now using Cloud Functions for secure creation
+   * Apartment management - Works with Spark Plan (free)
    */
   async createApartment(apartmentData: {
     name: string;
     description?: string;
   }): Promise<any> {
-    try {
-      console.log('Creating apartment via Cloud Function...');
-      
-      // Call Cloud Function for secure apartment creation
-      const response = await fetch(`https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/createApartmentWithInvite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await firebaseAuth.getCurrentIdToken()}`,
-        },
-        body: JSON.stringify({
-          data: {
-            name: apartmentData.name,
-            description: apartmentData.description || '',
+    const maxAttempts = 10;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      try {
+        console.log(`Creating apartment... (attempt ${attempts + 1}/${maxAttempts})`);
+        
+        // Generate unique invite code
+        const inviteCode = await this.generateUniqueInviteCode();
+        console.log('Generated invite code:', inviteCode);
+        
+        // Create apartment document first
+        console.log('Creating apartment document...');
+        const apartment = await this.createDocument(COLLECTIONS.APARTMENTS, {
+          ...apartmentData,
+          invite_code: inviteCode,
+        });
+        
+        console.log('Apartment created:', apartment);
+        
+        // Now try to create the invite record with the real apartment ID
+        const inviteData = {
+          apartment_id: apartment.id,
+          apartment_name: apartmentData.name,
+          invite_code: inviteCode,
+          created_at: new Date(),
+        };
+        
+        console.log('Creating invite record...');
+        try {
+          await this.createDocument(COLLECTIONS.APARTMENT_INVITES, inviteData, inviteCode);
+          console.log('Invite record created successfully');
+          
+          // Success! Return the apartment
+          return apartment;
+          
+        } catch (inviteError: any) {
+          console.warn('Failed to create invite record (code collision), cleaning up apartment...');
+          
+          // Clean up the apartment we just created since invite code collided
+          try {
+            await this.deleteDocument(COLLECTIONS.APARTMENTS, apartment.id);
+            console.log('Apartment cleaned up successfully');
+          } catch (cleanupError) {
+            console.error('Failed to cleanup apartment:', cleanupError);
           }
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(result.error?.message || 'Failed to create apartment');
+          
+          // This will trigger a retry with a new code
+          throw new Error('Invite code collision detected');
+        }
+        
+      } catch (error: any) {
+        console.error(`Create apartment error (attempt ${attempts + 1}):`, error);
+        attempts++;
+        
+        if (attempts >= maxAttempts) {
+          throw new Error(`Failed to create apartment after ${maxAttempts} attempts: ${error.message}`);
+        }
+        
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 100 * attempts));
       }
-
-      console.log('Apartment created successfully via Cloud Function:', result.result);
-      return result.result.apartment;
-    } catch (error) {
-      console.error('Create apartment error:', error);
-      throw error;
     }
+    
+    throw new Error('Failed to create apartment: Maximum attempts reached');
   }
 
   async getApartment(apartmentId: string): Promise<any | null> {
@@ -515,34 +550,21 @@ export class FirestoreService {
   }
 
   /**
-   * Join apartment using invite code via Cloud Function
+   * Join apartment using invite code - Works with Spark Plan (free)
    */
   async joinApartmentByInviteCode(inviteCode: string): Promise<any> {
     try {
-      console.log('Joining apartment via Cloud Function with code:', inviteCode);
+      console.log('Joining apartment with code:', inviteCode);
       
-      // Call Cloud Function for secure apartment joining
-      const response = await fetch(`https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/joinApartment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await firebaseAuth.getCurrentIdToken()}`,
-        },
-        body: JSON.stringify({
-          data: {
-            inviteCode: inviteCode.toUpperCase(),
-          }
-        }),
-      });
-
-      const result = await response.json();
+      // Look up apartment by invite code
+      const apartment = await this.getApartmentByInviteCode(inviteCode);
       
-      if (!response.ok) {
-        throw new Error(result.error?.message || 'Failed to join apartment');
+      if (!apartment) {
+        throw new Error('קוד דירה לא נמצא. וודא שהקוד נכון ושהדירה קיימת.');
       }
-
-      console.log('Joined apartment successfully via Cloud Function:', result.result);
-      return result.result.apartment;
+      
+      console.log('Found apartment:', apartment);
+      return apartment;
     } catch (error) {
       console.error('Join apartment error:', error);
       throw error;
@@ -587,22 +609,56 @@ export class FirestoreService {
   }
 
   /**
-   * Generate unique 6-character invite code
-   * Uses timestamp + random for better uniqueness without needing to query existing codes
+   * Generate unique 6-character invite code with database validation
+   * Ensures uniqueness by checking against existing codes
    */
-  generateUniqueInviteCode(): string {
-    // Use timestamp + random for better uniqueness
-    const timestamp = Date.now().toString(36).slice(-3); // Last 3 chars of timestamp
-    const random = Math.random().toString(36).slice(2, 5); // 3 random chars
-    const inviteCode = (timestamp + random).toUpperCase().slice(0, 6);
-    
-    // Ensure it's exactly 6 characters
-    if (inviteCode.length < 6) {
-      const padding = Math.random().toString(36).slice(2, 8 - inviteCode.length);
-      return (inviteCode + padding).toUpperCase().slice(0, 6);
+  async generateUniqueInviteCode(): Promise<string> {
+    const maxAttempts = 50;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      // Generate code using timestamp + random for better uniqueness
+      const timestamp = Date.now().toString(36).slice(-3);
+      const random = Math.random().toString(36).slice(2, 5);
+      const inviteCode = (timestamp + random).toUpperCase().slice(0, 6);
+      
+      // Ensure it's exactly 6 characters
+      if (inviteCode.length < 6) {
+        const padding = Math.random().toString(36).slice(2, 8 - inviteCode.length);
+        const finalCode = (inviteCode + padding).toUpperCase().slice(0, 6);
+        
+        try {
+          // Check if code already exists in apartmentInvites
+          const existingDoc = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, finalCode);
+          if (!existingDoc) {
+            console.log('Generated unique invite code:', finalCode);
+            return finalCode;
+          }
+        } catch (error) {
+          // If document doesn't exist (404), code is unique
+          console.log('Generated unique invite code:', finalCode);
+          return finalCode;
+        }
+      } else {
+        try {
+          // Check if code already exists
+          const existingDoc = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, inviteCode);
+          if (!existingDoc) {
+            console.log('Generated unique invite code:', inviteCode);
+            return inviteCode;
+          }
+        } catch (error) {
+          // If document doesn't exist (404), code is unique
+          console.log('Generated unique invite code:', inviteCode);
+          return inviteCode;
+        }
+      }
+      
+      attempts++;
+      console.log(`Invite code attempt ${attempts}: ${inviteCode} already exists, trying again...`);
     }
-    
-    return inviteCode;
+
+    throw new Error('Unable to generate unique invite code after maximum attempts');
   }
 }
 

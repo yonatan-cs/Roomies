@@ -108,7 +108,7 @@ export default function WelcomeScreen() {
     try {
       console.log('Starting apartment creation...');
       
-      // Create apartment in Firestore via Cloud Function
+      // Create apartment in Firestore
       const apartmentData = {
         name: apartmentName.trim(),
         description: '',
@@ -123,6 +123,10 @@ export default function WelcomeScreen() {
       if (!currentUser) {
         throw new Error('User not authenticated');
       }
+
+      console.log('Joining apartment as admin...');
+      // Join the apartment as admin
+      await firestoreService.joinApartment(apartment.id, currentUser.id);
       
       // Update local state - current_apartment_id is managed through apartmentMembers
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
@@ -160,8 +164,8 @@ export default function WelcomeScreen() {
 
     setLoading(true);
     try {
-      // Join apartment using Cloud Function
-      const apartment = await firestoreService.joinApartmentByInviteCode(joinCode.trim().toUpperCase());
+      // Find apartment by invite code
+      const apartment = await firestoreService.getApartmentByInviteCode(joinCode.trim().toUpperCase());
       
       if (!apartment) {
         throw new Error('קוד דירה לא נמצא. וודא שהקוד נכון ושהדירה קיימת.');
@@ -172,6 +176,9 @@ export default function WelcomeScreen() {
       if (!currentUser) {
         throw new Error('User not authenticated');
       }
+
+      // Join the apartment
+      await firestoreService.joinApartment(apartment.id, currentUser.id);
       
       // Update local state - current_apartment_id is managed through apartmentMembers
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
