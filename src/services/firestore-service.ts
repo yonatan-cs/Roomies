@@ -283,6 +283,10 @@ export class FirestoreService {
       if (response.status === 404) {
         return null;
       }
+      if (response.status === 403) {
+        // Explicitly map to a clear permission error for callers
+        throw new Error('PERMISSION_DENIED');
+      }
 
       const responseData = await response.json();
 
@@ -322,6 +326,9 @@ export class FirestoreService {
       if (response.status === 404) {
         console.log(`📁 Collection '${collectionName}' doesn't exist yet, returning empty array`);
         return [];
+      }
+      if (response.status === 403) {
+        throw new Error('PERMISSION_DENIED');
       }
 
       const responseData = await response.json();
@@ -725,32 +732,7 @@ export class FirestoreService {
       console.log(`📊 Looking up invite record in collection: ${COLLECTIONS.APARTMENT_INVITES}`);
       const inviteRecord = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, normalizedCode);
       console.log('📋 Invite record found:', !!inviteRecord);
-      
-      if (!inviteRecord) {
-        console.log(`❌ No invite record found for code: "${normalizedCode}"`);
-        console.log('🔍 Attempting fallback search through all apartments...');
-        
-        // Fallback: scan all apartments
-        const apartments = await this.getCollection(COLLECTIONS.APARTMENTS);
-        console.log(`📁 Retrieved ${apartments.length} apartments for fallback search`);
-        
-        const foundApartment = apartments.find(apt => 
-          apt.invite_code && apt.invite_code.toUpperCase() === normalizedCode
-        );
-        
-        if (foundApartment) {
-          console.log(`✅ Found apartment via fallback: ${foundApartment.name} (ID: ${foundApartment.id})`);
-          return foundApartment;
-        } else {
-          console.log(`❌ No apartment found with invite code "${normalizedCode}" in fallback search either`);
-          // Log all available invite codes for debugging
-          const availableCodes = apartments
-            .filter(apt => apt.invite_code)
-            .map(apt => apt.invite_code);
-          console.log('🔎 Available invite codes in database:', availableCodes);
-          return null;
-        }
-      }
+      if (!inviteRecord) return null;
       
       console.log('📋 Invite record details:', inviteRecord);
       
@@ -773,37 +755,15 @@ export class FirestoreService {
       console.log(`❌ Apartment with ID ${inviteRecord.apartment_id} not found`);
       return null;
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Get apartment by invite code error for "${inviteCode}":`, error);
-      
-      // If it's an authentication error, re-throw it
-      if (error instanceof Error && error.message.includes('not authenticated')) {
+      // surface permission issues and auth to caller
+      const message = String(error?.message || '');
+      if (message.includes('PERMISSION_DENIED') || message.includes('not authenticated')) {
         throw error;
       }
-      
-      // For other errors, still try fallback but with better error handling
-      try {
-        console.log('🔄 Attempting fallback collection scan method...');
-        const apartments = await this.getCollection(COLLECTIONS.APARTMENTS);
-        console.log(`📁 Retrieved ${apartments.length} apartments via fallback`);
-        
-        const normalizedCode = inviteCode.trim().toUpperCase();
-        const foundApartment = apartments.find(apt => 
-          apt.invite_code && apt.invite_code.toUpperCase() === normalizedCode
-        );
-        
-        if (foundApartment) {
-          console.log(`✅ Found apartment via fallback: ${foundApartment.name}`);
-          return foundApartment;
-        } else {
-          console.log(`❌ No apartment found with code "${normalizedCode}" in fallback either`);
-          return null;
-        }
-        
-      } catch (fallbackError) {
-        console.error('❌ Fallback method also failed:', fallbackError);
-        return null;
-      }
+      // No fallback scans per security policy
+      return null;
     }
   }
 
@@ -908,6 +868,14 @@ export class FirestoreService {
       }
       
       console.log('Found apartment:', apartment);
+      
+      // Create membership and update user profile
+      const currentUser = await firebaseAuth.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+      
+      await this.joinApartment(apartment.id, currentUser.localId);
       return apartment;
     } catch (error) {
       console.error('Join apartment error:', error);
