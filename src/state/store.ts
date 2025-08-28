@@ -183,17 +183,11 @@ export const useStore = create<AppState>()(
 
       refreshApartmentMembers: async () => {
         try {
-          const state = get();
-          const currentUser = state.currentUser;
-          if (!currentUser) {
-            console.log('📭 No current user to refresh members for');
-            return;
-          }
-
-          console.log('🔄 Refreshing apartment members for user:', currentUser.id);
+          console.log('🔄 Refreshing apartment members...');
           
           // Get complete apartment data using the new reliable method
-          const completeApartmentData = await firestoreService.getCompleteApartmentData(currentUser.id);
+          // This now uses requireSession() internally to ensure valid auth
+          const completeApartmentData = await firestoreService.getCompleteApartmentData();
           
           if (!completeApartmentData) {
             console.log('❌ No apartment data found for user');
@@ -212,6 +206,7 @@ export const useStore = create<AppState>()(
           });
           
           // Also update the cleaning queue if there's an active task
+          const state = get();
           if (state.cleaningTask) {
             const newQueue = completeApartmentData.members.map((m: User) => m.id);
             if (newQueue.length > 0) {
@@ -229,6 +224,12 @@ export const useStore = create<AppState>()(
           
         } catch (error) {
           console.error('❌ Error refreshing apartment members:', error);
+          
+          // If it's an auth error, we might need to redirect to login
+          if (error instanceof Error && error.message.includes('AUTH_REQUIRED')) {
+            console.log('🔐 Auth required - user needs to sign in again');
+            // You might want to trigger a sign-out or redirect to login here
+          }
         }
       },
 
