@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useStore } from '../state/store';
 import { ExpenseCategory } from '../types';
 import { cn } from '../utils/cn';
+import { getUserDisplayInfo } from '../utils/userDisplay';
 
 const CATEGORIES: { key: ExpenseCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'groceries', label: 'מכולת', icon: 'basket-outline' },
@@ -215,7 +216,7 @@ export default function AddExpenseScreen() {
                   )}
                 </View>
                 <Text className="text-gray-900 flex-1">
-                  {member.name} {member.id === currentUser.id && '(אתה)'}
+                  {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && '(אתה)'}
                 </Text>
               </Pressable>
             ))}

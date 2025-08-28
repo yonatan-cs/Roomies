@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
+import { getUserDisplayInfo } from '../utils/userDisplay';
 import Clipboard from '@react-native-clipboard/clipboard';
 import ConfirmModal from '../components/ConfirmModal';
 import { firebaseAuth } from '../services/firebase-auth';
@@ -127,11 +128,13 @@ export default function SettingsScreen() {
             <View key={member.id} className="mb-4">
               <View className="flex-row items-center">
                 <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
-                  <Text className="text-blue-700 font-semibold text-lg">{member.name.charAt(0)}</Text>
+                  <Text className="text-blue-700 font-semibold text-lg">
+                    {getUserDisplayInfo(member).initial}
+                  </Text>
                 </View>
                 <View className="mr-3 flex-1">
                   <Text className="text-gray-900 font-medium">
-                    {member.name} {member.id === currentUser.id && '(אתה)'}
+                    {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && '(אתה)'}
                   </Text>
                   <Text className="text-gray-500 text-sm">{member.email || 'אין אימייל'}</Text>
                 </View>

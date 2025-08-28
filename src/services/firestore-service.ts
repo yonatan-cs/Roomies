@@ -665,8 +665,13 @@ export class FirestoreService {
         try {
           await this.createDocument(COLLECTIONS.APARTMENT_INVITES, inviteData, inviteCode);
           console.log('Invite record created successfully');
-          // Success! Return the apartment. Do NOT attempt to auto-add creator here.
-          // The caller (UI) is responsible for joining the apartment once.
+          
+          // Create membership for the creator directly
+          console.log('👤 Creating membership for apartment creator...');
+          await this.createMembershipDirectly(apartment.id, currentUser.localId);
+          console.log('✅ Creator membership created successfully');
+          
+          // Success! Return the apartment with creator already as member
           return apartment;
         } catch (inviteError: any) {
           const message = String(inviteError?.message || inviteError || 'Unknown invite creation error');
@@ -907,6 +912,54 @@ export class FirestoreService {
 
   async getApartmentMembers(apartmentId: string): Promise<any[]> {
     return this.queryCollection(COLLECTIONS.APARTMENT_MEMBERS, 'apartment_id', 'EQUAL', apartmentId);
+  }
+
+  /**
+   * Create membership directly without going through join flow
+   * Used for apartment creator to become a member immediately
+   */
+  async createMembershipDirectly(apartmentId: string, userId: string): Promise<any> {
+    try {
+      console.log(`🤝 Creating direct membership for user ${userId} in apartment ${apartmentId}`);
+      
+      const memberId = `${apartmentId}_${userId}`;
+      
+      // Check if membership already exists
+      try {
+        const existingMembership = await this.getDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
+        if (existingMembership) {
+          console.log('✅ User is already a member of this apartment');
+          return existingMembership;
+        }
+      } catch (error) {
+        // Document doesn't exist, continue with creation
+      }
+      
+      const memberData = {
+        apartment_id: apartmentId,
+        user_id: userId,
+        role: 'member',
+        joined_at: new Date(),
+      };
+      
+      console.log('📝 Creating apartment membership record...');
+      console.log(`🆔 Member ID: ${memberId}`);
+      console.log(`📋 Member data:`, memberData);
+      
+      // Create the membership record
+      const membershipResult = await this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
+      console.log('✅ Membership record created');
+      
+      // Update user's current_apartment_id
+      console.log('👤 Updating user profile with apartment ID...');
+      await this.updateUser(userId, { current_apartment_id: apartmentId });
+      console.log('✅ User profile updated');
+      
+      return membershipResult;
+    } catch (error) {
+      console.error('❌ Create membership directly error:', error);
+      throw error;
+    }
   }
 
   /**

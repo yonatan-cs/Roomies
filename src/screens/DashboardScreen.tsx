@@ -7,11 +7,23 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+
+type RootStackParamList = {
+  Settings: undefined;
+  Shopping: undefined;
+  AddExpense: undefined;
+  Budget: undefined;
+  Cleaning: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
+import { getUserDisplayInfo } from '../utils/userDisplay';
 
 export default function DashboardScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const { 
     currentUser, 
     currentApartment, 
@@ -73,7 +85,8 @@ export default function DashboardScreen() {
 
   const getUserName = (userId: string) => {
     if (userId === currentUser?.id) return 'אתה';
-    return currentApartment?.members.find(m => m.id === userId)?.name || 'לא ידוע';
+    const member = currentApartment?.members.find(m => m.id === userId);
+    return getUserDisplayInfo(member).displayName;
   };
 
   const currentTurnUser = getCurrentTurnUser();
@@ -131,12 +144,12 @@ export default function DashboardScreen() {
             </View>
             <Text className={cn(
               "text-2xl font-bold",
-              myBalance?.netBalance >= 0 ? "text-green-600" : "text-red-600"
+              (myBalance?.netBalance ?? 0) >= 0 ? "text-green-600" : "text-red-600"
             )}>
-              {myBalance ? formatCurrency(Math.abs(myBalance.netBalance)) : '₪0'}
+              {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
             </Text>
             <Text className="text-xs text-gray-500">
-              {myBalance?.netBalance >= 0 ? 'מגיע לך' : 'אתה חייב'}
+              {(myBalance?.netBalance ?? 0) >= 0 ? 'מגיע לך' : 'אתה חייב'}
             </Text>
           </Pressable>
 
@@ -199,7 +212,7 @@ export default function DashboardScreen() {
                   )}
                 >
                   <Text className="text-xs text-blue-700 font-medium">
-                    {member.name.charAt(0)}
+                    {getUserDisplayInfo(member).initial}
                   </Text>
                 </View>
               ))}
