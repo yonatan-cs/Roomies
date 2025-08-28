@@ -10,9 +10,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { ExpenseCategory } from '../types';
+
+type RootStackParamList = {
+  AddExpense: undefined;
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const CATEGORY_ICONS: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
   groceries: 'basket-outline',
@@ -33,7 +40,7 @@ const CATEGORY_NAMES: Record<ExpenseCategory, string> = {
 };
 
 export default function BudgetScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState('');
   const [settlementFromUser, setSettlementFromUser] = useState('');
@@ -113,13 +120,13 @@ export default function BudgetScreen() {
     setSettlementOriginalAmount(0);
   };
 
-  const renderExpenseItem = ({ item: expense }) => (
+  const renderExpenseItem = ({ item: expense }: { item: any }) => (
     <View className="bg-white rounded-xl p-4 mb-3 shadow-sm">
       <View className="flex-row items-center justify-between mb-2">
         <View className="flex-row items-center">
           <View className="bg-gray-100 w-10 h-10 rounded-full items-center justify-center">
             <Ionicons 
-              name={CATEGORY_ICONS[expense.category]} 
+              name={CATEGORY_ICONS[expense.category as keyof typeof CATEGORY_ICONS]} 
               size={20} 
               color="#6b7280" 
             />
@@ -129,7 +136,7 @@ export default function BudgetScreen() {
               {expense.title}
             </Text>
             <Text className="text-sm text-gray-500">
-              {CATEGORY_NAMES[expense.category]} • {formatDate(expense.date)}
+              {CATEGORY_NAMES[expense.category as keyof typeof CATEGORY_NAMES]} • {formatDate(expense.date)}
             </Text>
           </View>
         </View>
@@ -192,13 +199,13 @@ export default function BudgetScreen() {
           
           <View className="items-center">
             <Text className="text-3xl font-bold mb-2" style={{
-              color: myBalance?.netBalance >= 0 ? '#10b981' : '#ef4444'
+              color: (myBalance?.netBalance ?? 0) >= 0 ? '#10b981' : '#ef4444'
             }}>
-              {myBalance ? formatCurrency(Math.abs(myBalance.netBalance)) : '₪0'}
+              {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
             </Text>
             
             <Text className="text-gray-600 text-center">
-              {myBalance?.netBalance >= 0 ? 'מגיע לך' : 'אתה חייב'}
+              {(myBalance?.netBalance ?? 0) >= 0 ? 'מגיע לך' : 'אתה חייב'}
             </Text>
           </View>
 

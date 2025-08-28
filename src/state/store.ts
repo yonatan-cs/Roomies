@@ -116,7 +116,7 @@ export const useStore = create<AppState>()(
         const apartment: Apartment = {
           id: uuidv4(),
           name,
-          code,
+          invite_code: code,
           members: currentUser ? [currentUser] : [],
           createdAt: new Date(),
         };
@@ -128,11 +128,12 @@ export const useStore = create<AppState>()(
         const user: User = {
           id: uuidv4(),
           name: userName,
+          email: '', // Required field
         };
         const apartment: Apartment = {
           id: uuidv4(),
           name: 'דירת שותפים',
-          code,
+          invite_code: code,
           members: [user],
           createdAt: new Date(),
         };
