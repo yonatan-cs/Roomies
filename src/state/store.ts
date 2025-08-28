@@ -184,39 +184,36 @@ export const useStore = create<AppState>()(
       refreshApartmentMembers: async () => {
         try {
           const state = get();
-          const apt = state.currentApartment;
-          if (!apt) {
-            console.log('📭 No current apartment to refresh members for');
+          const currentUser = state.currentUser;
+          if (!currentUser) {
+            console.log('📭 No current user to refresh members for');
             return;
           }
 
-          console.log('🔄 Refreshing apartment members for:', apt.id);
+          console.log('🔄 Refreshing apartment members for user:', currentUser.id);
           
-          // Get members with profiles from Firestore
-          const membersWithProfiles = await firestoreService.getApartmentMembersWithProfiles(apt.id);
+          // Get complete apartment data using the new reliable method
+          const completeApartmentData = await firestoreService.getCompleteApartmentData(currentUser.id);
           
-          // Convert to User objects for compatibility
-          const updatedMembers: User[] = membersWithProfiles.map(member => ({
-            id: member.user_id,
-            email: member.profile.email || '',
-            name: member.profile.full_name || member.profile.name || member.profile.displayName || 'אורח',
-            role: member.role,
-            current_apartment_id: apt.id,
-          }));
+          if (!completeApartmentData) {
+            console.log('❌ No apartment data found for user');
+            return;
+          }
           
-          console.log('✅ Updated members:', updatedMembers);
+          console.log('✅ Got complete apartment data:', {
+            id: completeApartmentData.id,
+            name: completeApartmentData.name,
+            memberCount: completeApartmentData.members.length
+          });
           
-          // Update the apartment with new members
+          // Update the apartment with complete data
           set({
-            currentApartment: {
-              ...apt,
-              members: updatedMembers,
-            }
+            currentApartment: completeApartmentData
           });
           
           // Also update the cleaning queue if there's an active task
           if (state.cleaningTask) {
-            const newQueue = updatedMembers.map((m) => m.id);
+            const newQueue = completeApartmentData.members.map((m: User) => m.id);
             if (newQueue.length > 0) {
               const currentTurn = state.cleaningTask.currentTurn;
               const nextTurn = newQueue.includes(currentTurn) ? currentTurn : newQueue[0];

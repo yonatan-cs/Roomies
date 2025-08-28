@@ -1406,6 +1406,94 @@ export class FirestoreService {
   }
 
   /**
+   * Get reliable apartment ID for the current user
+   * First tries from user profile, then falls back to membership query
+   */
+  async getReliableApartmentId(userId: string): Promise<string | null> {
+    try {
+      console.log('🔍 Getting reliable apartment ID for user:', userId);
+      
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (!idToken) {
+        console.log('❌ No valid ID token available');
+        return null;
+      }
+      
+      // Step 1: Try from user profile
+      console.log('📋 Step 1: Checking user profile for current_apartment_id...');
+      const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (userResponse.status === 200) {
+        const userDoc = await userResponse.json();
+        const apartmentId = userDoc.fields?.current_apartment_id?.stringValue;
+        if (apartmentId) {
+          console.log('✅ Found apartment ID in user profile:', apartmentId);
+          return apartmentId;
+        }
+      }
+      
+      console.log('📭 No apartment ID in user profile, trying membership query...');
+      
+      // Step 2: Fallback - query user's memberships and get the latest one
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: COLLECTIONS.APARTMENT_MEMBERS }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'user_id' },
+              op: 'EQUAL',
+              value: { stringValue: userId }
+            }
+          },
+          orderBy: [{ field: { fieldPath: 'joined_at' }, direction: 'DESCENDING' }],
+          limit: 1
+        }
+      };
+      
+      console.log('📋 Step 2: Querying user memberships...');
+      console.log('📝 Query body:', JSON.stringify(queryBody, null, 2));
+      
+      const queryResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(queryBody),
+      });
+      
+      console.log(`📊 Membership query response: ${queryResponse.status} (${queryResponse.statusText})`);
+      
+      if (queryResponse.status === 200) {
+        const rows = await queryResponse.json();
+        console.log('📋 Raw membership query results:', rows);
+        
+        const latestMembership = rows.find((row: any) => row.document)?.document;
+        if (latestMembership) {
+          const apartmentId = latestMembership.fields?.apartment_id?.stringValue;
+          if (apartmentId) {
+            console.log('✅ Found apartment ID from latest membership:', apartmentId);
+            return apartmentId;
+          }
+        }
+      }
+      
+      console.log('📭 No apartment ID found from any source');
+      return null;
+      
+    } catch (error) {
+      console.error('❌ Error getting reliable apartment ID:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get apartment members with full user profiles
    * Returns array of members with their profiles
    */
@@ -1446,6 +1534,50 @@ export class FirestoreService {
     } catch (error) {
       console.error('❌ Error getting apartment members with profiles:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get complete apartment data with members
+   * This is the main function to use for getting apartment data
+   */
+  async getCompleteApartmentData(userId: string): Promise<any | null> {
+    try {
+      console.log('🏠 Getting complete apartment data for user:', userId);
+      
+      // 1. Get reliable apartment ID
+      const apartmentId = await this.getReliableApartmentId(userId);
+      if (!apartmentId) {
+        console.log('📭 No apartment found for user');
+        return null;
+      }
+      
+      console.log('✅ Found apartment ID:', apartmentId);
+      
+      // 2. Get apartment details
+      const apartment = await this.getApartment(apartmentId);
+      
+      // 3. Get members with profiles
+      const membersWithProfiles = await this.getApartmentMembersWithProfiles(apartmentId);
+      
+      // 4. Combine everything
+      const completeData = {
+        ...apartment,
+        members: membersWithProfiles.map(member => ({
+          id: member.user_id,
+          email: member.profile.email || '',
+          name: member.profile.full_name || member.profile.name || member.profile.displayName || 'אורח',
+          role: member.role,
+          current_apartment_id: apartmentId,
+        }))
+      };
+      
+      console.log('✅ Complete apartment data:', completeData);
+      return completeData;
+      
+    } catch (error) {
+      console.error('❌ Error getting complete apartment data:', error);
+      return null;
     }
   }
 
