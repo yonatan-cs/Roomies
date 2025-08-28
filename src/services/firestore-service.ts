@@ -1083,32 +1083,185 @@ export class FirestoreService {
 
   /**
    * Join apartment using invite code - Works with Spark Plan (free)
+   * Fixed implementation with proper REST API calls
    */
   async joinApartmentByInviteCode(inviteCode: string): Promise<any> {
     try {
-      console.log('Joining apartment with code:', inviteCode);
+      console.log('🔗 Joining apartment with code:', inviteCode);
       
-      // Look up apartment by invite code
-      const apartment = await this.getApartmentByInviteCode(inviteCode);
-      
-      if (!apartment) {
-        throw new Error('קוד דירה לא נמצא. וודא שהקוד נכון ושהדירה קיימת.');
-      }
-      
-      console.log('Found apartment:', apartment);
-      
-      // Create membership and update user profile
+      // Get current user and token
       const currentUser = await firebaseAuth.getCurrentUser();
       if (!currentUser) {
         throw new Error('User not authenticated');
       }
       
-      await this.joinApartment(apartment.id, currentUser.localId);
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (!idToken) {
+        throw new Error('No valid ID token available');
+      }
+      
+      console.log('👤 Current user ID:', currentUser.localId);
+      
+      // 1. Get invite document
+      const invite = await this.getInviteDocument(inviteCode, idToken);
+      console.log('📋 Found invite:', invite);
+      
+      // 2. Create membership with proper document ID format
+      await this.createMembershipDocument(invite.apartmentId, currentUser.localId, idToken);
+      
+      // 3. Update user's current_apartment_id
+      await this.setCurrentApartment(currentUser.localId, invite.apartmentId, idToken);
+      
+      // 4. Get full apartment details
+      const apartment = await this.getDocument(COLLECTIONS.APARTMENTS, invite.apartmentId);
+      
+      console.log('✅ Successfully joined apartment:', apartment);
       return apartment;
+      
     } catch (error) {
-      console.error('Join apartment error:', error);
+      console.error('❌ Join apartment error:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get invite document by code
+   */
+  private async getInviteDocument(code: string, idToken: string): Promise<any> {
+    const inviteCode = String(code).trim().toUpperCase();
+    const url = `${FIRESTORE_BASE_URL}/apartmentInvites/${encodeURIComponent(inviteCode)}`;
+    
+    console.log('🔍 Fetching invite document:', url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    console.log(`📊 Invite response: ${response.status} (${response.statusText})`);
+    
+    if (response.status === 200) {
+      const doc = await response.json();
+      const fields = doc.fields || {};
+      return {
+        apartmentId: fields.apartment_id?.stringValue as string,
+        apartmentName: fields.apartment_name?.stringValue as string,
+        inviteCode: fields.invite_code?.stringValue as string,
+      };
+    }
+    
+    if (response.status === 404) {
+      throw new Error('קוד דירה לא נמצא. וודא שהקוד נכון ושהדירה קיימת.');
+    }
+    
+    if (response.status === 403) {
+      throw new Error('PERMISSION_DENIED_INVITE_READ');
+    }
+    
+    throw new Error(`UNEXPECTED_${response.status}`);
+  }
+
+  /**
+   * Create membership document with proper REST API call
+   */
+  private async createMembershipDocument(apartmentId: string, uid: string, idToken: string): Promise<void> {
+    const membershipId = `${apartmentId}_${uid}`; // MUST be underscore
+    const url = `${FIRESTORE_BASE_URL}/apartmentMembers?documentId=${encodeURIComponent(membershipId)}`;
+    
+    const body = {
+      fields: {
+        apartment_id: { stringValue: apartmentId },
+        user_id: { stringValue: uid },
+        role: { stringValue: 'member' }, // rules require 'member'
+        created_at: { timestampValue: new Date().toISOString() }
+      },
+    };
+    
+    console.log('🤝 Creating membership document:');
+    console.log('📋 URL:', url);
+    console.log('🆔 Membership ID:', membershipId);
+    console.log('👤 User ID:', uid);
+    console.log('🏠 Apartment ID:', apartmentId);
+    console.log('📝 Body:', JSON.stringify(body, null, 2));
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    
+    console.log(`📊 Membership creation response: ${response.status} (${response.statusText})`);
+    
+    if (response.status === 200) {
+      console.log('✅ Membership created successfully');
+      return;
+    }
+    
+    if (response.status === 409) {
+      console.log('✅ Membership already exists (idempotent)');
+      return;
+    }
+    
+    if (response.status === 403) {
+      console.error('❌ PERMISSION_DENIED_MEMBER_CREATE');
+      
+      // Get detailed error information
+      let errorData = {};
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        console.error('❌ Could not parse error response');
+      }
+      
+      console.error('📋 Error response:', errorData);
+      throw new Error('PERMISSION_DENIED_MEMBER_CREATE');
+    }
+    
+    throw new Error(`UNEXPECTED_${response.status}`);
+  }
+
+  /**
+   * Set user's current apartment ID
+   */
+  private async setCurrentApartment(uid: string, apartmentId: string, idToken: string): Promise<void> {
+    const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`;
+    const body = {
+      fields: {
+        current_apartment_id: { stringValue: apartmentId }
+      }
+    };
+    
+    console.log('👤 Setting current apartment for user:', uid);
+    console.log('📋 URL:', url);
+    console.log('📝 Body:', JSON.stringify(body, null, 2));
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    
+    console.log(`📊 Set current apartment response: ${response.status} (${response.statusText})`);
+    
+    if (response.status === 200) {
+      console.log('✅ Current apartment set successfully');
+      return;
+    }
+    
+    if (response.status === 403) {
+      throw new Error('PERMISSION_DENIED_SET_CURRENT_APT');
+    }
+    
+    throw new Error(`UNEXPECTED_${response.status}`);
   }
 
   async leaveApartment(apartmentId: string, userId: string): Promise<void> {

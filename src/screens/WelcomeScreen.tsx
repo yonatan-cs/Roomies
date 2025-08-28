@@ -173,6 +173,11 @@ export default function WelcomeScreen() {
       // Step 1: Check authentication first
       const currentUser = useStore.getState().currentUser;
       console.log('🧑‍💻 Current user check:', currentUser ? `${currentUser.id} (${currentUser.email})` : 'NULL');
+      console.log('👤 Current user details:', {
+        id: currentUser?.id,
+        email: currentUser?.email,
+        name: currentUser?.name
+      });
       
       if (!currentUser) {
         throw new Error('User not authenticated - Please sign in again');
@@ -184,20 +189,10 @@ export default function WelcomeScreen() {
 
       console.log(`🔍 Attempting to join apartment with code: "${joinCode.trim()}"`);
       
-      // Step 3: Find apartment by invite code
-      const apartment = await firestoreService.getApartmentByInviteCode(joinCode.trim().toUpperCase());
+      // Step 3: Use the new joinApartmentByInviteCode function
+      const apartment = await firestoreService.joinApartmentByInviteCode(joinCode.trim().toUpperCase());
       
-      if (!apartment) {
-        console.error(`❌ No apartment found with code: "${joinCode.trim()}"`);
-        throw new Error('קוד דירה לא נמצא. וודא שהקוד נכון ושהדירה קיימת.');
-      }
-
-      console.log(`🏠 Found apartment: ${apartment.name} (ID: ${apartment.id})`);
-
-      // Step 4: Join the apartment
-      console.log('🤝 Adding user to apartment...');
-      await firestoreService.joinApartment(apartment.id, currentUser.id);
-      console.log('✅ Successfully joined apartment');
+      console.log(`🏠 Successfully joined apartment: ${apartment.name} (ID: ${apartment.id})`);
       
       // Step 5: Update local state - current_apartment_id is managed through apartmentMembers
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
@@ -230,7 +225,7 @@ export default function WelcomeScreen() {
       
       if (error.message.includes('not authenticated') || error.message.includes('User needs to sign in')) {
         errorMessage = 'נדרש להתחבר מחדש למערכת';
-      } else if (error.message.includes('Missing or insufficient permissions')) {
+      } else if (error.message.includes('Missing or insufficient permissions') || error.message.includes('PERMISSION_DENIED')) {
         errorMessage = 'אין הרשאה לגשת למידע הדירה. יתכן שהמשתמש לא מחובר כראוי';
       } else if (error.message.includes('קוד דירה לא נמצא')) {
         errorMessage = error.message;
@@ -238,6 +233,12 @@ export default function WelcomeScreen() {
         errorMessage = 'בעיית חיבור ל-Firebase. בדוק חיבור לאינטרנט';
       } else if (error.message.includes('Token expired')) {
         errorMessage = 'תוקף ההתחברות פג. התחבר מחדש';
+      } else if (error.message.includes('PERMISSION_DENIED_INVITE_READ')) {
+        errorMessage = 'שגיאה בקריאת קוד ההזמנה. בדוק שהמשתמש מחובר כראוי';
+      } else if (error.message.includes('PERMISSION_DENIED_MEMBER_CREATE')) {
+        errorMessage = 'שגיאה ביצירת חברות בדירה. יתכן שהמסמך כבר קיים או שיש בעיית הרשאות';
+      } else if (error.message.includes('PERMISSION_DENIED_SET_CURRENT_APT')) {
+        errorMessage = 'שגיאה בעדכון פרטי המשתמש. בדוק שהמשתמש מחובר כראוי';
       }
       
       setError(errorMessage);
