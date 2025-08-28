@@ -389,59 +389,84 @@ export const useStore = create<AppState>()(
 
         const balances: { [userId: string]: Balance } = {};
 
-        // Initialize balances - with safety check
-        if (!currentApartment.members || currentApartment.members.length === 0) {
+        // Collect valid members and initialize their balance entries
+        const members = Array.isArray(currentApartment.members)
+          ? currentApartment.members.filter((m) => m && m.id)
+          : [];
+
+        if (members.length === 0) {
           console.warn('⚠️ No apartment members found for balance calculation');
           return [];
         }
 
-        currentApartment.members.forEach((member) => {
-          if (!member || !member.id) {
-            console.warn('⚠️ Invalid member object found:', member);
-            return;
+        const validMemberIds = new Set<string>(members.map((m) => m.id));
+
+        const ensure = (userId: string | undefined) => {
+          if (!userId || !validMemberIds.has(userId)) return false;
+          if (!balances[userId]) {
+            balances[userId] = { userId, owes: {}, owed: {}, netBalance: 0 };
           }
-          
-          balances[member.id] = {
-            userId: member.id,
-            owes: {},
-            owed: {},
-            netBalance: 0,
-          };
+          return true;
+        };
+
+        members.forEach((member) => {
+          ensure(member.id);
         });
 
-        // Calculate balances from expenses
+        // Calculate balances from expenses (defensive: validate shapes/ids)
         expenses.forEach((expense) => {
-          const perPersonAmount = expense.amount / expense.participants.length;
+          try {
+            if (!expense || typeof expense.amount !== 'number' || !isFinite(expense.amount)) return;
 
-          expense.participants.forEach((participantId) => {
-            if (participantId !== expense.paidBy) {
-              if (!balances[participantId].owes[expense.paidBy]) {
-                balances[participantId].owes[expense.paidBy] = 0;
+            const paidBy = expense.paidBy;
+            const participants = Array.isArray(expense.participants) ? expense.participants : [];
+            // Filter to valid participants that are also members
+            const validParticipants = participants.filter((pid) => pid && validMemberIds.has(pid));
+
+            if (!paidBy || !validMemberIds.has(paidBy)) return; // skip expenses with unknown payer
+            if (validParticipants.length === 0) return; // nothing to split
+
+            const perPersonAmount = expense.amount / validParticipants.length;
+
+            validParticipants.forEach((participantId) => {
+              if (!participantId || participantId === paidBy) return;
+              const okA = ensure(participantId);
+              const okB = ensure(paidBy);
+              if (!okA || !okB) return;
+
+              if (balances[participantId].owes[paidBy] == null) {
+                balances[participantId].owes[paidBy] = 0;
               }
-              if (!balances[expense.paidBy].owed[participantId]) {
-                balances[expense.paidBy].owed[participantId] = 0;
+              if (balances[paidBy].owed[participantId] == null) {
+                balances[paidBy].owed[participantId] = 0;
               }
 
-              balances[participantId].owes[expense.paidBy] += perPersonAmount;
-              balances[expense.paidBy].owed[participantId] += perPersonAmount;
-            }
-          });
+              balances[participantId].owes[paidBy] += perPersonAmount;
+              balances[paidBy].owed[participantId] += perPersonAmount;
+            });
+          } catch (e) {
+            // Ignore malformed expense entries to avoid crashing UI
+          }
         });
 
-        // Apply debt settlements
+        // Apply debt settlements (only for known members)
         debtSettlements.forEach((settlement) => {
-          if (balances[settlement.fromUserId] && balances[settlement.toUserId]) {
-            if (balances[settlement.fromUserId].owes[settlement.toUserId]) {
-              balances[settlement.fromUserId].owes[settlement.toUserId] -= settlement.amount;
-              if (balances[settlement.fromUserId].owes[settlement.toUserId] <= 0) {
-                delete balances[settlement.fromUserId].owes[settlement.toUserId];
-              }
+          if (!settlement) return;
+          const { fromUserId, toUserId, amount } = settlement;
+          if (!fromUserId || !toUserId || typeof amount !== 'number' || amount <= 0) return;
+          if (!validMemberIds.has(fromUserId) || !validMemberIds.has(toUserId)) return;
+          if (!ensure(fromUserId) || !ensure(toUserId)) return;
+
+          if (balances[fromUserId].owes[toUserId] != null) {
+            balances[fromUserId].owes[toUserId] -= amount;
+            if (balances[fromUserId].owes[toUserId] <= 0) {
+              delete balances[fromUserId].owes[toUserId];
             }
-            if (balances[settlement.toUserId].owed[settlement.fromUserId]) {
-              balances[settlement.toUserId].owed[settlement.fromUserId] -= settlement.amount;
-              if (balances[settlement.toUserId].owed[settlement.fromUserId] <= 0) {
-                delete balances[settlement.toUserId].owed[settlement.fromUserId];
-              }
+          }
+          if (balances[toUserId].owed[fromUserId] != null) {
+            balances[toUserId].owed[fromUserId] -= amount;
+            if (balances[toUserId].owed[fromUserId] <= 0) {
+              delete balances[toUserId].owed[fromUserId];
             }
           }
         });
