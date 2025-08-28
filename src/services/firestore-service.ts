@@ -6,6 +6,45 @@
 import { FIRESTORE_BASE_URL, COLLECTIONS } from './firebase-config';
 import { firebaseAuth } from './firebase-auth';
 
+// --- Session helpers ---
+const authHeaders = (idToken: string) => ({
+  Authorization: `Bearer ${idToken}`,
+  'Content-Type': 'application/json',
+});
+
+// Ensure we always have uid + idToken (try to restore session if missing from memory)
+async function requireSession(): Promise<{ uid: string; idToken: string }> {
+  try {
+    // Try to get current user and token
+    const currentUser = await firebaseAuth.getCurrentUser();
+    const idToken = await firebaseAuth.getCurrentIdToken();
+    
+    if (currentUser?.localId && idToken) {
+      console.log('✅ Session available:', { uid: currentUser.localId, tokenPreview: idToken.substring(0, 20) + '...' });
+      return { uid: currentUser.localId, idToken };
+    }
+    
+    // If no current user, try to restore session
+    console.log('🔄 No current session, attempting to restore...');
+    const restoredUser = await firebaseAuth.restoreUserSession();
+    
+    if (restoredUser?.localId) {
+      const restoredToken = await firebaseAuth.getCurrentIdToken();
+      if (restoredToken) {
+        console.log('✅ Session restored:', { uid: restoredUser.localId, tokenPreview: restoredToken.substring(0, 20) + '...' });
+        return { uid: restoredUser.localId, idToken: restoredToken };
+      }
+    }
+    
+    console.log('❌ No valid session found');
+    throw new Error('AUTH_REQUIRED');
+    
+  } catch (error) {
+    console.error('❌ Error in requireSession:', error);
+    throw new Error('AUTH_REQUIRED');
+  }
+}
+
 // Firestore data types for REST API
 export interface FirestoreValue {
   stringValue?: string;
@@ -1356,39 +1395,42 @@ export class FirestoreService {
    */
   async getUsersByIds(uids: string[]): Promise<Record<string, any>> {
     try {
-      if (!uids.length) {
+      const uniq = Array.from(new Set((uids || []).filter(Boolean)));
+      if (uniq.length === 0) {
         console.log('📭 No UIDs provided for batch get');
         return {};
       }
       
-      console.log('👤 Getting user profiles for UIDs:', uids);
+      console.log('👤 Getting user profiles for UIDs:', uniq);
       
       const idToken = await firebaseAuth.getCurrentIdToken();
       if (!idToken) {
         throw new Error('No valid ID token available');
       }
       
+      // Must use resource names, not full URLs:
+      const documents = uniq.map(
+        (uid) => `projects/roomies-hub/databases/(default)/documents/users/${uid}`
+      );
+      
       const url = `${FIRESTORE_BASE_URL}:batchGet`;
-      const body = {
-        documents: uids.map(uid => `${FIRESTORE_BASE_URL}/users/${uid}`)
-      };
+      const body = { documents };
       
       console.log('📋 Batch get URL:', url);
       console.log('📝 Batch get body:', JSON.stringify(body, null, 2));
       
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders(idToken),
         body: JSON.stringify(body),
       });
       
       console.log(`📊 Batch get response: ${response.status} (${response.statusText})`);
       
-      if (response.status !== 200) {
-        throw new Error(`BATCH_GET_USERS_${response.status}`);
+      if (!response.ok) {
+        const txt = await response.text().catch(() => '');
+        console.error('❌ Batch get failed:', { url, status: response.status, txt });
+        throw new Error(`BATCH_GET_USERS_${response.status}${txt ? `: ${txt}` : ''}`);
       }
       
       const items = await response.json();
@@ -1400,11 +1442,12 @@ export class FirestoreService {
         const doc = item.found;
         if (!doc) continue;
         
+        const name: string = doc.name; // "projects/.../documents/users/<UID>"
+        const uid = name.split('/').pop()!;
         const fields = doc.fields || {};
-        const id = doc.name.split('/').pop()!;
         
-        userMap[id] = {
-          id,
+        userMap[uid] = {
+          id: uid,
           email: fields.email?.stringValue,
           full_name: fields.full_name?.stringValue,
           displayName: fields.displayName?.stringValue,
@@ -1691,12 +1734,14 @@ export class FirestoreService {
    * Get complete apartment data with members
    * This is the main function to use for getting apartment data
    */
-  async getCompleteApartmentData(userId: string): Promise<any | null> {
+  async getCompleteApartmentData(): Promise<any | null> {
     try {
-      console.log('🏠 Getting complete apartment data for user:', userId);
+      // Get session first - this ensures we have valid uid and idToken
+      const { uid, idToken } = await requireSession();
+      console.log('🏠 Getting complete apartment data for user:', uid);
       
       // 1. Get reliable apartment ID
-      const apartmentId = await this.getReliableApartmentId(userId);
+      const apartmentId = await this.getReliableApartmentId(uid);
       if (!apartmentId) {
         console.log('📭 No apartment found for user');
         return null;
@@ -1706,7 +1751,7 @@ export class FirestoreService {
       
       // 2. Ensure current_apartment_id is set before any queries
       console.log('🔧 Ensuring current_apartment_id before getting apartment data...');
-      const ensuredApartmentId = await this.ensureCurrentApartmentId(userId, apartmentId);
+      const ensuredApartmentId = await this.ensureCurrentApartmentId(uid, apartmentId);
       
       if (!ensuredApartmentId) {
         console.log('❌ Could not ensure current_apartment_id');
