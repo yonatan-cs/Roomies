@@ -116,7 +116,7 @@ export default function ShoppingScreen() {
   const pendingItems = shoppingItems.filter(item => !item.purchased);
   const purchasedItems = shoppingItems.filter(item => item.purchased);
 
-  const renderShoppingItem = ({ item }) => (
+  const renderShoppingItem = ({ item }: { item: any }) => (
     <View className={cn(
       "bg-white rounded-xl p-4 mb-3 shadow-sm",
       item.purchased && "bg-gray-50"
