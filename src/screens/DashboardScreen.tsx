@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -30,8 +30,17 @@ export default function DashboardScreen() {
     cleaningTask, 
     expenses, 
     shoppingItems, 
-    getBalances 
+    getBalances,
+    refreshApartmentMembers
   } = useStore();
+
+  // Refresh apartment members when component mounts
+  useEffect(() => {
+    if (currentApartment) {
+      console.log('🔄 Dashboard: Refreshing apartment members on mount');
+      refreshApartmentMembers();
+    }
+  }, [currentApartment?.id]); // Only refresh when apartment ID changes
 
   const balances = useMemo(() => getBalances(), [expenses]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);

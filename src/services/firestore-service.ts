@@ -1264,6 +1264,191 @@ export class FirestoreService {
     throw new Error(`UNEXPECTED_${response.status}`);
   }
 
+  /**
+   * Get apartment members from apartmentMembers collection
+   * Uses runQuery to find all members of a specific apartment
+   */
+  async getApartmentMembers(apartmentId: string): Promise<any[]> {
+    try {
+      console.log('👥 Getting apartment members for:', apartmentId);
+      
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (!idToken) {
+        throw new Error('No valid ID token available');
+      }
+      
+      const url = `${FIRESTORE_BASE_URL}:runQuery`;
+      const body = {
+        structuredQuery: {
+          from: [{ collectionId: COLLECTIONS.APARTMENT_MEMBERS }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'apartment_id' },
+              op: 'EQUAL',
+              value: { stringValue: apartmentId }
+            }
+          }
+        }
+      };
+      
+      console.log('📋 Query URL:', url);
+      console.log('📝 Query body:', JSON.stringify(body, null, 2));
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      
+      console.log(`📊 Members query response: ${response.status} (${response.statusText})`);
+      
+      if (response.status !== 200) {
+        throw new Error(`APARTMENT_MEMBERS_QUERY_${response.status}`);
+      }
+      
+      const rows = await response.json();
+      console.log('📋 Raw query results:', rows);
+      
+      const members = rows
+        .map((row: any) => row.document)
+        .filter(Boolean)
+        .map((doc: any) => {
+          const fields = doc.fields || {};
+          return {
+            id: doc.name.split('/').pop(), // "<aptId>_<uid>"
+            apartment_id: fields.apartment_id?.stringValue as string,
+            user_id: fields.user_id?.stringValue as string,
+            role: fields.role?.stringValue as 'member' | 'admin' | string,
+            joined_at: fields.joined_at?.timestampValue || fields.created_at?.timestampValue || null,
+          };
+        });
+      
+      console.log('✅ Found members:', members);
+      return members;
+      
+    } catch (error) {
+      console.error('❌ Error getting apartment members:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user profiles by UIDs (batch operation)
+   */
+  async getUsersByIds(uids: string[]): Promise<Record<string, any>> {
+    try {
+      if (!uids.length) {
+        console.log('📭 No UIDs provided for batch get');
+        return {};
+      }
+      
+      console.log('👤 Getting user profiles for UIDs:', uids);
+      
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (!idToken) {
+        throw new Error('No valid ID token available');
+      }
+      
+      const url = `${FIRESTORE_BASE_URL}:batchGet`;
+      const body = {
+        documents: uids.map(uid => `${FIRESTORE_BASE_URL}/users/${uid}`)
+      };
+      
+      console.log('📋 Batch get URL:', url);
+      console.log('📝 Batch get body:', JSON.stringify(body, null, 2));
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      
+      console.log(`📊 Batch get response: ${response.status} (${response.statusText})`);
+      
+      if (response.status !== 200) {
+        throw new Error(`BATCH_GET_USERS_${response.status}`);
+      }
+      
+      const items = await response.json();
+      console.log('📋 Raw batch get results:', items);
+      
+      const userMap: Record<string, any> = {};
+      
+      for (const item of items) {
+        const doc = item.found;
+        if (!doc) continue;
+        
+        const fields = doc.fields || {};
+        const id = doc.name.split('/').pop()!;
+        
+        userMap[id] = {
+          id,
+          email: fields.email?.stringValue,
+          full_name: fields.full_name?.stringValue,
+          displayName: fields.displayName?.stringValue,
+          name: fields.name?.stringValue,
+        };
+      }
+      
+      console.log('✅ User profiles loaded:', Object.keys(userMap));
+      return userMap;
+      
+    } catch (error) {
+      console.error('❌ Error getting user profiles:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get apartment members with full user profiles
+   * Returns array of members with their profiles
+   */
+  async getApartmentMembersWithProfiles(apartmentId: string): Promise<any[]> {
+    try {
+      console.log('👥 Getting apartment members with profiles for:', apartmentId);
+      
+      // 1. Get all memberships
+      const memberships = await this.getApartmentMembers(apartmentId);
+      console.log('📋 Found memberships:', memberships);
+      
+      if (!memberships.length) {
+        console.log('📭 No members found for apartment');
+        return [];
+      }
+      
+      // 2. Extract unique user IDs
+      const uids = [...new Set(memberships.map(m => m.user_id).filter(Boolean))];
+      console.log('👤 Unique user IDs:', uids);
+      
+      // 3. Get user profiles
+      const userProfiles = await this.getUsersByIds(uids);
+      console.log('📋 User profiles loaded:', userProfiles);
+      
+      // 4. Combine memberships with profiles
+      const membersWithProfiles = memberships.map(membership => ({
+        ...membership,
+        profile: userProfiles[membership.user_id] || { 
+          id: membership.user_id, 
+          full_name: 'אורח',
+          email: 'unknown@example.com'
+        }
+      }));
+      
+      console.log('✅ Members with profiles:', membersWithProfiles);
+      return membersWithProfiles;
+      
+    } catch (error) {
+      console.error('❌ Error getting apartment members with profiles:', error);
+      throw error;
+    }
+  }
+
   async leaveApartment(apartmentId: string, userId: string): Promise<void> {
     try {
       console.log(`👋 User ${userId} leaving apartment ${apartmentId}`);
@@ -1286,7 +1471,9 @@ export class FirestoreService {
     }
   }
 
-  async getApartmentMembers(apartmentId: string): Promise<any[]> {
+  // This function is replaced by the new getApartmentMembers that uses runQuery
+  // Keeping for backward compatibility but it's deprecated
+  async getApartmentMembersOld(apartmentId: string): Promise<any[]> {
     return this.queryCollection(COLLECTIONS.APARTMENT_MEMBERS, 'apartment_id', 'EQUAL', apartmentId);
   }
 
