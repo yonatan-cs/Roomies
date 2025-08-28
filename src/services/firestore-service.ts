@@ -81,7 +81,7 @@ export class FirestoreService {
     const currentUser = await firebaseAuth.getCurrentUser();
     console.log('🧑‍💻 Current user:', currentUser ? `${currentUser.localId} (${currentUser.email})` : 'NULL');
     
-    const idToken = await firebaseAuth.getCurrentIdToken();
+    let idToken = await firebaseAuth.getCurrentIdToken();
     console.log('🔑 ID Token:', idToken ? `Present (${idToken.substring(0, 20)}...)` : 'MISSING');
     
     if (!idToken) {
@@ -90,6 +90,30 @@ export class FirestoreService {
       console.error('  - Current user object:', currentUser);
       console.error('  - This usually means the user needs to sign in again');
       throw new Error('User not authenticated - Please sign in again');
+    }
+    
+    // Check if token is expired and try to refresh if needed
+    try {
+      const tokenParts = idToken.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        const now = Math.floor(Date.now() / 1000);
+        const buffer = 300; // 5 minutes buffer before expiry
+        
+        if (payload.exp < now + buffer) {
+          console.log('🔄 Token is expiring soon, attempting refresh...');
+          try {
+            const newToken = await firebaseAuth.refreshToken();
+            idToken = newToken;
+            console.log('✅ Token refreshed successfully');
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError);
+            throw new Error('Token expired and refresh failed - Please sign in again');
+          }
+        }
+      }
+    } catch (tokenCheckError) {
+      console.warn('⚠️ Could not check token expiry, proceeding with current token:', tokenCheckError);
     }
 
     // Validate token format
@@ -119,6 +143,17 @@ export class FirestoreService {
         throw new Error('Token expired - Please sign in again');
       }
       
+      // Verify the token is for the correct project
+      const expectedProjectId = 'roomies-hub';
+      const tokenProjectId = payload.aud || payload.firebase?.project_id;
+      
+      if (tokenProjectId !== expectedProjectId) {
+        console.error(`❌ Token project mismatch! Expected: ${expectedProjectId}, Got: ${tokenProjectId}`);
+        throw new Error(`Token is for wrong project (${tokenProjectId}). Expected: ${expectedProjectId}`);
+      }
+      
+      console.log(`✅ Token project verified: ${tokenProjectId}`);
+      
     } catch (tokenError) {
       console.error('❌ Token validation error:', tokenError);
       throw new Error('Invalid authentication token - Please sign in again');
@@ -131,6 +166,109 @@ export class FirestoreService {
     
     console.log('✅ Auth headers prepared successfully');
     return headers;
+  }
+
+  /**
+   * Test authentication and permissions for invite lookup
+   */
+  async testInviteAccess(inviteCode: string): Promise<boolean> {
+    try {
+      console.log(`🔍 Testing access to invite code: ${inviteCode}`);
+      
+      // Get current auth state
+      const currentUser = await firebaseAuth.getCurrentUser();
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      
+      console.log('🧑‍💻 Current user:', currentUser?.email);
+      console.log('🔑 Token present:', !!idToken);
+      
+      if (!idToken) {
+        console.error('❌ No ID token available');
+        return false;
+      }
+      
+      // Decode and validate token first
+      try {
+        const tokenParts = idToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          console.log('🔍 Token details:', {
+            aud: payload.aud,
+            email: payload.email,
+            exp: new Date(payload.exp * 1000).toISOString(),
+            firebase: payload.firebase
+          });
+          
+          // Check expiry
+          const now = Math.floor(Date.now() / 1000);
+          if (payload.exp < now) {
+            console.error('❌ Token is expired!');
+            return false;
+          }
+          
+          // Check project ID
+          const expectedProjectId = 'roomies-hub';
+          const tokenProjectId = payload.aud || payload.firebase?.project_id;
+          
+          if (tokenProjectId !== expectedProjectId) {
+            console.error(`❌ Token project mismatch! Expected: ${expectedProjectId}, Got: ${tokenProjectId}`);
+            return false;
+          }
+        }
+      } catch (tokenError) {
+        console.error('❌ Failed to decode token:', tokenError);
+        return false;
+      }
+      
+      // Try direct REST API call to the invite document
+      const url = `${FIRESTORE_BASE_URL}/${COLLECTIONS.APARTMENT_INVITES}/${inviteCode.trim().toUpperCase()}`;
+      console.log('🌐 Testing URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log(`📊 Test response: ${response.status} (${response.statusText})`);
+      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (response.status === 200) {
+        console.log('✅ Access test successful');
+        const data = await response.json();
+        console.log('📋 Invite data:', data);
+        return true;
+      } else if (response.status === 404) {
+        console.log('📭 Invite code not found');
+        return false;
+      } else {
+        console.error('❌ Access test failed');
+        
+        // Get detailed error information
+        let errorData = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          console.error('❌ Could not parse error response');
+        }
+        
+        console.error('📋 Error response:', errorData);
+        
+        // Log manual debugging steps
+        console.error('🔧 Manual debugging steps:');
+        console.error(`1. Run: node debug-auth.js "${idToken.substring(0, 50)}..."`);
+        console.error('2. Test with cURL:');
+        console.error(`   curl -i -H "Authorization: Bearer YOUR_TOKEN" "${url}"`);
+        
+        return false;
+      }
+      
+    } catch (error) {
+      console.error('❌ Test invite access error:', error);
+      return false;
+    }
   }
 
   /**
@@ -272,18 +410,41 @@ export class FirestoreService {
    */
   async getDocument(collectionName: string, documentId: string): Promise<any | null> {
     try {
+      console.log(`📖 Getting document: ${collectionName}/${documentId}`);
+      
       const headers = await this.getAuthHeaders();
       const url = `${FIRESTORE_BASE_URL}/${collectionName}/${documentId}`;
+      
+      console.log('🌐 Request URL:', url);
+      console.log('🔐 Headers:', {
+        'Authorization': (headers as any).Authorization ? 'Bearer [TOKEN]' : 'MISSING',
+        'Content-Type': (headers as any)['Content-Type']
+      });
 
       const response = await fetch(url, {
         method: 'GET',
         headers,
       });
 
+      console.log(`📊 Response status: ${response.status} (${response.statusText})`);
+
       if (response.status === 404) {
+        console.log('📭 Document not found (404)');
         return null;
       }
+      
       if (response.status === 403) {
+        console.error('🔒 Permission denied (403)');
+        console.error('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        // Try to get error details from response
+        try {
+          const errorData = await response.json();
+          console.error('📋 Error response:', errorData);
+        } catch (e) {
+          console.error('📋 Could not parse error response');
+        }
+        
         // Explicitly map to a clear permission error for callers
         throw new Error('PERMISSION_DENIED');
       }
@@ -291,14 +452,18 @@ export class FirestoreService {
       const responseData = await response.json();
 
       if (!response.ok) {
+        console.error('❌ Request failed:', responseData);
         throw new Error(`Failed to get document: ${responseData.error?.message || 'Unknown error'}`);
       }
 
       const convertedData = this.fromFirestoreFormat(responseData.fields);
-      return {
+      const result = {
         id: this.extractDocumentId(responseData.name),
         ...convertedData
       };
+      
+      console.log('✅ Document retrieved successfully');
+      return result;
     } catch (error) {
       console.error('Get document error:', error);
       throw error;
@@ -662,9 +827,26 @@ export class FirestoreService {
         };
         
         console.log('Creating invite record...');
+        console.log(`📋 Invite data:`, inviteData);
+        console.log(`🆔 Document ID: ${inviteCode}`);
+        console.log(`🌐 Target URL: ${FIRESTORE_BASE_URL}/${COLLECTIONS.APARTMENT_INVITES}/${inviteCode}`);
+        
         try {
-          await this.createDocument(COLLECTIONS.APARTMENT_INVITES, inviteData, inviteCode);
-          console.log('Invite record created successfully');
+          const inviteResult = await this.createDocument(COLLECTIONS.APARTMENT_INVITES, inviteData, inviteCode);
+          console.log('✅ Invite record created successfully:', inviteResult);
+          
+          // Immediately test if we can read it back
+          console.log('🧪 Testing immediate read-back of invite...');
+          try {
+            const readBackResult = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, inviteCode);
+            if (readBackResult) {
+              console.log('✅ Invite read-back successful:', readBackResult);
+            } else {
+              console.warn('⚠️ Invite read-back returned null (possible consistency delay)');
+            }
+          } catch (readBackError) {
+            console.error('❌ Invite read-back failed:', readBackError);
+          }
           
           // Create membership for the creator directly
           console.log('👤 Creating membership for apartment creator...');
@@ -733,7 +915,40 @@ export class FirestoreService {
       const normalizedCode = inviteCode.trim().toUpperCase();
       console.log(`🔧 Normalized code: "${normalizedCode}"`);
       
-      // Look up the invite record first (this should be publicly readable)
+      // Test authentication and access first
+      console.log('🧪 Testing invite access...');
+      const hasAccess = await this.testInviteAccess(normalizedCode);
+      
+      if (!hasAccess) {
+        console.error('❌ Invite access test failed');
+        
+        // Additional debugging: check if document exists at all
+        if (typeof (global as any).debugFirestore !== 'undefined') {
+          console.log('🔍 Checking if invite document exists...');
+          try {
+            const exists = await (global as any).debugFirestore.checkInviteExists(normalizedCode);
+            if (exists === false) {
+              console.error('📭 ISSUE FOUND: Invite document does not exist in Firestore!');
+              console.error(`❓ Make sure invite code "${normalizedCode}" was created correctly`);
+            } else if (exists === true) {
+              console.error('🔒 Document exists but authentication failed');
+              console.error('❓ This is likely an authentication/permission issue');
+            }
+          } catch (debugError) {
+            console.error('🔍 Debug check failed:', debugError);
+          }
+        }
+        
+        console.error('❌ No access to invite code - this could be due to:');
+        console.error('  1. Invalid or expired ID token');
+        console.error('  2. User not authenticated');
+        console.error('  3. Firestore rules blocking access');
+        console.error('  4. Wrong project ID in token');
+        console.error('  5. Invite code does not exist');
+        throw new Error('PERMISSION_DENIED: Unable to access invite code. Please check authentication.');
+      }
+      
+      // If test passed, proceed with normal lookup
       console.log(`📊 Looking up invite record in collection: ${COLLECTIONS.APARTMENT_INVITES}`);
       const inviteRecord = await this.getDocument(COLLECTIONS.APARTMENT_INVITES, normalizedCode);
       console.log('📋 Invite record found:', !!inviteRecord);
@@ -762,11 +977,19 @@ export class FirestoreService {
       
     } catch (error: any) {
       console.error(`❌ Get apartment by invite code error for "${inviteCode}":`, error);
-      // surface permission issues and auth to caller
+      
+      // Enhanced error handling with more specific messages
       const message = String(error?.message || '');
-      if (message.includes('PERMISSION_DENIED') || message.includes('not authenticated')) {
+      
+      if (message.includes('PERMISSION_DENIED')) {
+        // Already logged detailed error info above
         throw error;
       }
+      
+      if (message.includes('not authenticated')) {
+        throw new Error('User not authenticated - Please sign in again');
+      }
+      
       // No fallback scans per security policy
       return null;
     }
@@ -1052,3 +1275,82 @@ export class FirestoreService {
 
 // Export singleton instance
 export const firestoreService = FirestoreService.getInstance();
+
+// Debug utilities for development
+if (__DEV__) {
+  (global as any).debugFirestore = {
+    testAuth: async () => {
+      const service = FirestoreService.getInstance();
+      const currentUser = await firebaseAuth.getCurrentUser();
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      
+      console.log('🔍 Debug Auth Status:');
+      console.log('👤 Current user:', currentUser?.email || 'Not signed in');
+      console.log('🔑 ID token present:', !!idToken);
+      
+      if (idToken) {
+        try {
+          const parts = idToken.split('.');
+          const payload = JSON.parse(atob(parts[1]));
+          console.log('📋 Token payload:', {
+            aud: payload.aud,
+            email: payload.email,
+            exp: new Date(payload.exp * 1000).toISOString(),
+            firebase: payload.firebase
+          });
+          
+          // Test if token works with a simple request
+          console.log('🧪 Testing token with simple request...');
+          const testUrl = `${FIRESTORE_BASE_URL}/users/${payload.user_id || payload.sub}`;
+          const testResponse = await fetch(testUrl, {
+            headers: { Authorization: `Bearer ${idToken}` }
+          });
+          console.log(`📊 Token test result: ${testResponse.status} (${testResponse.statusText})`);
+          
+        } catch (e) {
+          console.error('❌ Failed to decode token:', e);
+        }
+      }
+    },
+    
+    testInvite: async (code: string) => {
+      const service = FirestoreService.getInstance();
+      return await service.testInviteAccess(code);
+    },
+    
+    getInvite: async (code: string) => {
+      const service = FirestoreService.getInstance();
+      return await service.getApartmentByInviteCode(code);
+    },
+    
+    checkInviteExists: async (code: string) => {
+      const service = FirestoreService.getInstance();
+      
+      // Check if document exists without authentication first
+      const url = `${FIRESTORE_BASE_URL}/${COLLECTIONS.APARTMENT_INVITES}/${code.trim().toUpperCase()}`;
+      console.log('🌐 Checking if invite exists (no auth):', url);
+      
+      const response = await fetch(url + '?key=AIzaSyCdVexzHD5StQIK_w3GSbdYHYoE7fBqDps', {
+        method: 'GET',
+      });
+      
+      console.log(`📊 No-auth response: ${response.status} (${response.statusText})`);
+      
+      if (response.status === 403) {
+        console.log('🔒 Document exists but requires authentication (expected)');
+        return true;
+      } else if (response.status === 404) {
+        console.log('📭 Document does not exist');
+        return false;
+      } else if (response.status === 200) {
+        console.log('🔓 Document is publicly readable (unexpected but OK)');
+        return true;
+      } else {
+        console.log('❓ Unexpected response status');
+        return null;
+      }
+    }
+  };
+  
+  console.log('🛠️ Debug utilities available at global.debugFirestore');
+}
