@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
@@ -22,7 +22,16 @@ export default function SettingsScreen() {
     addCleaningTask,
     renameCleaningTask,
     removeCleaningTask,
+    refreshApartmentMembers,
   } = useStore();
+
+  // Refresh apartment members when component mounts
+  useEffect(() => {
+    if (currentApartment) {
+      console.log('🔄 Settings: Refreshing apartment members on mount');
+      refreshApartmentMembers();
+    }
+  }, [currentApartment?.id]); // Only refresh when apartment ID changes
 
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(currentUser?.name || '');
@@ -121,9 +130,17 @@ export default function SettingsScreen() {
 
         {/* Roommates */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            שותפים בדירה ({currentApartment.members.length})
-          </Text>
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-lg font-semibold text-gray-900">
+              שותפים בדירה ({currentApartment.members.length})
+            </Text>
+            <Pressable 
+              onPress={refreshApartmentMembers}
+              className="bg-blue-100 p-2 rounded-lg"
+            >
+              <Ionicons name="refresh" size={20} color="#007AFF" />
+            </Pressable>
+          </View>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
               <View className="flex-row items-center">

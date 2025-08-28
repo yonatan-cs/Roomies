@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
+import { firestoreService } from '../services/firestore-service';
 import {
   User,
   Apartment,
@@ -59,6 +60,7 @@ interface AppState {
   setCurrentUser: (user: User) => void;
   createApartment: (name: string) => void;
   joinApartment: (code: string, userName: string) => void;
+  refreshApartmentMembers: () => Promise<void>;
 
   // Actions - Cleaning
   initializeCleaning: () => void;
@@ -177,6 +179,60 @@ export const useStore = create<AppState>()(
             queue: newQueue,
           },
         });
+      },
+
+      refreshApartmentMembers: async () => {
+        try {
+          const state = get();
+          const apt = state.currentApartment;
+          if (!apt) {
+            console.log('📭 No current apartment to refresh members for');
+            return;
+          }
+
+          console.log('🔄 Refreshing apartment members for:', apt.id);
+          
+          // Get members with profiles from Firestore
+          const membersWithProfiles = await firestoreService.getApartmentMembersWithProfiles(apt.id);
+          
+          // Convert to User objects for compatibility
+          const updatedMembers: User[] = membersWithProfiles.map(member => ({
+            id: member.user_id,
+            email: member.profile.email || '',
+            name: member.profile.full_name || member.profile.name || member.profile.displayName || 'אורח',
+            role: member.role,
+            current_apartment_id: apt.id,
+          }));
+          
+          console.log('✅ Updated members:', updatedMembers);
+          
+          // Update the apartment with new members
+          set({
+            currentApartment: {
+              ...apt,
+              members: updatedMembers,
+            }
+          });
+          
+          // Also update the cleaning queue if there's an active task
+          if (state.cleaningTask) {
+            const newQueue = updatedMembers.map((m) => m.id);
+            if (newQueue.length > 0) {
+              const currentTurn = state.cleaningTask.currentTurn;
+              const nextTurn = newQueue.includes(currentTurn) ? currentTurn : newQueue[0];
+              set({
+                cleaningTask: {
+                  ...state.cleaningTask,
+                  currentTurn: nextTurn,
+                  queue: newQueue,
+                },
+              });
+            }
+          }
+          
+        } catch (error) {
+          console.error('❌ Error refreshing apartment members:', error);
+        }
       },
 
       markCleaned: (userId) => {
