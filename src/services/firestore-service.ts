@@ -1277,6 +1277,22 @@ export class FirestoreService {
         throw new Error('No valid ID token available');
       }
       
+      // Get current user ID from token
+      const currentUser = await firebaseAuth.getCurrentUser();
+      if (!currentUser) {
+        throw new Error('No current user available');
+      }
+      
+      // Ensure current_apartment_id is set before querying
+      console.log('🔧 Ensuring current_apartment_id before query...');
+      const ensuredApartmentId = await this.ensureCurrentApartmentId(currentUser.localId, apartmentId);
+      
+      if (!ensuredApartmentId) {
+        throw new Error('Could not ensure current_apartment_id');
+      }
+      
+      console.log('✅ Using ensured apartment ID for query:', ensuredApartmentId);
+      
       const url = `${FIRESTORE_BASE_URL}:runQuery`;
       const body = {
         structuredQuery: {
@@ -1285,7 +1301,7 @@ export class FirestoreService {
             fieldFilter: {
               field: { fieldPath: 'apartment_id' },
               op: 'EQUAL',
-              value: { stringValue: apartmentId }
+              value: { stringValue: ensuredApartmentId }
             }
           }
         }
@@ -1402,6 +1418,140 @@ export class FirestoreService {
     } catch (error) {
       console.error('❌ Error getting user profiles:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Ensure current_apartment_id is set in user profile before queries
+   * This prevents 403 errors on apartment-related queries
+   */
+  async ensureCurrentApartmentId(userId: string, fallbackApartmentId: string | null): Promise<string | null> {
+    try {
+      console.log('🔧 Ensuring current_apartment_id for user:', userId);
+      
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (!idToken) {
+        console.log('❌ No valid ID token available');
+        return null;
+      }
+      
+      // Step 1: Read user profile
+      console.log('📋 Step 1: Reading user profile...');
+      const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${userId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (userResponse.status === 200) {
+        const userDoc = await userResponse.json();
+        const currentApartmentId = userDoc.fields?.current_apartment_id?.stringValue || null;
+        
+        console.log('📋 Current apartment ID in profile:', currentApartmentId);
+        
+        // If current_apartment_id exists and matches fallback - perfect
+        if (currentApartmentId && currentApartmentId === fallbackApartmentId) {
+          console.log('✅ current_apartment_id is already set correctly');
+          return currentApartmentId;
+        }
+        
+        // If missing or different, and we have a fallback - update it
+        if (fallbackApartmentId) {
+          console.log('🔄 Updating current_apartment_id to:', fallbackApartmentId);
+          
+          const updateResponse = await fetch(
+            `${FIRESTORE_BASE_URL}/users/${userId}?updateMask.fieldPaths=current_apartment_id`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                fields: {
+                  current_apartment_id: { stringValue: fallbackApartmentId }
+                }
+              })
+            }
+          );
+          
+          console.log(`📊 Update response: ${updateResponse.status} (${updateResponse.statusText})`);
+          
+          if (updateResponse.status === 200) {
+            console.log('✅ Successfully updated current_apartment_id');
+            return fallbackApartmentId;
+          } else {
+            console.log('❌ Failed to update current_apartment_id');
+            try {
+              const errorData = await updateResponse.json();
+              console.log('📋 Error details:', JSON.stringify(errorData, null, 2));
+            } catch (e) {
+              console.log('❌ Could not parse error response');
+            }
+          }
+        }
+        
+        // Return current value if exists, otherwise null
+        return currentApartmentId;
+      }
+      
+      // If user document doesn't exist and we have fallback - create user and set apartment
+      if (userResponse.status === 404 && fallbackApartmentId) {
+        console.log('📭 User document not found, creating with apartment ID...');
+        
+        // Create user document first
+        const createResponse = await fetch(`${FIRESTORE_BASE_URL}/users?documentId=${userId}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fields: {
+              email: { stringValue: '' },
+              full_name: { stringValue: '' },
+              phone: { stringValue: '' }
+            }
+          })
+        });
+        
+        console.log(`📊 Create user response: ${createResponse.status} (${createResponse.statusText})`);
+        
+        if (createResponse.status === 200) {
+          // Now update with apartment ID
+          const updateResponse = await fetch(
+            `${FIRESTORE_BASE_URL}/users/${userId}?updateMask.fieldPaths=current_apartment_id`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Authorization': `Bearer ${idToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                fields: {
+                  current_apartment_id: { stringValue: fallbackApartmentId }
+                }
+              })
+            }
+          );
+          
+          console.log(`📊 Update apartment response: ${updateResponse.status} (${updateResponse.statusText})`);
+          
+          if (updateResponse.status === 200) {
+            console.log('✅ Successfully created user and set apartment ID');
+            return fallbackApartmentId;
+          }
+        }
+      }
+      
+      console.log('📭 Could not ensure current_apartment_id');
+      return null;
+      
+    } catch (error) {
+      console.error('❌ Error ensuring current apartment ID:', error);
+      return null;
     }
   }
 
@@ -1554,13 +1704,24 @@ export class FirestoreService {
       
       console.log('✅ Found apartment ID:', apartmentId);
       
-      // 2. Get apartment details
-      const apartment = await this.getApartment(apartmentId);
+      // 2. Ensure current_apartment_id is set before any queries
+      console.log('🔧 Ensuring current_apartment_id before getting apartment data...');
+      const ensuredApartmentId = await this.ensureCurrentApartmentId(userId, apartmentId);
       
-      // 3. Get members with profiles
-      const membersWithProfiles = await this.getApartmentMembersWithProfiles(apartmentId);
+      if (!ensuredApartmentId) {
+        console.log('❌ Could not ensure current_apartment_id');
+        return null;
+      }
       
-      // 4. Combine everything
+      console.log('✅ Using ensured apartment ID:', ensuredApartmentId);
+      
+      // 3. Get apartment details
+      const apartment = await this.getApartment(ensuredApartmentId);
+      
+      // 4. Get members with profiles
+      const membersWithProfiles = await this.getApartmentMembersWithProfiles(ensuredApartmentId);
+      
+      // 5. Combine everything
       const completeData = {
         ...apartment,
         members: membersWithProfiles.map(member => ({
@@ -1568,7 +1729,7 @@ export class FirestoreService {
           email: member.profile.email || '',
           name: member.profile.full_name || member.profile.name || member.profile.displayName || 'אורח',
           role: member.role,
-          current_apartment_id: apartmentId,
+          current_apartment_id: ensuredApartmentId,
         }))
       };
       
