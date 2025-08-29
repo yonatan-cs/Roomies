@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -47,9 +47,21 @@ export default function BudgetScreen() {
   const [settlementToUser, setSettlementToUser] = useState('');
   const [settlementOriginalAmount, setSettlementOriginalAmount] = useState(0);
   
-  const { expenses, currentUser, currentApartment, getBalances, addDebtSettlement } = useStore();
+  const { expenses, debtSettlements, currentUser, currentApartment, getBalances, addDebtSettlement, loadDebtSettlements } = useStore();
 
-  const balances = useMemo(() => getBalances(), [expenses]);
+  // Load debt settlements on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await loadDebtSettlements();
+      } catch (error) {
+        console.error('Error loading debt settlements in Budget screen:', error);
+      }
+    };
+    loadData();
+  }, [loadDebtSettlements]);
+
+  const balances = useMemo(() => getBalances(), [expenses, debtSettlements]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
 
   const monthlyExpenses = useMemo(() => {
