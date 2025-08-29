@@ -185,6 +185,7 @@ export const useStore = create<AppState>()(
             amount: expense.amount,
             category: expense.category,
             participants: expense.participants,
+            title: expense.title,
             note: expense.description,
           });
 
@@ -203,7 +204,7 @@ export const useStore = create<AppState>()(
           // Convert Firestore format to local format
           const expenses: Expense[] = expensesData.map((doc: any) => ({
             id: doc.name.split('/').pop() || uuidv4(),
-            title: doc.fields?.note?.stringValue || 'הוצאה',
+            title: doc.fields?.title?.stringValue || doc.fields?.note?.stringValue || 'הוצאה',
             amount: doc.fields?.amount?.doubleValue || 0,
             paidBy: doc.fields?.paid_by_user_id?.stringValue || '',
             participants: doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
