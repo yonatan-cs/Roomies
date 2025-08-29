@@ -119,6 +119,14 @@ export async function getApartmentContext() {
   return { uid, idToken, aptId };
 }
 
+// Strict bootstrap check - only checks user profile, no fallback to memberships
+export async function getApartmentContextStrict() {
+  const { uid, idToken } = await requireSession();
+  const aptId = await getUserCurrentApartmentId(uid, idToken);
+  if (!aptId) throw new Error('NO_APARTMENT_ON_PROFILE');
+  return { uid, idToken, aptId };
+}
+
 // === NEW SHOPPING ITEMS FUNCTIONS ===
 export async function getShoppingItems() {
   const { idToken, aptId } = await getApartmentContext();
@@ -155,6 +163,53 @@ export async function getShoppingItems() {
         added_by_user_id: f.added_by_user_id?.stringValue ?? null,
       };
     });
+}
+
+// === ATOMIC JOIN APARTMENT PROCESS ===
+export async function joinApartmentByInviteCodeStrict(code: string) {
+  const inviteCode = code.trim().toUpperCase();
+  const { uid, idToken } = await requireSession();
+
+  // 1) Read invite
+  const invRes = await fetch(`${BASE}/apartmentInvites/${inviteCode}`, { headers: H(idToken) });
+  if (invRes.status === 404) throw new Error('INVITE_NOT_FOUND');
+  if (!invRes.ok) throw new Error(`INVITE_READ_${invRes.status}: ${await invRes.text().catch(()=> '')}`);
+  const invDoc = await invRes.json();
+  const aptId = invDoc?.fields?.apartment_id?.stringValue;
+  if (!aptId) throw new Error('INVITE_MALFORMED');
+
+  // 2) Create membership (document ID must be aptId_uid exactly)
+  const membershipId = `${aptId}_${uid}`;
+  const memberBody = {
+    fields: {
+      apartment_id: { stringValue: aptId },
+      user_id:      { stringValue: uid },
+      role:         { stringValue: 'member' },
+      joined_at:    { timestampValue: new Date().toISOString() },
+    },
+  };
+  const memRes = await fetch(`${BASE}/apartmentMembers?documentId=${encodeURIComponent(membershipId)}`, {
+    method: 'POST', headers: H(idToken), body: JSON.stringify(memberBody),
+  });
+  if (memRes.status !== 200 && memRes.status !== 409) {
+    throw new Error(`MEMBERSHIP_CREATE_${memRes.status}: ${await memRes.text().catch(()=> '')}`);
+  }
+
+  // 3) Update user profile
+  const profRes = await fetch(`${BASE}/users/${uid}?updateMask.fieldPaths=current_apartment_id`, {
+    method: 'PATCH', headers: H(idToken),
+    body: JSON.stringify({ fields: { current_apartment_id: { stringValue: aptId } } }),
+  });
+  if (!profRes.ok) throw new Error(`USERS_PATCH_${profRes.status}: ${await profRes.text().catch(()=> '')}`);
+
+  return { aptId };
+}
+
+// === SESSION MANAGEMENT ===
+export async function onSessionChanged() {
+  // This function should be called when switching users to clear any cached data
+  // The actual store reset is handled in the components that call this
+  console.log('🔄 Session changed, clearing cached data...');
 }
 
 // === NEW CLEANING TASK FUNCTIONS ===
