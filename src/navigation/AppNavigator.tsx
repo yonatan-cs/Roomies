@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 
 import { useStore } from '../state/store';
+import { getApartmentContext } from '../services/firestore-service';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -77,9 +78,42 @@ function MainTabs() {
 export default function AppNavigator() {
   const currentUser = useStore(state => state.currentUser);
   const currentApartment = useStore(state => state.currentApartment);
+  const [isCheckingApartment, setIsCheckingApartment] = useState(true);
+  const [hasApartment, setHasApartment] = useState(false);
+
+  // Check if user has an apartment on mount
+  useEffect(() => {
+    const checkApartmentAccess = async () => {
+      try {
+        if (currentUser?.id) {
+          console.log('🔍 AppNavigator: Checking apartment access for user:', currentUser.id);
+          
+          // Try to get apartment context
+          const apartmentContext = await getApartmentContext();
+          console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
+          setHasApartment(true);
+        } else {
+          console.log('📭 AppNavigator: No current user');
+          setHasApartment(false);
+        }
+      } catch (error) {
+        console.log('📭 AppNavigator: User has no apartment or error:', error);
+        setHasApartment(false);
+      } finally {
+        setIsCheckingApartment(false);
+      }
+    };
+
+    checkApartmentAccess();
+  }, [currentUser?.id]);
+
+  // Show loading while checking apartment access
+  if (isCheckingApartment) {
+    return null; // Or a loading screen
+  }
 
   // Show welcome screen if no user or no apartment
-  const showWelcome = !currentUser || !currentUser.current_apartment_id || !currentApartment;
+  const showWelcome = !currentUser || !hasApartment || !currentApartment;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>

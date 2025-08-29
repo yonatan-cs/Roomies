@@ -78,14 +78,20 @@ interface AppState {
   setPreferredDay: (userId: string, dow?: number) => void; // undefined to clear
 
   // Actions - Expenses
-  addExpense: (expense: Omit<Expense, 'id' | 'date'>) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
+  loadExpenses: () => Promise<void>;
   addDebtSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => void;
   getBalances: () => Balance[];
 
   // Actions - Shopping
-  addShoppingItem: (name: string, userId: string) => void;
-  markItemPurchased: (itemId: string, userId: string, price?: number) => void;
+  addShoppingItem: (name: string, userId: string) => Promise<void>;
+  loadShoppingItems: () => Promise<void>;
+  markItemPurchased: (itemId: string, userId: string, price?: number) => Promise<void>;
   removeShoppingItem: (itemId: string) => void;
+
+  // Actions - Cleaning (Firestore-based)
+  loadCleaningTask: () => Promise<void>;
+  markCleaningCompleted: () => Promise<void>;
 }
 
 export const useStore = create<AppState>()(
@@ -140,6 +146,133 @@ export const useStore = create<AppState>()(
           createdAt: new Date(),
         };
         set({ currentUser: user, currentApartment: apartment });
+      },
+
+      // ===== EXPENSES ACTIONS (Firestore-based) =====
+
+      addExpense: async (expense) => {
+        try {
+          const { currentUser } = get();
+          if (!currentUser) {
+            throw new Error('No current user');
+          }
+
+          // Add expense to Firestore
+          await firestoreService.addExpense({
+            amount: expense.amount,
+            category: expense.category,
+            participants: expense.participants,
+            note: expense.description,
+          });
+
+          // Reload expenses from Firestore
+          await get().loadExpenses();
+        } catch (error) {
+          console.error('Error adding expense:', error);
+          throw error;
+        }
+      },
+
+      loadExpenses: async () => {
+        try {
+          const expensesData = await firestoreService.getExpenses();
+          
+          // Convert Firestore format to local format
+          const expenses: Expense[] = expensesData.map((doc: any) => ({
+            id: doc.name.split('/').pop() || uuidv4(),
+            title: doc.fields?.note?.stringValue || 'הוצאה',
+            amount: doc.fields?.amount?.doubleValue || 0,
+            paidBy: doc.fields?.paid_by_user_id?.stringValue || '',
+            participants: doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
+            category: (doc.fields?.category?.stringValue as ExpenseCategory) || 'groceries',
+            date: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
+            description: doc.fields?.note?.stringValue,
+          }));
+
+          set({ expenses });
+        } catch (error) {
+          console.error('Error loading expenses:', error);
+        }
+      },
+
+      // ===== SHOPPING ACTIONS (Firestore-based) =====
+
+      addShoppingItem: async (name, userId) => {
+        try {
+          await firestoreService.addShoppingItem(name, userId);
+          await get().loadShoppingItems();
+        } catch (error) {
+          console.error('Error adding shopping item:', error);
+          throw error;
+        }
+      },
+
+      loadShoppingItems: async () => {
+        try {
+          const shoppingData = await firestoreService.getShoppingItems();
+          
+          const shoppingItems: ShoppingItem[] = shoppingData.map((doc: any) => ({
+            id: doc.name.split('/').pop() || uuidv4(),
+            name: doc.fields?.name?.stringValue || '',
+            addedBy: doc.fields?.added_by_user_id?.stringValue || '',
+            purchased: doc.fields?.purchased?.booleanValue || false,
+            purchasedBy: doc.fields?.purchased_by_user_id?.stringValue || '',
+            price: doc.fields?.price?.doubleValue || 0,
+            createdAt: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
+            purchasedAt: doc.fields?.purchased_at?.timestampValue ? new Date(doc.fields.purchased_at.timestampValue) : undefined,
+          }));
+
+          set({ shoppingItems });
+        } catch (error) {
+          console.error('Error loading shopping items:', error);
+        }
+      },
+
+      markItemPurchased: async (itemId, userId, price) => {
+        try {
+          await firestoreService.markShoppingItemPurchased(itemId, userId, price);
+          await get().loadShoppingItems();
+        } catch (error) {
+          console.error('Error marking item purchased:', error);
+          throw error;
+        }
+      },
+
+      // ===== CLEANING ACTIONS (Firestore-based) =====
+
+      loadCleaningTask: async () => {
+        try {
+          const cleaningTaskData = await firestoreService.getCleaningTask();
+          if (cleaningTaskData) {
+            const queue = cleaningTaskData.fields?.queue?.arrayValue?.values?.map((v: any) => v.stringValue) || [];
+            const currentIndex = parseInt(cleaningTaskData.fields?.current_index?.integerValue || '0');
+            const currentTurn = queue[currentIndex] || '';
+
+            const cleaningTask: CleaningTask = {
+              id: cleaningTaskData.name.split('/').pop() || uuidv4(),
+              queue,
+              currentTurn,
+              currentIndex,
+              lastCompletedAt: cleaningTaskData.fields?.last_completed_at?.timestampValue ? 
+                new Date(cleaningTaskData.fields.last_completed_at.timestampValue) : new Date(),
+              history: [], // TODO: Load from separate collection if needed
+            };
+
+            set({ cleaningTask });
+          }
+        } catch (error) {
+          console.error('Error loading cleaning task:', error);
+        }
+      },
+
+      markCleaningCompleted: async () => {
+        try {
+          await firestoreService.markCleaningCompleted();
+          await get().loadCleaningTask();
+        } catch (error) {
+          console.error('Error marking cleaning completed:', error);
+          throw error;
+        }
       },
 
       // Cleaning actions
@@ -417,15 +550,6 @@ export const useStore = create<AppState>()(
       },
 
       // Expense actions
-      addExpense: (expense) => {
-        const newExpense: Expense = {
-          ...expense,
-          id: uuidv4(),
-          date: new Date(),
-        };
-        set((state) => ({ expenses: [...state.expenses, newExpense] }));
-      },
-
       addDebtSettlement: (fromUserId, toUserId, amount, description) => {
         const settlement: DebtSettlement = {
           id: uuidv4(),
@@ -537,47 +661,6 @@ export const useStore = create<AppState>()(
       },
 
       // Shopping actions
-      addShoppingItem: (name, userId) => {
-        const newItem: ShoppingItem = {
-          id: uuidv4(),
-          name,
-          addedBy: userId,
-          addedAt: new Date(),
-        };
-        set((state) => ({ shoppingItems: [...state.shoppingItems, newItem] }));
-      },
-
-      markItemPurchased: (itemId, userId, price) => {
-        set((state) => ({
-          shoppingItems: state.shoppingItems.map((item) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  purchased: true,
-                  purchasedBy: userId,
-                  purchasePrice: price,
-                  purchasedAt: new Date(),
-                }
-              : item
-          ),
-        }));
-
-        if (price && price > 0) {
-          const item = get().shoppingItems.find((i) => i.id === itemId);
-          const { currentApartment } = get();
-          if (item && currentApartment) {
-            get().addExpense({
-              title: item.name,
-              amount: price,
-              paidBy: userId,
-              participants: currentApartment.members.map((m) => m.id),
-              category: 'groceries' as ExpenseCategory,
-              description: 'מקניות משותפות',
-            });
-          }
-        }
-      },
-
       removeShoppingItem: (itemId) => {
         set((state) => ({
           shoppingItems: state.shoppingItems.filter((item) => item.id !== itemId),

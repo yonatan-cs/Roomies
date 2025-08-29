@@ -6,83 +6,78 @@
 - `"No current user available"` - הפונקציה נשענת על state לפני שחזור הסשן
 - "דף ריק" - לא רואים חברים בדירה
 - `current_apartment_id` לא מעודכן בפרופיל המשתמש
+- **משתמשים שונים רואים "עולמות נפרדים"** - כל משתמש רואה נתונים שונים
 
-## הפתרון
-הוספנו פונקציות חדשות שמבטיחות סשן תקין ו-`current_apartment_id` מעודכן לפני כל שאילתה.
+## הפתרון המקיף
+הוספנו מערכת חדשה שמבטיחה שכל המשתמשים באותה דירה רואים את אותם נתונים.
 
 ### 🔄 איך זה עובד:
 
-1. **`requireSession()`** - מבטיחה שיש `uid` ו-`idToken` תקינים
-2. **`ensureCurrentApartmentId()`** - בודקת ומעדכנת `current_apartment_id`
-3. **`getUsersByIds()` מתוקן** - משתמש ב-resource names במקום URLs מלאים
-4. **`getCompleteApartmentData()` מתוקן** - משתמש ב-`requireSession()`
+1. **`getApartmentContext()`** - מבטיחה שיש `uid`, `idToken` ו-`aptId` תקינים
+2. **`getUserCurrentApartmentId()`** - בודקת ומעדכנת `current_apartment_id`
+3. **פונקציות חדשות עם apartment context** - כל קריאה/כתיבה משתמשת באותו `apartment_id`
+4. **ניווט אוטומטי** - משתמשים עם דירה נכנסים ישר לדירה שלהם
 
 ### 📝 פונקציות חדשות:
 
 ```typescript
 // firestore-service.ts
-const authHeaders = (idToken: string) => ({ ... });
-async function requireSession(): Promise<{ uid: string; idToken: string }>
-async ensureCurrentApartmentId(userId: string, fallbackApartmentId: string | null): Promise<string | null>
+export async function getApartmentContext(): Promise<{ uid: string; idToken: string; aptId: string }>
+async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<string | null>
+
+// פונקציות חדשות עם apartment context
+async addExpense(payload: { amount: number; category?: string; participants: string[]; note?: string })
+async getExpenses(): Promise<any[]>
+async getCleaningTask(): Promise<any | null>
+async markCleaningCompleted(): Promise<any>
+async addShoppingItem(name: string, addedByUserId: string): Promise<any>
+async getShoppingItems(): Promise<any[]>
+async markShoppingItemPurchased(itemId: string, purchasedByUserId: string, price?: number)
 ```
 
 ### 🎯 איפה זה מופעל:
 
-1. **`getCompleteApartmentData()`** - משתמש ב-`requireSession()` במקום להסתמך על state
-2. **`getApartmentMembers()`** - מבטיחה `current_apartment_id` לפני שאילתה
-3. **`getUsersByIds()`** - מתוקן להשתמש ב-resource names
-4. **`refreshApartmentMembers()`** - לא צריך להעביר `userId` יותר
+1. **`AppNavigator`** - בודק `current_apartment_id` ומנווט אוטומטית
+2. **`DashboardScreen`** - טוען נתונים מ-Firestore עם apartment context
+3. **`useStore`** - פונקציות חדשות לטעינת נתונים מ-Firestore
+4. **כל הפונקציות החדשות** - משתמשות ב-`getApartmentContext()`
 
 ### 🧪 בדיקה:
 
-```bash
-# בדוק את כל התיקונים
-node3 test-session-fix.js <USER_ID> <ID_TOKEN> [APARTMENT_ID]
+#### בדיקה ידנית:
+1. **היכנס עם שני משתמשים שונים לאותה דירה**
+2. **הוסף הוצאה עם המשתמש הראשון**
+3. **וודא שהמשתמש השני רואה את ההוצאה מיד**
+4. **בדוק שתור הניקיון זהה אצל שניהם**
+5. **הוסף פריט קניות עם המשתמש השני**
+6. **וודא שהמשתמש הראשון רואה את הפריט מיד**
 
-# דוגמה:
-node3 test-session-fix.js "abc123" "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." "apartment456"
-```
-
-### 📊 לוגים חשובים:
-
+#### בדיקת לוגים:
+בדוק את הלוגים באפליקציה לוודא שהכל עובד:
 ```
 ✅ Session available: { uid: abc123, tokenPreview: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9... }
-🔧 Ensuring current_apartment_id for user: abc123...
-✅ Successfully updated current_apartment_id
-✅ Using ensured apartment ID for query: apartment456
-🎉 Success! Found 2 members for apartment apartment456
-🎉 Success! Loaded 2 user profiles
+✅ Found apartment ID in user profile: apartment456
+✅ Apartment context: { uid: abc123, aptId: apartment456, tokenPreview: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9... }
+✅ Both users have the same apartment ID
+✅ Both users see the same number of expenses
+✅ Both users see the same number of shopping items
+✅ Both users see the same cleaning turn
 ```
 
-### 🎉 תוצאה צפויה:
 
-- ✅ לא יותר `403 APARTMENT_MEMBERS_QUERY`
-- ✅ לא יותר `400 BATCH_GET_USERS`
-- ✅ לא יותר `"No current user available"`
-- ✅ רואים את כל החברים בדירה
-- ✅ שאילתות עובדות חלק
 
-### ⚠️ הערות חשובות:
+### 🔧 מה תוקן:
 
-1. **`requireSession()`** - מבטיחה סשן תקין לפני כל פעולה
-2. **Resource names** - `batchGet` דורש `projects/.../documents/users/uid` ולא URL מלא
-3. **אוטומטי** - לא צריך לקרוא לפונקציות ידנית
-4. **טיפול בשגיאות** - `AUTH_REQUIRED` במקום קריסה
+1. **הוצאות** - כל הוצאה נשמרת עם `apartment_id` הנכון
+2. **קניות** - כל פריט נשמר עם `apartment_id` הנכון  
+3. **ניקיון** - מצב שרתי יחיד לכל דירה
+4. **ניווט** - משתמשים עם דירה נכנסים ישר לדירה
+5. **סנכרון** - כל הנתונים מסונכרנים בין המשתמשים
 
-### 🔍 אם עדיין יש בעיות:
+### 🎉 תוצאה:
 
-1. בדוק שהטוקן תקף
-2. בדוק שהמשתמש הוא חבר בדירה
-3. הרץ את סקריפט הבדיקה
-4. בדוק את הלוגים באפליקציה
-
-### 🚀 שיפורים נוספים:
-
-- **טיפול ב-duplicates** - מונע שגיאות 400 מיותרות
-- **לוגים מפורטים** - רואים בדיוק איפה הבעיה
-- **שחזור סשן** - מנסה לשחזר אם הסשן אבד
-- **טיפול ב-404** - יוצר משתמש אם לא קיים
-
----
-
-**הפתרון הזה סוגר את כל הבעיות אחת ולתמיד! 🚀**
+- שני המשתמשים רואים **בדיוק** את אותם נתונים
+- הוצאות חדשות מופיעות אצל שניהם מיד
+- תור הניקיון זהה אצל שניהם
+- רשימת הקניות זהה אצל שניהם
+- הניווט אוטומטי למשתמשים עם דירה
