@@ -12,6 +12,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useStore } from '../state/store';
 import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
@@ -20,6 +21,7 @@ import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 
 export default function WelcomeScreen() {
+  const navigation = useNavigation();
   const [mode, setMode] = useState<'select' | 'auth' | 'login' | 'register' | 'forgot-password' | 'create' | 'join'>('select');
   const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password'>('login');
   const [apartmentName, setApartmentName] = useState('');
@@ -168,77 +170,40 @@ export default function WelcomeScreen() {
 
     setLoading(true);
     try {
-      console.log('🚀 Starting apartment join process...');
+      console.log('🚀 Starting atomic apartment join process...');
       
-      // Step 1: Check authentication first
-      const currentUser = useStore.getState().currentUser;
-      console.log('🧑‍💻 Current user check:', currentUser ? `${currentUser.id} (${currentUser.email})` : 'NULL');
-      console.log('👤 Current user details:', {
-        id: currentUser?.id,
-        email: currentUser?.email,
-        name: currentUser?.name
-      });
+      // Use the new atomic join function
+      const { joinApartmentByInviteCodeStrict } = await import('../services/firestore-service');
+      const { aptId } = await joinApartmentByInviteCodeStrict(joinCode.trim().toUpperCase());
       
-      if (!currentUser) {
-        throw new Error('User not authenticated - Please sign in again');
-      }
-
-      // Step 2: Wait a moment for authentication to stabilize after login
-      console.log('⏳ Waiting for authentication to stabilize...');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      console.log(`🔍 Attempting to join apartment with code: "${joinCode.trim()}"`);
+      console.log(`🏠 Successfully joined apartment: ${aptId}`);
       
-      // Step 3: Use the new joinApartmentByInviteCode function
-      const apartment = await firestoreService.joinApartmentByInviteCode(joinCode.trim().toUpperCase());
+      // Clear store state to prevent cross-user data contamination
+      useStore.getState().reset?.();
+      (useStore as any).persist?.clearStorage?.();
+      (useStore as any).persist?.rehydrate?.();
       
-      console.log(`🏠 Successfully joined apartment: ${apartment.name} (ID: ${apartment.id})`);
-      
-      // Step 5: Update local state - current_apartment_id is managed through apartmentMembers
-      const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
-      setCurrentUser(updatedUser);
-      
-      // Create apartment object for local state
-      const localApartment = {
-        id: apartment.id,
-        name: apartment.name,
-        invite_code: apartment.invite_code,
-        members: [updatedUser], // Will be loaded properly later
-        createdAt: new Date(),
-      };
-      
-      console.log('🏠 Setting local apartment after join:', {
-        id: localApartment.id,
-        name: localApartment.name,
-        invite_code: localApartment.invite_code,
-        memberCount: localApartment.members.length
-      });
-      useStore.setState({ currentApartment: localApartment });
-      
-      console.log('🎉 Apartment join process completed successfully!');
+      // Navigate directly to MainTabs - the bootstrap will detect the apartment
+      // and load the data properly
+      console.log('🎉 Apartment join completed, navigating to MainTabs...');
+      (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       
     } catch (error: any) {
       console.error('❌ Join apartment error:', error);
       
-      // Provide more specific error messages
+      const msg = String(error?.message || '');
       let errorMessage = 'שגיאה בהצטרפות לדירה';
       
-      if (error.message.includes('not authenticated') || error.message.includes('User needs to sign in')) {
+      if (msg.includes('INVITE_NOT_FOUND')) {
+        errorMessage = 'קוד הזמנה לא נמצא';
+      } else if (msg.includes('MEMBERSHIP_CREATE_403')) {
+        errorMessage = 'אין הרשאה להצטרף לדירה (בדוק חוקים/טוקן)';
+      } else if (msg.includes('INVITE_MALFORMED')) {
+        errorMessage = 'קוד הזמנה לא תקין';
+      } else if (msg.includes('USERS_PATCH_')) {
+        errorMessage = 'שגיאה בעדכון פרטי המשתמש';
+      } else if (msg.includes('AUTH_REQUIRED')) {
         errorMessage = 'נדרש להתחבר מחדש למערכת';
-      } else if (error.message.includes('Missing or insufficient permissions') || error.message.includes('PERMISSION_DENIED')) {
-        errorMessage = 'אין הרשאה לגשת למידע הדירה. יתכן שהמשתמש לא מחובר כראוי';
-      } else if (error.message.includes('קוד דירה לא נמצא')) {
-        errorMessage = error.message;
-      } else if (error.message.includes('Network') || error.message.includes('בדיקת חיבור נכשלה')) {
-        errorMessage = 'בעיית חיבור ל-Firebase. בדוק חיבור לאינטרנט';
-      } else if (error.message.includes('Token expired')) {
-        errorMessage = 'תוקף ההתחברות פג. התחבר מחדש';
-      } else if (error.message.includes('PERMISSION_DENIED_INVITE_READ')) {
-        errorMessage = 'שגיאה בקריאת קוד ההזמנה. בדוק שהמשתמש מחובר כראוי';
-      } else if (error.message.includes('PERMISSION_DENIED_MEMBER_CREATE')) {
-        errorMessage = 'שגיאה ביצירת חברות בדירה. יתכן שהמסמך כבר קיים או שיש בעיית הרשאות';
-      } else if (error.message.includes('PERMISSION_DENIED_SET_CURRENT_APT')) {
-        errorMessage = 'שגיאה בעדכון פרטי המשתמש. בדוק שהמשתמש מחובר כראוי';
       }
       
       setError(errorMessage);

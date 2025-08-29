@@ -93,6 +93,9 @@ interface AppState {
   loadCleaningTask: () => Promise<void>;
   refreshCleaningTask: () => Promise<void>;
   markCleaningCompleted: () => Promise<void>;
+
+  // Store management
+  reset: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -275,6 +278,30 @@ export const useStore = create<AppState>()(
       refreshCleaningTask: async () => {
         // Alias for loadCleaningTask for consistency
         return get().loadCleaningTask();
+      },
+
+      // Store management
+      reset: () => {
+        set({
+          expenses: [],
+          debtSettlements: [],
+          shoppingItems: [],
+          cleaningChecklist: [
+            { id: '1', name: 'ניקוי מטבח', isDefault: true, isCompleted: false },
+            { id: '2', name: 'שטיפת רצפות', isDefault: true, isCompleted: false },
+            { id: '3', name: 'ניקוי שירותים', isDefault: true, isCompleted: false },
+            { id: '4', name: 'פינוי אשפה', isDefault: true, isCompleted: false },
+          ],
+          cleaningCompletions: [],
+          cleaningSettings: {
+            intervalDays: 7,
+            anchorDow: 0, // Sunday
+            preferredDays: {},
+          },
+          currentUser: undefined,
+          currentApartment: undefined,
+          cleaningTask: undefined,
+        });
       },
 
       markCleaningCompleted: async () => {

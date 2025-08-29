@@ -81,11 +81,11 @@ export default function AppNavigator() {
   useEffect(() => {
     (async () => {
       try {
-        // Use the new getApartmentContext to check if user has apartment
-        const { getApartmentContext } = await import('../services/firestore-service');
-        const { aptId } = await getApartmentContext(); // Will throw if no session/apartment
+        // Use strict bootstrap - only checks user profile, no fallback
+        const { getApartmentContextStrict } = await import('../services/firestore-service');
+        const { aptId } = await getApartmentContextStrict(); // Will throw if no apartment in profile
         
-        console.log('✅ AppNavigator: User has apartment:', aptId);
+        console.log('✅ AppNavigator: User has apartment in profile:', aptId);
         setHasApartment(true);
         
         // Initial data loading (optional but recommended)
@@ -103,7 +103,7 @@ export default function AppNavigator() {
           // Don't fail navigation if data loading fails
         }
       } catch (error) {
-        console.log('📭 AppNavigator: No session/apartment, showing Welcome:', error);
+        console.log('📭 AppNavigator: No apartment in profile, showing Welcome:', error);
         setHasApartment(false);
       } finally {
         setBooted(true);
