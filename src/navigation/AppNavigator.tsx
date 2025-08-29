@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { NavigationContainer } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 // Screens
@@ -14,7 +13,6 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 
 import { useStore } from '../state/store';
-import { navigationRef } from './RootNavigation';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -104,26 +102,24 @@ export default function AppNavigator() {
   if (!booted) return null; // Or Splash screen
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!hasApartment ? (
-          <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        ) : (
-          <>
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen 
-              name="AddExpense" 
-              component={AddExpenseScreen}
-              options={{ 
-                presentation: 'modal',
-                headerShown: true,
-                title: 'הוספת הוצאה',
-                headerTitleAlign: 'center'
-              }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {!hasApartment ? (
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      ) : (
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen 
+            name="AddExpense" 
+            component={AddExpenseScreen}
+            options={{ 
+              presentation: 'modal',
+              headerShown: true,
+              title: 'הוספת הוצאה',
+              headerTitleAlign: 'center'
+            }}
+          />
+        </>
+      )}
+    </Stack.Navigator>
   );
 }

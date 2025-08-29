@@ -19,7 +19,6 @@ import RegisterScreen from './RegisterScreen';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
-import { resetToMainTabs } from '../navigation/RootNavigation';
 
 export default function WelcomeScreen() {
   const navigation = useNavigation();
@@ -188,19 +187,14 @@ export default function WelcomeScreen() {
       // and load the data properly
       console.log('🎉 Apartment join completed, navigating to MainTabs...');
       
-      // Try local navigation first, fallback to global navigation
-      try {
-        const root = navigation.getParent?.() ?? navigation;
-        root.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'MainTabs' }],
-          })
-        );
-      } catch (error) {
-        console.log('⚠️ Local navigation failed, using global navigation:', error);
-        resetToMainTabs();
-      }
+      // Use CommonActions with parent navigator
+      const root = navigation.getParent?.() ?? navigation;
+      root.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs' }],
+        })
+      );
       
     } catch (error: any) {
       console.error('❌ Join apartment error:', error);
