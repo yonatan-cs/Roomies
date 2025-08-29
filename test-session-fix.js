@@ -187,7 +187,7 @@ async function testBatchGetUsers(uids, idToken) {
       if (!doc) continue;
       
       const name = doc.name; // "projects/.../documents/users/<UID>"
-      const uid = name.split('/').pop()!;
+      const uid = name.split('/').pop();
       const fields = doc.fields || {};
       
       userMap[uid] = {

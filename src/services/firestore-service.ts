@@ -5,6 +5,7 @@
 
 import { FIRESTORE_BASE_URL, COLLECTIONS } from './firebase-config';
 import { firebaseAuth } from './firebase-auth';
+import { ChecklistItem } from '../types';
 
 // --- Session helpers ---
 const authHeaders = (idToken: string) => ({
@@ -2410,6 +2411,268 @@ export class FirestoreService {
     return await res.json();
   }
 
+  // ===== CLEANING CHECKLIST FUNCTIONS =====
+
+  /**
+   * Get all checklist items for current apartment (always all items)
+   */
+  async getCleaningChecklist(): Promise<ChecklistItem[]> {
+    try {
+      const { uid, idToken, aptId } = await getApartmentContext();
+      
+      // Ensure current apartment ID matches for security rules
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      const parent = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}`;
+      const body = {
+        structuredQuery: {
+          from: [{ collectionId: "checklistItems" }],
+          orderBy: [
+            // First by order (if exists), then by created_at
+            { field: { fieldPath: "order" }, direction: "ASCENDING" },
+            { field: { fieldPath: "created_at" }, direction: "ASCENDING" },
+          ],
+          limit: 200
+        }
+      };
+
+      const res = await fetch(`${parent}:runQuery`, {
+        method: "POST",
+        headers: H(idToken),
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        console.error("GET_CHECKLIST_400", t);
+        return []; // Don't crash UI
+      }
+
+      const rows = await res.json();
+      const items: ChecklistItem[] = [];
+      for (const r of rows) {
+        const d = r.document;
+        if (!d) continue;
+        items.push({
+          id: d.name.split("/").pop()!,
+          title: d.fields?.title?.stringValue ?? "",
+          completed: !!d.fields?.completed?.booleanValue,
+          completed_by: d.fields?.completed_by?.stringValue ?? null,
+          completed_at: d.fields?.completed_at?.timestampValue ?? null,
+          order: d.fields?.order?.integerValue ? Number(d.fields.order.integerValue) : null,
+          created_at: d.fields?.created_at?.timestampValue ?? null,
+        });
+      }
+
+      // If no items exist, create default ones
+      if (items.length === 0) {
+        console.log("No checklist items found, creating default ones...");
+        const defaultItems = [
+          "ניקוי מטבח",
+          "שטיפת רצפות", 
+          "ניקוי שירותים",
+          "פינוי אשפה",
+          "אבק רהיטים"
+        ];
+        
+        for (let i = 0; i < defaultItems.length; i++) {
+          try {
+            await this.addChecklistItem(defaultItems[i], i);
+          } catch (error) {
+            console.error(`Error creating default item ${i}:`, error);
+          }
+        }
+        
+        // Return the newly created items
+        return this.getCleaningChecklist();
+      }
+
+      return items;
+    } catch (error) {
+      console.error("Error getting cleaning checklist:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Mark checklist item as completed (only if it's my turn)
+   */
+  async markChecklistItemCompleted(itemId: string): Promise<void> {
+    try {
+      const { uid, idToken, aptId } = await getApartmentContext();
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      // Read cleaning task to verify it's my turn (user_id)
+      const task = await this.getCleaningTask();
+      if (!task || task.user_id !== uid) {
+        throw new Error("NOT_YOUR_TURN");
+      }
+
+      // Update document: completed=true, with by/at
+      const nowIso = new Date().toISOString();
+      const path = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}/checklistItems/${itemId}`;
+
+      const body = {
+        fields: {
+          completed: { booleanValue: true },
+          completed_by: { stringValue: uid },
+          completed_at: { timestampValue: nowIso },
+          // Don't touch other fields
+        }
+      };
+      
+      // Update - Firestore REST: PATCH with updateMask to update only these fields
+      const res = await fetch(`${path}?updateMask.fieldPaths=completed&updateMask.fieldPaths=completed_by&updateMask.fieldPaths=completed_at`, {
+        method: "PATCH",
+        headers: H(idToken),
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        console.error("CHECKLIST_UPDATE_403/400", t);
+        throw new Error("CHECKLIST_UPDATE_FAILED");
+      }
+    } catch (error) {
+      console.error("Error marking checklist item completed:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Unmark checklist item as completed (only if it's my turn)
+   */
+  async unmarkChecklistItemCompleted(itemId: string): Promise<void> {
+    try {
+      const { uid, idToken, aptId } = await getApartmentContext();
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      // Read cleaning task to verify it's my turn (user_id)
+      const task = await this.getCleaningTask();
+      if (!task || task.user_id !== uid) {
+        throw new Error("NOT_YOUR_TURN");
+      }
+
+      // Update document: completed=false, clear by/at
+      const path = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}/checklistItems/${itemId}`;
+
+      const body = {
+        fields: {
+          completed: { booleanValue: false },
+          completed_by: { nullValue: null },
+          completed_at: { nullValue: null },
+        }
+      };
+      
+      // Update - Firestore REST: PATCH with updateMask to update only these fields
+      const res = await fetch(`${path}?updateMask.fieldPaths=completed&updateMask.fieldPaths=completed_by&updateMask.fieldPaths=completed_at`, {
+        method: "PATCH",
+        headers: H(idToken),
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        console.error("CHECKLIST_UNMARK_403/400", t);
+        throw new Error("CHECKLIST_UNMARK_FAILED");
+      }
+    } catch (error) {
+      console.error("Error unmarking checklist item:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add new checklist item to the apartment
+   */
+  async addChecklistItem(title: string, order?: number): Promise<ChecklistItem> {
+    try {
+      const { uid, idToken, aptId } = await getApartmentContext();
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      const parent = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}/checklistItems`;
+      const nowIso = new Date().toISOString();
+      
+      const body = {
+        fields: {
+          title: { stringValue: title },
+          completed: { booleanValue: false },
+          order: order !== undefined ? { integerValue: String(order) } : { nullValue: null },
+          created_at: { timestampValue: nowIso },
+        }
+      };
+
+      const res = await fetch(parent, {
+        method: "POST",
+        headers: H(idToken),
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        console.error("ADD_CHECKLIST_ITEM_400", t);
+        throw new Error("ADD_CHECKLIST_ITEM_FAILED");
+      }
+
+      const doc = await res.json();
+      return {
+        id: doc.name.split("/").pop()!,
+        title,
+        completed: false,
+        order: order || null,
+        created_at: nowIso,
+      };
+    } catch (error) {
+      console.error("Error adding checklist item:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset all checklist items (mark all as not completed)
+   * Used when finishing a turn
+   */
+  async resetAllChecklistItems(): Promise<void> {
+    try {
+      const { uid, idToken, aptId } = await getApartmentContext();
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      // Get all items first
+      const items = await this.getCleaningChecklist();
+      
+      // Reset each item
+      const resetPromises = items.map(item => {
+        const path = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}/checklistItems/${item.id}`;
+        const body = {
+          fields: {
+            completed: { booleanValue: false },
+            completed_by: { nullValue: null },
+            completed_at: { nullValue: null },
+          }
+        };
+        
+        return fetch(`${path}?updateMask.fieldPaths=completed&updateMask.fieldPaths=completed_by&updateMask.fieldPaths=completed_at`, {
+          method: "PATCH",
+          headers: H(idToken),
+          body: JSON.stringify(body),
+        });
+      });
+
+      const results = await Promise.all(resetPromises);
+      
+      // Check if any failed
+      for (let i = 0; i < results.length; i++) {
+        if (!results[i].ok) {
+          const t = await results[i].text().catch(() => "");
+          console.error(`RESET_CHECKLIST_ITEM_${i}_FAILED`, t);
+          throw new Error(`RESET_CHECKLIST_ITEM_${i}_FAILED`);
+        }
+      }
+    } catch (error) {
+      console.error("Error resetting checklist items:", error);
+      throw error;
+    }
+  }
 
 }
 

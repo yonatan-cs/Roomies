@@ -34,7 +34,8 @@ export default function DashboardScreen() {
     refreshApartmentMembers,
     loadExpenses,
     loadShoppingItems,
-    loadCleaningTask
+    loadCleaningTask,
+    loadCleaningChecklist
   } = useStore();
 
   // Load all data from Firestore when component mounts
@@ -48,11 +49,12 @@ export default function DashboardScreen() {
           await refreshApartmentMembers();
         }
         
-        // Load expenses, shopping items, and cleaning task
+        // Load expenses, shopping items, cleaning task, and checklist
         await Promise.all([
           loadExpenses(),
           loadShoppingItems(),
           loadCleaningTask(),
+          loadCleaningChecklist(),
         ]);
         
         console.log('✅ Dashboard: All data loaded successfully');
