@@ -91,11 +91,7 @@ interface AppState {
 
   // Actions - Cleaning (Firestore-based)
   loadCleaningTask: () => Promise<void>;
-  refreshCleaningTask: () => Promise<void>;
   markCleaningCompleted: () => Promise<void>;
-
-  // Store management
-  reset: () => void;
 }
 
 export const useStore = create<AppState>()(
@@ -213,9 +209,7 @@ export const useStore = create<AppState>()(
 
       loadShoppingItems: async () => {
         try {
-          // Use the new getShoppingItems function from firestore-service
-          const { getShoppingItems } = await import('../services/firestore-service');
-          const shoppingData = await getShoppingItems();
+          const shoppingData = await firestoreService.getShoppingItems();
           
           const shoppingItems: ShoppingItem[] = shoppingData.map((item: any) => ({
             id: item.id || uuidv4(),
@@ -230,9 +224,6 @@ export const useStore = create<AppState>()(
 
           set({ shoppingItems });
         } catch (error) {
-          const msg = String((error as Error)?.message || '');
-          // Don't crash if no session/apartment yet
-          if (msg.includes('AUTH_REQUIRED') || msg.includes('NO_APARTMENT_FOR_USER') || msg.includes('NO_VALID_ID_TOKEN')) return;
           console.error('Error loading shopping items:', error);
         }
       },
@@ -251,9 +242,7 @@ export const useStore = create<AppState>()(
 
       loadCleaningTask: async () => {
         try {
-          // Use the new getCleaningTask function from firestore-service
-          const { getCleaningTask } = await import('../services/firestore-service');
-          const cleaningTaskData = await getCleaningTask();
+          const cleaningTaskData = await firestoreService.getCleaningTask();
           if (cleaningTaskData) {
             const cleaningTask: CleaningTask = {
               id: cleaningTaskData.id || uuidv4(),
@@ -268,40 +257,8 @@ export const useStore = create<AppState>()(
             set({ cleaningTask });
           }
         } catch (error) {
-          const msg = String((error as Error)?.message || '');
-          // Don't crash if no session/apartment yet
-          if (msg.includes('AUTH_REQUIRED') || msg.includes('NO_APARTMENT_FOR_USER') || msg.includes('NO_VALID_ID_TOKEN')) return;
           console.error('Error loading cleaning task:', error);
         }
-      },
-
-      refreshCleaningTask: async () => {
-        // Alias for loadCleaningTask for consistency
-        return get().loadCleaningTask();
-      },
-
-      // Store management
-      reset: () => {
-        set({
-          expenses: [],
-          debtSettlements: [],
-          shoppingItems: [],
-          cleaningChecklist: [
-            { id: '1', name: 'ניקוי מטבח', isDefault: true, isCompleted: false },
-            { id: '2', name: 'שטיפת רצפות', isDefault: true, isCompleted: false },
-            { id: '3', name: 'ניקוי שירותים', isDefault: true, isCompleted: false },
-            { id: '4', name: 'פינוי אשפה', isDefault: true, isCompleted: false },
-          ],
-          cleaningCompletions: [],
-          cleaningSettings: {
-            intervalDays: 7,
-            anchorDow: 0, // Sunday
-            preferredDays: {},
-          },
-          currentUser: undefined,
-          currentApartment: undefined,
-          cleaningTask: undefined,
-        });
       },
 
       markCleaningCompleted: async () => {

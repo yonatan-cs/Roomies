@@ -3,325 +3,50 @@
  * Handles database operations without Firebase SDK
  */
 
-import { FIRESTORE_BASE_URL, COLLECTIONS, firebaseConfig } from './firebase-config';
+import { FIRESTORE_BASE_URL, COLLECTIONS } from './firebase-config';
 import { firebaseAuth } from './firebase-auth';
-import * as SecureStore from 'expo-secure-store';
 
-// ---- Session store (in-memory) ----
-type Session = { uid: string; idToken: string; refreshToken: string; expiresAt: number };
-let memSession: Session | null = null;
-
-const API_KEY = firebaseConfig.apiKey;
-
-async function saveSessionToStorage(s: Session) {
-  try {
-    const payload = JSON.stringify(s);
-    // SecureStore אם קיים, אחרת AsyncStorage
-    const maybeSecure = (global as any).Expo?.SecureStore || (require('@react-native-async-storage/async-storage').default);
-    if (maybeSecure?.setItemAsync) {
-      await maybeSecure.setItemAsync('roomies.session', payload);
-    } else {
-      await maybeSecure.setItem('roomies.session', payload);
-    }
-  } catch {}
-}
-
-async function loadSessionFromStorage(): Promise<Session | null> {
-  try {
-    const maybeSecure = (global as any).Expo?.SecureStore || (require('@react-native-async-storage/async-storage').default);
-    const raw = maybeSecure?.getItemAsync ? await maybeSecure.getItemAsync('roomies.session') : await maybeSecure.getItem('roomies.session');
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch { return null; }
-}
-
-function isTokenValid(s?: Session | null) {
-  if (!s?.idToken || !s?.expiresAt) return false;
-  return s.expiresAt - Date.now() > 60_000; // דקה גרייס
-}
-
-async function refreshIdToken(refreshToken: string) {
-  const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
-  });
-  if (!res.ok) throw new Error(`TOKEN_REFRESH_${res.status}`);
-  const j = await res.json();
-  // j: { id_token, refresh_token, expires_in, user_id, ... }
-  const expiresAt = Date.now() + Number(j.expires_in || 3600) * 1000;
-  const s: Session = {
-    uid: j.user_id,
-    idToken: j.id_token,
-    refreshToken: j.refresh_token || refreshToken,
-    expiresAt,
-  };
-  memSession = s;
-  await saveSessionToStorage(s);
-  return s;
-}
-
-// קריאה אחת שמבטיחה סשן – מנסה זיכרון → ריענון → שחזור → ריענון
-export async function requireSession(): Promise<{ uid: string; idToken: string }> {
-  // 1) זיכרון
-  if (isTokenValid(memSession)) return { uid: memSession!.uid, idToken: memSession!.idToken };
-
-  // 2) יש בזיכרון refreshToken? נרענן
-  if (memSession?.refreshToken) {
-    try {
-      const s = await refreshIdToken(memSession.refreshToken);
-      return { uid: s.uid, idToken: s.idToken };
-    } catch {}
-  }
-
-  // 3) נסה לשחזר מהאחסון
-  const stored = await loadSessionFromStorage();
-  if (stored) {
-    memSession = stored;
-    if (isTokenValid(memSession)) return { uid: memSession!.uid, idToken: memSession!.idToken };
-    // 4) יש refresh? נרענן
-    if (memSession?.refreshToken) {
-      const s = await refreshIdToken(memSession.refreshToken);
-      return { uid: s.uid, idToken: s.idToken };
-    }
-  }
-
-  // 5) אין איך לשחזר
-  throw new Error('AUTH_REQUIRED');
-}
-
-// עוזר להציב סשן חדש אחרי sign-in
-export async function setSignedInSession(loginResponse: {
-  idToken: string; refreshToken: string; expiresIn: string; localId: string;
-}) {
-  const expiresAt = Date.now() + Number(loginResponse.expiresIn || 3600) * 1000;
-  const s: Session = {
-    uid: loginResponse.localId,
-    idToken: loginResponse.idToken,
-    refreshToken: loginResponse.refreshToken,
-    expiresAt,
-  };
-  memSession = s;
-  await saveSessionToStorage(s);
-}
-
-// === LEGACY AUTH FUNCTIONS (deprecated - use new requireSession above) ===
-
-// === FIRESTORE BASE ===
-const PROJECT_ID = 'roomies-hub';
-const BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
-const H = (idToken: string) => ({ Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' });
-
-async function getUserCurrentApartmentId(uid: string, idToken: string) {
-  const r = await fetch(`${BASE}/users/${uid}`, { headers: H(idToken) });
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error(`GET_USER_${r.status}`);
-  const doc = await r.json();
-  return doc?.fields?.current_apartment_id?.stringValue ?? null;
-}
-
-async function setUserCurrentApartmentId(uid: string, idToken: string, aptId: string) {
-  return fetch(`${BASE}/users/${uid}?updateMask.fieldPaths=current_apartment_id`, {
-    method: 'PATCH',
-    headers: H(idToken),
-    body: JSON.stringify({ fields: { current_apartment_id: { stringValue: aptId } } }),
-  });
-}
-
-async function getReliableApartmentId(uid: string, idToken: string) {
-  // 1) Prefer from profile
-  let aptId = await getUserCurrentApartmentId(uid, idToken);
-  if (aptId) return aptId;
-
-  // 2) Fallback: latest membership
-  const body = {
-    structuredQuery: {
-      from: [{ collectionId: 'apartmentMembers' }],
-      where: { fieldFilter: { field: { fieldPath: 'user_id' }, op: 'EQUAL', value: { stringValue: uid } } },
-      orderBy: [{ field: { fieldPath: 'joined_at' }, direction: 'DESCENDING' }],
-      limit: 1,
-    },
-  };
-  const res = await fetch(`${BASE}:runQuery`, { method: 'POST', headers: H(idToken), body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`MEMBERS_QUERY_${res.status}`);
-  const rows = await res.json();
-  const doc = rows.find((x: any) => x.document)?.document;
-  aptId = doc?.fields?.apartment_id?.stringValue ?? null;
-
-  if (aptId) await setUserCurrentApartmentId(uid, idToken, aptId);
-  if (!aptId) throw new Error('NO_APARTMENT_FOR_USER');
-  return aptId;
-}
-
-export async function getApartmentContext() {
-  const { uid, idToken } = await requireSession();
-  const aptId = await getReliableApartmentId(uid, idToken);
-  return { uid, idToken, aptId };
-}
-
-// Strict bootstrap check - only checks user profile, no fallback to memberships
-export async function getApartmentContextStrict() {
-  const { uid, idToken } = await requireSession();
-  const aptId = await getUserCurrentApartmentId(uid, idToken);
-  if (!aptId) throw new Error('NO_APARTMENT_ON_PROFILE');
-  return { uid, idToken, aptId };
-}
-
-// === NEW SHOPPING ITEMS FUNCTIONS ===
-export async function getShoppingItems() {
-  const { idToken, aptId } = await getApartmentContext();
-  const body = {
-    structuredQuery: {
-      from: [{ collectionId: 'shoppingItems' }],
-      where: {
-        fieldFilter: {
-          field: { fieldPath: 'apartment_id' },
-          op: 'EQUAL',
-          value: { stringValue: aptId },
-        },
-      },
-      orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
-      limit: 200,
-    },
-  };
-  const res = await fetch(`${BASE}:runQuery`, { method: 'POST', headers: H(idToken), body: JSON.stringify(body) });
-  if (!res.ok) throw new Error(`GET_SHOPPING_ITEMS_${res.status}: ${await res.text().catch(()=> '')}`);
-  const rows = await res.json();
-  return rows
-    .map((r: any) => r.document)
-    .filter(Boolean)
-    .map((doc: any) => {
-      const f = doc.fields ?? {};
-      return {
-        id: doc.name.split('/').pop(),
-        apartment_id: f.apartment_id?.stringValue ?? '',
-        title: f.title?.stringValue ?? '',
-        quantity: f.quantity?.integerValue ? Number(f.quantity.integerValue) : 1,
-        created_at: f.created_at?.timestampValue ?? null,
-        purchased: !!f.purchased?.booleanValue,
-        purchased_by_user_id: f.purchased_by_user_id?.stringValue ?? null,
-        added_by_user_id: f.added_by_user_id?.stringValue ?? null,
-      };
-    });
-}
-
-// === ATOMIC JOIN APARTMENT PROCESS ===
-export async function joinApartmentByInviteCodeStrict(code: string) {
-  // ⇦ כאן נוודא סשן (ינסה לרענן/לשחזר לבד)
-  const { uid, idToken } = await requireSession();
-
-  const inviteCode = code.trim().toUpperCase();
-
-  // 1) Invite
-  const invRes = await fetch(`${BASE}/apartmentInvites/${inviteCode}`, { headers: H(idToken) });
-  if (invRes.status === 404) throw new Error('INVITE_NOT_FOUND');
-  if (!invRes.ok) throw new Error(`INVITE_READ_${invRes.status}: ${await invRes.text().catch(()=> '')}`);
-  const invDoc = await invRes.json();
-  const aptId = invDoc?.fields?.apartment_id?.stringValue;
-  if (!aptId) throw new Error('INVITE_MALFORMED');
-
-  // 2) Membership
-  const membershipId = `${aptId}_${uid}`;
-  const memberBody = {
-    fields: {
-      apartment_id: { stringValue: aptId },
-      user_id:      { stringValue: uid },
-      role:         { stringValue: 'member' },
-      joined_at:    { timestampValue: new Date().toISOString() },
-    },
-  };
-  const memRes = await fetch(`${BASE}/apartmentMembers?documentId=${encodeURIComponent(membershipId)}`, {
-    method: 'POST', headers: H(idToken), body: JSON.stringify(memberBody),
-  });
-  if (memRes.status !== 200 && memRes.status !== 409) {
-    throw new Error(`MEMBERSHIP_CREATE_${memRes.status}: ${await memRes.text().catch(()=> '')}`);
-  }
-
-  // 3) Profile → current_apartment_id
-  const profRes = await fetch(`${BASE}/users/${uid}?updateMask.fieldPaths=current_apartment_id`, {
-    method: 'PATCH', headers: H(idToken),
-    body: JSON.stringify({ fields: { current_apartment_id: { stringValue: aptId } } }),
-  });
-  if (!profRes.ok) throw new Error(`USERS_PATCH_${profRes.status}: ${await profRes.text().catch(()=> '')}`);
-
-  return { aptId };
-}
-
-// === USER DOCUMENT MANAGEMENT ===
-async function createUserDocIfMissing(uid: string, idToken: string, fields: {full_name?: string, phone?: string, email: string}) {
-  const r = await fetch(`${BASE}/users/${uid}`, { headers: H(idToken) });
-  if (r.status === 404) {
-    await fetch(`${BASE}/users?documentId=${uid}`, {
-      method: 'POST', headers: H(idToken),
-      body: JSON.stringify({
-        fields: {
-          email:     { stringValue: fields.email },
-          full_name: fields.full_name ? { stringValue: fields.full_name } : undefined,
-          phone:     fields.phone ? { stringValue: fields.phone } : undefined,
-        }
-      }),
-    });
-  }
-  // אם קיים – אל תעשה PATCH שמוחק שדות; תעדכן רק ספציפי בעת הצורך עם updateMask
-}
-
-// === SESSION MANAGEMENT ===
-export async function onSessionChanged() {
-  // This function should be called when switching users to clear any cached data
-  // The actual store reset is handled in the components that call this
-  console.log('🔄 Session changed, clearing cached data...');
-}
-
-// App logout - clears session but preserves apartment membership
-export async function appLogout() {
-  try {
-    // Clear session tokens but DON'T touch current_apartment_id in profile
-    memSession = null;
-    // Clear from storage
-    const maybeSecure = (global as any).Expo?.SecureStore || (require('@react-native-async-storage/async-storage').default);
-    if (maybeSecure?.deleteItemAsync) {
-      await maybeSecure.deleteItemAsync('roomies.session');
-    } else {
-      await maybeSecure.removeItem('roomies.session');
-    }
-    console.log('✅ Session cleared, apartment membership preserved');
-  } catch (error) {
-    console.error('❌ Error clearing session:', error);
-  }
-}
-
-// === NEW CLEANING TASK FUNCTIONS ===
-export async function getCleaningTask() {
-  const { uid, idToken, aptId } = await getApartmentContext();
-
-  // Ensure profile matches (to pass the read rule)
-  const curr = await getUserCurrentApartmentId(uid, idToken);
-  if (curr !== aptId) await setUserCurrentApartmentId(uid, idToken, aptId);
-
-  const url = `${BASE}/cleaningTasks/${aptId}`;
-  const res = await fetch(url, { headers: H(idToken) });
-  if (res.status === 404) return null; // May not exist yet
-  if (!res.ok) throw new Error(`GET_CLEANING_TASK_${res.status}: ${await res.text().catch(()=> '')}`);
-
-  const doc = await res.json();
-  const f = doc.fields ?? {};
-  return {
-    id: aptId,
-    apartment_id: f.apartment_id?.stringValue ?? aptId,
-    queue: (f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
-    current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
-    last_completed_at: f.last_completed_at?.timestampValue ?? null,
-  };
-}
-
-// --- Legacy session helpers for compatibility ---
+// --- Session helpers ---
 const authHeaders = (idToken: string) => ({
   Authorization: `Bearer ${idToken}`,
   'Content-Type': 'application/json',
 });
 
-// Get user's current apartment ID from profile or fallback to latest membership (LEGACY - use getApartmentContext instead)
-async function legacyGetUserCurrentApartmentId(uid: string, idToken: string): Promise<string | null> {
+// Ensure we always have uid + idToken (try to restore session if missing from memory)
+async function requireSession(): Promise<{ uid: string; idToken: string }> {
+  try {
+    // Try to get current user and token
+    const currentUser = await firebaseAuth.getCurrentUser();
+    const idToken = await firebaseAuth.getCurrentIdToken();
+    
+    if (currentUser?.localId && idToken) {
+      console.log('✅ Session available:', { uid: currentUser.localId, tokenPreview: idToken.substring(0, 20) + '...' });
+      return { uid: currentUser.localId, idToken };
+    }
+    
+    // If no current user, try to restore session
+    console.log('🔄 No current session, attempting to restore...');
+    const restoredUser = await firebaseAuth.restoreUserSession();
+    
+    if (restoredUser?.localId) {
+      const restoredToken = await firebaseAuth.getCurrentIdToken();
+      if (restoredToken) {
+        console.log('✅ Session restored:', { uid: restoredUser.localId, tokenPreview: restoredToken.substring(0, 20) + '...' });
+        return { uid: restoredUser.localId, idToken: restoredToken };
+      }
+    }
+    
+    console.log('❌ No valid session found');
+    throw new Error('AUTH_REQUIRED');
+    
+  } catch (error) {
+    console.error('❌ Error in requireSession:', error);
+    throw new Error('AUTH_REQUIRED');
+  }
+}
+
+// Get user's current apartment ID from profile or fallback to latest membership
+async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<string | null> {
   try {
     // Step 1: Try from user profile
     const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${uid}`, {
@@ -389,7 +114,17 @@ async function legacyGetUserCurrentApartmentId(uid: string, idToken: string): Pr
   }
 }
 
-// Legacy function - use the new getApartmentContext above instead
+// Get apartment context - ensures all operations use the same apartment_id
+export async function getApartmentContext(): Promise<{ uid: string; idToken: string; aptId: string }> {
+  const { uid, idToken } = await requireSession();
+  
+  let aptId = await getUserCurrentApartmentId(uid, idToken);
+  if (!aptId) {
+    throw new Error('NO_APARTMENT_FOR_USER');
+  }
+  
+  return { uid, idToken, aptId };
+}
 
 // Firestore data types for REST API
 export interface FirestoreValue {

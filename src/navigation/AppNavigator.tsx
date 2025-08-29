@@ -13,6 +13,7 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 
 import { useStore } from '../state/store';
+import { getApartmentContext } from '../services/firestore-service';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -75,35 +76,59 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const [booted, setBooted] = useState(false);
+  const currentUser = useStore(state => state.currentUser);
+  const currentApartment = useStore(state => state.currentApartment);
+  const [isCheckingApartment, setIsCheckingApartment] = useState(true);
   const [hasApartment, setHasApartment] = useState(false);
 
+  // Check if user has an apartment on mount
   useEffect(() => {
-    (async () => {
+    const checkApartmentAccess = async () => {
       try {
-        // Use strict bootstrap - only checks user profile, no fallback
-        const { getApartmentContextStrict } = await import('../services/firestore-service');
-        const { aptId } = await getApartmentContextStrict(); // Will throw if no apartment in profile
-        
-        console.log('✅ AppNavigator: User has apartment in profile:', aptId);
-        setHasApartment(true);
-        
-        // Navigate directly to MainTabs
-        // Initial data loading will happen in MainTabs components
+        if (currentUser?.id) {
+          console.log('🔍 AppNavigator: Checking apartment access for user:', currentUser.id);
+          
+          // Try to get apartment context
+          const apartmentContext = await getApartmentContext();
+          console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
+          setHasApartment(true);
+          
+          // Trigger initial data refresh
+          try {
+            await Promise.all([
+              useStore.getState().refreshApartmentMembers?.(),
+              useStore.getState().loadShoppingItems?.(),
+              useStore.getState().loadCleaningTask?.(),
+            ]);
+          } catch (refreshError) {
+            console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
+          }
+        } else {
+          console.log('📭 AppNavigator: No current user');
+          setHasApartment(false);
+        }
       } catch (error) {
-        console.log('📭 AppNavigator: No apartment in profile, showing Welcome:', error);
+        console.log('📭 AppNavigator: User has no apartment or error:', error);
         setHasApartment(false);
       } finally {
-        setBooted(true);
+        setIsCheckingApartment(false);
       }
-    })();
-  }, []);
+    };
 
-  if (!booted) return null; // Or Splash screen
+    checkApartmentAccess();
+  }, [currentUser?.id]);
+
+  // Show loading while checking apartment access
+  if (isCheckingApartment) {
+    return null; // Or a loading screen
+  }
+
+  // Show welcome screen if no user or no apartment
+  const showWelcome = !currentUser || !hasApartment || !currentApartment;
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!hasApartment ? (
+      {showWelcome ? (
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
       ) : (
         <>
