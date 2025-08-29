@@ -46,7 +46,18 @@ export interface CleaningChecklist {
   id: string;
   name: string;
   isDefault: boolean;
-  isCompleted: boolean;
+  isCompleted?: boolean; // Legacy field for backward compatibility
+}
+
+// New type for individual checklist items
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  completed: boolean;
+  completed_by?: string | null;
+  completed_at?: string | null; // ISO timestamp
+  order?: number | null;
+  created_at?: string | null; // ISO timestamp
 }
 
 export interface CleaningTaskCompletion {

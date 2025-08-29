@@ -16,6 +16,7 @@ import {
   CleaningTaskCompletion,
   DebtSettlement,
   CleaningSettings,
+  ChecklistItem,
 } from '../types';
 
 function startOfDay(d: Date) {
@@ -38,6 +39,12 @@ function computePeriodBounds(now: Date, anchorDow: number, intervalDays: number)
   return { periodStart, periodEnd };
 }
 
+// Helper function to get current turn user ID from either Firestore or local type
+function getCurrentTurnUserId(task: any): string | null {
+  // Firestore returns user_id, local type has currentTurn
+  return task?.user_id || task?.currentTurn || null;
+}
+
 interface AppState {
   // User & Apartment
   currentUser?: User;
@@ -48,6 +55,10 @@ interface AppState {
   cleaningChecklist: CleaningChecklist[];
   cleaningCompletions: CleaningTaskCompletion[];
   cleaningSettings: CleaningSettings;
+  
+  // New checklist items (Firestore-based)
+  checklistItems: ChecklistItem[];
+  isMyCleaningTurn: boolean;
 
   // Expenses & Budget
   expenses: Expense[];
@@ -92,6 +103,13 @@ interface AppState {
   // Actions - Cleaning (Firestore-based)
   loadCleaningTask: () => Promise<void>;
   markCleaningCompleted: () => Promise<void>;
+  
+  // New checklist actions (Firestore-based)
+  loadCleaningChecklist: () => Promise<void>;
+  completeChecklistItem: (itemId: string) => Promise<void>;
+  uncompleteChecklistItem: (itemId: string) => Promise<void>;
+  addChecklistItem: (title: string, order?: number) => Promise<void>;
+  finishCleaningTurn: () => Promise<void>;
 }
 
 export const useStore = create<AppState>()(
@@ -114,6 +132,10 @@ export const useStore = create<AppState>()(
         anchorDow: 0, // Sunday
         preferredDayByUser: {},
       },
+      
+      // New checklist state
+      checklistItems: [],
+      isMyCleaningTurn: false,
 
       // User & Apartment actions
       setCurrentUser: (user) => set({ currentUser: user }),
@@ -272,6 +294,97 @@ export const useStore = create<AppState>()(
           await get().loadCleaningTask();
         } catch (error) {
           console.error('Error marking cleaning completed:', error);
+          throw error;
+        }
+      },
+
+      // ===== NEW CHECKLIST ACTIONS (Firestore-based) =====
+
+      loadCleaningChecklist: async () => {
+        try {
+          // Read both cleaning task and checklist items to determine turn status
+          const s = get();
+          const { currentUser } = s;
+          const task = await firestoreService.getCleaningTask();
+          const items = await firestoreService.getCleaningChecklist();
+          
+          set({
+            checklistItems: items,
+            isMyCleaningTurn: !!(task && currentUser && getCurrentTurnUserId(task) === currentUser.id),
+          });
+        } catch (error) {
+          console.error('Error loading checklist:', error);
+        }
+      },
+
+      completeChecklistItem: async (itemId: string) => {
+        const { isMyCleaningTurn, checklistItems } = get();
+        if (!isMyCleaningTurn) return; // Protected by both UI and Firestore rules
+
+        // Optimistic: mark locally immediately
+        set({
+          checklistItems: checklistItems.map(it =>
+            it.id === itemId ? { ...it, completed: true } : it
+          )
+        });
+
+        try {
+          await firestoreService.markChecklistItemCompleted(itemId);
+          // Reload to sync (and see completed_by/at)
+          await get().loadCleaningChecklist();
+        } catch (error) {
+          console.error('Error completing checklist item:', error);
+          // Rollback if needed (optional)
+          set({ checklistItems });
+        }
+      },
+
+      uncompleteChecklistItem: async (itemId: string) => {
+        const { isMyCleaningTurn, checklistItems } = get();
+        if (!isMyCleaningTurn) return;
+
+        // Optimistic: unmark locally immediately
+        set({
+          checklistItems: checklistItems.map(it =>
+            it.id === itemId ? { ...it, completed: false } : it
+          )
+        });
+
+        try {
+          await firestoreService.unmarkChecklistItemCompleted(itemId);
+          // Reload to sync
+          await get().loadCleaningChecklist();
+        } catch (error) {
+          console.error('Error uncompleting checklist item:', error);
+          // Rollback if needed
+          set({ checklistItems });
+        }
+      },
+
+      addChecklistItem: async (title: string, order?: number) => {
+        try {
+          const newItem = await firestoreService.addChecklistItem(title, order);
+          // Reload to get the new item with proper ID
+          await get().loadCleaningChecklist();
+        } catch (error) {
+          console.error('Error adding checklist item:', error);
+          throw error;
+        }
+      },
+
+      finishCleaningTurn: async () => {
+        try {
+          // Reset all checklist items first
+          await firestoreService.resetAllChecklistItems();
+          // Then mark cleaning as completed (moves to next person)
+          await firestoreService.markCleaningCompleted();
+          // Reload both task and checklist
+          await Promise.all([
+            get().loadCleaningTask(),
+            get().loadCleaningChecklist(),
+          ]);
+        } catch (error) {
+          console.error('Error finishing cleaning turn:', error);
           throw error;
         }
       },
