@@ -52,6 +52,15 @@ export default function LoginScreen({
       // Sign in with Firebase Auth
       const authUser = await firebaseAuth.signIn(email.trim(), password);
       
+      // Set session in the new robust session system
+      const { setSignedInSession } = await import('../services/firestore-service');
+      await setSignedInSession({
+        idToken: authUser.idToken,
+        refreshToken: authUser.refreshToken,
+        expiresIn: authUser.expiresIn,
+        localId: authUser.localId,
+      });
+      
       // Wait a moment for authentication to be fully ready
       console.log('⏳ Waiting for authentication to stabilize after sign in...');
       await new Promise(resolve => setTimeout(resolve, 300));
