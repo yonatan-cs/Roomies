@@ -12,13 +12,14 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { useStore } from '../state/store';
 import LoginScreen from './LoginScreen';
 import RegisterScreen from './RegisterScreen';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
+import { resetToMainTabs } from '../navigation/RootNavigation';
 
 export default function WelcomeScreen() {
   const navigation = useNavigation();
@@ -186,7 +187,20 @@ export default function WelcomeScreen() {
       // Navigate directly to MainTabs - the bootstrap will detect the apartment
       // and load the data properly
       console.log('🎉 Apartment join completed, navigating to MainTabs...');
-      (navigation as any).reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      
+      // Try local navigation first, fallback to global navigation
+      try {
+        const root = navigation.getParent?.() ?? navigation;
+        root.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }],
+          })
+        );
+      } catch (error) {
+        console.log('⚠️ Local navigation failed, using global navigation:', error);
+        resetToMainTabs();
+      }
       
     } catch (error: any) {
       console.error('❌ Join apartment error:', error);
