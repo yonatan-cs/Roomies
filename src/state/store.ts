@@ -220,6 +220,7 @@ export const useStore = create<AppState>()(
             price: item.price || 0,
             createdAt: item.created_at ? new Date(item.created_at) : new Date(),
             purchasedAt: item.purchased_at ? new Date(item.purchased_at) : undefined,
+            addedAt: item.created_at ? new Date(item.created_at) : new Date(),
           }));
 
           set({ shoppingItems });
@@ -247,10 +248,14 @@ export const useStore = create<AppState>()(
             const cleaningTask: CleaningTask = {
               id: cleaningTaskData.id || uuidv4(),
               queue: cleaningTaskData.queue || [],
-              currentTurn: cleaningTaskData.queue?.[cleaningTaskData.current_index] || '',
-              currentIndex: cleaningTaskData.current_index || 0,
-              lastCompletedAt: cleaningTaskData.last_completed_at ? 
+              currentTurn: cleaningTaskData.user_id || cleaningTaskData.queue?.[0] || '',
+              dueDate: cleaningTaskData.last_completed_at ? 
                 new Date(cleaningTaskData.last_completed_at) : new Date(),
+              intervalDays: 7,
+              lastCleaned: cleaningTaskData.last_completed_at ? 
+                new Date(cleaningTaskData.last_completed_at) : undefined,
+              lastCleanedBy: cleaningTaskData.last_completed_by,
+              status: 'pending',
               history: [], // TODO: Load from separate collection if needed
             };
 

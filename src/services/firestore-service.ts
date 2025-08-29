@@ -12,6 +12,22 @@ const authHeaders = (idToken: string) => ({
   'Content-Type': 'application/json',
 });
 
+// --- Firestore REST value builders (STRICT) ---
+const F = {
+  str: (v: string) => ({ stringValue: String(v) }),
+  bool: (v: boolean) => ({ booleanValue: !!v }),
+  int: (n: number) => ({ integerValue: String(Math.trunc(n)) }), // חייב מחרוזת!
+  ts: (d: Date | string) => ({ timestampValue: (d instanceof Date ? d : new Date(d)).toISOString() }),
+  arrStr: (a: string[]) => ({ arrayValue: { values: a.map(s => ({ stringValue: String(s) })) } }),
+};
+
+function H(idToken: string) {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${idToken}`,
+  };
+}
+
 // Ensure we always have uid + idToken (try to restore session if missing from memory)
 async function requireSession(): Promise<{ uid: string; idToken: string }> {
   try {
@@ -147,12 +163,12 @@ export async function ensureCurrentApartmentIdMatches(aptId: string): Promise<vo
       current_apartment_id: { stringValue: aptId },
     },
   };
-  const res = await fetch(url, { method: 'PATCH', headers: authHeaders(idToken), body: JSON.stringify(body) });
-  if (!res.ok) {
-    const t = await res.text().catch(() => '');
-    console.error('ensureCurrentApartmentIdMatches PATCH failed', res.status, t);
-    throw new Error('ENSURE_APARTMENT_CONTEXT_FAILED');
-  }
+      const res = await fetch(url, { method: 'PATCH', headers: H(idToken), body: JSON.stringify(body) });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('Firestore ensureCurrentApartmentIdMatches error:', res.status, text);
+      throw new Error(`ENSURE_APARTMENT_CONTEXT_FAILED_${res.status}: ${text}`);
+    }
 }
 
 // Firestore data types for REST API
@@ -382,7 +398,7 @@ export class FirestoreService {
       });
       
       console.log(`📊 Test response: ${response.status} (${response.statusText})`);
-      console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+      // console.log('📋 Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (response.status === 200) {
         console.log('✅ Access test successful');
@@ -584,7 +600,7 @@ export class FirestoreService {
       
       if (response.status === 403) {
         console.error('🔒 Permission denied (403)');
-        console.error('📋 Response headers:', Object.fromEntries(response.headers.entries()));
+        // console.error('📋 Response headers:', Object.fromEntries(response.headers.entries()));
         
         // Try to get error details from response
         try {
@@ -1814,7 +1830,7 @@ export class FirestoreService {
       }
       
       // 2. Extract unique user IDs
-      const uids = [...new Set(memberships.map(m => m.user_id).filter(Boolean))];
+      const uids = Array.from(new Set(memberships.map(m => m.user_id).filter(Boolean)));
       console.log('👤 Unique user IDs:', uids);
       
       // 3. Get user profiles
@@ -2140,55 +2156,57 @@ export class FirestoreService {
   /**
    * Get or create cleaning task for current apartment
    */
-  async getCleaningTask(): Promise<any | null> {
+  async getCleaningTask(aptId?: string): Promise<any | null> {
     try {
-      const { idToken, aptId } = await getApartmentContextSlim();
-      await ensureCurrentApartmentIdMatches(aptId);
+      const { uid, idToken } = await requireSession();
+      const _aptId = aptId || await getUserCurrentApartmentId(uid, idToken);
+      if (!_aptId) return null;
 
-      const url = `${FIRESTORE_BASE_URL}:runQuery`;
-      const body = {
+      await ensureCurrentApartmentIdMatches(_aptId);
+
+      // קרא את המשימה (runQuery לפי apartment_id)
+      const queryUrl = `${FIRESTORE_BASE_URL}:runQuery`;
+      const qBody = {
         structuredQuery: {
           from: [{ collectionId: 'cleaningTasks' }],
           where: {
             fieldFilter: {
               field: { fieldPath: 'apartment_id' },
               op: 'EQUAL',
-              value: { stringValue: aptId },
+              value: { stringValue: _aptId },
             },
           },
           limit: 1,
         },
       };
-
-      const res = await fetch(url, { method: 'POST', headers: authHeaders(idToken), body: JSON.stringify(body) });
-      if (!res.ok) {
-        const t = await res.text().catch(() => '');
-        console.warn('GET_CLEANING_TASK_403?', res.status, t);
-        return null; // לא מפיל את ה־UI
+      const qRes = await fetch(queryUrl, { method: 'POST', headers: H(idToken), body: JSON.stringify(qBody) });
+      if (!qRes.ok) {
+        const text = await qRes.text().catch(() => '');
+        console.error('Firestore getCleaningTask error:', qRes.status, text);
+        throw new Error(`GET_CLEANING_TASK_${qRes.status}: ${text}`);
+      }
+      const rows = await qRes.json();
+      const first = Array.isArray(rows) ? rows.find(r => r.document) : null;
+      if (first?.document) {
+        const doc = first.document;
+        const f = doc.fields ?? {};
+        const id = doc.name.split('/').pop();
+        return {
+          id,
+          apartment_id: f.apartment_id?.stringValue ?? _aptId,
+          queue: (f.rotation?.arrayValue?.values || f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
+          current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
+          last_completed_at: f.last_completed_at?.timestampValue ?? f.assigned_at?.timestampValue ?? null,
+        };
       }
 
-      const rows = await res.json();
-      const first = (rows || []).find((r: any) => r.document?.fields);
-      if (!first) {
-        // Try to create new cleaning task if none exists
-        try {
-          return await this.createCleaningTask(aptId);
-        } catch (createError) {
-          console.error('Failed to create cleaning task:', createError);
-          return null;
-        }
+      // אין משימה קיימת → כל חבר יכול ליצור (לפי הכללים החדשים)
+      try {
+        return await this.createCleaningTask(_aptId);
+      } catch (createError) {
+        console.error('Failed to create cleaning task:', createError);
+        return null;
       }
-
-      const doc = first.document;
-      const f = doc.fields ?? {};
-      const id = doc.name.split('/').pop();
-      return {
-        id,
-        apartment_id: f.apartment_id?.stringValue ?? aptId,
-        queue: (f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
-        current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
-        last_completed_at: f.last_completed_at?.timestampValue ?? null,
-      };
     } catch (e) {
       console.error('GET_CLEANING_TASK_ERROR', e);
       return null;
@@ -2198,56 +2216,31 @@ export class FirestoreService {
   /**
    * Create new cleaning task for apartment
    */
-  async createCleaningTask(apartmentId: string): Promise<any> {
-    const { idToken } = await getApartmentContext();
+  async createCleaningTask(aptId: string): Promise<any> {
+    const { uid, idToken } = await requireSession();
+    await ensureCurrentApartmentIdMatches(aptId); // חשוב לכללים
 
-    // Get apartment members for the queue
-    const membersRes = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify({
-        structuredQuery: {
-          from: [{ collectionId: 'apartmentMembers' }],
-          where: {
-            fieldFilter: {
-              field: { fieldPath: 'apartment_id' },
-              op: 'EQUAL',
-              value: { stringValue: apartmentId }
-            }
-          },
-        }
-      }),
-    });
-
-    if (!membersRes.ok) {
-      throw new Error(`GET_MEMBERS_FOR_CLEANING_${membersRes.status}`);
-    }
-
-    const membersData = await membersRes.json();
-    const queue = membersData
-      .map((row: any) => row.document?.fields?.user_id?.stringValue)
-      .filter(Boolean);
-
-    const cleaningTask = {
+    // docId = apartmentId (כמו שכללי Firestore דורשים)
+    const url = `${FIRESTORE_BASE_URL}/cleaningTasks?documentId=${encodeURIComponent(aptId)}`;
+    const body = {
       fields: {
-        apartment_id: { stringValue: apartmentId },
-        queue: { arrayValue: { values: queue.map((uid: string) => ({ stringValue: uid })) } },
-        current_index: { integerValue: '0' },
-        last_completed_at: { timestampValue: new Date().toISOString() },
-        created_at: { timestampValue: new Date().toISOString() },
+        apartment_id: F.str(aptId),
+        user_id: F.str(uid),                 // מי מתחיל (אפשר לשנות אח"כ)
+        rotation: F.arrStr([uid]),           // תתחיל ממי שקיים כרגע
+        assigned_at: F.ts(new Date()),
+        frequency_days: F.int(7),
       },
     };
 
-    const res = await fetch(`${FIRESTORE_BASE_URL}/cleaningTasks/${apartmentId}`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify(cleaningTask),
-    });
-
+    const res = await fetch(url, { method: 'POST', headers: H(idToken), body: JSON.stringify(body) });
     if (!res.ok) {
-      throw new Error(`CREATE_CLEANING_TASK_${res.status}`);
+      const text = await res.text().catch(() => '');
+      // אם המסמך כבר קיים נקבל 409 — זה סבבה, פשוט נחזור לקריאה
+      if (res.status !== 409) {
+        console.error('Firestore createCleaningTask error:', res.status, text);
+        throw new Error(`CREATE_CLEANING_TASK_${res.status}: ${text}`);
+      }
     }
-
     return await res.json();
   }
 
@@ -2263,28 +2256,29 @@ export class FirestoreService {
       throw new Error('No cleaning task found');
     }
 
-    const queue = currentTask.fields?.queue?.arrayValue?.values?.map((v: any) => v.stringValue) || [];
-    let currentIndex = parseInt(currentTask.fields?.current_index?.integerValue || '0');
+    const queue = currentTask.queue || [];
+    let currentIndex = currentTask.current_index || 0;
 
     // Move to next person
     currentIndex = (currentIndex + 1) % queue.length;
 
     const updateBody = {
       fields: {
-        current_index: { integerValue: currentIndex.toString() },
-        last_completed_at: { timestampValue: new Date().toISOString() },
-        last_completed_by: { stringValue: uid },
+        user_id: F.str(queue[currentIndex] || uid), // מי התור הבא
+        assigned_at: F.ts(new Date()),
       },
     };
 
-    const res = await fetch(`${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?updateMask.fieldPaths=current_index,last_completed_at,last_completed_by`, {
+    const res = await fetch(`${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?updateMask.fieldPaths=user_id,assigned_at`, {
       method: 'PATCH',
-      headers: authHeaders(idToken),
+      headers: H(idToken),
       body: JSON.stringify(updateBody),
     });
 
     if (!res.ok) {
-      throw new Error(`UPDATE_CLEANING_TASK_${res.status}`);
+      const text = await res.text().catch(() => '');
+      console.error('Firestore markCleaningCompleted error:', res.status, text);
+      throw new Error(`UPDATE_CLEANING_TASK_${res.status}: ${text}`);
     }
 
     return await res.json();
@@ -2310,12 +2304,14 @@ export class FirestoreService {
 
     const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems`, {
       method: 'POST',
-      headers: authHeaders(idToken),
+      headers: H(idToken),
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
-      throw new Error(`ADD_SHOPPING_ITEM_${res.status}`);
+      const text = await res.text().catch(() => '');
+      console.error('Firestore addShoppingItem error:', res.status, text);
+      throw new Error(`ADD_SHOPPING_ITEM_${res.status}: ${text}`);
     }
 
     return await res.json();
@@ -2345,10 +2341,10 @@ export class FirestoreService {
         },
       };
 
-      const res = await fetch(url, { method: 'POST', headers: authHeaders(idToken), body: JSON.stringify(body) });
+      const res = await fetch(url, { method: 'POST', headers: H(idToken), body: JSON.stringify(body) });
       if (!res.ok) {
-        const t = await res.text().catch(() => '');
-        console.warn('GET_SHOPPING_ITEMS_400?', res.status, t);
+        const text = await res.text().catch(() => '');
+        console.error('Firestore getShoppingItems error:', res.status, text);
         return []; // לא מפיל את ה־UI
       }
 
@@ -2401,12 +2397,14 @@ export class FirestoreService {
 
     const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems/${itemId}?updateMask.fieldPaths=purchased,purchased_by_user_id,purchased_at${price !== undefined ? ',price' : ''}`, {
       method: 'PATCH',
-      headers: authHeaders(idToken),
+      headers: H(idToken),
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
-      throw new Error(`MARK_SHOPPING_ITEM_PURCHASED_${res.status}`);
+      const text = await res.text().catch(() => '');
+      console.error('Firestore markShoppingItemPurchased error:', res.status, text);
+      throw new Error(`MARK_SHOPPING_ITEM_PURCHASED_${res.status}: ${text}`);
     }
 
     return await res.json();
@@ -2419,7 +2417,7 @@ export class FirestoreService {
 export const firestoreService = FirestoreService.getInstance();
 
 // Debug utilities for development
-if (__DEV__) {
+if (process.env.NODE_ENV === 'development') {
   (global as any).debugFirestore = {
     testAuth: async () => {
       const service = FirestoreService.getInstance();
