@@ -88,20 +88,8 @@ export default function AppNavigator() {
         console.log('✅ AppNavigator: User has apartment in profile:', aptId);
         setHasApartment(true);
         
-        // Initial data loading (optional but recommended)
-        try {
-          const s = useStore.getState();
-          await Promise.all([
-            s.refreshApartmentMembers?.(),
-            s.loadShoppingItems?.(),
-            s.refreshCleaningTask?.(),
-            s.loadExpenses?.(),
-          ]);
-          console.log('✅ AppNavigator: Initial data loaded successfully');
-        } catch (loadError) {
-          console.log('⚠️ AppNavigator: Some data loading failed:', loadError);
-          // Don't fail navigation if data loading fails
-        }
+        // Navigate directly to MainTabs
+        // Initial data loading will happen in MainTabs components
       } catch (error) {
         console.log('📭 AppNavigator: No apartment in profile, showing Welcome:', error);
         setHasApartment(false);

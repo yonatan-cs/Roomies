@@ -170,7 +170,7 @@ export async function joinApartmentByInviteCodeStrict(code: string) {
   const inviteCode = code.trim().toUpperCase();
   const { uid, idToken } = await requireSession();
 
-  // 1) Read invite
+  // 1) Invite
   const invRes = await fetch(`${BASE}/apartmentInvites/${inviteCode}`, { headers: H(idToken) });
   if (invRes.status === 404) throw new Error('INVITE_NOT_FOUND');
   if (!invRes.ok) throw new Error(`INVITE_READ_${invRes.status}: ${await invRes.text().catch(()=> '')}`);
@@ -178,7 +178,7 @@ export async function joinApartmentByInviteCodeStrict(code: string) {
   const aptId = invDoc?.fields?.apartment_id?.stringValue;
   if (!aptId) throw new Error('INVITE_MALFORMED');
 
-  // 2) Create membership (document ID must be aptId_uid exactly)
+  // 2) Membership (documentId = <aptId>_<uid>)
   const membershipId = `${aptId}_${uid}`;
   const memberBody = {
     fields: {
@@ -191,11 +191,12 @@ export async function joinApartmentByInviteCodeStrict(code: string) {
   const memRes = await fetch(`${BASE}/apartmentMembers?documentId=${encodeURIComponent(membershipId)}`, {
     method: 'POST', headers: H(idToken), body: JSON.stringify(memberBody),
   });
+  // 200 = נוצר, 409 = כבר קיים → שניהם תקינים
   if (memRes.status !== 200 && memRes.status !== 409) {
     throw new Error(`MEMBERSHIP_CREATE_${memRes.status}: ${await memRes.text().catch(()=> '')}`);
   }
 
-  // 3) Update user profile
+  // 3) Profile → current_apartment_id
   const profRes = await fetch(`${BASE}/users/${uid}?updateMask.fieldPaths=current_apartment_id`, {
     method: 'PATCH', headers: H(idToken),
     body: JSON.stringify({ fields: { current_apartment_id: { stringValue: aptId } } }),
@@ -205,11 +206,40 @@ export async function joinApartmentByInviteCodeStrict(code: string) {
   return { aptId };
 }
 
+// === USER DOCUMENT MANAGEMENT ===
+async function createUserDocIfMissing(uid: string, idToken: string, fields: {full_name?: string, phone?: string, email: string}) {
+  const r = await fetch(`${BASE}/users/${uid}`, { headers: H(idToken) });
+  if (r.status === 404) {
+    await fetch(`${BASE}/users?documentId=${uid}`, {
+      method: 'POST', headers: H(idToken),
+      body: JSON.stringify({
+        fields: {
+          email:     { stringValue: fields.email },
+          full_name: fields.full_name ? { stringValue: fields.full_name } : undefined,
+          phone:     fields.phone ? { stringValue: fields.phone } : undefined,
+        }
+      }),
+    });
+  }
+  // אם קיים – אל תעשה PATCH שמוחק שדות; תעדכן רק ספציפי בעת הצורך עם updateMask
+}
+
 // === SESSION MANAGEMENT ===
 export async function onSessionChanged() {
   // This function should be called when switching users to clear any cached data
   // The actual store reset is handled in the components that call this
   console.log('🔄 Session changed, clearing cached data...');
+}
+
+// App logout - clears session but preserves apartment membership
+export async function appLogout() {
+  try {
+    // Clear session tokens but DON'T touch current_apartment_id in profile
+    await SecureStore.deleteItemAsync(SECURE_KEY);
+    console.log('✅ Session cleared, apartment membership preserved');
+  } catch (error) {
+    console.error('❌ Error clearing session:', error);
+  }
 }
 
 // === NEW CLEANING TASK FUNCTIONS ===
