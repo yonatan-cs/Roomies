@@ -195,11 +195,11 @@ export default function WelcomeScreen() {
       let errorMessage = 'שגיאה בהצטרפות לדירה';
       
       if (msg.includes('INVITE_NOT_FOUND')) {
-        errorMessage = 'קוד הזמנה לא נמצא';
-      } else if (msg.includes('MEMBERSHIP_CREATE_403')) {
-        errorMessage = 'אין הרשאה להצטרף לדירה (בדוק חוקים/טוקן)';
+        errorMessage = 'קוד הזמנה לא קיים';
       } else if (msg.includes('INVITE_MALFORMED')) {
         errorMessage = 'קוד הזמנה לא תקין';
+      } else if (msg.includes('MEMBERSHIP_CREATE_')) {
+        errorMessage = 'שגיאה ביצירת חברות בדירה';
       } else if (msg.includes('USERS_PATCH_')) {
         errorMessage = 'שגיאה בעדכון פרטי המשתמש';
       } else if (msg.includes('AUTH_REQUIRED')) {
