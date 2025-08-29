@@ -13,7 +13,6 @@ import WelcomeScreen from '../screens/WelcomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
 
 import { useStore } from '../state/store';
-import { getApartmentContext } from '../services/firestore-service';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -76,59 +75,47 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const currentUser = useStore(state => state.currentUser);
-  const currentApartment = useStore(state => state.currentApartment);
-  const [isCheckingApartment, setIsCheckingApartment] = useState(true);
+  const [booted, setBooted] = useState(false);
   const [hasApartment, setHasApartment] = useState(false);
 
-  // Check if user has an apartment on mount
   useEffect(() => {
-    const checkApartmentAccess = async () => {
+    (async () => {
       try {
-        if (currentUser?.id) {
-          console.log('🔍 AppNavigator: Checking apartment access for user:', currentUser.id);
-          
-          // Try to get apartment context
-          const apartmentContext = await getApartmentContext();
-          console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
-          setHasApartment(true);
-          
-          // Trigger initial data refresh
-          try {
-            await Promise.all([
-              useStore.getState().refreshApartmentMembers?.(),
-              useStore.getState().loadShoppingItems?.(),
-              useStore.getState().loadCleaningTask?.(),
-            ]);
-          } catch (refreshError) {
-            console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
-          }
-        } else {
-          console.log('📭 AppNavigator: No current user');
-          setHasApartment(false);
+        // Use the new getApartmentContext to check if user has apartment
+        const { getApartmentContext } = await import('../services/firestore-service');
+        const { aptId } = await getApartmentContext(); // Will throw if no session/apartment
+        
+        console.log('✅ AppNavigator: User has apartment:', aptId);
+        setHasApartment(true);
+        
+        // Initial data loading (optional but recommended)
+        try {
+          const s = useStore.getState();
+          await Promise.all([
+            s.refreshApartmentMembers?.(),
+            s.loadShoppingItems?.(),
+            s.refreshCleaningTask?.(),
+            s.loadExpenses?.(),
+          ]);
+          console.log('✅ AppNavigator: Initial data loaded successfully');
+        } catch (loadError) {
+          console.log('⚠️ AppNavigator: Some data loading failed:', loadError);
+          // Don't fail navigation if data loading fails
         }
       } catch (error) {
-        console.log('📭 AppNavigator: User has no apartment or error:', error);
+        console.log('📭 AppNavigator: No session/apartment, showing Welcome:', error);
         setHasApartment(false);
       } finally {
-        setIsCheckingApartment(false);
+        setBooted(true);
       }
-    };
+    })();
+  }, []);
 
-    checkApartmentAccess();
-  }, [currentUser?.id]);
-
-  // Show loading while checking apartment access
-  if (isCheckingApartment) {
-    return null; // Or a loading screen
-  }
-
-  // Show welcome screen if no user or no apartment
-  const showWelcome = !currentUser || !hasApartment || !currentApartment;
+  if (!booted) return null; // Or Splash screen
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {showWelcome ? (
+      {!hasApartment ? (
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
       ) : (
         <>
