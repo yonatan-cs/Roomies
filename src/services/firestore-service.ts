@@ -126,6 +126,35 @@ export async function getApartmentContext(): Promise<{ uid: string; idToken: str
   return { uid, idToken, aptId };
 }
 
+// ✅ קבל uid + idToken + aptId מהפרופיל בלבד (בלי "חכמות")
+export async function getApartmentContextSlim(): Promise<{ uid: string; idToken: string; aptId: string }> {
+  const { uid, idToken } = await requireSession(); // יש לך כבר את הפונקציה הזו
+  const aptId = await getUserCurrentApartmentId(uid, idToken); // גם זו קיימת אצלך
+  if (!aptId) throw new Error('NO_APARTMENT_ON_PROFILE');
+  return { uid, idToken, aptId };
+}
+
+// ✅ ודא שהכלל resource.data.apartment_id == currentUserApartmentId() יתקיים
+export async function ensureCurrentApartmentIdMatches(aptId: string): Promise<void> {
+  const { uid, idToken } = await requireSession();
+  const current = await getUserCurrentApartmentId(uid, idToken);
+  if (current === aptId) return;
+
+  // PATCH: users/{uid}?updateMask.fieldPaths=current_apartment_id
+  const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`;
+  const body = {
+    fields: {
+      current_apartment_id: { stringValue: aptId },
+    },
+  };
+  const res = await fetch(url, { method: 'PATCH', headers: authHeaders(idToken), body: JSON.stringify(body) });
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    console.error('ensureCurrentApartmentIdMatches PATCH failed', res.status, t);
+    throw new Error('ENSURE_APARTMENT_CONTEXT_FAILED');
+  }
+}
+
 // Firestore data types for REST API
 export interface FirestoreValue {
   stringValue?: string;
@@ -2112,37 +2141,56 @@ export class FirestoreService {
    * Get or create cleaning task for current apartment
    */
   async getCleaningTask(): Promise<any | null> {
-    const { uid, idToken, aptId } = await getApartmentContext();
-    
-    // Ensure profile is updated to pass the READ rule
-    await this.ensureCurrentApartmentId(uid, aptId);
-
     try {
-      // Try to get existing cleaning task
-      const res = await fetch(`${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}`, {
-        method: 'GET',
-        headers: authHeaders(idToken),
-      });
+      const { idToken, aptId } = await getApartmentContextSlim();
+      await ensureCurrentApartmentIdMatches(aptId);
 
-      if (res.status === 200) {
-        const doc = await res.json();
-        const f = doc.fields ?? {};
-        return {
-          id: aptId,
-          apartment_id: f.apartment_id?.stringValue ?? aptId,
-          queue: (f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
-          current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
-          last_completed_at: f.last_completed_at?.timestampValue ?? null,
-        };
-      } else if (res.status === 404) {
-        // Create new cleaning task
-        return await this.createCleaningTask(aptId);
-      } else {
-        const txt = await res.text().catch(() => '');
-        throw new Error(`GET_CLEANING_TASK_${res.status}${txt ? `: ${txt}` : ''}`);
+      const url = `${FIRESTORE_BASE_URL}:runQuery`;
+      const body = {
+        structuredQuery: {
+          from: [{ collectionId: 'cleaningTasks' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'apartment_id' },
+              op: 'EQUAL',
+              value: { stringValue: aptId },
+            },
+          },
+          limit: 1,
+        },
+      };
+
+      const res = await fetch(url, { method: 'POST', headers: authHeaders(idToken), body: JSON.stringify(body) });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        console.warn('GET_CLEANING_TASK_403?', res.status, t);
+        return null; // לא מפיל את ה־UI
       }
-    } catch (error) {
-      console.error('Error getting cleaning task:', error);
+
+      const rows = await res.json();
+      const first = (rows || []).find((r: any) => r.document?.fields);
+      if (!first) {
+        // Try to create new cleaning task if none exists
+        try {
+          return await this.createCleaningTask(aptId);
+        } catch (createError) {
+          console.error('Failed to create cleaning task:', createError);
+          return null;
+        }
+      }
+
+      const doc = first.document;
+      const f = doc.fields ?? {};
+      const id = doc.name.split('/').pop();
+      return {
+        id,
+        apartment_id: f.apartment_id?.stringValue ?? aptId,
+        queue: (f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
+        current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
+        last_completed_at: f.last_completed_at?.timestampValue ?? null,
+      };
+    } catch (e) {
+      console.error('GET_CLEANING_TASK_ERROR', e);
       return null;
     }
   }
@@ -2277,53 +2325,58 @@ export class FirestoreService {
    * Get shopping items for current apartment
    */
   async getShoppingItems(): Promise<any[]> {
-    const { idToken, aptId } = await getApartmentContext();
+    try {
+      const { idToken, aptId } = await getApartmentContextSlim();
+      await ensureCurrentApartmentIdMatches(aptId);
 
-    const body = {
-      structuredQuery: {
-        from: [{ collectionId: 'shoppingItems' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'apartment_id' },
-            op: 'EQUAL',
-            value: { stringValue: aptId },
+      const url = `${FIRESTORE_BASE_URL}:runQuery`; // שים לב: אין "/" בסוף!
+      const body = {
+        structuredQuery: {
+          from: [{ collectionId: 'shoppingItems' }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'apartment_id' },
+              op: 'EQUAL',
+              value: { stringValue: aptId },
+            },
           },
+          orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+          limit: 200,
         },
-        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
-        limit: 200,
-      },
-    };
+      };
 
-    const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify(body),
-    });
+      const res = await fetch(url, { method: 'POST', headers: authHeaders(idToken), body: JSON.stringify(body) });
+      if (!res.ok) {
+        const t = await res.text().catch(() => '');
+        console.warn('GET_SHOPPING_ITEMS_400?', res.status, t);
+        return []; // לא מפיל את ה־UI
+      }
 
-    if (!res.ok) {
-      const txt = await res.text().catch(() => '');
-      throw new Error(`GET_SHOPPING_ITEMS_${res.status}${txt ? `: ${txt}` : ''}`);
+      const rows = await res.json();
+      const items = (rows || [])
+        .filter((r: any) => r.document?.fields)
+        .map((r: any) => {
+          const doc = r.document;
+          const f = doc.fields ?? {};
+          const id = doc.name.split('/').pop();
+          return {
+            id,
+            apartment_id: f.apartment_id?.stringValue ?? '',
+            title: f.title?.stringValue ?? f.name?.stringValue ?? '',
+            name: f.name?.stringValue ?? f.title?.stringValue ?? '',
+            quantity: f.quantity?.integerValue ? Number(f.quantity.integerValue) : 1,
+            created_at: f.created_at?.timestampValue ?? null,
+            purchased: !!f.purchased?.booleanValue,
+            purchased_by_user_id: f.purchased_by_user_id?.stringValue ?? null,
+            added_by_user_id: f.added_by_user_id?.stringValue ?? null,
+          };
+        });
+
+      return items;
+    } catch (e) {
+      console.error('GET_SHOPPING_ITEMS_ERROR', e);
+      return []; // תמיד מחזיר מערך ולא מפיל
     }
-
-    const rows = await res.json();
-    const items = rows
-      .map((r: any) => r.document)
-      .filter(Boolean)
-      .map((doc: any) => {
-        const f = doc.fields ?? {};
-        return {
-          id: doc.name.split('/').pop(),
-          apartment_id: f.apartment_id?.stringValue ?? '',
-          title: f.title?.stringValue ?? '',
-          quantity: f.quantity?.integerValue ? Number(f.quantity.integerValue) : 1,
-          created_at: f.created_at?.timestampValue ?? null,
-          purchased: !!f.purchased?.booleanValue,
-          purchased_by_user_id: f.purchased_by_user_id?.stringValue ?? null,
-          added_by_user_id: f.added_by_user_id?.stringValue ?? null,
-        };
-      });
-
-    return items;
   }
 
   /**
