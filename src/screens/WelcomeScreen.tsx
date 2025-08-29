@@ -194,6 +194,13 @@ export default function WelcomeScreen() {
       const msg = String(error?.message || '');
       let errorMessage = 'שגיאה בהצטרפות לדירה';
       
+      if (msg.includes('AUTH_REQUIRED')) {
+        // כאן ההחזרה האדיבה למשתמש — הטוקן לא קיים/לא ניתן לשחזור
+        alert('נדרש להתחבר מחדש');
+        setMode('auth');
+        setAuthMode('login');
+        return;
+      }
       if (msg.includes('INVITE_NOT_FOUND')) {
         errorMessage = 'קוד הזמנה לא קיים';
       } else if (msg.includes('INVITE_MALFORMED')) {
@@ -202,8 +209,6 @@ export default function WelcomeScreen() {
         errorMessage = 'שגיאה ביצירת חברות בדירה';
       } else if (msg.includes('USERS_PATCH_')) {
         errorMessage = 'שגיאה בעדכון פרטי המשתמש';
-      } else if (msg.includes('AUTH_REQUIRED')) {
-        errorMessage = 'נדרש להתחבר מחדש למערכת';
       }
       
       setError(errorMessage);

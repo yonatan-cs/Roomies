@@ -7,65 +7,105 @@ import { FIRESTORE_BASE_URL, COLLECTIONS, firebaseConfig } from './firebase-conf
 import { firebaseAuth } from './firebase-auth';
 import * as SecureStore from 'expo-secure-store';
 
-// === AUTH SESSION (refresh-ready) ===
-type AuthSession = {
-  localId: string;
-  idToken: string;
-  refreshToken: string;
-  expiresAt: number; // epoch ms
-};
+// ---- Session store (in-memory) ----
+type Session = { uid: string; idToken: string; refreshToken: string; expiresAt: number };
+let memSession: Session | null = null;
 
 const API_KEY = firebaseConfig.apiKey;
-const SECURE_KEY = 'auth_session_v1';
 
-async function loadSession(): Promise<AuthSession | null> {
+async function saveSessionToStorage(s: Session) {
   try {
-    const raw = await SecureStore.getItemAsync(SECURE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    const payload = JSON.stringify(s);
+    // SecureStore אם קיים, אחרת AsyncStorage
+    const maybeSecure = (global as any).Expo?.SecureStore || (require('@react-native-async-storage/async-storage').default);
+    if (maybeSecure?.setItemAsync) {
+      await maybeSecure.setItemAsync('roomies.session', payload);
+    } else {
+      await maybeSecure.setItem('roomies.session', payload);
+    }
+  } catch {}
+}
+
+async function loadSessionFromStorage(): Promise<Session | null> {
+  try {
+    const maybeSecure = (global as any).Expo?.SecureStore || (require('@react-native-async-storage/async-storage').default);
+    const raw = maybeSecure?.getItemAsync ? await maybeSecure.getItemAsync('roomies.session') : await maybeSecure.getItem('roomies.session');
+    if (!raw) return null;
+    return JSON.parse(raw);
   } catch { return null; }
 }
 
-async function saveSession(s: AuthSession) {
-  await SecureStore.setItemAsync(SECURE_KEY, JSON.stringify(s));
+function isTokenValid(s?: Session | null) {
+  if (!s?.idToken || !s?.expiresAt) return false;
+  return s.expiresAt - Date.now() > 60_000; // דקה גרייס
 }
 
-function isExpired(s: AuthSession, skewMs = 5 * 60 * 1000) {
-  return Date.now() + skewMs >= s.expiresAt;
-}
-
-async function refreshIdToken(s: AuthSession): Promise<AuthSession> {
-  const res = await fetch(
-    `https://securetoken.googleapis.com/v1/token?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(s.refreshToken)}`,
-    }
-  );
+async function refreshIdToken(refreshToken: string) {
+  const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,
+  });
   if (!res.ok) throw new Error(`TOKEN_REFRESH_${res.status}`);
-  const data = await res.json();
-  const next: AuthSession = {
-    localId: data.user_id ?? s.localId,
-    idToken: data.id_token,
-    refreshToken: data.refresh_token ?? s.refreshToken,
-    expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
+  const j = await res.json();
+  // j: { id_token, refresh_token, expires_in, user_id, ... }
+  const expiresAt = Date.now() + Number(j.expires_in || 3600) * 1000;
+  const s: Session = {
+    uid: j.user_id,
+    idToken: j.id_token,
+    refreshToken: j.refresh_token || refreshToken,
+    expiresAt,
   };
-  await saveSession(next);
-  return next;
-}
-
-async function ensureValidSession(): Promise<AuthSession> {
-  let s = await loadSession();
-  if (!s) throw new Error('AUTH_REQUIRED');
-  if (isExpired(s)) s = await refreshIdToken(s);
+  memSession = s;
+  await saveSessionToStorage(s);
   return s;
 }
 
-async function requireSession(): Promise<{ uid: string; idToken: string }> {
-  const s = await ensureValidSession();
-  if (!s?.idToken) throw new Error('NO_VALID_ID_TOKEN');
-  return { uid: s.localId, idToken: s.idToken };
+// קריאה אחת שמבטיחה סשן – מנסה זיכרון → ריענון → שחזור → ריענון
+export async function requireSession(): Promise<{ uid: string; idToken: string }> {
+  // 1) זיכרון
+  if (isTokenValid(memSession)) return { uid: memSession!.uid, idToken: memSession!.idToken };
+
+  // 2) יש בזיכרון refreshToken? נרענן
+  if (memSession?.refreshToken) {
+    try {
+      const s = await refreshIdToken(memSession.refreshToken);
+      return { uid: s.uid, idToken: s.idToken };
+    } catch {}
+  }
+
+  // 3) נסה לשחזר מהאחסון
+  const stored = await loadSessionFromStorage();
+  if (stored) {
+    memSession = stored;
+    if (isTokenValid(memSession)) return { uid: memSession!.uid, idToken: memSession!.idToken };
+    // 4) יש refresh? נרענן
+    if (memSession?.refreshToken) {
+      const s = await refreshIdToken(memSession.refreshToken);
+      return { uid: s.uid, idToken: s.idToken };
+    }
+  }
+
+  // 5) אין איך לשחזר
+  throw new Error('AUTH_REQUIRED');
 }
+
+// עוזר להציב סשן חדש אחרי sign-in
+export async function setSignedInSession(loginResponse: {
+  idToken: string; refreshToken: string; expiresIn: string; localId: string;
+}) {
+  const expiresAt = Date.now() + Number(loginResponse.expiresIn || 3600) * 1000;
+  const s: Session = {
+    uid: loginResponse.localId,
+    idToken: loginResponse.idToken,
+    refreshToken: loginResponse.refreshToken,
+    expiresAt,
+  };
+  memSession = s;
+  await saveSessionToStorage(s);
+}
+
+// === LEGACY AUTH FUNCTIONS (deprecated - use new requireSession above) ===
 
 // === FIRESTORE BASE ===
 const PROJECT_ID = 'roomies-hub';
@@ -167,8 +207,10 @@ export async function getShoppingItems() {
 
 // === ATOMIC JOIN APARTMENT PROCESS ===
 export async function joinApartmentByInviteCodeStrict(code: string) {
-  const inviteCode = code.trim().toUpperCase();
+  // ⇦ כאן נוודא סשן (ינסה לרענן/לשחזר לבד)
   const { uid, idToken } = await requireSession();
+
+  const inviteCode = code.trim().toUpperCase();
 
   // 1) Invite
   const invRes = await fetch(`${BASE}/apartmentInvites/${inviteCode}`, { headers: H(idToken) });
@@ -178,7 +220,7 @@ export async function joinApartmentByInviteCodeStrict(code: string) {
   const aptId = invDoc?.fields?.apartment_id?.stringValue;
   if (!aptId) throw new Error('INVITE_MALFORMED');
 
-  // 2) Membership (documentId = <aptId>_<uid>)
+  // 2) Membership
   const membershipId = `${aptId}_${uid}`;
   const memberBody = {
     fields: {
@@ -191,7 +233,6 @@ export async function joinApartmentByInviteCodeStrict(code: string) {
   const memRes = await fetch(`${BASE}/apartmentMembers?documentId=${encodeURIComponent(membershipId)}`, {
     method: 'POST', headers: H(idToken), body: JSON.stringify(memberBody),
   });
-  // 200 = נוצר, 409 = כבר קיים → שניהם תקינים
   if (memRes.status !== 200 && memRes.status !== 409) {
     throw new Error(`MEMBERSHIP_CREATE_${memRes.status}: ${await memRes.text().catch(()=> '')}`);
   }
@@ -235,7 +276,14 @@ export async function onSessionChanged() {
 export async function appLogout() {
   try {
     // Clear session tokens but DON'T touch current_apartment_id in profile
-    await SecureStore.deleteItemAsync(SECURE_KEY);
+    memSession = null;
+    // Clear from storage
+    const maybeSecure = (global as any).Expo?.SecureStore || (require('@react-native-async-storage/async-storage').default);
+    if (maybeSecure?.deleteItemAsync) {
+      await maybeSecure.deleteItemAsync('roomies.session');
+    } else {
+      await maybeSecure.removeItem('roomies.session');
+    }
     console.log('✅ Session cleared, apartment membership preserved');
   } catch (error) {
     console.error('❌ Error clearing session:', error);
