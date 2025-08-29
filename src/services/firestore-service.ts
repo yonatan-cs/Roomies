@@ -111,7 +111,8 @@ async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<
           console.log('✅ Found apartment ID from latest membership:', apartmentId);
           
           // Sync back to user profile
-          await fetch(`${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`, {
+          const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`;
+          await fetch(url, {
             method: 'PATCH',
             headers: authHeaders(idToken),
             body: JSON.stringify({
@@ -164,7 +165,7 @@ export async function ensureCurrentApartmentIdMatches(aptId: string): Promise<vo
       current_apartment_id: { stringValue: aptId },
     },
   };
-      const res = await fetch(url, { method: 'PATCH', headers: H(idToken), body: JSON.stringify(body) });
+  const res = await fetch(url, { method: 'PATCH', headers: H(idToken), body: JSON.stringify(body) });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.error('Firestore ensureCurrentApartmentIdMatches error:', res.status, text);
@@ -2086,6 +2087,7 @@ export class FirestoreService {
     amount: number;
     category?: string;
     participants: string[]; // UIDs
+    title?: string;
     note?: string;
   }): Promise<any> {
     const { uid, idToken, aptId } = await getApartmentContext();
@@ -2097,6 +2099,7 @@ export class FirestoreService {
         amount: { doubleValue: Number(payload.amount) },
         participants: { arrayValue: { values: (payload.participants || []).map(u => ({ stringValue: u })) } },
         category: payload.category ? { stringValue: payload.category } : undefined,
+        title: payload.title ? { stringValue: payload.title } : undefined,
         note: payload.note ? { stringValue: payload.note } : undefined,
         created_at: { timestampValue: new Date().toISOString() },
       },
@@ -2306,7 +2309,11 @@ export class FirestoreService {
       },
     };
 
-    const res = await fetch(`${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?updateMask.fieldPaths=user_id,assigned_at`, {
+    const fieldPaths = ['user_id', 'assigned_at'];
+    const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?` + 
+      fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+    
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: H(idToken),
       body: JSON.stringify(updateBody),
@@ -2432,7 +2439,16 @@ export class FirestoreService {
       fields: updateFields,
     };
 
-    const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems/${itemId}?updateMask.fieldPaths=purchased,purchased_by_user_id,purchased_at${price !== undefined ? ',price' : ''}`, {
+    // Build URL with separate fieldPaths parameters
+    const fieldPaths = ['purchased', 'purchased_by_user_id', 'purchased_at'];
+    if (price !== undefined) {
+      fieldPaths.push('price');
+    }
+    
+    const url = `${FIRESTORE_BASE_URL}/shoppingItems/${itemId}?` + 
+      fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: H(idToken),
       body: JSON.stringify(body),
@@ -2558,7 +2574,10 @@ export class FirestoreService {
       };
       
       // Update - Firestore REST: PATCH with updateMask to update only these fields
-      const res = await fetch(`${path}?updateMask.fieldPaths=completed&updateMask.fieldPaths=completed_by&updateMask.fieldPaths=completed_at`, {
+      const fieldPaths = ['completed', 'completed_by', 'completed_at'];
+      const url = `${path}?` + fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+      
+      const res = await fetch(url, {
         method: "PATCH",
         headers: H(idToken),
         body: JSON.stringify(body),
@@ -2601,7 +2620,10 @@ export class FirestoreService {
       };
       
       // Update - Firestore REST: PATCH with updateMask to update only these fields
-      const res = await fetch(`${path}?updateMask.fieldPaths=completed&updateMask.fieldPaths=completed_by&updateMask.fieldPaths=completed_at`, {
+      const fieldPaths = ['completed', 'completed_by', 'completed_at'];
+      const url = `${path}?` + fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+      
+      const res = await fetch(url, {
         method: "PATCH",
         headers: H(idToken),
         body: JSON.stringify(body),
@@ -2687,7 +2709,10 @@ export class FirestoreService {
           }
         };
         
-        return fetch(`${path}?updateMask.fieldPaths=completed&updateMask.fieldPaths=completed_by&updateMask.fieldPaths=completed_at`, {
+        const fieldPaths = ['completed', 'completed_by', 'completed_at'];
+        const url = `${path}?` + fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+        
+        return fetch(url, {
           method: "PATCH",
           headers: H(idToken),
           body: JSON.stringify(body),
