@@ -68,11 +68,13 @@ async markShoppingItemPurchased(itemId: string, purchasedByUserId: string, price
 
 ### 🔧 מה תוקן:
 
-1. **הוצאות** - כל הוצאה נשמרת עם `apartment_id` הנכון
-2. **קניות** - כל פריט נשמר עם `apartment_id` הנכון  
-3. **ניקיון** - מצב שרתי יחיד לכל דירה
-4. **ניווט** - משתמשים עם דירה נכנסים ישר לדירה
-5. **סנכרון** - כל הנתונים מסונכרנים בין המשתמשים
+1. **GET_SHOPPING_ITEMS_400** - תוקן עם `:runQuery` נכון ו-`where apartment_id == aptId`
+2. **GET_CLEANING_TASK_403** - תוקן עם `ensureCurrentApartmentId` לפני קריאה
+3. **אוטו-ניווט** - משתמשים עם דירה נכנסים ישר ל-MainTabs
+4. **הוצאות** - כל הוצאה נשמרת עם `apartment_id` הנכון
+5. **קניות** - כל פריט נשמר עם `apartment_id` הנכון  
+6. **ניקיון** - מצב שרתי יחיד לכל דירה
+7. **סנכרון** - כל הנתונים מסונכרנים בין המשתמשים
 
 ### 🎉 תוצאה:
 

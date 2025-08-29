@@ -211,15 +211,15 @@ export const useStore = create<AppState>()(
         try {
           const shoppingData = await firestoreService.getShoppingItems();
           
-          const shoppingItems: ShoppingItem[] = shoppingData.map((doc: any) => ({
-            id: doc.name.split('/').pop() || uuidv4(),
-            name: doc.fields?.name?.stringValue || '',
-            addedBy: doc.fields?.added_by_user_id?.stringValue || '',
-            purchased: doc.fields?.purchased?.booleanValue || false,
-            purchasedBy: doc.fields?.purchased_by_user_id?.stringValue || '',
-            price: doc.fields?.price?.doubleValue || 0,
-            createdAt: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
-            purchasedAt: doc.fields?.purchased_at?.timestampValue ? new Date(doc.fields.purchased_at.timestampValue) : undefined,
+          const shoppingItems: ShoppingItem[] = shoppingData.map((item: any) => ({
+            id: item.id || uuidv4(),
+            name: item.title || item.name || '',
+            addedBy: item.added_by_user_id || '',
+            purchased: item.purchased || false,
+            purchasedBy: item.purchased_by_user_id || '',
+            price: item.price || 0,
+            createdAt: item.created_at ? new Date(item.created_at) : new Date(),
+            purchasedAt: item.purchased_at ? new Date(item.purchased_at) : undefined,
           }));
 
           set({ shoppingItems });
@@ -244,17 +244,13 @@ export const useStore = create<AppState>()(
         try {
           const cleaningTaskData = await firestoreService.getCleaningTask();
           if (cleaningTaskData) {
-            const queue = cleaningTaskData.fields?.queue?.arrayValue?.values?.map((v: any) => v.stringValue) || [];
-            const currentIndex = parseInt(cleaningTaskData.fields?.current_index?.integerValue || '0');
-            const currentTurn = queue[currentIndex] || '';
-
             const cleaningTask: CleaningTask = {
-              id: cleaningTaskData.name.split('/').pop() || uuidv4(),
-              queue,
-              currentTurn,
-              currentIndex,
-              lastCompletedAt: cleaningTaskData.fields?.last_completed_at?.timestampValue ? 
-                new Date(cleaningTaskData.fields.last_completed_at.timestampValue) : new Date(),
+              id: cleaningTaskData.id || uuidv4(),
+              queue: cleaningTaskData.queue || [],
+              currentTurn: cleaningTaskData.queue?.[cleaningTaskData.current_index] || '',
+              currentIndex: cleaningTaskData.current_index || 0,
+              lastCompletedAt: cleaningTaskData.last_completed_at ? 
+                new Date(cleaningTaskData.last_completed_at) : new Date(),
               history: [], // TODO: Load from separate collection if needed
             };
 
