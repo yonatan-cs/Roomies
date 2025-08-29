@@ -1,13 +1,16 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
+  ScrollView,
   Pressable,
-  ScrollView
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useStore } from '../state/store';
+import { cn } from '../utils/cn';
+import { getUserDisplayInfo } from '../utils/userDisplay';
 
 type RootStackParamList = {
   Settings: undefined;
@@ -18,9 +21,6 @@ type RootStackParamList = {
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-import { useStore } from '../state/store';
-import { cn } from '../utils/cn';
-import { getUserDisplayInfo } from '../utils/userDisplay';
 
 export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -31,16 +31,38 @@ export default function DashboardScreen() {
     expenses, 
     shoppingItems, 
     getBalances,
-    refreshApartmentMembers
+    refreshApartmentMembers,
+    loadExpenses,
+    loadShoppingItems,
+    loadCleaningTask
   } = useStore();
 
-  // Refresh apartment members when component mounts
+  // Load all data from Firestore when component mounts
   useEffect(() => {
-    if (currentApartment) {
-      console.log('🔄 Dashboard: Refreshing apartment members on mount');
-      refreshApartmentMembers();
-    }
-  }, [currentApartment?.id]); // Only refresh when apartment ID changes
+    const loadAllData = async () => {
+      try {
+        console.log('🔄 Dashboard: Loading all data from Firestore...');
+        
+        // Load apartment members
+        if (currentApartment) {
+          await refreshApartmentMembers();
+        }
+        
+        // Load expenses, shopping items, and cleaning task
+        await Promise.all([
+          loadExpenses(),
+          loadShoppingItems(),
+          loadCleaningTask(),
+        ]);
+        
+        console.log('✅ Dashboard: All data loaded successfully');
+      } catch (error) {
+        console.error('❌ Dashboard: Error loading data:', error);
+      }
+    };
+
+    loadAllData();
+  }, [currentApartment?.id]); // Reload when apartment changes
 
   const balances = useMemo(() => getBalances(), [expenses]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
