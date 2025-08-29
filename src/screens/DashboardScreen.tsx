@@ -1,11 +1,11 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
@@ -24,15 +24,18 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { 
     currentUser, 
     currentApartment, 
     cleaningTask, 
     expenses, 
+    debtSettlements,
     shoppingItems, 
     getBalances,
     refreshApartmentMembers,
     loadExpenses,
+    loadDebtSettlements,
     loadShoppingItems,
     loadCleaningTask,
     loadCleaningChecklist
@@ -49,9 +52,10 @@ export default function DashboardScreen() {
           await refreshApartmentMembers();
         }
         
-        // Load expenses, shopping items, cleaning task, and checklist
+        // Load expenses, debt settlements, shopping items, cleaning task, and checklist
         await Promise.all([
           loadExpenses(),
+          loadDebtSettlements(),
           loadShoppingItems(),
           loadCleaningTask(),
           loadCleaningChecklist(),
@@ -66,7 +70,39 @@ export default function DashboardScreen() {
     loadAllData();
   }, [currentApartment?.id]); // Reload when apartment changes
 
-  const balances = useMemo(() => getBalances(), [expenses]);
+  // Refresh data when screen comes into focus + light polling
+  useFocusEffect(useCallback(() => {
+    const refreshData = async () => {
+      try {
+        console.log('🔄 Dashboard: Refreshing data on focus...');
+        await Promise.all([
+          loadExpenses(),
+          loadDebtSettlements(),
+          refreshApartmentMembers(),
+        ]);
+        console.log('✅ Dashboard: Data refreshed successfully');
+      } catch (error) {
+        console.error('❌ Dashboard: Error refreshing data:', error);
+      }
+    };
+
+    // Initial refresh when screen comes into focus
+    refreshData();
+
+    // Set up light polling every 15 seconds while screen is focused
+    timerRef.current = setInterval(() => {
+      refreshData();
+    }, 15000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [loadExpenses, loadDebtSettlements, refreshApartmentMembers]));
+
+  const balances = useMemo(() => getBalances(), [expenses, debtSettlements]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
 
   // Quick Stats Calculations

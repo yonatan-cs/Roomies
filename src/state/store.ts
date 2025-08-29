@@ -91,6 +91,7 @@ interface AppState {
   // Actions - Expenses
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
   loadExpenses: () => Promise<void>;
+  loadDebtSettlements: () => Promise<void>;
   addDebtSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => void;
   getBalances: () => Balance[];
 
@@ -214,6 +215,26 @@ export const useStore = create<AppState>()(
           set({ expenses });
         } catch (error) {
           console.error('Error loading expenses:', error);
+        }
+      },
+
+      loadDebtSettlements: async () => {
+        try {
+          const settlementsData = await firestoreService.getDebtSettlements();
+          
+          // Convert Firestore format to local format
+          const debtSettlements: DebtSettlement[] = settlementsData.map((doc: any) => ({
+            id: doc.name.split('/').pop() || uuidv4(),
+            fromUserId: doc.fields?.payer_user_id?.stringValue || '',
+            toUserId: doc.fields?.receiver_user_id?.stringValue || '',
+            amount: doc.fields?.amount?.doubleValue || 0,
+            description: doc.fields?.description?.stringValue || '',
+            date: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
+          }));
+
+          set({ debtSettlements });
+        } catch (error) {
+          console.error('Error loading debt settlements:', error);
         }
       },
 
@@ -677,55 +698,40 @@ export const useStore = create<AppState>()(
       },
 
       getBalances: () => {
-        const { expenses, debtSettlements, currentApartment } = get();
-        if (!currentApartment) return [];
-
+        const { expenses, debtSettlements } = get();
+        
         const balances: { [userId: string]: Balance } = {};
 
-        // Collect valid members and initialize their balance entries
-        const members = Array.isArray(currentApartment.members)
-          ? currentApartment.members.filter((m) => m && m.id)
-          : [];
-
-        if (members.length === 0) {
-          console.warn('⚠️ No apartment members found for balance calculation');
-          return [];
-        }
-
-        const validMemberIds = new Set<string>(members.map((m) => m.id));
-
         const ensure = (userId: string | undefined) => {
-          if (!userId || !validMemberIds.has(userId)) return false;
+          if (!userId) return false;
           if (!balances[userId]) {
             balances[userId] = { userId, owes: {}, owed: {}, netBalance: 0 };
           }
           return true;
         };
 
-        members.forEach((member) => {
-          ensure(member.id);
-        });
-
-        // Calculate balances from expenses (defensive: validate shapes/ids)
+        // Calculate balances from expenses - don't rely on apartment members list
         expenses.forEach((expense) => {
           try {
             if (!expense || typeof expense.amount !== 'number' || !isFinite(expense.amount)) return;
 
             const paidBy = expense.paidBy;
             const participants = Array.isArray(expense.participants) ? expense.participants : [];
-            // Filter to valid participants that are also members
-            const validParticipants = participants.filter((pid) => pid && validMemberIds.has(pid));
+            const validParticipants = participants.filter((pid) => pid && typeof pid === 'string');
 
-            if (!paidBy || !validMemberIds.has(paidBy)) return; // skip expenses with unknown payer
+            if (!paidBy || typeof paidBy !== 'string') return; // skip expenses with unknown payer
             if (validParticipants.length === 0) return; // nothing to split
 
             const perPersonAmount = expense.amount / validParticipants.length;
 
+            // Ensure payer exists in balances
+            ensure(paidBy);
+
             validParticipants.forEach((participantId) => {
               if (!participantId || participantId === paidBy) return;
-              const okA = ensure(participantId);
-              const okB = ensure(paidBy);
-              if (!okA || !okB) return;
+              
+              // Ensure participant exists in balances
+              ensure(participantId);
 
               if (balances[participantId].owes[paidBy] == null) {
                 balances[participantId].owes[paidBy] = 0;
@@ -738,17 +744,19 @@ export const useStore = create<AppState>()(
               balances[paidBy].owed[participantId] += perPersonAmount;
             });
           } catch (e) {
-            // Ignore malformed expense entries to avoid crashing UI
+            console.warn('Error processing expense for balance calculation:', e);
           }
         });
 
-        // Apply debt settlements (only for known members)
+        // Apply debt settlements
         debtSettlements.forEach((settlement) => {
           if (!settlement) return;
           const { fromUserId, toUserId, amount } = settlement;
           if (!fromUserId || !toUserId || typeof amount !== 'number' || amount <= 0) return;
-          if (!validMemberIds.has(fromUserId) || !validMemberIds.has(toUserId)) return;
-          if (!ensure(fromUserId) || !ensure(toUserId)) return;
+          
+          // Ensure both users exist in balances
+          ensure(fromUserId);
+          ensure(toUserId);
 
           if (balances[fromUserId].owes[toUserId] != null) {
             balances[fromUserId].owes[toUserId] -= amount;

@@ -2133,6 +2133,7 @@ export class FirestoreService {
           }
         },
         orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+        limit: 200
       }
     };
 
@@ -2144,6 +2145,41 @@ export class FirestoreService {
 
     if (!res.ok) {
       throw new Error(`GET_EXPENSES_${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.map((row: any) => row.document).filter(Boolean);
+  }
+
+  /**
+   * Get debt settlements for current apartment
+   */
+  async getDebtSettlements(): Promise<any[]> {
+    const { idToken, aptId } = await getApartmentContext();
+
+    const queryBody = {
+      structuredQuery: {
+        from: [{ collectionId: 'debtSettlements' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'apartment_id' },
+            op: 'EQUAL',
+            value: { stringValue: aptId }
+          }
+        },
+        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+        limit: 200
+      }
+    };
+
+    const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+      method: 'POST',
+      headers: authHeaders(idToken),
+      body: JSON.stringify(queryBody),
+    });
+
+    if (!res.ok) {
+      throw new Error(`GET_DEBT_SETTLEMENTS_${res.status}`);
     }
 
     const data = await res.json();
