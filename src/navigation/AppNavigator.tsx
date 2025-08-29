@@ -92,6 +92,17 @@ export default function AppNavigator() {
           const apartmentContext = await getApartmentContext();
           console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
           setHasApartment(true);
+          
+          // Trigger initial data refresh
+          try {
+            await Promise.all([
+              useStore.getState().refreshApartmentMembers?.(),
+              useStore.getState().loadShoppingItems?.(),
+              useStore.getState().loadCleaningTask?.(),
+            ]);
+          } catch (refreshError) {
+            console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
+          }
         } else {
           console.log('📭 AppNavigator: No current user');
           setHasApartment(false);
