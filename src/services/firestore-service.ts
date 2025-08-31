@@ -2475,8 +2475,11 @@ export class FirestoreService {
       // Ensure current apartment ID matches for security rules
       await ensureCurrentApartmentIdMatches(aptId);
 
-      const parent = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}`;
+      const parentPath = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}`;
+      
+      // Query subcollection directly (not collection-group)
       const body = {
+        parent: parentPath,
         structuredQuery: {
           from: [{ collectionId: "checklistItems" }],
           orderBy: [
@@ -2488,16 +2491,36 @@ export class FirestoreService {
         }
       };
 
-      const res = await fetch(`${parent}:runQuery`, {
+      const url = `${FIRESTORE_BASE_URL}:runQuery`;
+      let res = await fetch(url, {
         method: "POST",
         headers: H(idToken),
         body: JSON.stringify(body),
       });
 
+      // Fallback without orderBy in case of index issues
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         console.error("GET_CHECKLIST_400", t);
-        return []; // Don't crash UI
+
+        const fallback = {
+          parent: parentPath,
+          structuredQuery: {
+            from: [{ collectionId: "checklistItems" }],
+            limit: 200,
+          },
+        };
+
+        res = await fetch(url, {
+          method: "POST",
+          headers: H(idToken),
+          body: JSON.stringify(fallback),
+        });
+
+        if (!res.ok) {
+          console.error("GET_CHECKLIST_FALLBACK_400", await res.text().catch(() => ""));
+          return []; // Don't crash UI
+        }
       }
 
       const rows = await res.json();
@@ -2513,6 +2536,19 @@ export class FirestoreService {
           completed_at: d.fields?.completed_at?.timestampValue ?? null,
           order: d.fields?.order?.integerValue ? Number(d.fields.order.integerValue) : null,
           created_at: d.fields?.created_at?.timestampValue ?? null,
+        });
+      }
+
+      // Sort by order and created_at if fallback was used
+      if (!res.ok) {
+        items.sort((a, b) => {
+          const orderA = a.order ?? 0;
+          const orderB = b.order ?? 0;
+          if (orderA !== orderB) return orderA - orderB;
+          
+          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return timeA - timeB;
         });
       }
 
