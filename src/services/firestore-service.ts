@@ -2477,11 +2477,35 @@ export class FirestoreService {
 
       const parentPath = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}`;
       
-      // Query subcollection directly (not collection-group)
+      // Debug log before query
+      console.log('🧪 checklist query ctx', { uid, aptId, current: await getUserCurrentApartmentId(uid, idToken) });
+      
+      // Query subcollection directly with required filters for security rules
       const body = {
         parent: parentPath,
         structuredQuery: {
           from: [{ collectionId: "checklistItems" }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'apartment_id' },
+                    op: 'EQUAL',
+                    value: { stringValue: aptId },
+                  },
+                },
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'cleaning_task_id' },
+                    op: 'EQUAL',
+                    value: { stringValue: aptId }, // taskId = apartmentId
+                  },
+                },
+              ],
+            },
+          },
           orderBy: [
             // First by order (if exists), then by created_at
             { field: { fieldPath: "order" }, direction: "ASCENDING" },
@@ -2507,6 +2531,27 @@ export class FirestoreService {
           parent: parentPath,
           structuredQuery: {
             from: [{ collectionId: "checklistItems" }],
+            where: {
+              compositeFilter: {
+                op: 'AND',
+                filters: [
+                  {
+                    fieldFilter: {
+                      field: { fieldPath: 'apartment_id' },
+                      op: 'EQUAL',
+                      value: { stringValue: aptId },
+                    },
+                  },
+                  {
+                    fieldFilter: {
+                      field: { fieldPath: 'cleaning_task_id' },
+                      op: 'EQUAL',
+                      value: { stringValue: aptId }, // taskId = apartmentId
+                    },
+                  },
+                ],
+              },
+            },
             limit: 200,
           },
         };
@@ -2693,6 +2738,8 @@ export class FirestoreService {
           completed: { booleanValue: false },
           order: order !== undefined ? { integerValue: String(order) } : { nullValue: null },
           created_at: { timestampValue: nowIso },
+          apartment_id: { stringValue: aptId },
+          cleaning_task_id: { stringValue: aptId }, // taskId = apartmentId
         }
       };
 
