@@ -59,6 +59,7 @@ interface AppState {
   // New checklist items (Firestore-based)
   checklistItems: ChecklistItem[];
   isMyCleaningTurn: boolean;
+  _loadingChecklist: boolean;
 
   // Expenses & Budget
   expenses: Expense[];
@@ -137,6 +138,7 @@ export const useStore = create<AppState>()(
       // New checklist state
       checklistItems: [],
       isMyCleaningTurn: false,
+      _loadingChecklist: false,
 
       // User & Apartment actions
       setCurrentUser: (user) => set({ currentUser: user }),
@@ -323,6 +325,14 @@ export const useStore = create<AppState>()(
       // ===== NEW CHECKLIST ACTIONS (Firestore-based) =====
 
       loadCleaningChecklist: async () => {
+        const state = get();
+        if (state._loadingChecklist) {
+          console.log('🔄 loadCleaningChecklist already in progress, skipping...');
+          return;
+        }
+        
+        set({ _loadingChecklist: true });
+        
         try {
           // Read both cleaning task and checklist items to determine turn status
           const s = get();
@@ -336,6 +346,8 @@ export const useStore = create<AppState>()(
           });
         } catch (error) {
           console.error('Error loading checklist:', error);
+        } finally {
+          set({ _loadingChecklist: false });
         }
       },
 

@@ -2539,23 +2539,35 @@ export class FirestoreService {
       }
 
       const rows = await res.json();
-      const items: ChecklistItem[] = [];
-      for (const r of rows) {
-        const d = r.document;
-        if (!d) continue;
-        items.push({
-          id: d.name.split("/").pop()!,
-          title: d.fields?.title?.stringValue ?? "",
-          completed: !!d.fields?.completed?.booleanValue,
-          completed_by: d.fields?.completed_by?.stringValue ?? null,
-          completed_at: d.fields?.completed_at?.timestampValue ?? null,
-          order: d.fields?.order?.integerValue ? Number(d.fields.order.integerValue) : null,
-          created_at: d.fields?.created_at?.timestampValue ?? null,
-        });
-      }
+      
+      // Normalize and deduplicate results
+      function normalizeChecklistResults(json: any[]): ChecklistItem[] {
+        // 1) Keep only items under cleaningTasks subcollection
+        const onlyUnderCleaningTasks = json
+          .map(r => r.document)
+          .filter(Boolean)
+          .filter((d: any) => typeof d.name === 'string' && d.name.includes('/documents/cleaningTasks/'));
 
-      // Sort by order and created_at if fallback was used (reverse the DESC order from server)
-      if (!res.ok) {
+        // 2) Deduplicate by full document name (unique path)
+        const seen = new Set<string>();
+        const items: ChecklistItem[] = [];
+        for (const d of onlyUnderCleaningTasks) {
+          if (!seen.has(d.name)) {
+            seen.add(d.name);
+            const f = d.fields || {};
+            items.push({
+              id: d.name.split('/').pop()!,
+              title: f.title?.stringValue ?? f.name?.stringValue ?? '',
+              completed: !!f.completed?.booleanValue,
+              completed_by: f.completed_by?.stringValue ?? null,
+              completed_at: f.completed_at?.timestampValue ?? null,
+              order: f.order?.integerValue ? Number(f.order.integerValue) : null,
+              created_at: f.created_at?.timestampValue ?? null,
+            });
+          }
+        }
+
+        // 3) Sort by order first, then by created_at DESC
         items.sort((a, b) => {
           const orderA = a.order ?? 0;
           const orderB = b.order ?? 0;
@@ -2563,9 +2575,13 @@ export class FirestoreService {
           
           const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
           const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return timeA - timeB; // ASC order for consistent display
+          return timeB - timeA; // DESC order for newest first
         });
+        
+        return items;
       }
+
+      const items = normalizeChecklistResults(rows);
 
       // If no items exist, create default ones
       if (items.length === 0) {
