@@ -2480,38 +2480,21 @@ export class FirestoreService {
       // Debug log before query
       console.log('🧪 checklist query ctx', { uid, aptId, current: await getUserCurrentApartmentId(uid, idToken) });
       
-      // Query subcollection directly with required filters for security rules
+      // Query collection-group with required filters for security rules
       const body = {
-        parent: parentPath,
         structuredQuery: {
-          from: [{ collectionId: "checklistItems" }],
+          from: [{ collectionId: 'checklistItems', allDescendants: true }],
           where: {
             compositeFilter: {
               op: 'AND',
               filters: [
-                {
-                  fieldFilter: {
-                    field: { fieldPath: 'apartment_id' },
-                    op: 'EQUAL',
-                    value: { stringValue: aptId },
-                  },
-                },
-                {
-                  fieldFilter: {
-                    field: { fieldPath: 'cleaning_task_id' },
-                    op: 'EQUAL',
-                    value: { stringValue: aptId }, // taskId = apartmentId
-                  },
-                },
+                { fieldFilter: { field: { fieldPath: 'apartment_id' },    op: 'EQUAL', value: { stringValue: aptId } } },
+                { fieldFilter: { field: { fieldPath: 'cleaning_task_id' }, op: 'EQUAL', value: { stringValue: aptId } } },
               ],
             },
           },
-          orderBy: [
-            // First by order (if exists), then by created_at
-            { field: { fieldPath: "order" }, direction: "ASCENDING" },
-            { field: { fieldPath: "created_at" }, direction: "ASCENDING" },
-          ],
-          limit: 200
+          orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+          limit: 200,
         }
       };
 
@@ -2528,27 +2511,14 @@ export class FirestoreService {
         console.error("GET_CHECKLIST_400", t);
 
         const fallback = {
-          parent: parentPath,
           structuredQuery: {
-            from: [{ collectionId: "checklistItems" }],
+            from: [{ collectionId: 'checklistItems', allDescendants: true }],
             where: {
               compositeFilter: {
                 op: 'AND',
                 filters: [
-                  {
-                    fieldFilter: {
-                      field: { fieldPath: 'apartment_id' },
-                      op: 'EQUAL',
-                      value: { stringValue: aptId },
-                    },
-                  },
-                  {
-                    fieldFilter: {
-                      field: { fieldPath: 'cleaning_task_id' },
-                      op: 'EQUAL',
-                      value: { stringValue: aptId }, // taskId = apartmentId
-                    },
-                  },
+                  { fieldFilter: { field: { fieldPath: 'apartment_id' },    op: 'EQUAL', value: { stringValue: aptId } } },
+                  { fieldFilter: { field: { fieldPath: 'cleaning_task_id' }, op: 'EQUAL', value: { stringValue: aptId } } },
                 ],
               },
             },
@@ -2584,7 +2554,7 @@ export class FirestoreService {
         });
       }
 
-      // Sort by order and created_at if fallback was used
+      // Sort by order and created_at if fallback was used (reverse the DESC order from server)
       if (!res.ok) {
         items.sort((a, b) => {
           const orderA = a.order ?? 0;
@@ -2593,7 +2563,7 @@ export class FirestoreService {
           
           const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
           const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return timeA - timeB;
+          return timeA - timeB; // ASC order for consistent display
         });
       }
 
