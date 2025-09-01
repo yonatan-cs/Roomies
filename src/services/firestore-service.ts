@@ -2927,6 +2927,9 @@ export class FirestoreService {
 
       console.log('🧹 Starting cleanup for apartment:', aptId);
 
+      // First, let's see what we have in the database
+      console.log('🔍 Querying all checklist items for apartment...');
+
       // Query all checklist items for this apartment
       const queryBody = {
         structuredQuery: {
@@ -2959,7 +2962,19 @@ export class FirestoreService {
       const rows = await response.json();
       console.log(`📊 Found ${rows.length} checklist items`);
 
-      const byKey = new Map(); // template_key or title
+      // Log all items for debugging
+      console.log('📋 All items found:');
+      rows.forEach((row: any, index: number) => {
+        const doc = row.document;
+        if (doc) {
+          const fields = doc.fields || {};
+          const title = fields.title?.stringValue || '';
+          const docId = doc.name.split('/').pop();
+          console.log(`  ${index + 1}. "${title}" (${docId})`);
+        }
+      });
+
+      const byTitle = new Map(); // Group by normalized title
       const toDelete = [];
 
       for (const row of rows) {
@@ -2968,47 +2983,86 @@ export class FirestoreService {
 
         const fields = doc.fields || {};
         const title = fields.title?.stringValue || '';
-        const templateKey = fields.template_key?.stringValue;
+        const createdAt = fields.created_at?.timestampValue || '';
         
-        // Use template_key if available, otherwise use normalized title
-        const key = templateKey || title.trim().toLowerCase();
+        // Skip empty titles
+        if (!title.trim()) {
+          console.log(`⚠️ Skipping item with empty title: ${doc.name.split('/').pop()}`);
+          continue;
+        }
         
-        if (!byKey.has(key)) {
-          byKey.set(key, doc); // Keep the first one (oldest)
-          console.log(`✅ Keeping: ${title} (${doc.name.split('/').pop()})`);
+        // Normalize title for comparison (remove extra spaces, lowercase, etc.)
+        const normalizedTitle = title.trim().toLowerCase().replace(/\s+/g, ' ');
+        
+        if (!byTitle.has(normalizedTitle)) {
+          // First occurrence of this title - keep it
+          byTitle.set(normalizedTitle, {
+            doc,
+            title,
+            createdAt,
+            docId: doc.name.split('/').pop()
+          });
+          console.log(`✅ Keeping first: "${title}" (${doc.name.split('/').pop()})`);
         } else {
-          toDelete.push(doc.name);
-          console.log(`🗑️ Marking for deletion: ${title} (${doc.name.split('/').pop()})`);
+          // Duplicate found - mark for deletion
+          const existing = byTitle.get(normalizedTitle);
+          toDelete.push({
+            docName: doc.name,
+            title,
+            createdAt,
+            docId: doc.name.split('/').pop()
+          });
+          console.log(`🗑️ Found duplicate: "${title}" (${doc.name.split('/').pop()}) - keeping original (${existing.docId})`);
         }
       }
+
+      console.log(`📊 Analysis complete: ${byTitle.size} unique titles, ${toDelete.length} duplicates to delete`);
 
       if (toDelete.length > 0) {
         console.log(`🔄 Deleting ${toDelete.length} duplicates...`);
         
         // Delete each duplicate
-        for (const docName of toDelete) {
+        let deletedCount = 0;
+        for (const item of toDelete) {
           try {
-            const deleteResponse = await fetch(`${FIRESTORE_BASE_URL}/${docName.replace('projects/roomies-hub/databases/(default)/documents/', '')}`, {
+            // Extract the document path correctly
+            let docPath;
+            if (item.docName.startsWith('projects/')) {
+              docPath = item.docName.replace('projects/roomies-hub/databases/(default)/documents/', '');
+            } else {
+              docPath = item.docName;
+            }
+            
+            const fullUrl = `${FIRESTORE_BASE_URL}/${docPath}`;
+            console.log(`🗑️ Attempting to delete: "${item.title}"`);
+            console.log(`   Full URL: ${fullUrl}`);
+            console.log(`   Doc path: ${docPath}`);
+            
+            const deleteResponse = await fetch(fullUrl, {
               method: 'DELETE',
               headers: H(idToken),
             });
             
             if (deleteResponse.ok) {
-              console.log(`✅ Deleted: ${docName.split('/').pop()}`);
+              deletedCount++;
+              console.log(`✅ Successfully deleted: "${item.title}" (${item.docId})`);
             } else {
-              console.log(`❌ Failed to delete: ${docName.split('/').pop()} - ${deleteResponse.status}`);
+              const errorText = await deleteResponse.text().catch(() => '');
+              console.log(`❌ Failed to delete: "${item.title}" (${item.docId})`);
+              console.log(`   Status: ${deleteResponse.status}`);
+              console.log(`   Error: ${errorText}`);
             }
           } catch (deleteError) {
-            console.error(`❌ Error deleting ${docName.split('/').pop()}:`, deleteError);
+            console.error(`❌ Error deleting "${item.title}" (${item.docId}):`, deleteError);
           }
         }
         
-        console.log(`✅ Cleanup completed! Deleted ${toDelete.length} duplicates`);
+        console.log(`✅ Cleanup completed! Successfully deleted ${deletedCount}/${toDelete.length} duplicates`);
       } else {
         console.log(`✨ No duplicates found - cleanup not needed`);
       }
 
-      console.log(`📋 Final count: ${byKey.size} unique items`);
+      console.log(`📋 Final count: ${byTitle.size} unique items`);
       
     } catch (error) {
       console.error('❌ Cleanup failed:', error);
