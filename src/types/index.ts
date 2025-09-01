@@ -95,6 +95,10 @@ export interface ShoppingItem {
   purchasedBy?: string;
   purchasePrice?: number;
   purchasedAt?: Date;
+  purchaseDate?: Date; // Date when item was purchased
+  category?: ExpenseCategory; // Category for expense creation
+  note?: string; // Note for expense creation
+  needsRepurchase?: boolean; // Flag for re-adding to shopping list
 }
 
 export interface Balance {
