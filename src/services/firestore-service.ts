@@ -2256,6 +2256,278 @@ export class FirestoreService {
     return data.map((row: any) => row.document).filter(Boolean);
   }
 
+  // ===== DEBTS AND BALANCES FUNCTIONS =====
+
+  /**
+   * Settle calculated debt atomically in one transaction
+   * Creates debt document, closes it, updates balances, and logs action
+   * 
+   * Uses proper Firestore REST API with serverTimestamp (REQUEST_TIME)
+   * and increment transforms for atomic balance updates.
+   */
+  async settleCalculatedDebt(fromUserId: string, toUserId: string, amount: number, description?: string): Promise<void> {
+    const { uid, idToken } = await requireSession();
+    const apartmentId = await getUserCurrentApartmentId(uid, idToken);
+    
+    if (!apartmentId) {
+      throw new Error('APARTMENT_NOT_FOUND');
+    }
+
+    try {
+      // Generate deterministic debt ID
+      const debtId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+      const actionId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+
+      // Use Firestore REST API transaction for atomic operation
+      const transactionUrl = `${FIRESTORE_BASE_URL}:beginTransaction`;
+      
+      // Start transaction - this returns a transaction token
+      const beginResponse = await fetch(transactionUrl, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+      });
+
+      if (!beginResponse.ok) {
+        throw new Error(`TRANSACTION_BEGIN_FAILED_${beginResponse.status}`);
+      }
+
+      const transactionData = await beginResponse.json();
+      const transactionId = transactionData.transaction;
+
+      // Prepare batch write for atomic operation
+      const writes = [];
+
+      // 1. Create debt document (status: 'open') with server timestamp
+      writes.push({
+        update: {
+          name: `${FIRESTORE_BASE_URL}/debts/${debtId}`,
+          fields: {
+            apartment_id: F.str(apartmentId),
+            from_user_id: F.str(fromUserId),
+            to_user_id: F.str(toUserId),
+            amount: { doubleValue: amount },
+            status: F.str('open'),
+            description: description ? F.str(description) : undefined,
+          },
+        },
+        updateTransforms: [
+          { fieldPath: 'created_at', setToServerValue: 'REQUEST_TIME' }
+        ]
+      });
+
+      // 2. Update debt to closed status (only allowed fields: status, closed_at, closed_by)
+      writes.push({
+        update: {
+          name: `${FIRESTORE_BASE_URL}/debts/${debtId}`,
+          fields: {
+            status: F.str('closed'),
+            closed_by: F.str(uid),
+          },
+        },
+        updateMask: {
+          fieldPaths: ['status', 'closed_by', 'closed_at']
+        },
+        updateTransforms: [
+          { fieldPath: 'closed_at', setToServerValue: 'REQUEST_TIME' }
+        ]
+      });
+
+      // 3. Update balance for fromUser (ONLY balance field) - increment works even if doc doesn't exist
+      writes.push({
+        transform: {
+          document: `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${fromUserId}`,
+          fieldTransforms: [
+            { fieldPath: 'balance', increment: { doubleValue: amount } }
+          ]
+        }
+      });
+
+      // 4. Update balance for toUser (ONLY balance field) - increment works even if doc doesn't exist
+      writes.push({
+        transform: {
+          document: `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${toUserId}`,
+          fieldTransforms: [
+            { fieldPath: 'balance', increment: { doubleValue: -amount } }
+          ]
+        }
+      });
+
+      // 5. Create action log with server timestamp
+      writes.push({
+        update: {
+          name: `${FIRESTORE_BASE_URL}/actions/${actionId}`,
+          fields: {
+            apartment_id: F.str(apartmentId),
+            type: F.str('debt_closed'),
+            debt_id: F.str(debtId),
+            from_user_id: F.str(fromUserId),
+            to_user_id: F.str(toUserId),
+            amount: { doubleValue: amount },
+            actor_uid: F.str(uid),
+            note: description ? F.str(description) : undefined,
+          },
+        },
+        updateTransforms: [
+          { fieldPath: 'created_at', setToServerValue: 'REQUEST_TIME' }
+        ]
+      });
+
+      // Execute transaction with all writes atomically
+      const commitUrl = `${FIRESTORE_BASE_URL}:commit`;
+      const commitBody = {
+        transaction: transactionId,
+        writes: writes
+      };
+
+      const commitResponse = await fetch(commitUrl, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(commitBody),
+      });
+
+      if (!commitResponse.ok) {
+        const errorText = await commitResponse.text().catch(() => '');
+        console.error('Transaction commit failed:', commitResponse.status, errorText);
+        
+        if (commitResponse.status === 403) {
+          throw new Error('PERMISSION_DENIED');
+        }
+        
+        throw new Error(`TRANSACTION_COMMIT_FAILED_${commitResponse.status}`);
+      }
+
+      console.log('✅ Calculated debt settled successfully:', {
+        debtId,
+        fromUserId,
+        toUserId,
+        amount,
+        apartmentId
+      });
+
+    } catch (error) {
+      console.error('❌ Error settling calculated debt:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get debts for current apartment
+   */
+  async getDebts(): Promise<any[]> {
+    const { uid, idToken } = await requireSession();
+    const apartmentId = await getUserCurrentApartmentId(uid, idToken);
+    
+    if (!apartmentId) {
+      return [];
+    }
+
+    const queryBody = {
+      structuredQuery: {
+        from: [{ collectionId: COLLECTIONS.DEBTS }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'apartment_id' },
+            op: 'EQUAL',
+            value: { stringValue: apartmentId }
+          }
+        },
+        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+        limit: 100
+      }
+    };
+
+    const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+      method: 'POST',
+      headers: authHeaders(idToken),
+      body: JSON.stringify(queryBody),
+    });
+
+    if (!res.ok) {
+      throw new Error(`GET_DEBTS_${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.map((row: any) => row.document).filter(Boolean);
+  }
+
+  /**
+   * Get actions for current apartment
+   */
+  async getActions(): Promise<any[]> {
+    const { uid, idToken } = await requireSession();
+    const apartmentId = await getUserCurrentApartmentId(uid, idToken);
+    
+    if (!apartmentId) {
+      return [];
+    }
+
+    const queryBody = {
+      structuredQuery: {
+        from: [{ collectionId: COLLECTIONS.ACTIONS }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'apartment_id' },
+            op: 'EQUAL',
+            value: { stringValue: apartmentId }
+          }
+        },
+        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+        limit: 50
+      }
+    };
+
+    const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+      method: 'POST',
+      headers: authHeaders(idToken),
+      body: JSON.stringify(queryBody),
+    });
+
+    if (!res.ok) {
+      throw new Error(`GET_ACTIONS_${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.map((row: any) => row.document).filter(Boolean);
+  }
+
+
+
+  /**
+   * Get balance for a specific user in current apartment
+   */
+  async getUserBalance(userId: string): Promise<number> {
+    const { uid, idToken } = await requireSession();
+    const apartmentId = await getUserCurrentApartmentId(uid, idToken);
+    
+    if (!apartmentId) {
+      return 0;
+    }
+
+    try {
+      const balanceDocUrl = `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${userId}`;
+      const response = await fetch(balanceDocUrl, {
+        method: 'GET',
+        headers: authHeaders(idToken),
+      });
+
+      if (response.status === 404) {
+        // Balance document doesn't exist yet, return 0
+        return 0;
+      }
+
+      if (!response.ok) {
+        throw new Error(`GET_BALANCE_${response.status}`);
+      }
+
+      const balanceDoc = await response.json();
+      const fields = balanceDoc.fields || {};
+      return parseFloat(fields.balance?.doubleValue || fields.balance?.integerValue || '0');
+    } catch (error) {
+      console.error('Error getting user balance:', error);
+      return 0;
+    }
+  }
+
   // ===== CLEANING TASKS FUNCTIONS WITH APARTMENT CONTEXT =====
 
 

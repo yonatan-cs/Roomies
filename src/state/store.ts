@@ -83,11 +83,16 @@ interface AppState {
   updateExpense: (expenseId: string, updates: Partial<Omit<Expense, 'id' | 'date'>>) => Promise<void>;
   loadExpenses: () => Promise<void>;
   loadDebtSettlements: () => Promise<void>;
-  addDebtSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
   getBalances: () => Balance[];
   getSimplifiedBalances: () => Balance[];
   getMonthlyExpenses: (year: number, month: number) => { expenses: Expense[], total: number, personalTotal: number };
   getTotalApartmentExpenses: (year: number, month: number) => number;
+
+  // Actions - Debts & Balances (Firestore-based system)
+  settleCalculatedDebt: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
+  loadDebts: () => Promise<void>;
+  loadActions: () => Promise<void>;
+  getUserBalance: (userId: string) => Promise<number>;
 
   // Actions - Shopping
   addShoppingItem: (name: string, userId: string) => Promise<void>;
@@ -761,35 +766,7 @@ export const useStore = create<AppState>()(
         }));
       },
 
-      // Expense actions
-      addDebtSettlement: async (fromUserId, toUserId, amount, description) => {
-        try {
-          const settlement: DebtSettlement = {
-            id: uuidv4(),
-            fromUserId,
-            toUserId,
-            amount,
-            date: new Date(),
-            description,
-          };
 
-          // Add to Firestore (if service supports it)
-          try {
-            // For now, add locally and sync later when Firestore service is ready
-            set((state) => ({ debtSettlements: [...state.debtSettlements, settlement] }));
-            
-            // TODO: Implement Firestore debt settlement saving
-            // await firestoreService.addDebtSettlement(settlement);
-          } catch (firestoreError) {
-            console.warn('Failed to save debt settlement to Firestore, saved locally:', firestoreError);
-            // Still save locally even if Firestore fails
-            set((state) => ({ debtSettlements: [...state.debtSettlements, settlement] }));
-          }
-        } catch (error) {
-          console.error('Error adding debt settlement:', error);
-          throw error;
-        }
-      },
 
       getBalances: () => {
         const { expenses, debtSettlements } = get();
@@ -843,29 +820,8 @@ export const useStore = create<AppState>()(
           }
         });
 
-        // Apply debt settlements
-        debtSettlements.forEach((settlement) => {
-          if (!settlement) return;
-          const { fromUserId, toUserId, amount } = settlement;
-          if (!fromUserId || !toUserId || typeof amount !== 'number' || amount <= 0) return;
-          
-          // Ensure both users exist in balances
-          ensure(fromUserId);
-          ensure(toUserId);
-
-          if (balances[fromUserId].owes[toUserId] != null) {
-            balances[fromUserId].owes[toUserId] = Math.round((balances[fromUserId].owes[toUserId] - amount) * 100) / 100;
-            if (balances[fromUserId].owes[toUserId] <= 0.01) { // Allow for small rounding errors
-              delete balances[fromUserId].owes[toUserId];
-            }
-          }
-          if (balances[toUserId].owed[fromUserId] != null) {
-            balances[toUserId].owed[fromUserId] = Math.round((balances[toUserId].owed[fromUserId] - amount) * 100) / 100;
-            if (balances[toUserId].owed[fromUserId] <= 0.01) { // Allow for small rounding errors
-              delete balances[toUserId].owed[fromUserId];
-            }
-          }
-        });
+        // Note: debtSettlements are now legacy - new system uses Firestore debts/balances
+        // This calculation is kept for backward compatibility display only
 
         // Calculate net balances between users (eliminate duplicate debts)
         const userIds = Object.keys(balances);
@@ -1027,6 +983,61 @@ export const useStore = create<AppState>()(
         set((state) => ({
           shoppingItems: state.shoppingItems.filter((item) => item.id !== itemId),
         }));
+      },
+
+      // ===== NEW DEBTS & BALANCES ACTIONS (Firestore-based) =====
+
+      /**
+       * Load debts from Firestore
+       */
+      loadDebts: async () => {
+        try {
+          await firestoreService.getDebts();
+          console.log('✅ Debts loaded successfully');
+        } catch (error) {
+          console.error('❌ Error loading debts:', error);
+          throw error;
+        }
+      },
+
+      /**
+       * Load actions from Firestore
+       */
+      loadActions: async () => {
+        try {
+          await firestoreService.getActions();
+          console.log('✅ Actions loaded successfully');
+        } catch (error) {
+          console.error('❌ Error loading actions:', error);
+          throw error;
+        }
+      },
+
+      /**
+       * Get user balance from Firestore
+       */
+      getUserBalance: async (userId: string) => {
+        try {
+          const balance = await firestoreService.getUserBalance(userId);
+          console.log('✅ User balance retrieved:', { userId, balance });
+          return balance;
+        } catch (error) {
+          console.error('❌ Error getting user balance:', error);
+          return 0;
+        }
+      },
+
+      /**
+       * Settle calculated debt atomically in one transaction
+       */
+      settleCalculatedDebt: async (fromUserId: string, toUserId: string, amount: number, description?: string) => {
+        try {
+          await firestoreService.settleCalculatedDebt(fromUserId, toUserId, amount, description);
+          console.log('✅ Calculated debt settled successfully:', { fromUserId, toUserId, amount });
+        } catch (error) {
+          console.error('❌ Error settling calculated debt:', error);
+          throw error;
+        }
       },
     }),
     {

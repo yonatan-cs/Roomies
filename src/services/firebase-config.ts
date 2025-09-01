@@ -38,4 +38,7 @@ export const COLLECTIONS = {
   DEBT_SETTLEMENTS: 'debtSettlements',
   CLEANING_TASKS: 'cleaningTasks',
   SHOPPING_ITEMS: 'shoppingItems',
+  DEBTS: 'debts',
+  BALANCES: 'balances',
+  ACTIONS: 'actions',
 };
