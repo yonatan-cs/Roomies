@@ -37,7 +37,14 @@ async function requireSession(): Promise<{ uid: string; idToken: string }> {
     const idToken = await firebaseAuth.getCurrentIdToken();
     
     if (currentUser?.localId && idToken) {
-      console.log('✅ Session available:', { uid: currentUser.localId, tokenPreview: idToken.substring(0, 20) + '...' });
+      console.log('✅ Session available:', { 
+        uid: currentUser.localId, 
+        tokenPreview: idToken.substring(0, 20) + '...',
+        hasUid: !!currentUser.localId,
+        hasToken: !!idToken,
+        uidLength: currentUser.localId?.length || 0,
+        tokenLength: idToken?.length || 0
+      });
       return { uid: currentUser.localId, idToken };
     }
     
@@ -74,6 +81,15 @@ async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<
     if (userResponse.status === 200) {
       const userDoc = await userResponse.json();
       const apartmentId = userDoc.fields?.current_apartment_id?.stringValue;
+      console.log('🔍 getUserCurrentApartmentId - user profile response:', {
+        status: userResponse.status,
+        hasFields: !!userDoc.fields,
+        hasCurrentApartmentId: !!userDoc.fields?.current_apartment_id,
+        apartmentIdValue: apartmentId,
+        apartmentIdType: typeof apartmentId,
+        apartmentIdLength: apartmentId?.length || 0
+      });
+      
       if (apartmentId) {
         console.log('✅ Found apartment ID in user profile:', apartmentId);
         return apartmentId;
@@ -2412,12 +2428,23 @@ export class FirestoreService {
 
   /**
    * Get debts for current apartment
+   * 
+   * REQUIRES COMPOSITE INDEX:
+   * Collection: debts
+   * Fields: apartment_id (Ascending), created_at (Descending)
    */
   async getDebts(): Promise<any[]> {
     const { uid, idToken } = await requireSession();
     const apartmentId = await getUserCurrentApartmentId(uid, idToken);
     
     if (!apartmentId) {
+      console.warn('⚠️ getDebts: No apartment ID found');
+      return [];
+    }
+
+    // Validate apartmentId is not empty string
+    if (apartmentId.trim() === '') {
+      console.error('❌ getDebts: Empty apartment ID');
       return [];
     }
 
@@ -2436,6 +2463,8 @@ export class FirestoreService {
       }
     };
 
+    console.log('🔍 getDebts query:', JSON.stringify(queryBody, null, 2));
+
     const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
       headers: authHeaders(idToken),
@@ -2443,10 +2472,22 @@ export class FirestoreService {
     });
 
     if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      console.error('❌ getDebts failed:', res.status, errorText);
+      
+      if (res.status === 400) {
+        console.error('❌ INDEX_ERROR: Debts query requires composite index:');
+        console.error('   Collection: debts');
+        console.error('   Fields: apartment_id (Ascending), created_at (Descending)');
+        console.error('   Create this index in Firebase Console or wait for auto-creation');
+        throw new Error('INDEX_REQUIRED');
+      }
+      
       throw new Error(`GET_DEBTS_${res.status}`);
     }
 
     const data = await res.json();
+    console.log('✅ getDebts success, documents:', data.length);
     return data.map((row: any) => row.document).filter(Boolean);
   }
 
@@ -2462,6 +2503,13 @@ export class FirestoreService {
     const apartmentId = await getUserCurrentApartmentId(uid, idToken);
     
     if (!apartmentId) {
+      console.warn('⚠️ getActions: No apartment ID found');
+      return [];
+    }
+
+    // Validate apartmentId is not empty string
+    if (apartmentId.trim() === '') {
+      console.error('❌ getActions: Empty apartment ID');
       return [];
     }
 
@@ -2480,6 +2528,8 @@ export class FirestoreService {
       }
     };
 
+    console.log('🔍 getActions query:', JSON.stringify(queryBody, null, 2));
+
     const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
       headers: authHeaders(idToken),
@@ -2487,6 +2537,9 @@ export class FirestoreService {
     });
 
     if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      console.error('❌ getActions failed:', res.status, errorText);
+      
       if (res.status === 400) {
         console.error('❌ INDEX_ERROR: Actions query requires composite index:');
         console.error('   Collection: actions');
@@ -2494,10 +2547,12 @@ export class FirestoreService {
         console.error('   Create this index in Firebase Console or wait for auto-creation');
         throw new Error('INDEX_REQUIRED');
       }
+      
       throw new Error(`GET_ACTIONS_${res.status}`);
     }
 
     const data = await res.json();
+    console.log('✅ getActions success, documents:', data.length);
     return data.map((row: any) => row.document).filter(Boolean);
   }
 
@@ -2511,11 +2566,20 @@ export class FirestoreService {
     const apartmentId = await getUserCurrentApartmentId(uid, idToken);
     
     if (!apartmentId) {
+      console.warn('⚠️ getUserBalance: No apartment ID found');
+      return 0;
+    }
+
+    // Validate apartmentId is not empty string
+    if (apartmentId.trim() === '') {
+      console.error('❌ getUserBalance: Empty apartment ID');
       return 0;
     }
 
     try {
       const balanceDocUrl = `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${userId}`;
+      console.log('🔍 getUserBalance URL:', balanceDocUrl);
+      
       const response = await fetch(balanceDocUrl, {
         method: 'GET',
         headers: authHeaders(idToken),
@@ -2523,18 +2587,23 @@ export class FirestoreService {
 
       if (response.status === 404) {
         // Balance document doesn't exist yet, return 0
+        console.log('ℹ️ getUserBalance: Balance document not found, returning 0');
         return 0;
       }
 
       if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('❌ getUserBalance failed:', response.status, errorText);
         throw new Error(`GET_BALANCE_${response.status}`);
       }
 
       const balanceDoc = await response.json();
       const fields = balanceDoc.fields || {};
-      return parseFloat(fields.balance?.doubleValue || fields.balance?.integerValue || '0');
+      const balance = parseFloat(fields.balance?.doubleValue || fields.balance?.integerValue || '0');
+      console.log('✅ getUserBalance success:', { userId, balance });
+      return balance;
     } catch (error) {
-      console.error('Error getting user balance:', error);
+      console.error('❌ Error getting user balance:', error);
       return 0;
     }
   }
