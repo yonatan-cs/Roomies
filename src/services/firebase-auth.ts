@@ -84,7 +84,6 @@ export class FirebaseAuthService {
           email,
           password,
           returnSecureToken: true,
-          displayName: fullName,
         }),
       });
 
@@ -94,14 +93,25 @@ export class FirebaseAuthService {
         throw this.handleAuthError(data);
       }
 
-      const authUser: AuthUser = {
+      let authUser: AuthUser = {
         localId: data.localId,
         email: data.email,
-        displayName: fullName,
+        displayName: data.displayName || null,
         idToken: data.idToken,
         refreshToken: data.refreshToken,
         expiresIn: data.expiresIn,
       };
+
+      // If fullName is provided, update the user profile
+      if (fullName && fullName.trim()) {
+        try {
+          await this.updateProfile(data.idToken, { displayName: fullName.trim() });
+          authUser.displayName = fullName.trim();
+        } catch (profileError) {
+          console.warn('Failed to update profile displayName:', profileError);
+          // Continue with registration even if profile update fails
+        }
+      }
 
       // Store tokens securely
       await this.storeUserTokens(authUser);
@@ -339,6 +349,39 @@ export class FirebaseAuthService {
     } catch (error) {
       console.error('Restore session error:', error);
       return null;
+    }
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(idToken: string, profileData: { displayName?: string; photoURL?: string }): Promise<void> {
+    try {
+      const response = await fetch(AUTH_ENDPOINTS.UPDATE_PROFILE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          idToken,
+          ...profileData,
+          returnSecureToken: true,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw this.handleAuthError(data);
+      }
+
+      // Update current user if available
+      if (this.currentUser) {
+        this.currentUser.displayName = profileData.displayName || this.currentUser.displayName;
+      }
+    } catch (error) {
+      console.error('Update profile error:', error);
+      throw error;
     }
   }
 

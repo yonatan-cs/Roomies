@@ -1,5 +1,6 @@
 export type UserLike = {
   id?: string;
+  display_name?: string;
   full_name?: string;
   name?: string;
   displayName?: string;
@@ -8,9 +9,10 @@ export type UserLike = {
 
 /**
  * Get display name from user object with fallbacks
+ * Priority order: display_name -> displayName -> full_name -> name -> email -> 'אורח'
  */
 export function getDisplayName(u?: UserLike | null): string {
-  return (u?.full_name ?? u?.name ?? u?.displayName ?? u?.email ?? 'אורח').toString().trim();
+  return (u?.display_name ?? u?.displayName ?? u?.full_name ?? u?.name ?? u?.email ?? 'אורח').toString().trim();
 }
 
 /**

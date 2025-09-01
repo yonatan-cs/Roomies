@@ -22,6 +22,7 @@ export const AUTH_ENDPOINTS = {
   RESET_PASSWORD: `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`,
   VERIFY_EMAIL: `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${firebaseConfig.apiKey}`,
   GET_USER_DATA: `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseConfig.apiKey}`,
+  UPDATE_PROFILE: `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${firebaseConfig.apiKey}`,
 };
 
 // Cloud Firestore REST API base URL

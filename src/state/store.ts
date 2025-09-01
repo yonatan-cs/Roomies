@@ -455,12 +455,27 @@ export const useStore = create<AppState>()(
 
       completeChecklistItem: async (itemId: string) => {
         const state = get();
-        const { isMyCleaningTurn, checklistItems, currentUser } = state;
+        const { isMyCleaningTurn, checklistItems, currentUser, currentApartment } = state;
+        
+        console.log('🔧 Attempting to complete checklist item:', {
+          itemId,
+          isMyTurn: isMyCleaningTurn,
+          hasUser: !!currentUser,
+          userId: currentUser?.id,
+          apartmentId: currentUser?.current_apartment_id,
+          localApartmentId: currentApartment?.id
+        });
         
         // Enhanced security check
         if (!isMyCleaningTurn || !currentUser) {
           console.warn('Cannot complete checklist item: not your turn or no user');
           return;
+        }
+
+        // Ensure user has apartment context
+        if (!currentUser.current_apartment_id && !currentApartment?.id) {
+          console.warn('Cannot complete checklist item: no apartment context');
+          throw new Error('לא ניתן לעדכן משימה - אין הקשר דירה. אנא נסה להתחבר מחדש.');
         }
 
         // Find the item to ensure it exists
@@ -471,6 +486,7 @@ export const useStore = create<AppState>()(
         }
 
         // Optimistic: mark locally immediately
+        const originalItems = [...checklistItems];
         set({
           checklistItems: checklistItems.map(it =>
             it.id === itemId ? { ...it, completed: true, completed_by: currentUser.id } : it
@@ -484,7 +500,8 @@ export const useStore = create<AppState>()(
         } catch (error) {
           console.error('Error completing checklist item:', error);
           // Rollback on error
-          set({ checklistItems });
+          set({ checklistItems: originalItems });
+          throw error; // Re-throw to let UI handle it
         }
       },
 
