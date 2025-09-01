@@ -58,6 +58,7 @@ export default function WelcomeScreen() {
             id: authUser.localId,
             email: authUser.email,
             name: userData.full_name,
+            display_name: userData.display_name || userData.full_name,
             phone: userData.phone,
             current_apartment_id: currentApartment?.id,
           };
