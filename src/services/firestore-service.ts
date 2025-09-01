@@ -2448,6 +2448,12 @@ export class FirestoreService {
       return [];
     }
 
+    // Validate apartmentId format and length
+    if (apartmentId.length < 3) {
+      console.error('❌ getDebts: Apartment ID too short:', apartmentId);
+      return [];
+    }
+
     const queryBody = {
       structuredQuery: {
         from: [{ collectionId: COLLECTIONS.DEBTS }],
@@ -2463,7 +2469,39 @@ export class FirestoreService {
       }
     };
 
-    console.log('🔍 getDebts query:', JSON.stringify(queryBody, null, 2));
+    // Log the exact query being sent
+    console.log('🔍 getDebts query body:', JSON.stringify(queryBody, null, 2));
+    console.log('🔍 getDebts apartmentId:', { 
+      value: apartmentId, 
+      type: typeof apartmentId, 
+      length: apartmentId.length,
+      isEmpty: apartmentId.trim() === '',
+      hasSpaces: apartmentId.includes(' ')
+    });
+
+    // Validate query structure matches expected format
+    const expectedQuery = {
+      structuredQuery: {
+        from: [{ collectionId: 'debts' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'apartment_id' },
+            op: 'EQUAL',
+            value: { stringValue: apartmentId }
+          }
+        },
+        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+        limit: 100
+      }
+    };
+    
+    console.log('🔍 getDebts expected vs actual:');
+    console.log('Expected collectionId:', expectedQuery.structuredQuery.from[0].collectionId);
+    console.log('Actual collectionId:', queryBody.structuredQuery.from[0].collectionId);
+    console.log('Expected fieldPath:', expectedQuery.structuredQuery.where.fieldFilter.field.fieldPath);
+    console.log('Actual fieldPath:', queryBody.structuredQuery.where.fieldFilter.field.fieldPath);
+    console.log('Expected orderBy fieldPath:', expectedQuery.structuredQuery.orderBy[0].field.fieldPath);
+    console.log('Actual orderBy fieldPath:', queryBody.structuredQuery.orderBy[0].field.fieldPath);
 
     const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
@@ -2513,6 +2551,12 @@ export class FirestoreService {
       return [];
     }
 
+    // Validate apartmentId format and length
+    if (apartmentId.length < 3) {
+      console.error('❌ getActions: Apartment ID too short:', apartmentId);
+      return [];
+    }
+
     const queryBody = {
       structuredQuery: {
         from: [{ collectionId: COLLECTIONS.ACTIONS }],
@@ -2528,7 +2572,39 @@ export class FirestoreService {
       }
     };
 
-    console.log('🔍 getActions query:', JSON.stringify(queryBody, null, 2));
+    // Log the exact query being sent
+    console.log('🔍 getActions query body:', JSON.stringify(queryBody, null, 2));
+    console.log('🔍 getActions apartmentId:', { 
+      value: apartmentId, 
+      type: typeof apartmentId, 
+      length: apartmentId.length,
+      isEmpty: apartmentId.trim() === '',
+      hasSpaces: apartmentId.includes(' ')
+    });
+
+    // Validate query structure matches expected format
+    const expectedQuery = {
+      structuredQuery: {
+        from: [{ collectionId: 'actions' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'apartment_id' },
+            op: 'EQUAL',
+            value: { stringValue: apartmentId }
+          }
+        },
+        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+        limit: 50
+      }
+    };
+    
+    console.log('🔍 getActions expected vs actual:');
+    console.log('Expected collectionId:', expectedQuery.structuredQuery.from[0].collectionId);
+    console.log('Actual collectionId:', queryBody.structuredQuery.from[0].collectionId);
+    console.log('Expected fieldPath:', expectedQuery.structuredQuery.where.fieldFilter.field.fieldPath);
+    console.log('Actual fieldPath:', queryBody.structuredQuery.where.fieldFilter.field.fieldPath);
+    console.log('Expected orderBy fieldPath:', expectedQuery.structuredQuery.orderBy[0].field.fieldPath);
+    console.log('Actual orderBy fieldPath:', queryBody.structuredQuery.orderBy[0].field.fieldPath);
 
     const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
@@ -2573,6 +2649,12 @@ export class FirestoreService {
     // Validate apartmentId is not empty string
     if (apartmentId.trim() === '') {
       console.error('❌ getUserBalance: Empty apartment ID');
+      return 0;
+    }
+
+    // Validate apartmentId format and length
+    if (apartmentId.length < 3) {
+      console.error('❌ getUserBalance: Apartment ID too short:', apartmentId);
       return 0;
     }
 
