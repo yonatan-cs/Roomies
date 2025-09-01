@@ -106,6 +106,7 @@ interface AppState {
   completeChecklistItem: (itemId: string) => Promise<void>;
   uncompleteChecklistItem: (itemId: string) => Promise<void>;
   addChecklistItem: (title: string, order?: number) => Promise<void>;
+  removeChecklistItem: (itemId: string) => Promise<void>;
   finishCleaningTurn: () => Promise<void>;
 }
 
@@ -570,7 +571,16 @@ export const useStore = create<AppState>()(
         }
       },
 
-
+      removeChecklistItem: async (itemId: string) => {
+        try {
+          await firestoreService.removeChecklistItem(itemId);
+          // Reload checklist after removal
+          await get().loadCleaningChecklist();
+        } catch (error) {
+          console.error('Error removing checklist item:', error);
+          throw error;
+        }
+      },
 
       // Cleaning actions
       initializeCleaning: async () => {
