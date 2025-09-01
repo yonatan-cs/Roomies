@@ -90,9 +90,8 @@ interface AppState {
 
   // Actions - Debts & Balances (Firestore-based system)
   settleCalculatedDebt: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
-  loadDebts: () => Promise<void>;
-  loadActions: () => Promise<void>;
-  getUserBalance: (userId: string) => Promise<number>;
+  initializeDebtSystem: (apartmentId: string, userIds: string[]) => Promise<void>;
+  cleanupDebtSystem: () => void;
 
   // Actions - Shopping
   addShoppingItem: (name: string, userId: string) => Promise<void>;
@@ -1037,6 +1036,36 @@ export const useStore = create<AppState>()(
         } catch (error) {
           console.error('❌ Error settling calculated debt:', error);
           throw error;
+        }
+      },
+
+      /**
+       * Initialize the new debt system with real-time listeners
+       */
+      initializeDebtSystem: async (apartmentId: string, userIds: string[]) => {
+        try {
+          // Import dynamically to avoid circular dependencies
+          const { initializeDebtListeners } = await import('../store/debts');
+          await initializeDebtListeners(apartmentId, userIds);
+          console.log('✅ Debt system initialized:', { apartmentId, userIdsCount: userIds.length });
+        } catch (error) {
+          console.error('❌ Error initializing debt system:', error);
+          throw error;
+        }
+      },
+
+      /**
+       * Clean up the debt system listeners
+       */
+      cleanupDebtSystem: () => {
+        try {
+          // Import dynamically to avoid circular dependencies
+          import('../store/debts').then(({ cleanupListeners }) => {
+            cleanupListeners();
+            console.log('✅ Debt system cleaned up');
+          });
+        } catch (error) {
+          console.error('❌ Error cleaning up debt system:', error);
         }
       },
     }),

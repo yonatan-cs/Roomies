@@ -2452,6 +2452,10 @@ export class FirestoreService {
 
   /**
    * Get actions for current apartment
+   * 
+   * REQUIRES COMPOSITE INDEX:
+   * Collection: actions
+   * Fields: apartment_id (Ascending), created_at (Descending)
    */
   async getActions(): Promise<any[]> {
     const { uid, idToken } = await requireSession();
@@ -2483,6 +2487,13 @@ export class FirestoreService {
     });
 
     if (!res.ok) {
+      if (res.status === 400) {
+        console.error('❌ INDEX_ERROR: Actions query requires composite index:');
+        console.error('   Collection: actions');
+        console.error('   Fields: apartment_id (Ascending), created_at (Descending)');
+        console.error('   Create this index in Firebase Console or wait for auto-creation');
+        throw new Error('INDEX_REQUIRED');
+      }
       throw new Error(`GET_ACTIONS_${res.status}`);
     }
 
