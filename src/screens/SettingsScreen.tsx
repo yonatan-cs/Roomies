@@ -20,6 +20,7 @@ export default function SettingsScreen() {
     setCleaningAnchorDow,
     checklistItems,
     addChecklistItem,
+    removeChecklistItem,
     refreshApartmentMembers,
   } = useStore();
 
@@ -283,9 +284,13 @@ export default function SettingsScreen() {
                     >
                       <Ionicons name="pencil" size={18} color="#6b7280" />
                     </Pressable>
-                    <Pressable onPress={() => {
-                      // TODO: Implement remove functionality for checklist items
-                      console.log('Remove item:', item.id);
+                    <Pressable onPress={async () => {
+                      try {
+                        await removeChecklistItem(item.id);
+                      } catch (error) {
+                        console.error('Error removing checklist item:', error);
+                        Alert.alert('שגיאה', 'לא ניתן למחוק את המשימה');
+                      }
                     }} className="p-2">
                       <Ionicons name="trash" size={18} color="#ef4444" />
                     </Pressable>
