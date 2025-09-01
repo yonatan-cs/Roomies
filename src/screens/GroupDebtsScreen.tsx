@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,11 @@ export default function GroupDebtsScreen() {
   const [useSimplified, setUseSimplified] = useState(true);
   const [isSettling, setIsSettling] = useState(false);
   
+  // New debt system state
+  const [liveDebts, setLiveDebts] = useState<any[]>([]);
+  const [liveActions, setLiveActions] = useState<any[]>([]);
+  const [myBalance, setMyBalance] = useState(0);
+  
   const { 
     expenses, 
     debtSettlements, 
@@ -38,10 +43,14 @@ export default function GroupDebtsScreen() {
     getBalances, 
     getSimplifiedBalances, 
     loadDebtSettlements,
-    settleCalculatedDebt
+    settleCalculatedDebt,
+    initializeDebtSystem,
+    cleanupDebtSystem
   } = useStore();
 
-  // Load debt settlements on component mount (legacy - for display only)
+  // Load debt settlements on component mount (legacy - for background data only)
+  // TODO: Remove this when new system is fully integrated
+  // NOTE: This is NOT used for UI display anymore
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -53,28 +62,61 @@ export default function GroupDebtsScreen() {
     loadData();
   }, [loadDebtSettlements]);
 
-  // TODO: Add real-time listeners for new system
-  // useEffect(() => {
-  //   if (!currentApartment?.id) return;
-  //   
-  //   // Listen to debts collection
-  //   const debtsQuery = query(
-  //     collection(db, 'debts'),
-  //     where('apartment_id', '==', currentApartment.id)
-  //   );
-  //   
-  //   // Listen to actions collection  
-  //   const actionsQuery = query(
-  //     collection(db, 'actions'),
-  //     where('apartment_id', '==', currentApartment.id),
-  //     orderBy('created_at', 'desc')
-  //   );
-  //   
-  //   // Listen to user balances
-  //   const balanceQuery = doc(db, 'balances', currentApartment.id, 'users', currentUser?.id || '');
-  //   
-  //   // TODO: Implement onSnapshot listeners when Firebase SDK is available
-  // }, [currentApartment?.id, currentUser?.id]);
+  // Track last apartment ID to prevent duplicate listeners
+  const lastApartmentIdRef = useRef<string | null>(null);
+
+  // Initialize new debt system with real-time listeners
+  useEffect(() => {
+    if (!currentApartment?.id || !currentUser?.id) return;
+    
+    // Don't reinitialize if apartment hasn't changed
+    if (lastApartmentIdRef.current === currentApartment.id) return;
+    
+    const userIds = currentApartment.members.map(m => m.id);
+    
+    // Initialize the new debt system
+    initializeDebtSystem(currentApartment.id, userIds);
+    lastApartmentIdRef.current = currentApartment.id;
+    
+    // Cleanup on unmount
+    return () => {
+      cleanupDebtSystem();
+      lastApartmentIdRef.current = null;
+    };
+  }, [currentApartment?.id, currentUser?.id, initializeDebtSystem, cleanupDebtSystem]);
+
+  // Subscribe to real-time updates from the new debt system
+  useEffect(() => {
+    if (!currentApartment?.id || !currentUser?.id) return;
+    
+    // Don't resubscribe if apartment hasn't changed
+    if (lastApartmentIdRef.current === currentApartment.id) return;
+    
+    // Import and subscribe to real-time updates
+    const setupSubscriptions = async () => {
+      try {
+        const { 
+          subscribeToDebts, 
+          subscribeToActions, 
+          subscribeToUserBalance 
+        } = await import('../store/debts');
+        
+        const unsubDebts = subscribeToDebts(setLiveDebts);
+        const unsubActions = subscribeToActions(setLiveActions);
+        const unsubBalance = subscribeToUserBalance(currentUser.id, setMyBalance);
+        
+        return () => {
+          unsubDebts();
+          unsubActions();
+          unsubBalance();
+        };
+      } catch (error) {
+        console.error('Error setting up debt subscriptions:', error);
+      }
+    };
+    
+    setupSubscriptions();
+  }, [currentApartment?.id, currentUser?.id]);
 
   const balances = useMemo(() => {
     return useSimplified ? getSimplifiedBalances() : getBalances();
@@ -94,6 +136,19 @@ export default function GroupDebtsScreen() {
   };
 
   const handleSettleDebt = (fromUserId: string, toUserId: string, amount: number) => {
+    // Check if debt is already closed
+    const existingDebt = liveDebts.find(debt => 
+      debt.from_user_id === fromUserId && 
+      debt.to_user_id === toUserId && 
+      debt.amount === amount &&
+      debt.status === 'closed'
+    );
+    
+    if (existingDebt) {
+      Alert.alert('מידע', 'החוב הזה כבר סגור');
+      return;
+    }
+    
     setSettlementFromUser(fromUserId);
     setSettlementToUser(toUserId);
     setSettlementOriginalAmount(amount);
@@ -130,7 +185,7 @@ export default function GroupDebtsScreen() {
       setSettlementToUser('');
       setSettlementOriginalAmount(0);
       
-      // The UI will update automatically via Firestore listeners (when implemented)
+      // No need to manually refresh - onSnapshot will update the UI automatically
       Alert.alert('הצלחה', 'החוב נסגר בהצלחה!');
       
     } catch (error) {
@@ -155,27 +210,16 @@ export default function GroupDebtsScreen() {
     }
   };
 
-  // Get all active debts for display
+  // Get all active debts for display from new system ONLY
   const getAllDebts = () => {
-    const debts: Array<{
-      fromUserId: string;
-      toUserId: string;
-      amount: number;
-    }> = [];
-
-    balances.forEach(balance => {
-      Object.entries(balance.owes).forEach(([toUserId, amount]) => {
-        if (amount > 0.01) {
-          debts.push({
-            fromUserId: balance.userId,
-            toUserId,
-            amount
-          });
-        }
-      });
-    });
-
-    return debts.sort((a, b) => b.amount - a.amount);
+    return liveDebts
+      .filter(debt => debt.status === 'open')
+      .map(debt => ({
+        fromUserId: debt.from_user_id,
+        toUserId: debt.to_user_id,
+        amount: debt.amount
+      }))
+      .sort((a, b) => b.amount - a.amount);
   };
 
   const allDebts = getAllDebts();
@@ -301,10 +345,17 @@ export default function GroupDebtsScreen() {
                   
                   <Pressable
                     onPress={() => handleSettleDebt(debt.fromUserId, debt.toUserId, debt.amount)}
-                    className="bg-red-100 py-2 px-4 rounded-lg"
+                    disabled={isSettling}
+                    className={cn(
+                      "py-2 px-4 rounded-lg",
+                      isSettling ? "bg-gray-300" : "bg-red-100"
+                    )}
                   >
-                    <Text className="text-red-700 text-sm font-medium">
-                      סגור חוב
+                    <Text className={cn(
+                      "text-sm font-medium",
+                      isSettling ? "text-gray-500" : "text-red-700"
+                    )}>
+                      {isSettling ? 'סוגר...' : 'סגור חוב'}
                     </Text>
                   </Pressable>
                 </View>
