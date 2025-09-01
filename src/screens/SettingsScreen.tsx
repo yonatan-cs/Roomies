@@ -20,7 +20,6 @@ export default function SettingsScreen() {
     setCleaningAnchorDow,
     checklistItems,
     addChecklistItem,
-    cleanupDuplicateChecklistItems,
     refreshApartmentMembers,
   } = useStore();
 
@@ -249,31 +248,9 @@ export default function SettingsScreen() {
 
         {/* Cleaning Chores */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-gray-900">משימות ניקיון ({checklistItems.length})</Text>
-            <Pressable 
-              onPress={async () => {
-                try {
-                  await cleanupDuplicateChecklistItems();
-                  Alert.alert('הצלחה', 'כפילויות נוקו בהצלחה!');
-                } catch (error) {
-                  console.error('Cleanup error:', error);
-                  Alert.alert('שגיאה', 'לא ניתן לנקות כפילויות');
-                }
-              }}
-              className="bg-orange-100 px-3 py-2 rounded-lg"
-            >
-              <Text className="text-orange-600 text-sm font-medium">נקה כפילויות</Text>
-            </Pressable>
-          </View>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">משימות ניקיון ({checklistItems.length})</Text>
           
-          {checklistItems.length > 10 && (
-            <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
-              <Text className="text-yellow-800 text-sm">
-                ⚠️ יש {checklistItems.length} משימות - זה יכול להצביע על כפילויות. לחץ על "נקה כפילויות" למעלה.
-              </Text>
-            </View>
-          )}
+
           {checklistItems.map((item) => {
             const isEditing = editingChoreId === item.id;
             return (
