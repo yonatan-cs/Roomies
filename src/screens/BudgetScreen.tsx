@@ -4,9 +4,7 @@ import {
   Text,
   Pressable,
   ScrollView,
-  FlatList,
-  TextInput,
-  Alert
+  FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +15,7 @@ import { ExpenseCategory } from '../types';
 
 type RootStackParamList = {
   AddExpense: undefined;
+  GroupDebts: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -41,13 +40,19 @@ const CATEGORY_NAMES: Record<ExpenseCategory, string> = {
 
 export default function BudgetScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [showSettlementModal, setShowSettlementModal] = useState(false);
-  const [settlementAmount, setSettlementAmount] = useState('');
-  const [settlementFromUser, setSettlementFromUser] = useState('');
-  const [settlementToUser, setSettlementToUser] = useState('');
-  const [settlementOriginalAmount, setSettlementOriginalAmount] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
-  const { expenses, debtSettlements, currentUser, currentApartment, getBalances, addDebtSettlement, loadDebtSettlements } = useStore();
+  const { 
+    expenses, 
+    debtSettlements, 
+    currentUser, 
+    currentApartment, 
+    getBalances, 
+    getMonthlyExpenses,
+    getTotalApartmentExpenses,
+    loadDebtSettlements 
+  } = useStore();
 
   // Load debt settlements on component mount
   useEffect(() => {
@@ -64,23 +69,20 @@ export default function BudgetScreen() {
   const balances = useMemo(() => getBalances(), [expenses, debtSettlements]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
 
-  const monthlyExpenses = useMemo(() => {
-    const now = new Date();
-    const thisMonth = expenses.filter(expense => {
-      try {
-        const expenseDate = new Date(expense.date);
-        if (isNaN(expenseDate.getTime())) return false;
-        return expenseDate.getMonth() === now.getMonth() && 
-               expenseDate.getFullYear() === now.getFullYear();
-      } catch {
-        return false;
-      }
-    });
-    return thisMonth.reduce((sum, expense) => sum + expense.amount, 0);
-  }, [expenses]);
+  const monthlyData = useMemo(() => {
+    return getMonthlyExpenses(selectedYear, selectedMonth);
+  }, [expenses, selectedYear, selectedMonth]);
+
+  const totalApartmentExpenses = useMemo(() => {
+    return getTotalApartmentExpenses(selectedYear, selectedMonth);
+  }, [expenses, selectedYear, selectedMonth]);
 
   const formatCurrency = (amount: number) => {
-    return `₪${amount.toFixed(0)}`;
+    // Show exact amount with up to 2 decimal places, no rounding
+    if (amount === Math.floor(amount)) {
+      return `₪${amount}`;
+    }
+    return `₪${amount.toFixed(2)}`;
   };
 
   const formatDate = (date: Date | string) => {
@@ -103,76 +105,95 @@ export default function BudgetScreen() {
     return currentApartment?.members.find(m => m.id === userId)?.name || 'לא ידוע';
   };
 
-  const handleSettleDebt = (fromUserId: string, toUserId: string, amount: number) => {
-    setSettlementFromUser(fromUserId);
-    setSettlementToUser(toUserId);
-    setSettlementOriginalAmount(amount);
-    setSettlementAmount(amount.toString());
-    setShowSettlementModal(true);
+  // Helper function to get month name in Hebrew
+  const getMonthName = (month: number) => {
+    const months = [
+      'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
+      'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
+    ];
+    return months[month];
   };
 
-  const confirmSettlement = () => {
-    const amount = parseFloat(settlementAmount);
-    if (!amount || amount <= 0 || amount > settlementOriginalAmount) {
-      Alert.alert('שגיאה', 'הכנס סכום תקין');
-      return;
+  // Helper function to calculate net personal balance summary
+  const getPersonalBalanceSummary = () => {
+    if (!myBalance) return { status: 'balanced', amount: 0, message: 'אין חובות פתוחים' };
+    
+    if (Math.abs(myBalance.netBalance) < 0.01) {
+      return { status: 'balanced', amount: 0, message: 'אין חובות פתוחים' };
     }
-
-    addDebtSettlement(
-      settlementFromUser,
-      settlementToUser,
-      amount,
-      `סילוק חוב`
-    );
-
-    setShowSettlementModal(false);
-    setSettlementAmount('');
-    setSettlementFromUser('');
-    setSettlementToUser('');
-    setSettlementOriginalAmount(0);
+    
+    if (myBalance.netBalance > 0) {
+      return { 
+        status: 'owed', 
+        amount: myBalance.netBalance, 
+        message: `חייבים לך ${formatCurrency(myBalance.netBalance)}` 
+      };
+    } else {
+      return { 
+        status: 'owes', 
+        amount: Math.abs(myBalance.netBalance), 
+        message: `אתה חייב ${formatCurrency(Math.abs(myBalance.netBalance))}` 
+      };
+    }
   };
 
-  const renderExpenseItem = ({ item: expense }: { item: any }) => (
-    <View className="bg-white rounded-xl p-4 mb-3 shadow-sm">
-      <View className="flex-row items-center justify-between mb-2">
-        <View className="flex-row items-center">
-          <View className="bg-gray-100 w-10 h-10 rounded-full items-center justify-center">
-            <Ionicons 
-              name={CATEGORY_ICONS[expense.category as keyof typeof CATEGORY_ICONS]} 
-              size={20} 
-              color="#6b7280" 
-            />
+  const personalSummary = getPersonalBalanceSummary();
+
+  const renderExpenseItem = ({ item: expense }: { item: any }) => {
+    const personalShare = expense.amount / expense.participants.length;
+    const isParticipant = currentUser && expense.participants.includes(currentUser.id);
+    const isPayer = currentUser && expense.paidBy === currentUser.id;
+    
+    return (
+      <View className="bg-white rounded-xl p-4 mb-3 shadow-sm">
+        <View className="flex-row items-center justify-between mb-2">
+          <View className="flex-row items-center flex-1">
+            <View className="bg-gray-100 w-10 h-10 rounded-full items-center justify-center">
+              <Ionicons 
+                name={CATEGORY_ICONS[expense.category as keyof typeof CATEGORY_ICONS]} 
+                size={20} 
+                color="#6b7280" 
+              />
+            </View>
+            <View className="mr-3 flex-1">
+              <Text className="text-gray-900 font-medium">
+                {expense.title}
+              </Text>
+              <Text className="text-sm text-gray-500">
+                {CATEGORY_NAMES[expense.category as keyof typeof CATEGORY_NAMES]} • {formatDate(expense.date)}
+              </Text>
+              {isParticipant && (
+                <Text className={cn(
+                  "text-sm font-medium mt-1",
+                  isPayer ? "text-green-600" : "text-blue-600"
+                )}>
+                  {isPayer ? `שילמת: ${formatCurrency(expense.amount)}` : `החלק שלך: ${formatCurrency(personalShare)}`}
+                </Text>
+              )}
+            </View>
           </View>
-          <View className="mr-3">
-            <Text className="text-gray-900 font-medium">
-              {expense.title}
+          
+          <View className="items-end">
+            <Text className="text-lg font-semibold text-gray-900">
+              {formatCurrency(expense.amount)}
             </Text>
             <Text className="text-sm text-gray-500">
-              {CATEGORY_NAMES[expense.category as keyof typeof CATEGORY_NAMES]} • {formatDate(expense.date)}
+              שילם: {getUserName(expense.paidBy)}
             </Text>
           </View>
         </View>
         
-        <View className="items-end">
-          <Text className="text-lg font-semibold text-gray-900">
-            {formatCurrency(expense.amount)}
-          </Text>
-          <Text className="text-sm text-gray-500">
-            שילם: {getUserName(expense.paidBy)}
-          </Text>
-        </View>
+        {expense.participants.length > 1 && (
+          <View className="flex-row items-center mt-2">
+            <Ionicons name="people-outline" size={16} color="#6b7280" />
+            <Text className="text-sm text-gray-500 mr-2">
+              {expense.participants.length} משתתפים • {formatCurrency(personalShare)} לאחד
+            </Text>
+          </View>
+        )}
       </View>
-      
-      {expense.participants.length > 1 && (
-        <View className="flex-row items-center mt-2">
-          <Ionicons name="people-outline" size={16} color="#6b7280" />
-          <Text className="text-sm text-gray-500 mr-2">
-            {expense.participants.length} משתתפים • {formatCurrency(expense.amount / expense.participants.length)} לאחד
-          </Text>
-        </View>
-      )}
-    </View>
-  );
+    );
+  };
 
   if (!currentUser || !currentApartment) {
     return (
@@ -187,7 +208,7 @@ export default function BudgetScreen() {
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-2xl font-bold text-gray-900">
-            תקציב הדירה
+            מאזן והוצאות
           </Text>
           <Pressable
             onPress={() => navigation.navigate('AddExpense')}
@@ -197,129 +218,143 @@ export default function BudgetScreen() {
           </Pressable>
         </View>
         
-        <Text className="text-gray-600">
-          הוצאות החודש: {formatCurrency(monthlyExpenses)}
-        </Text>
+        {/* Month Selector */}
+        <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl mb-4">
+          <Pressable
+            onPress={() => {
+              if (selectedMonth === 0) {
+                setSelectedMonth(11);
+                setSelectedYear(selectedYear - 1);
+              } else {
+                setSelectedMonth(selectedMonth - 1);
+              }
+            }}
+            className="w-8 h-8 rounded-full bg-white items-center justify-center"
+          >
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+          </Pressable>
+          
+          <Text className="text-lg font-semibold text-gray-900">
+            {getMonthName(selectedMonth)} {selectedYear}
+          </Text>
+          
+          <Pressable
+            onPress={() => {
+              if (selectedMonth === 11) {
+                setSelectedMonth(0);
+                setSelectedYear(selectedYear + 1);
+              } else {
+                setSelectedMonth(selectedMonth + 1);
+              }
+            }}
+            className="w-8 h-8 rounded-full bg-white items-center justify-center"
+          >
+            <Ionicons name="chevron-back" size={20} color="#6b7280" />
+          </Pressable>
+        </View>
+        
+        {/* Summary */}
+        <View className="flex-row justify-between">
+          <View>
+            <Text className="text-sm text-gray-600">
+              סה״כ הוצאות הדירה
+            </Text>
+            <Text className="text-xl font-bold text-gray-900">
+              {formatCurrency(totalApartmentExpenses)}
+            </Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-sm text-gray-600">
+              החלק שלך החודש
+            </Text>
+            <Text className="text-xl font-bold text-blue-600">
+              {formatCurrency(monthlyData.personalTotal)}
+            </Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView className="flex-1 px-6 py-6">
-        {/* My Balance Card */}
+        {/* Personal Balance Summary */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            המצב שלי
-          </Text>
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-lg font-semibold text-gray-900">
+              המצב שלי
+            </Text>
+            
+            <Pressable
+              onPress={() => navigation.navigate('GroupDebts')}
+              className="bg-blue-100 py-2 px-4 rounded-lg flex-row items-center"
+            >
+              <Ionicons name="people-outline" size={16} color="#3b82f6" />
+              <Text className="text-blue-700 text-sm font-medium mr-2">
+                הצגת כל החובות
+              </Text>
+            </Pressable>
+          </View>
           
           <View className="items-center">
-            <Text className="text-3xl font-bold mb-2" style={{
-              color: (myBalance?.netBalance ?? 0) >= 0 ? '#10b981' : '#ef4444'
-            }}>
-              {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
-            </Text>
-            
-            <Text className="text-gray-600 text-center">
-              {(myBalance?.netBalance ?? 0) >= 0 ? 'מגיע לך' : 'אתה חייב'}
-            </Text>
-          </View>
-
-          {myBalance && (
-            <View className="mt-4">
-              {/* Who owes me */}
-              {Object.entries(myBalance.owed).filter(([_, amount]) => amount > 0).map(([userId, amount]) => (
-                <View key={`owed-${userId}`} className="flex-row justify-between items-center py-2">
-                  <View className="flex-1">
-                    <Text className="text-gray-700">
-                      {getUserName(userId)} חייב לך
-                    </Text>
-                  </View>
-                  <Text className="text-green-600 font-medium ml-2">
-                    {formatCurrency(amount)}
-                  </Text>
-                  <Pressable
-                    onPress={() => handleSettleDebt(userId, currentUser!.id, amount)}
-                    className="bg-green-100 py-1 px-3 rounded-lg"
-                  >
-                    <Text className="text-green-700 text-sm">סלק</Text>
-                  </Pressable>
-                </View>
-              ))}
-              
-              {/* Who I owe */}
-              {Object.entries(myBalance.owes).filter(([_, amount]) => amount > 0).map(([userId, amount]) => (
-                <View key={`owes-${userId}`} className="flex-row justify-between items-center py-2">
-                  <View className="flex-1">
-                    <Text className="text-gray-700">
-                      אתה חייב ל{getUserName(userId)}
-                    </Text>
-                  </View>
-                  <Text className="text-red-600 font-medium ml-2">
-                    {formatCurrency(amount)}
-                  </Text>
-                  <Pressable
-                    onPress={() => handleSettleDebt(currentUser!.id, userId, amount)}
-                    className="bg-red-100 py-1 px-3 rounded-lg"
-                  >
-                    <Text className="text-red-700 text-sm">סלק</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        {/* All Balances */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            מאזן כולל
-          </Text>
-          
-          {balances.map((balance) => {
-            const user = currentApartment.members.find(m => m.id === balance.userId);
-            const isCurrentUser = balance.userId === currentUser.id;
-            
-            return (
-              <View key={balance.userId} className="flex-row justify-between items-center py-3">
-                <Text className={cn(
-                  "font-medium",
-                  isCurrentUser ? "text-blue-700" : "text-gray-700"
-                )}>
-                  {user?.name} {isCurrentUser && '(אתה)'}
+            {personalSummary.status === 'balanced' ? (
+              <>
+                <Ionicons name="checkmark-circle" size={48} color="#10b981" />
+                <Text className="text-xl font-bold text-green-600 mt-2 mb-1">
+                  כל החובות מסולקים! 🎉
+                </Text>
+                <Text className="text-gray-600 text-center">
+                  {personalSummary.message}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text className="text-3xl font-bold mb-2" style={{
+                  color: personalSummary.status === 'owed' ? '#10b981' : '#ef4444'
+                }}>
+                  {formatCurrency(personalSummary.amount)}
                 </Text>
                 
-                <Text className={cn(
-                  "font-semibold",
-                  balance.netBalance >= 0 ? "text-green-600" : "text-red-600"
-                )}>
-                  {balance.netBalance >= 0 ? '+' : ''}{formatCurrency(balance.netBalance)}
+                <Text className="text-gray-600 text-center text-lg">
+                  {personalSummary.message}
                 </Text>
-              </View>
-            );
-          })}
+                
+                {personalSummary.status === 'owed' && (
+                  <Text className="text-sm text-gray-500 mt-2 text-center">
+                    💰 כסף שמגיע לך מהשותפים
+                  </Text>
+                )}
+                {personalSummary.status === 'owes' && (
+                  <Text className="text-sm text-gray-500 mt-2 text-center">
+                    💳 סכום שאתה חייב לשותפים
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
         </View>
 
-        {/* Recent Expenses */}
+        {/* Monthly Expenses */}
         <View className="mb-6">
           <Text className="text-lg font-semibold text-gray-900 mb-4">
-            הוצאות אחרונות
+            הוצאות {getMonthName(selectedMonth)}
           </Text>
           
-          {expenses.length === 0 ? (
+          {monthlyData.expenses.length === 0 ? (
             <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
-              <Ionicons name="wallet-outline" size={48} color="#6b7280" />
+              <Ionicons name="calendar-outline" size={48} color="#6b7280" />
               <Text className="text-gray-600 text-center mt-4 mb-4">
-                עדיין אין הוצאות
+                אין הוצאות ב{getMonthName(selectedMonth)}
               </Text>
               <Pressable
                 onPress={() => navigation.navigate('AddExpense')}
                 className="bg-blue-500 py-2 px-6 rounded-xl"
               >
                 <Text className="text-white font-medium">
-                  הוסף הוצאה ראשונה
+                  הוסף הוצאה
                 </Text>
               </Pressable>
             </View>
           ) : (
             <FlatList
-              data={expenses.slice().reverse()}
+              data={monthlyData.expenses.slice().reverse()}
               renderItem={renderExpenseItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
@@ -327,63 +362,6 @@ export default function BudgetScreen() {
           )}
         </View>
       </ScrollView>
-
-      {/* Debt Settlement Modal */}
-      {showSettlementModal && (
-        <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">
-              סילוק חוב
-            </Text>
-            
-            <Text className="text-gray-600 text-center mb-4">
-              חוב מקורי: {formatCurrency(settlementOriginalAmount)}
-            </Text>
-            <Text className="text-gray-600 text-center mb-4">
-              {getUserName(settlementFromUser)} ← {getUserName(settlementToUser)}
-            </Text>
-
-            <Text className="text-gray-700 mb-2">סכום לסילוק:</Text>
-            <View className="flex-row items-center mb-6">
-              <TextInput
-                value={settlementAmount}
-                onChangeText={setSettlementAmount}
-                placeholder="0"
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
-                keyboardType="numeric"
-                textAlign="center"
-              />
-              <Text className="text-gray-700 text-lg mr-3">₪</Text>
-            </View>
-
-            <View className="flex-row">
-              <Pressable
-                onPress={() => {
-                  setShowSettlementModal(false);
-                  setSettlementAmount('');
-                  setSettlementFromUser('');
-                  setSettlementToUser('');
-                  setSettlementOriginalAmount(0);
-                }}
-                className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
-              >
-                <Text className="text-gray-700 font-medium text-center">
-                  ביטול
-                </Text>
-              </Pressable>
-              
-              <Pressable
-                onPress={confirmSettlement}
-                className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
-              >
-                <Text className="text-white font-medium text-center">
-                  אישור סילוק
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   );
 }

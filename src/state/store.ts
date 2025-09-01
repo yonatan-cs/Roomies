@@ -93,8 +93,11 @@ interface AppState {
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
   loadExpenses: () => Promise<void>;
   loadDebtSettlements: () => Promise<void>;
-  addDebtSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => void;
+  addDebtSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
   getBalances: () => Balance[];
+  getSimplifiedBalances: () => Balance[];
+  getMonthlyExpenses: (year: number, month: number) => { expenses: Expense[], total: number, personalTotal: number };
+  getTotalApartmentExpenses: (year: number, month: number) => number;
 
   // Actions - Shopping
   addShoppingItem: (name: string, userId: string) => Promise<void>;
@@ -698,16 +701,33 @@ export const useStore = create<AppState>()(
       },
 
       // Expense actions
-      addDebtSettlement: (fromUserId, toUserId, amount, description) => {
-        const settlement: DebtSettlement = {
-          id: uuidv4(),
-          fromUserId,
-          toUserId,
-          amount,
-          date: new Date(),
-          description,
-        };
-        set((state) => ({ debtSettlements: [...state.debtSettlements, settlement] }));
+      addDebtSettlement: async (fromUserId, toUserId, amount, description) => {
+        try {
+          const settlement: DebtSettlement = {
+            id: uuidv4(),
+            fromUserId,
+            toUserId,
+            amount,
+            date: new Date(),
+            description,
+          };
+
+          // Add to Firestore (if service supports it)
+          try {
+            // For now, add locally and sync later when Firestore service is ready
+            set((state) => ({ debtSettlements: [...state.debtSettlements, settlement] }));
+            
+            // TODO: Implement Firestore debt settlement saving
+            // await firestoreService.addDebtSettlement(settlement);
+          } catch (firestoreError) {
+            console.warn('Failed to save debt settlement to Firestore, saved locally:', firestoreError);
+            // Still save locally even if Firestore fails
+            set((state) => ({ debtSettlements: [...state.debtSettlements, settlement] }));
+          }
+        } catch (error) {
+          console.error('Error adding debt settlement:', error);
+          throw error;
+        }
       },
 
       getBalances: () => {
@@ -735,7 +755,8 @@ export const useStore = create<AppState>()(
             if (!paidBy || typeof paidBy !== 'string') return; // skip expenses with unknown payer
             if (validParticipants.length === 0) return; // nothing to split
 
-            const perPersonAmount = expense.amount / validParticipants.length;
+            // Use precise calculation to avoid rounding errors
+            const perPersonAmount = Math.round((expense.amount / validParticipants.length) * 100) / 100;
 
             // Ensure payer exists in balances
             ensure(paidBy);
@@ -753,8 +774,8 @@ export const useStore = create<AppState>()(
                 balances[paidBy].owed[participantId] = 0;
               }
 
-              balances[participantId].owes[paidBy] += perPersonAmount;
-              balances[paidBy].owed[participantId] += perPersonAmount;
+              balances[participantId].owes[paidBy] = Math.round((balances[participantId].owes[paidBy] + perPersonAmount) * 100) / 100;
+              balances[paidBy].owed[participantId] = Math.round((balances[paidBy].owed[participantId] + perPersonAmount) * 100) / 100;
             });
           } catch (e) {
             console.warn('Error processing expense for balance calculation:', e);
@@ -772,27 +793,172 @@ export const useStore = create<AppState>()(
           ensure(toUserId);
 
           if (balances[fromUserId].owes[toUserId] != null) {
-            balances[fromUserId].owes[toUserId] -= amount;
-            if (balances[fromUserId].owes[toUserId] <= 0) {
+            balances[fromUserId].owes[toUserId] = Math.round((balances[fromUserId].owes[toUserId] - amount) * 100) / 100;
+            if (balances[fromUserId].owes[toUserId] <= 0.01) { // Allow for small rounding errors
               delete balances[fromUserId].owes[toUserId];
             }
           }
           if (balances[toUserId].owed[fromUserId] != null) {
-            balances[toUserId].owed[fromUserId] -= amount;
-            if (balances[toUserId].owed[fromUserId] <= 0) {
+            balances[toUserId].owed[fromUserId] = Math.round((balances[toUserId].owed[fromUserId] - amount) * 100) / 100;
+            if (balances[toUserId].owed[fromUserId] <= 0.01) { // Allow for small rounding errors
               delete balances[toUserId].owed[fromUserId];
             }
           }
         });
 
-        // Calculate net balances
+        // Calculate net balances between users (eliminate duplicate debts)
+        const userIds = Object.keys(balances);
+        for (let i = 0; i < userIds.length; i++) {
+          for (let j = i + 1; j < userIds.length; j++) {
+            const user1 = userIds[i];
+            const user2 = userIds[j];
+            
+            const user1OwesUser2 = balances[user1].owes[user2] || 0;
+            const user2OwesUser1 = balances[user2].owes[user1] || 0;
+            
+            if (user1OwesUser2 > 0 && user2OwesUser1 > 0) {
+              // Net out the debts
+              const netAmount = Math.round((user1OwesUser2 - user2OwesUser1) * 100) / 100;
+              
+              // Clear both debts
+              delete balances[user1].owes[user2];
+              delete balances[user1].owed[user2];
+              delete balances[user2].owes[user1];
+              delete balances[user2].owed[user1];
+              
+              // Set the net debt
+              if (netAmount > 0.01) {
+                balances[user1].owes[user2] = netAmount;
+                balances[user2].owed[user1] = netAmount;
+              } else if (netAmount < -0.01) {
+                balances[user2].owes[user1] = Math.abs(netAmount);
+                balances[user1].owed[user2] = Math.abs(netAmount);
+              }
+            }
+          }
+        }
+
+        // Calculate final net balances
         Object.values(balances).forEach((balance) => {
           const totalOwed = Object.values(balance.owed).reduce((sum, amount) => sum + amount, 0);
           const totalOwes = Object.values(balance.owes).reduce((sum, amount) => sum + amount, 0);
-          balance.netBalance = totalOwed - totalOwes;
+          balance.netBalance = Math.round((totalOwed - totalOwes) * 100) / 100;
         });
 
         return Object.values(balances);
+      },
+
+      // Simplified balances using debt simplification algorithm
+      getSimplifiedBalances: () => {
+        const balances = get().getBalances();
+        const simplified: { [userId: string]: Balance } = {};
+        
+        // Initialize simplified balances
+        balances.forEach(balance => {
+          simplified[balance.userId] = {
+            userId: balance.userId,
+            owes: {},
+            owed: {},
+            netBalance: balance.netBalance
+          };
+        });
+
+        // Create a list of all debts
+        const debts: Array<{ from: string, to: string, amount: number }> = [];
+        balances.forEach(balance => {
+          Object.entries(balance.owes).forEach(([toUserId, amount]) => {
+            if (amount > 0.01) {
+              debts.push({ from: balance.userId, to: toUserId, amount });
+            }
+          });
+        });
+
+        // Apply debt simplification algorithm
+        // This is a simplified version - for complex scenarios, use more advanced algorithms
+        const userNetBalances: { [userId: string]: number } = {};
+        balances.forEach(balance => {
+          userNetBalances[balance.userId] = balance.netBalance;
+        });
+
+        // Sort users by net balance (creditors first, then debtors)
+        const sortedUsers = Object.keys(userNetBalances).sort((a, b) => userNetBalances[b] - userNetBalances[a]);
+        
+        // Simplify debts by matching creditors with debtors
+        const creditors = sortedUsers.filter(userId => userNetBalances[userId] > 0.01);
+        const debtors = sortedUsers.filter(userId => userNetBalances[userId] < -0.01);
+
+        creditors.forEach(creditor => {
+          let remainingCredit = userNetBalances[creditor];
+          
+          debtors.forEach(debtor => {
+            if (remainingCredit > 0.01 && userNetBalances[debtor] < -0.01) {
+              const debtAmount = Math.abs(userNetBalances[debtor]);
+              const transferAmount = Math.min(remainingCredit, debtAmount);
+              
+              if (transferAmount > 0.01) {
+                // Round to 2 decimal places
+                const roundedAmount = Math.round(transferAmount * 100) / 100;
+                
+                simplified[debtor].owes[creditor] = roundedAmount;
+                simplified[creditor].owed[debtor] = roundedAmount;
+                
+                remainingCredit -= roundedAmount;
+                userNetBalances[debtor] += roundedAmount;
+              }
+            }
+          });
+        });
+
+        return Object.values(simplified);
+      },
+
+      // Get monthly expenses with detailed breakdown
+      getMonthlyExpenses: (year: number, month: number) => {
+        const { expenses, currentUser } = get();
+        
+        const monthlyExpenses = expenses.filter(expense => {
+          try {
+            const expenseDate = new Date(expense.date);
+            if (isNaN(expenseDate.getTime())) return false;
+            return expenseDate.getMonth() === month && expenseDate.getFullYear() === year;
+          } catch {
+            return false;
+          }
+        });
+
+        const total = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+        
+        // Calculate personal total (expenses where current user participated)
+        const personalTotal = monthlyExpenses
+          .filter(expense => currentUser && expense.participants.includes(currentUser.id))
+          .reduce((sum, expense) => {
+            const personalShare = expense.amount / expense.participants.length;
+            return sum + personalShare;
+          }, 0);
+
+        return {
+          expenses: monthlyExpenses,
+          total: Math.round(total * 100) / 100,
+          personalTotal: Math.round(personalTotal * 100) / 100
+        };
+      },
+
+      // Get total apartment expenses for a specific month
+      getTotalApartmentExpenses: (year: number, month: number) => {
+        const { expenses } = get();
+        
+        const monthlyExpenses = expenses.filter(expense => {
+          try {
+            const expenseDate = new Date(expense.date);
+            if (isNaN(expenseDate.getTime())) return false;
+            return expenseDate.getMonth() === month && expenseDate.getFullYear() === year;
+          } catch {
+            return false;
+          }
+        });
+
+        const total = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+        return Math.round(total * 100) / 100;
       },
 
       // Shopping actions

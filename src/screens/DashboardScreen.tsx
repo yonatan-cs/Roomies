@@ -135,7 +135,13 @@ export default function DashboardScreen() {
     return currentApartment.members.find(member => member.id === cleaningTask.currentTurn);
   };
 
-  const formatCurrency = (amount: number) => `₪${amount.toFixed(0)}`;
+  const formatCurrency = (amount: number) => {
+    // Show exact amount with up to 2 decimal places, no rounding
+    if (amount === Math.floor(amount)) {
+      return `₪${amount}`;
+    }
+    return `₪${amount.toFixed(2)}`;
+  };
   
   const formatDate = (date: Date | string) => {
     try {
