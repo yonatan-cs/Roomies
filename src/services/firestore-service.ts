@@ -1580,6 +1580,7 @@ export class FirestoreService {
           id: uid,
           email: fields.email?.stringValue,
           full_name: fields.full_name?.stringValue,
+          display_name: fields.display_name?.stringValue,
           displayName: fields.displayName?.stringValue,
           name: fields.name?.stringValue,
         };
@@ -1899,13 +1900,24 @@ export class FirestoreService {
       // 5. Combine everything
       const completeData = {
         ...apartment,
-        members: membersWithProfiles.map(member => ({
-          id: member.user_id,
-          email: member.profile.email || '',
-          name: member.profile.full_name || member.profile.name || member.profile.displayName || 'אורח',
-          role: member.role,
-          current_apartment_id: ensuredApartmentId,
-        }))
+        members: membersWithProfiles.map(member => {
+          // Use the same priority order as getDisplayName utility
+          const displayName = member.profile.display_name || 
+                             member.profile.displayName || 
+                             member.profile.full_name || 
+                             member.profile.name || 
+                             member.profile.email || 
+                             'אורח';
+          
+          return {
+            id: member.user_id,
+            email: member.profile.email || '',
+            name: displayName,
+            display_name: displayName, // Add for consistency
+            role: member.role,
+            current_apartment_id: ensuredApartmentId,
+          };
+        })
       };
       
       console.log('✅ Complete apartment data:', completeData);

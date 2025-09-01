@@ -90,6 +90,7 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
         id: authUser.localId,
         email: authUser.email,
         name: fullName.trim(),
+        display_name: fullName.trim(),
         phone: phone.trim(),
       };
 
