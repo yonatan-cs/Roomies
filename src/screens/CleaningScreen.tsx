@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../state/store';
@@ -17,39 +17,42 @@ export default function CleaningScreen() {
   const [showNotYourTurn, setShowNotYourTurn] = useState(false);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [showConfirmDone, setShowConfirmDone] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
   const currentApartment = useStore((s) => s.currentApartment);
   const cleaningTask = useStore((s) => s.cleaningTask);
-  const cleaningChecklist = useStore((s) => s.cleaningChecklist);
-  const cleaningCompletions = useStore((s) => s.cleaningCompletions);
   const initializeCleaning = useStore((s) => s.initializeCleaning);
-  const markCleaned = useStore((s) => s.markCleaned);
-  const addCleaningTask = useStore((s) => s.addCleaningTask);
-  const toggleCleaningTask = useStore((s) => s.toggleCleaningTask);
-  const renameCleaningTask = useStore((s) => s.renameCleaningTask);
-  const removeCleaningTask = useStore((s) => s.removeCleaningTask);
   const checkOverdueTasks = useStore((s) => s.checkOverdueTasks);
   const cleaningSettings = useStore((s) => s.cleaningSettings);
   
-  // New live functionality
+  // New Firestore-based functionality
   const checklistItems = useStore((s) => s.checklistItems);
   const isMyCleaningTurn = useStore((s) => s.isMyCleaningTurn);
   const loadCleaningChecklist = useStore((s) => s.loadCleaningChecklist);
+  const completeChecklistItem = useStore((s) => s.completeChecklistItem);
+  const uncompleteChecklistItem = useStore((s) => s.uncompleteChecklistItem);
+  const addChecklistItem = useStore((s) => s.addChecklistItem);
+  const finishCleaningTurn = useStore((s) => s.finishCleaningTurn);
 
   // Initialize cleaning if not exists and check for overdue tasks
   useEffect(() => {
-    if (currentApartment && currentApartment.members.length > 0 && !cleaningTask) {
-      initializeCleaning();
-    }
-    checkOverdueTasks();
+    const initialize = async () => {
+      if (currentApartment && currentApartment.members.length > 0 && !cleaningTask) {
+        await initializeCleaning();
+      }
+      await checkOverdueTasks();
+    };
+    
+    initialize();
   }, [currentApartment, cleaningTask, initializeCleaning, checkOverdueTasks]);
 
   // Load checklist data when screen comes into focus (for live updates)
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
+      let pollInterval: NodeJS.Timeout | null = null;
       
       const loadData = async () => {
         if (isActive) {
@@ -57,36 +60,42 @@ export default function CleaningScreen() {
         }
       };
 
+      // Load data immediately
       loadData();
 
-      // Live updates: polling every 4 seconds when screen is focused
-      const interval = setInterval(() => {
-        if (isActive) {
-          loadCleaningChecklist();
-        }
-      }, 4000);
+      // Smart polling: only poll when it's not my turn (to see live updates from others)
+      if (!isMyCleaningTurn && checklistItems.length > 0) {
+        pollInterval = setInterval(() => {
+          if (isActive) {
+            loadCleaningChecklist();
+          }
+        }, 5000); // Poll every 5 seconds when watching others
+      }
 
       return () => {
         isActive = false;
-        clearInterval(interval);
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
       };
-    }, [loadCleaningChecklist])
+    }, [loadCleaningChecklist, isMyCleaningTurn, checklistItems.length])
   );
 
-  const isMyTurn = currentUser && cleaningTask && cleaningTask.currentTurn === currentUser.id;
+  // Use the unified turn check from the store
+  const isMyTurn = isMyCleaningTurn;
 
-  const handleMarkCleaned = () => {
-    if (!currentUser || !cleaningTask) return;
+  const handleMarkCleaned = async () => {
+    if (!currentUser) return;
 
     if (!isMyTurn) {
       setShowNotYourTurn(true);
       return;
     }
 
-    const currentTaskCompletions = cleaningCompletions.filter((c) => c.taskId === cleaningTask.id);
-    const completedTasks = currentTaskCompletions.filter((c) => c.completed);
+    // Check if all checklist items are completed using the new system
+    const completedTasks = checklistItems.filter(item => item.completed);
 
-    if (completedTasks.length < cleaningChecklist.length) {
+    if (completedTasks.length < checklistItems.length) {
       setShowIncomplete(true);
       return;
     }
@@ -94,38 +103,67 @@ export default function CleaningScreen() {
     setShowConfirmDone(true);
   };
 
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (!newTaskName.trim()) return;
-    addCleaningTask(newTaskName.trim());
-    setNewTaskName('');
+    
+    try {
+      await addChecklistItem(newTaskName.trim());
+      setNewTaskName('');
+    } catch (error) {
+      console.error('Error adding task:', error);
+      // Could show error message to user
+    }
   };
 
-  const handleToggleTask = (taskId: string, completed: boolean) => {
-    toggleCleaningTask(taskId, completed);
+  const handleToggleTask = async (taskId: string, completed: boolean) => {
+    try {
+      if (completed) {
+        await completeChecklistItem(taskId);
+      } else {
+        await uncompleteChecklistItem(taskId);
+      }
+    } catch (error) {
+      console.error('Error toggling task:', error);
+      // Could show error message to user
+    }
+  };
+
+  const handleFinishTurn = async () => {
+    try {
+      await finishCleaningTurn();
+      setShowConfirmDone(false);
+    } catch (error) {
+      console.error('Error finishing turn:', error);
+      // Could show error message to user
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadCleaningChecklist(),
+        checkOverdueTasks()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const getTaskCompletion = (taskId: string) => {
-    if (!cleaningTask) return false;
-    const completion = cleaningCompletions.find(
-      (c) => c.taskId === cleaningTask.id && c.checklistItemId === taskId
-    );
-    return completion?.completed || false;
+    // Use the new checklistItems system
+    const item = checklistItems.find(item => item.id === taskId);
+    return item?.completed || false;
   };
 
   // Enhanced completion percentage that shows live updates from other users
   const getCompletionPercentage = () => {
-    if (!cleaningTask) return 0;
+    if (checklistItems.length === 0) return 0;
     
-    // If we have live checklist items, use them for more accurate progress
-    if (checklistItems.length > 0) {
-      const completedTasks = checklistItems.filter(item => item.completed);
-      return Math.round((completedTasks.length / checklistItems.length) * 100);
-    }
-    
-    // Fallback to local completions
-    const currentTaskCompletions = cleaningCompletions.filter((c) => c.taskId === cleaningTask.id);
-    const completedTasks = currentTaskCompletions.filter((c) => c.completed);
-    return Math.round((completedTasks.length / Math.max(cleaningChecklist.length, 1)) * 100);
+    const completedTasks = checklistItems.filter(item => item.completed);
+    return Math.round((completedTasks.length / checklistItems.length) * 100);
   };
 
   const isOverdue = () => {
@@ -141,12 +179,15 @@ export default function CleaningScreen() {
 
   const getCurrentTurnUser = () => {
     if (!cleaningTask || !currentApartment) return null;
-    return currentApartment.members.find((member) => member.id === cleaningTask.currentTurn) || null;
+    // Use the currentTurn field from the local type
+    const currentTurnUserId = cleaningTask.currentTurn;
+    return currentApartment.members.find((member) => member.id === currentTurnUserId) || null;
   };
 
   const getNextInQueue = (): User[] => {
     if (!cleaningTask || !currentApartment) return [];
-    const currentIndex = cleaningTask.queue.indexOf(cleaningTask.currentTurn);
+    const currentTurnUserId = cleaningTask.currentTurn;
+    const currentIndex = cleaningTask.queue.indexOf(currentTurnUserId);
     const nextUsers: User[] = [];
     for (let i = 1; i < cleaningTask.queue.length; i++) {
       const nextIndex = (currentIndex + i) % cleaningTask.queue.length;
@@ -214,7 +255,12 @@ export default function CleaningScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-6 py-6">
+      <ScrollView 
+        className="flex-1 px-6 py-6"
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Current Turn Card */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <View className="items-center">
@@ -316,12 +362,12 @@ export default function CleaningScreen() {
               <Text className="text-lg font-semibold text-gray-900">רשימת משימות ניקיון</Text>
             </View>
 
-            {cleaningChecklist.map((task) => {
-              const isCompleted = getTaskCompletion(task.id);
-              const isEditing = renameTaskId === task.id;
+            {checklistItems.map((item) => {
+              const isCompleted = item.completed;
+              const isEditing = renameTaskId === item.id;
               return (
-                <View key={task.id} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
-                  <Pressable onPress={() => handleToggleTask(task.id, !isCompleted)} className={cn('w-6 h-6 rounded border-2 items-center justify-center ml-3', isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-300')}>
+                <View key={item.id} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
+                  <Pressable onPress={() => handleToggleTask(item.id, !isCompleted)} className={cn('w-6 h-6 rounded border-2 items-center justify-center ml-3', isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-300')}>
                     {isCompleted && <Ionicons name="checkmark" size={16} color="white" />}
                   </Pressable>
                   {isEditing ? (
@@ -332,7 +378,7 @@ export default function CleaningScreen() {
                       textAlign="right"
                       onSubmitEditing={() => {
                         if (renameTaskName.trim()) {
-                          renameCleaningTask(task.id, renameTaskName.trim());
+                          // TODO: Implement rename functionality for checklist items
                           setRenameTaskId(null);
                           setRenameTaskName('');
                         } else {
@@ -342,14 +388,17 @@ export default function CleaningScreen() {
                       returnKeyType="done"
                     />
                   ) : (
-                    <Text className={cn('flex-1 text-base', isCompleted ? 'text-gray-500 line-through' : 'text-gray-900')}>{task.name}</Text>
+                    <Text className={cn('flex-1 text-base', isCompleted ? 'text-gray-500 line-through' : 'text-gray-900')}>{item.title}</Text>
                   )}
                   {!isEditing ? (
                     <View className="flex-row">
-                      <Pressable onPress={() => { setRenameTaskId(task.id); setRenameTaskName(task.name); }} className="p-2 mr-1">
+                      <Pressable onPress={() => { setRenameTaskId(item.id); setRenameTaskName(item.title); }} className="p-2 mr-1">
                         <Ionicons name="pencil" size={18} color="#6b7280" />
                       </Pressable>
-                      <Pressable onPress={() => removeCleaningTask(task.id)} className="p-2">
+                      <Pressable onPress={() => {
+                        // TODO: Implement remove functionality for checklist items
+                        console.log('Remove item:', item.id);
+                      }} className="p-2">
                         <Ionicons name="trash" size={18} color="#ef4444" />
                       </Pressable>
                     </View>
@@ -425,10 +474,7 @@ export default function CleaningScreen() {
         message="האם באמת השלמת את כל משימות הניקיון?"
         confirmText="כן, סיימתי!"
         cancelText="ביטול"
-        onConfirm={() => {
-          if (currentUser) markCleaned(currentUser.id);
-          setShowConfirmDone(false);
-        }}
+        onConfirm={handleFinishTurn}
         onCancel={() => setShowConfirmDone(false)}
       />
     </View>

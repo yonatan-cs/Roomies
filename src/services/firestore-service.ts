@@ -2465,6 +2465,76 @@ export class FirestoreService {
 
   // ===== CLEANING CHECKLIST FUNCTIONS =====
 
+  // Idempotent checklist seeding configuration
+  private readonly CHECKLIST_TEMPLATE_VERSION = 1;
+  private readonly DEFAULT_CHECKLIST_TITLES: string[] = [
+    'ניקוי מטבח',
+    'שטיפת רצפות',
+    'ניקוי שירותים',
+    'פינוי אשפה',
+    'אבק רהיטים',
+  ];
+
+  private slugifyChecklistTitle(input: string): string {
+    return String(input)
+      .normalize('NFKD')
+      .replace(/\s+/g, '-')
+      .replace(/[^\w\-]/g, '')
+      .toLowerCase();
+  }
+
+  /**
+   * Ensure checklist is seeded once per apartment (idempotent)
+   */
+  private async ensureChecklistSeeded(aptId: string, idToken: string): Promise<void> {
+    try {
+      // 1) Ensure cleaning task exists
+      const taskUrl = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}`;
+      let taskRes = await fetch(taskUrl, { method: 'GET', headers: H(idToken) });
+      if (taskRes.status === 404) {
+        try {
+          await this.createCleaningTask(aptId);
+        } catch {}
+        taskRes = await fetch(taskUrl, { method: 'GET', headers: H(idToken) });
+      }
+
+      if (!taskRes.ok) return; // skip silently
+      const taskDoc = await taskRes.json().catch(() => null);
+      const currentVersion = Number(taskDoc?.fields?.checklist_seed_version?.integerValue || 0);
+      if (currentVersion >= this.CHECKLIST_TEMPLATE_VERSION) return; // already seeded
+
+      // 2) Seed deterministic docs (upsert-like via documentId)
+      for (let i = 0; i < this.DEFAULT_CHECKLIST_TITLES.length; i++) {
+        const title = this.DEFAULT_CHECKLIST_TITLES[i];
+        const deterministicId = `tpl_${this.slugifyChecklistTitle(title)}_${i}`;
+        const colUrl = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}/checklistItems?documentId=${encodeURIComponent(deterministicId)}`;
+        const body = {
+          fields: {
+            title: { stringValue: title },
+            apartment_id: { stringValue: aptId },
+            cleaning_task_id: { stringValue: aptId },
+            created_at: { timestampValue: new Date().toISOString() },
+            template_key: { stringValue: deterministicId },
+            completed: { booleanValue: false },
+          }
+        };
+        const createRes = await fetch(colUrl, { method: 'POST', headers: H(idToken), body: JSON.stringify(body) });
+        // If already exists (409) or created (200), continue. Otherwise log and continue.
+        if (!createRes.ok && createRes.status !== 409) {
+          try { console.warn('CHECKLIST_SEED_CREATE_SKIPPED', deterministicId, await createRes.text()); } catch {}
+        }
+      }
+
+      // 3) Mark seed version on parent task
+      const verPatchUrl = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?updateMask.fieldPaths=checklist_seed_version`;
+      const verBody = { fields: { checklist_seed_version: { integerValue: String(this.CHECKLIST_TEMPLATE_VERSION) } } };
+      await fetch(verPatchUrl, { method: 'PATCH', headers: H(idToken), body: JSON.stringify(verBody) }).catch(() => {});
+    } catch (e) {
+      // Non-fatal
+      console.warn('ensureChecklistSeeded failed (non-fatal)', e);
+    }
+  }
+
   /**
    * Get all checklist items for current apartment (always all items)
    */
@@ -2474,6 +2544,9 @@ export class FirestoreService {
       
       // Ensure current apartment ID matches for security rules
       await ensureCurrentApartmentIdMatches(aptId);
+
+      // Seed checklist once per apartment (idempotent, deterministic IDs)
+      await this.ensureChecklistSeeded(aptId, idToken);
 
       const parentPath = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}`;
       
@@ -2581,32 +2654,8 @@ export class FirestoreService {
         return items;
       }
 
-      const items = normalizeChecklistResults(rows);
-
-      // If no items exist, create default ones
-      if (items.length === 0) {
-        console.log("No checklist items found, creating default ones...");
-        const defaultItems = [
-          "ניקוי מטבח",
-          "שטיפת רצפות", 
-          "ניקוי שירותים",
-          "פינוי אשפה",
-          "אבק רהיטים"
-        ];
-        
-        for (let i = 0; i < defaultItems.length; i++) {
-          try {
-            await this.addChecklistItem(defaultItems[i], i);
-          } catch (error) {
-            console.error(`Error creating default item ${i}:`, error);
-          }
-        }
-        
-        // Return the newly created items
-        return this.getCleaningChecklist();
-      }
-
-      return items;
+              const items = normalizeChecklistResults(rows);
+        return items;
     } catch (error) {
       console.error("Error getting cleaning checklist:", error);
       return [];
