@@ -12,8 +12,6 @@ import {
   Balance,
   ExpenseCategory,
   CleaningHistory,
-  CleaningChecklist,
-  CleaningTaskCompletion,
   DebtSettlement,
   CleaningSettings,
   ChecklistItem,
@@ -50,13 +48,9 @@ interface AppState {
   currentUser?: User;
   currentApartment?: Apartment;
 
-  // Cleaning
+  // Cleaning (Firestore-based system only)
   cleaningTask?: CleaningTask;
-  cleaningChecklist: CleaningChecklist[];
-  cleaningCompletions: CleaningTaskCompletion[];
   cleaningSettings: CleaningSettings;
-  
-  // New checklist items (Firestore-based)
   checklistItems: ChecklistItem[];
   isMyCleaningTurn: boolean;
   _loadingChecklist: boolean;
@@ -75,14 +69,9 @@ interface AppState {
   refreshApartmentMembers: () => Promise<void>;
 
   // Actions - Cleaning
-  initializeCleaning: () => void;
+  initializeCleaning: () => Promise<void>;
   updateQueueFromMembers: () => void;
-  markCleaned: (userId: string) => void;
-  addCleaningTask: (name: string) => void;
-  renameCleaningTask: (taskId: string, newName: string) => void;
-  removeCleaningTask: (taskId: string) => void;
-  toggleCleaningTask: (taskId: string, completed: boolean) => void;
-  checkOverdueTasks: () => void;
+  checkOverdueTasks: () => Promise<void>;
 
   // Cleaning settings
   setCleaningIntervalDays: (days: number) => void;
@@ -124,21 +113,14 @@ export const useStore = create<AppState>()(
       expenses: [],
       debtSettlements: [],
       shoppingItems: [],
-      cleaningChecklist: [
-        { id: '1', name: 'ניקוי מטבח', isDefault: true, isCompleted: false },
-        { id: '2', name: 'שטיפת רצפות', isDefault: true, isCompleted: false },
-        { id: '3', name: 'ניקוי שירותים', isDefault: true, isCompleted: false },
-        { id: '4', name: 'פינוי אשפה', isDefault: true, isCompleted: false },
-        { id: '5', name: 'אבק רהיטים', isDefault: true, isCompleted: false },
-      ],
-      cleaningCompletions: [],
+      cleaningTask: undefined,
       cleaningSettings: {
         intervalDays: 7,
         anchorDow: 0, // Sunday
         preferredDayByUser: {},
       },
       
-      // New checklist state
+      // Checklist state (Firestore-based)
       checklistItems: [],
       isMyCleaningTurn: false,
       _loadingChecklist: false,
@@ -388,13 +370,26 @@ export const useStore = create<AppState>()(
       },
 
       completeChecklistItem: async (itemId: string) => {
-        const { isMyCleaningTurn, checklistItems } = get();
-        if (!isMyCleaningTurn) return; // Protected by both UI and Firestore rules
+        const state = get();
+        const { isMyCleaningTurn, checklistItems, currentUser } = state;
+        
+        // Enhanced security check
+        if (!isMyCleaningTurn || !currentUser) {
+          console.warn('Cannot complete checklist item: not your turn or no user');
+          return;
+        }
+
+        // Find the item to ensure it exists
+        const item = checklistItems.find(it => it.id === itemId);
+        if (!item) {
+          console.warn('Cannot complete checklist item: item not found');
+          return;
+        }
 
         // Optimistic: mark locally immediately
         set({
           checklistItems: checklistItems.map(it =>
-            it.id === itemId ? { ...it, completed: true } : it
+            it.id === itemId ? { ...it, completed: true, completed_by: currentUser.id } : it
           )
         });
 
@@ -404,19 +399,32 @@ export const useStore = create<AppState>()(
           await get().loadCleaningChecklist();
         } catch (error) {
           console.error('Error completing checklist item:', error);
-          // Rollback if needed (optional)
+          // Rollback on error
           set({ checklistItems });
         }
       },
 
       uncompleteChecklistItem: async (itemId: string) => {
-        const { isMyCleaningTurn, checklistItems } = get();
-        if (!isMyCleaningTurn) return;
+        const state = get();
+        const { isMyCleaningTurn, checklistItems, currentUser } = state;
+        
+        // Enhanced security check
+        if (!isMyCleaningTurn || !currentUser) {
+          console.warn('Cannot uncomplete checklist item: not your turn or no user');
+          return;
+        }
+
+        // Find the item to ensure it exists
+        const item = checklistItems.find(it => it.id === itemId);
+        if (!item) {
+          console.warn('Cannot uncomplete checklist item: item not found');
+          return;
+        }
 
         // Optimistic: unmark locally immediately
         set({
           checklistItems: checklistItems.map(it =>
-            it.id === itemId ? { ...it, completed: false } : it
+            it.id === itemId ? { ...it, completed: false, completed_by: null, completed_at: null } : it
           )
         });
 
@@ -426,14 +434,28 @@ export const useStore = create<AppState>()(
           await get().loadCleaningChecklist();
         } catch (error) {
           console.error('Error uncompleting checklist item:', error);
-          // Rollback if needed
+          // Rollback on error
           set({ checklistItems });
         }
       },
 
       addChecklistItem: async (title: string, order?: number) => {
+        const state = get();
+        const { isMyCleaningTurn, currentUser } = state;
+        
+        // Enhanced security check - only allow adding items if it's your turn
+        if (!isMyCleaningTurn || !currentUser) {
+          console.warn('Cannot add checklist item: not your turn or no user');
+          throw new Error('Not authorized to add checklist items');
+        }
+
+        if (!title.trim()) {
+          console.warn('Cannot add checklist item: empty title');
+          throw new Error('Title cannot be empty');
+        }
+
         try {
-          const newItem = await firestoreService.addChecklistItem(title, order);
+          await firestoreService.addChecklistItem(title.trim(), order);
           // Reload to get the new item with proper ID
           await get().loadCleaningChecklist();
         } catch (error) {
@@ -443,6 +465,22 @@ export const useStore = create<AppState>()(
       },
 
       finishCleaningTurn: async () => {
+        const state = get();
+        const { isMyCleaningTurn, currentUser, checklistItems } = state;
+        
+        // Enhanced security check
+        if (!isMyCleaningTurn || !currentUser) {
+          console.warn('Cannot finish cleaning turn: not your turn or no user');
+          throw new Error('Not authorized to finish cleaning turn');
+        }
+
+        // Check if all items are completed
+        const completedItems = checklistItems.filter(item => item.completed);
+        if (completedItems.length < checklistItems.length) {
+          console.warn('Cannot finish cleaning turn: not all items completed');
+          throw new Error('Cannot finish turn: not all cleaning tasks are completed');
+        }
+
         try {
           // Reset all checklist items first
           await firestoreService.resetAllChecklistItems();
@@ -460,25 +498,34 @@ export const useStore = create<AppState>()(
       },
 
       // Cleaning actions
-      initializeCleaning: () => {
-        const state = get();
-        const apt = state.currentApartment;
-        if (!apt || apt.members.length === 0) return;
+      initializeCleaning: async () => {
+        try {
+          const state = get();
+          const apt = state.currentApartment;
+          if (!apt || apt.members.length === 0) return;
 
-        const userIds = apt.members.map((m) => m.id);
-        const { intervalDays, anchorDow } = state.cleaningSettings;
-        const { periodEnd } = computePeriodBounds(new Date(), anchorDow, intervalDays);
-
-        const cleaningTask: CleaningTask = {
-          id: uuidv4(),
-          currentTurn: userIds[0],
-          queue: [...userIds],
-          dueDate: periodEnd,
-          intervalDays,
-          status: 'pending',
-          history: [],
-        };
-        set({ cleaningTask, cleaningCompletions: [] });
+          // Try to get existing task from Firestore, or create if doesn't exist
+          const task = await firestoreService.getCleaningTask();
+          if (task) {
+            // Task exists, load it into state
+            set({ 
+              cleaningTask: {
+                id: task.id,
+                currentTurn: task.user_id || apt.members[0]?.id,
+                queue: task.queue && task.queue.length > 0 ? task.queue : apt.members.map(m => m.id),
+                dueDate: new Date(), // TODO: Calculate proper due date
+                intervalDays: state.cleaningSettings.intervalDays,
+                status: 'pending' as const,
+                history: [],
+              }
+            });
+          }
+          
+          // Also load the checklist
+          await get().loadCleaningChecklist();
+        } catch (error) {
+          console.error('Error initializing cleaning:', error);
+        }
       },
 
       updateQueueFromMembers: () => {
@@ -550,143 +597,21 @@ export const useStore = create<AppState>()(
         }
       },
 
-      markCleaned: (userId) => {
-        const state = get();
-        const task = state.cleaningTask;
-        if (!task) return;
 
-        // Ensure all checklist items completed
-        const currentTaskCompletions = state.cleaningCompletions.filter((c) => c.taskId === task.id);
-        const completedTasks = currentTaskCompletions.filter((c) => c.completed);
-        if (completedTasks.length < state.cleaningChecklist.length) return;
 
-        const history: CleaningHistory = {
-          id: uuidv4(),
-          userId,
-          cleanedAt: new Date(),
-          status: 'completed',
-        };
+      checkOverdueTasks: async () => {
+        try {
+          // Load current task from Firestore to check if overdue
+          const task = await firestoreService.getCleaningTask();
+          if (!task || !task.last_completed_at) return;
 
-        const currentIndex = task.queue.indexOf(userId);
-        const nextIndex = (currentIndex + 1) % task.queue.length;
-        const { intervalDays, anchorDow } = state.cleaningSettings;
-        const { periodEnd } = computePeriodBounds(new Date(), anchorDow, intervalDays);
-
-        const completedTask: CleaningTask = {
-          ...task,
-          status: 'completed',
-          lastCleaned: new Date(),
-          lastCleanedBy: userId,
-          history: [...task.history, history],
-        };
-
-        const newTask: CleaningTask = {
-          id: uuidv4(),
-          currentTurn: task.queue[nextIndex],
-          queue: [...task.queue],
-          dueDate: periodEnd,
-          intervalDays,
-          status: 'pending',
-          history: [...completedTask.history],
-        };
-
-        set({ cleaningTask: newTask, cleaningCompletions: [] });
-      },
-
-      addCleaningTask: (name) => {
-        const newTask: CleaningChecklist = {
-          id: uuidv4(),
-          name,
-          isDefault: false,
-          isCompleted: false,
-        };
-        set((state) => ({ cleaningChecklist: [...state.cleaningChecklist, newTask] }));
-      },
-
-      renameCleaningTask: (taskId, newName) => {
-        set((state) => ({
-          cleaningChecklist: state.cleaningChecklist.map((t) =>
-            t.id === taskId ? { ...t, name: newName } : t
-          ),
-        }));
-      },
-
-      removeCleaningTask: (taskId) => {
-        set((state) => ({
-          cleaningChecklist: state.cleaningChecklist.filter((t) => t.id !== taskId),
-          cleaningCompletions: state.cleaningCompletions.filter((c) => c.checklistItemId !== taskId),
-        }));
-      },
-
-      toggleCleaningTask: (taskId, completed) => {
-        const state = get();
-        if (!state.cleaningTask) return;
-
-        const existingCompletion = state.cleaningCompletions.find(
-          (c) => c.taskId === state.cleaningTask!.id && c.checklistItemId === taskId
-        );
-
-        if (existingCompletion) {
-          // Update existing completion
-          set((state) => ({
-            cleaningCompletions: state.cleaningCompletions.map((c) =>
-              c.id === existingCompletion.id ? { ...c, completed } : c
-            ),
-          }));
-        } else {
-          // Create new completion
-          const newCompletion: CleaningTaskCompletion = {
-            id: uuidv4(),
-            taskId: state.cleaningTask.id,
-            checklistItemId: taskId,
-            completed,
-          };
-          set((state) => ({
-            cleaningCompletions: [...state.cleaningCompletions, newCompletion],
-          }));
-        }
-      },
-
-      checkOverdueTasks: () => {
-        const state = get();
-        const task = state.cleaningTask;
-        if (!task || task.status !== 'pending' || !task.dueDate) return;
-
-        const now = new Date();
-        const dueDate = new Date(task.dueDate);
-        if (isNaN(dueDate.getTime())) return;
-
-        if (now > dueDate) {
-          // skipped
-          const history: CleaningHistory = {
-            id: uuidv4(),
-            userId: task.currentTurn,
-            cleanedAt: now,
-            status: 'skipped',
-          };
-
-          const currentIndex = task.queue.indexOf(task.currentTurn);
-          const nextIndex = (currentIndex + 1) % task.queue.length;
-          const { intervalDays, anchorDow } = state.cleaningSettings;
-          const { periodEnd } = computePeriodBounds(new Date(), anchorDow, intervalDays);
-
-          const skippedTask: CleaningTask = {
-            ...task,
-            status: 'skipped',
-            history: [...task.history, history],
-          };
-
-          const newTask: CleaningTask = {
-            id: uuidv4(),
-            currentTurn: task.queue[nextIndex],
-            queue: [...task.queue],
-            dueDate: periodEnd,
-            intervalDays,
-            status: 'pending',
-            history: [...skippedTask.history],
-          };
-
-          set({ cleaningTask: newTask, cleaningCompletions: [] });
+          // For now, just log - the actual overdue logic should be handled by Firestore
+          console.log('Checking overdue tasks for task:', task.id);
+          
+          // TODO: Implement overdue logic with Firestore if needed
+          // This might involve checking against a due_date field in Firestore
+        } catch (error) {
+          console.error('Error checking overdue tasks:', error);
         }
       },
 
@@ -1009,9 +934,8 @@ export const useStore = create<AppState>()(
         currentUser: state.currentUser,
         currentApartment: state.currentApartment,
         cleaningTask: state.cleaningTask,
-        cleaningChecklist: state.cleaningChecklist,
-        cleaningCompletions: state.cleaningCompletions,
         cleaningSettings: state.cleaningSettings,
+        checklistItems: state.checklistItems,
         expenses: state.expenses,
         debtSettlements: state.debtSettlements,
         shoppingItems: state.shoppingItems,

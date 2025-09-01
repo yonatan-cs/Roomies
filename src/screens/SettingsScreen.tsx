@@ -18,10 +18,8 @@ export default function SettingsScreen() {
     cleaningSettings,
     setCleaningIntervalDays,
     setCleaningAnchorDow,
-    cleaningChecklist,
-    addCleaningTask,
-    renameCleaningTask,
-    removeCleaningTask,
+    checklistItems,
+    addChecklistItem,
     refreshApartmentMembers,
   } = useStore();
 
@@ -247,10 +245,10 @@ export default function SettingsScreen() {
         {/* Cleaning Chores */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <Text className="text-lg font-semibold text-gray-900 mb-4">משימות ניקיון</Text>
-          {cleaningChecklist.map((task) => {
-            const isEditing = editingChoreId === task.id;
+          {checklistItems.map((item) => {
+            const isEditing = editingChoreId === item.id;
             return (
-              <View key={task.id} className="flex-row items-center py-2">
+              <View key={item.id} className="flex-row items-center py-2">
                 {isEditing ? (
                   <TextInput
                     value={editingChoreName}
@@ -259,7 +257,7 @@ export default function SettingsScreen() {
                     textAlign="right"
                     onSubmitEditing={() => {
                       if (editingChoreName.trim()) {
-                        renameCleaningTask(task.id, editingChoreName.trim());
+                        // TODO: Implement rename functionality for checklist items
                         setEditingChoreId(null);
                         setEditingChoreName('');
                       } else {
@@ -268,20 +266,23 @@ export default function SettingsScreen() {
                     }}
                   />
                 ) : (
-                  <Text className="flex-1 text-base text-gray-900">{task.name}</Text>
+                  <Text className="flex-1 text-base text-gray-900">{item.title}</Text>
                 )}
                 {!isEditing ? (
                   <View className="flex-row ml-2">
                     <Pressable
                       onPress={() => {
-                        setEditingChoreId(task.id);
-                        setEditingChoreName(task.name);
+                        setEditingChoreId(item.id);
+                        setEditingChoreName(item.title);
                       }}
                       className="p-2"
                     >
                       <Ionicons name="pencil" size={18} color="#6b7280" />
                     </Pressable>
-                    <Pressable onPress={() => removeCleaningTask(task.id)} className="p-2">
+                    <Pressable onPress={() => {
+                      // TODO: Implement remove functionality for checklist items
+                      console.log('Remove item:', item.id);
+                    }} className="p-2">
                       <Ionicons name="trash" size={18} color="#ef4444" />
                     </Pressable>
                   </View>
@@ -307,18 +308,26 @@ export default function SettingsScreen() {
               placeholder="הוסף משימה חדשה..."
               className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
               textAlign="right"
-              onSubmitEditing={() => {
+              onSubmitEditing={async () => {
                 if (!newChore.trim()) return;
-                addCleaningTask(newChore.trim());
-                setNewChore('');
+                try {
+                  await addChecklistItem(newChore.trim());
+                  setNewChore('');
+                } catch (error) {
+                  console.error('Error adding checklist item:', error);
+                }
               }}
               returnKeyType="done"
             />
             <Pressable
-              onPress={() => {
+              onPress={async () => {
                 if (!newChore.trim()) return;
-                addCleaningTask(newChore.trim());
-                setNewChore('');
+                try {
+                  await addChecklistItem(newChore.trim());
+                  setNewChore('');
+                } catch (error) {
+                  console.error('Error adding checklist item:', error);
+                }
               }}
               className="bg-blue-500 w-12 h-12 rounded-xl items-center justify-center mr-3"
             >
@@ -342,7 +351,7 @@ export default function SettingsScreen() {
                   cleaningTask: undefined,
                   expenses: [],
                   shoppingItems: [],
-                  cleaningCompletions: [],
+                  checklistItems: [],
                 });
               } catch (error) {
                 console.error('Sign out error:', error);
@@ -382,7 +391,7 @@ export default function SettingsScreen() {
               cleaningTask: undefined,
               expenses: [],
               shoppingItems: [],
-              cleaningCompletions: [],
+              checklistItems: [],
             });
             
             // Update current user to remove apartment reference
