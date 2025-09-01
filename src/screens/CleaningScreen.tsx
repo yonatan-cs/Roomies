@@ -18,6 +18,7 @@ export default function CleaningScreen() {
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [showConfirmDone, setShowConfirmDone] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
@@ -465,7 +466,18 @@ export default function CleaningScreen() {
         )}
       </ScrollView>
 
-
+      {/* Debug info when there's an issue */}
+      {!isMyTurn && currentUser && cleaningTask && (
+        <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mx-6 mb-4">
+          <Text className="text-yellow-800 text-sm font-medium mb-2">🔍 מידע דיבוג:</Text>
+          <Text className="text-yellow-700 text-xs">
+            התור הנוכחי: {cleaningTask.currentTurn || (cleaningTask as any).user_id || 'לא מוגדר'}{'\n'}
+            המשתמש שלך: {currentUser.id}{'\n'}
+            תור שלך: {isMyTurn ? 'כן' : 'לא'}{'\n'}
+            פריטים: {checklistItems.length}
+          </Text>
+        </View>
+      )}
 
       {/* Modals */}
       <ConfirmModal visible={showNotYourTurn} title="לא התור שלך" message="כרגע זה לא התור שלך לנקות" confirmText="הבנתי" cancelText="" onConfirm={() => setShowNotYourTurn(false)} onCancel={() => setShowNotYourTurn(false)} />
@@ -480,7 +492,18 @@ export default function CleaningScreen() {
         onCancel={() => setShowConfirmDone(false)}
       />
       
-
+      {/* Error message modal */}
+      {errorMessage && (
+        <ConfirmModal
+          visible={!!errorMessage}
+          title="שגיאה"
+          message={errorMessage}
+          confirmText="הבנתי"
+          cancelText=""
+          onConfirm={() => setErrorMessage(null)}
+          onCancel={() => setErrorMessage(null)}
+        />
+      )}
     </View>
   );
 }

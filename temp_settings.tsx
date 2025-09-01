@@ -20,7 +20,7 @@ export default function SettingsScreen() {
     setCleaningAnchorDow,
     checklistItems,
     addChecklistItem,
-    cleanupDuplicateChecklistItems,
+    removeChecklistItem,
     refreshApartmentMembers,
   } = useStore();
 
@@ -248,32 +248,28 @@ export default function SettingsScreen() {
         </View>
 
         {/* Cleaning Chores */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-lg font-semibold text-gray-900">משימות ניקיון ({checklistItems.length})</Text>
-            <Pressable 
-              onPress={async () => {
-                try {
-                  await cleanupDuplicateChecklistItems();
-                  Alert.alert('הצלחה', 'כפילויות נוקו בהצלחה!');
-                } catch (error) {
-                  console.error('Cleanup error:', error);
-                  Alert.alert('שגיאה', 'לא ניתן לנקות כפילויות');
-                }
-              }}
-              className="bg-orange-100 px-3 py-2 rounded-lg"
-            >
-              <Text className="text-orange-600 text-sm font-medium">נקה כפילויות</Text>
-            </Pressable>
+            {checklistItems.length > 10           <View className="flex-row items-center justify-between mb-4">          <View className="flex-row items-center justify-between mb-4"> (
+              <Pressable 
+                onPress={async () => {
+                  try {
+                    await firestoreService.cleanupChecklistDuplicates();
+                    const { loadCleaningChecklist } = useStore.getState();
+                    await loadCleaningChecklist();
+                    Alert.alert("הצלחה", `כפילויות נוקו! עכשיו יש ${useStore.getState().checklistItems.length} משימות`);
+                  } catch (error) {
+                    console.error("Cleanup error:", error);
+                    Alert.alert("שגיאה", "לא ניתן לנקות כפילויות: " + (error as Error).message);
+                  }
+                }}
+                className="bg-red-100 px-3 py-2 rounded-lg"
+              >
+                <Text className="text-red-600 text-sm font-medium">🧹 נקה כפילויות</Text>
+              </Pressable>
+            )}
           </View>
-          
-          {checklistItems.length > 10 && (
-            <View className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4">
-              <Text className="text-yellow-800 text-sm">
-                ⚠️ יש {checklistItems.length} משימות - זה יכול להצביע על כפילויות. לחץ על "נקה כפילויות" למעלה.
-              </Text>
-            </View>
-          )}
+          <Text className="text-lg font-semibold text-gray-900 mb-4">משימות ניקיון</Text>
           {checklistItems.map((item) => {
             const isEditing = editingChoreId === item.id;
             return (
@@ -308,9 +304,13 @@ export default function SettingsScreen() {
                     >
                       <Ionicons name="pencil" size={18} color="#6b7280" />
                     </Pressable>
-                    <Pressable onPress={() => {
-                      // TODO: Implement remove functionality for checklist items
-                      console.log('Remove item:', item.id);
+                    <Pressable onPress={async () => {
+                      try {
+                        await removeChecklistItem(item.id);
+                      } catch (error) {
+                        console.error('Error removing checklist item:', error);
+                        Alert.alert('שגיאה', 'לא ניתן למחוק את המשימה');
+                      }
                     }} className="p-2">
                       <Ionicons name="trash" size={18} color="#ef4444" />
                     </Pressable>

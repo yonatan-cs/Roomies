@@ -2294,7 +2294,12 @@ export class FirestoreService {
           last_completed_by: f.last_completed_by?.stringValue ?? null,
         };
         
-
+        console.log('🔍 Firestore task debug:', {
+          taskId: task.id,
+          currentUserId: task.user_id,
+          queue: task.queue,
+          apartmentId: task.apartment_id
+        });
         
         return task;
       }
@@ -2908,71 +2913,6 @@ export class FirestoreService {
       }
     } catch (error) {
       console.error("Error resetting checklist items:", error);
-      throw error;
-    }
-  }
-
-  /**
-   * Remove a checklist item
-   */
-  async removeChecklistItem(itemId: string): Promise<void> {
-    try {
-      const { uid, idToken, aptId } = await getApartmentContext();
-      await ensureCurrentApartmentIdMatches(aptId);
-
-      // Find the document path for this item
-      const queryBody = {
-        structuredQuery: {
-          from: [{ collectionId: 'checklistItems', allDescendants: true }],
-          where: {
-            compositeFilter: {
-              op: 'AND',
-              filters: [
-                { fieldFilter: { field: { fieldPath: 'apartment_id' }, op: 'EQUAL', value: { stringValue: aptId } } },
-                { fieldFilter: { field: { fieldPath: 'cleaning_task_id' }, op: 'EQUAL', value: { stringValue: aptId } } },
-              ],
-            },
-          },
-          limit: 500
-        }
-      };
-
-      const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
-        method: 'POST',
-        headers: H(idToken),
-        body: JSON.stringify(queryBody),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Query failed: ${response.status}`);
-      }
-
-      const rows = await response.json();
-      const itemDoc = rows.find((row: any) => {
-        const doc = row.document;
-        if (!doc) return false;
-        const docId = doc.name.split('/').pop();
-        return docId === itemId;
-      });
-
-      if (!itemDoc) {
-        throw new Error('Checklist item not found');
-      }
-
-      // Delete the document
-      const docPath = itemDoc.document.name.replace('projects/roomies-hub/databases/(default)/documents/', '');
-      const deleteResponse = await fetch(`${FIRESTORE_BASE_URL}/${docPath}`, {
-        method: 'DELETE',
-        headers: H(idToken),
-      });
-
-      if (!deleteResponse.ok) {
-        throw new Error(`Delete failed: ${deleteResponse.status}`);
-      }
-
-      console.log('✅ Checklist item deleted:', itemId);
-    } catch (error) {
-      console.error('Error removing checklist item:', error);
       throw error;
     }
   }
