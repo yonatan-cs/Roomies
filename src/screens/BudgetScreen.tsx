@@ -231,7 +231,7 @@ export default function BudgetScreen() {
             }}
             className="w-8 h-8 rounded-full bg-white items-center justify-center"
           >
-            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            <Ionicons name="chevron-back" size={20} color="#6b7280" />
           </Pressable>
           
           <Text className="text-lg font-semibold text-gray-900">
@@ -249,7 +249,7 @@ export default function BudgetScreen() {
             }}
             className="w-8 h-8 rounded-full bg-white items-center justify-center"
           >
-            <Ionicons name="chevron-back" size={20} color="#6b7280" />
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
           </Pressable>
         </View>
         
