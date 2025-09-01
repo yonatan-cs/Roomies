@@ -465,6 +465,8 @@ export default function CleaningScreen() {
         )}
       </ScrollView>
 
+
+
       {/* Modals */}
       <ConfirmModal visible={showNotYourTurn} title="לא התור שלך" message="כרגע זה לא התור שלך לנקות" confirmText="הבנתי" cancelText="" onConfirm={() => setShowNotYourTurn(false)} onCancel={() => setShowNotYourTurn(false)} />
       <ConfirmModal visible={showIncomplete} title="משימות לא הושלמו" message="אנא השלם את כל המשימות לפני סיום הניקיון" confirmText="הבנתי" cancelText="" onConfirm={() => setShowIncomplete(false)} onCancel={() => setShowIncomplete(false)} />
@@ -477,6 +479,8 @@ export default function CleaningScreen() {
         onConfirm={handleFinishTurn}
         onCancel={() => setShowConfirmDone(false)}
       />
+      
+
     </View>
   );
 }

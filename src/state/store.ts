@@ -365,13 +365,27 @@ export const useStore = create<AppState>()(
         try {
           const cleaningTaskData = await firestoreService.getCleaningTask();
           if (cleaningTaskData) {
+            const state = get();
+            const { intervalDays, anchorDow } = state.cleaningSettings;
+            
+            // Calculate proper due date based on last completion or current time
+            let dueDate: Date;
+            if (cleaningTaskData.last_completed_at) {
+              const lastCompleted = new Date(cleaningTaskData.last_completed_at);
+              const { periodEnd } = computePeriodBounds(lastCompleted, anchorDow, intervalDays);
+              dueDate = periodEnd;
+            } else {
+              // No previous completion, use current time as baseline
+              const { periodEnd } = computePeriodBounds(new Date(), anchorDow, intervalDays);
+              dueDate = periodEnd;
+            }
+
             const cleaningTask: CleaningTask = {
               id: cleaningTaskData.id || uuidv4(),
               queue: cleaningTaskData.queue || [],
               currentTurn: cleaningTaskData.user_id || cleaningTaskData.queue?.[0] || '',
-              dueDate: cleaningTaskData.last_completed_at ? 
-                new Date(cleaningTaskData.last_completed_at) : new Date(),
-              intervalDays: 7,
+              dueDate,
+              intervalDays,
               lastCleaned: cleaningTaskData.last_completed_at ? 
                 new Date(cleaningTaskData.last_completed_at) : undefined,
               lastCleanedBy: cleaningTaskData.last_completed_by,
@@ -414,9 +428,12 @@ export const useStore = create<AppState>()(
           const task = await firestoreService.getCleaningTask();
           const items = await firestoreService.getCleaningChecklist();
           
+          const currentTurnUserId = getCurrentTurnUserId(task);
+          const isMyTurn = !!(task && currentUser && currentTurnUserId === currentUser.id);
+
           set({
             checklistItems: items,
-            isMyCleaningTurn: !!(task && currentUser && getCurrentTurnUserId(task) === currentUser.id),
+            isMyCleaningTurn: isMyTurn,
           });
         } catch (error) {
           console.error('Error loading checklist:', error);
@@ -552,6 +569,8 @@ export const useStore = create<AppState>()(
           throw error;
         }
       },
+
+
 
       // Cleaning actions
       initializeCleaning: async () => {
