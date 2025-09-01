@@ -19,6 +19,7 @@ export default function ShoppingScreen() {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [purchasePrice, setPurchasePrice] = useState('');
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
 
   const { 
     currentUser, 
@@ -58,6 +59,10 @@ export default function ShoppingScreen() {
             text: 'כן, קניתי',
             onPress: () => {
               setSelectedItemId(itemId);
+              // Default to all apartment members
+              if (currentApartment) {
+                setSelectedParticipants(currentApartment.members.map(m => m.id));
+              }
               setShowPurchaseModal(true);
             }
           },
@@ -79,16 +84,23 @@ export default function ShoppingScreen() {
       return;
     }
 
+    if (selectedParticipants.length === 0) {
+      Alert.alert('שגיאה', 'יש לבחור לפחות משתתף אחד');
+      return;
+    }
+
     markItemPurchased(
       selectedItemId, 
       currentUser.id, 
-      price > 0 ? price : undefined
+      price > 0 ? price : undefined,
+      selectedParticipants
     );
 
     // Close modal and reset state
     setShowPurchaseModal(false);
     setSelectedItemId(null);
     setPurchasePrice('');
+    setSelectedParticipants([]);
   };
 
   const formatDate = (date: Date | string) => {
@@ -273,8 +285,64 @@ export default function ShoppingScreen() {
               <Text className="text-gray-700 text-lg mr-3">₪</Text>
             </View>
 
+            {purchasePrice && parseFloat(purchasePrice) > 0 && (
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-3 text-center">
+                  מי משתתף ברכישה?
+                </Text>
+                
+                <View className="space-y-2">
+                  {currentApartment?.members.map(member => (
+                    <Pressable
+                      key={member.id}
+                      onPress={() => {
+                        setSelectedParticipants(prev => 
+                          prev.includes(member.id)
+                            ? prev.filter(id => id !== member.id)
+                            : [...prev, member.id]
+                        );
+                      }}
+                      className={cn(
+                        "flex-row items-center justify-between p-3 rounded-xl border",
+                        selectedParticipants.includes(member.id)
+                          ? "bg-blue-50 border-blue-200"
+                          : "bg-gray-50 border-gray-200"
+                      )}
+                    >
+                      <Text className={cn(
+                        "font-medium",
+                        selectedParticipants.includes(member.id)
+                          ? "text-blue-700"
+                          : "text-gray-700"
+                      )}>
+                        {member.name} {member.id === currentUser?.id && '(אתה)'}
+                      </Text>
+                      
+                      <View className={cn(
+                        "w-5 h-5 rounded-full border-2 items-center justify-center",
+                        selectedParticipants.includes(member.id)
+                          ? "bg-blue-500 border-blue-500"
+                          : "border-gray-300"
+                      )}>
+                        {selectedParticipants.includes(member.id) && (
+                          <Ionicons name="checkmark" size={12} color="white" />
+                        )}
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+                
+                <Text className="text-xs text-gray-500 text-center mt-2">
+                  ההוצאה תחולק שווה בשווה בין המשתתפים
+                </Text>
+              </View>
+            )}
+
             <Text className="text-sm text-gray-500 text-center mb-6">
-              אם תכניס מחיר, ההוצאה תתווסף אוטומטית לתקציב
+              {purchasePrice && parseFloat(purchasePrice) > 0 
+                ? "ההוצאה תתווסף אוטומטית לתקציב"
+                : "אם תכניס מחיר, ההוצאה תתווסף אוטומטית לתקציב"
+              }
             </Text>
 
             <View className="flex-row space-x-3">
@@ -283,6 +351,7 @@ export default function ShoppingScreen() {
                   setShowPurchaseModal(false);
                   setSelectedItemId(null);
                   setPurchasePrice('');
+                  setSelectedParticipants([]);
                 }}
                 className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
               >

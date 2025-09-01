@@ -240,6 +240,15 @@ export default function BudgetScreen() {
           
           <Pressable
             onPress={() => {
+              const now = new Date();
+              const currentMonth = now.getMonth();
+              const currentYear = now.getFullYear();
+              
+              // Don't allow going to future months
+              if (selectedYear > currentYear || (selectedYear === currentYear && selectedMonth >= currentMonth)) {
+                return;
+              }
+              
               if (selectedMonth === 11) {
                 setSelectedMonth(0);
                 setSelectedYear(selectedYear + 1);
@@ -247,9 +256,34 @@ export default function BudgetScreen() {
                 setSelectedMonth(selectedMonth + 1);
               }
             }}
-            className="w-8 h-8 rounded-full bg-white items-center justify-center"
+            className={cn(
+              "w-8 h-8 rounded-full items-center justify-center",
+              (() => {
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                const canGoForward = !(selectedYear > currentYear || (selectedYear === currentYear && selectedMonth >= currentMonth));
+                return canGoForward ? "bg-white" : "bg-gray-200";
+              })()
+            )}
+            disabled={(() => {
+              const now = new Date();
+              const currentMonth = now.getMonth();
+              const currentYear = now.getFullYear();
+              return selectedYear > currentYear || (selectedYear === currentYear && selectedMonth >= currentMonth);
+            })()}
           >
-            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            <Ionicons 
+              name="chevron-forward" 
+              size={20} 
+              color={(() => {
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                const canGoForward = !(selectedYear > currentYear || (selectedYear === currentYear && selectedMonth >= currentMonth));
+                return canGoForward ? "#6b7280" : "#d1d5db";
+              })()} 
+            />
           </Pressable>
         </View>
         
