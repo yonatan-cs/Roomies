@@ -11,6 +11,7 @@ import ShoppingScreen from '../screens/ShoppingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
+import GroupDebtsScreen from '../screens/GroupDebtsScreen';
 
 import { useStore } from '../state/store';
 import { getApartmentContext } from '../services/firestore-service';
@@ -59,7 +60,7 @@ function MainTabs() {
       <Tab.Screen 
         name="Budget" 
         component={BudgetScreen}
-        options={{ title: 'תקציב' }}
+        options={{ title: 'מאזן' }}
       />
       <Tab.Screen 
         name="Shopping" 
@@ -141,6 +142,13 @@ export default function AppNavigator() {
               headerShown: true,
               title: 'הוספת הוצאה',
               headerTitleAlign: 'center'
+            }}
+          />
+          <Stack.Screen 
+            name="GroupDebts" 
+            component={GroupDebtsScreen}
+            options={{ 
+              headerShown: false
             }}
           />
         </>
