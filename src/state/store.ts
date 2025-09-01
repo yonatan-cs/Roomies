@@ -104,10 +104,9 @@ interface AppState {
   // New checklist actions (Firestore-based)
   loadCleaningChecklist: () => Promise<void>;
   completeChecklistItem: (itemId: string) => Promise<void>;
-  uncompleteChecklistItem: (itemId: string) => Promise<void>;
-  addChecklistItem: (title: string, order?: number) => Promise<void>;
-  finishCleaningTurn: () => Promise<void>;
-  cleanupDuplicateChecklistItems: () => Promise<void>;
+      uncompleteChecklistItem: (itemId: string) => Promise<void>;
+    addChecklistItem: (title: string, order?: number) => Promise<void>;
+    finishCleaningTurn: () => Promise<void>;
 }
 
 export const useStore = create<AppState>()(
@@ -582,16 +581,7 @@ export const useStore = create<AppState>()(
         }
       },
 
-      cleanupDuplicateChecklistItems: async () => {
-        try {
-          await firestoreService.cleanupChecklistDuplicates();
-          // Reload checklist after cleanup
-          await get().loadCleaningChecklist();
-        } catch (error) {
-          console.error('Error cleaning up duplicates:', error);
-          throw error;
-        }
-      },
+      
 
       // Cleaning actions
       initializeCleaning: async () => {
