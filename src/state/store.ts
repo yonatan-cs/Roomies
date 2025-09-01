@@ -102,7 +102,7 @@ interface AppState {
   // Actions - Shopping
   addShoppingItem: (name: string, userId: string) => Promise<void>;
   loadShoppingItems: () => Promise<void>;
-  markItemPurchased: (itemId: string, userId: string, price?: number) => Promise<void>;
+  markItemPurchased: (itemId: string, userId: string, price?: number, participants?: string[]) => Promise<void>;
   removeShoppingItem: (itemId: string) => void;
 
   // Actions - Cleaning (Firestore-based)
@@ -278,10 +278,43 @@ export const useStore = create<AppState>()(
         }
       },
 
-      markItemPurchased: async (itemId, userId, price) => {
+      markItemPurchased: async (itemId, userId, price, participants) => {
         try {
+          // First, get the item details before marking as purchased
+          const { shoppingItems, currentApartment } = get();
+          const item = shoppingItems.find(i => i.id === itemId);
+          
+          if (!item) {
+            throw new Error('Shopping item not found');
+          }
+
+          // Mark item as purchased in Firestore
           await firestoreService.markShoppingItemPurchased(itemId, userId, price);
+          
+          // Create expense if price is provided
+          if (price && price > 0 && currentApartment) {
+            // Use provided participants or default to all apartment members
+            const participantIds = participants && participants.length > 0 
+              ? participants 
+              : currentApartment.members.map(member => member.id);
+            
+            await get().addExpense({
+              title: item.name,
+              amount: price,
+              paidBy: userId,
+              participants: participantIds,
+              category: 'groceries',
+              description: `רכישה מרשימת הקניות`
+            });
+          }
+          
+          // Reload shopping items to reflect changes
           await get().loadShoppingItems();
+          
+          // If expense was created, also reload expenses
+          if (price && price > 0) {
+            await get().loadExpenses();
+          }
         } catch (error) {
           console.error('Error marking item purchased:', error);
           throw error;
