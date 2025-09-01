@@ -106,8 +106,8 @@ interface AppState {
   completeChecklistItem: (itemId: string) => Promise<void>;
   uncompleteChecklistItem: (itemId: string) => Promise<void>;
   addChecklistItem: (title: string, order?: number) => Promise<void>;
-  removeChecklistItem: (itemId: string) => Promise<void>;
   finishCleaningTurn: () => Promise<void>;
+  cleanupDuplicateChecklistItems: () => Promise<void>;
 }
 
 export const useStore = create<AppState>()(
@@ -429,8 +429,19 @@ export const useStore = create<AppState>()(
           const task = await firestoreService.getCleaningTask();
           const items = await firestoreService.getCleaningChecklist();
           
+          // Debug logging to help identify the issue
           const currentTurnUserId = getCurrentTurnUserId(task);
           const isMyTurn = !!(task && currentUser && currentTurnUserId === currentUser.id);
+          
+          console.log('🔍 Turn check debug:', {
+            taskExists: !!task,
+            currentUserExists: !!currentUser,
+            currentTurnUserId,
+            currentUserId: currentUser?.id,
+            isMyTurn,
+            taskUserField: task?.user_id,
+            taskCurrentTurn: task?.currentTurn
+          });
 
           set({
             checklistItems: items,
@@ -571,13 +582,13 @@ export const useStore = create<AppState>()(
         }
       },
 
-      removeChecklistItem: async (itemId: string) => {
+      cleanupDuplicateChecklistItems: async () => {
         try {
-          await firestoreService.removeChecklistItem(itemId);
-          // Reload checklist after removal
+          await firestoreService.cleanupChecklistDuplicates();
+          // Reload checklist after cleanup
           await get().loadCleaningChecklist();
         } catch (error) {
-          console.error('Error removing checklist item:', error);
+          console.error('Error cleaning up duplicates:', error);
           throw error;
         }
       },
