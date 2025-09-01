@@ -20,6 +20,7 @@ export default function SettingsScreen() {
     setCleaningAnchorDow,
     checklistItems,
     addChecklistItem,
+    removeChecklistItem,
     refreshApartmentMembers,
   } = useStore();
 
@@ -43,6 +44,8 @@ export default function SettingsScreen() {
   const [newChore, setNewChore] = useState('');
   const [editingChoreId, setEditingChoreId] = useState<string | null>(null);
   const [editingChoreName, setEditingChoreName] = useState('');
+  const [isAddingChore, setIsAddingChore] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   const handleSaveName = async () => {
     if (!newName.trim() || !currentUser) return;
@@ -285,9 +288,13 @@ export default function SettingsScreen() {
                     >
                       <Ionicons name="pencil" size={18} color="#6b7280" />
                     </Pressable>
-                    <Pressable onPress={() => {
-                      // TODO: Implement remove functionality for checklist items
-                      console.log('Remove item:', item.id);
+                    <Pressable onPress={async () => {
+                      try {
+                        await removeChecklistItem(item.id);
+                      } catch (error) {
+                        console.error('Error removing checklist item:', error);
+                        Alert.alert('שגיאה', 'לא ניתן למחוק את המשימה');
+                      }
                     }} className="p-2">
                       <Ionicons name="trash" size={18} color="#ef4444" />
                     </Pressable>
@@ -316,30 +323,59 @@ export default function SettingsScreen() {
               textAlign="right"
               onSubmitEditing={async () => {
                 if (!newChore.trim()) return;
+                setIsAddingChore(true);
                 try {
                   await addChecklistItem(newChore.trim());
                   setNewChore('');
+                  setShowSuccessMessage(true);
+                  setTimeout(() => setShowSuccessMessage(false), 3000);
                 } catch (error) {
                   console.error('Error adding checklist item:', error);
+                  Alert.alert('שגיאה', 'לא ניתן להוסיף את המשימה');
+                } finally {
+                  setIsAddingChore(false);
                 }
               }}
               returnKeyType="done"
+              editable={!isAddingChore}
             />
             <Pressable
               onPress={async () => {
                 if (!newChore.trim()) return;
+                setIsAddingChore(true);
                 try {
                   await addChecklistItem(newChore.trim());
                   setNewChore('');
+                  setShowSuccessMessage(true);
+                  setTimeout(() => setShowSuccessMessage(false), 3000);
                 } catch (error) {
                   console.error('Error adding checklist item:', error);
+                  Alert.alert('שגיאה', 'לא ניתן להוסיף את המשימה');
+                } finally {
+                  setIsAddingChore(false);
                 }
               }}
-              className="bg-blue-500 w-12 h-12 rounded-xl items-center justify-center mr-3"
+              disabled={isAddingChore}
+              className={`w-12 h-12 rounded-xl items-center justify-center mr-3 ${
+                isAddingChore ? 'bg-gray-400' : 'bg-blue-500'
+              }`}
             >
-              <Ionicons name="add" size={24} color="white" />
+              {isAddingChore ? (
+                <Ionicons name="hourglass" size={24} color="white" />
+              ) : (
+                <Ionicons name="add" size={24} color="white" />
+              )}
             </Pressable>
           </View>
+          
+          {/* Success Message */}
+          {showSuccessMessage && (
+            <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
+              <Text className="text-green-800 text-center font-medium">
+                ✅ המשימה נוספה בהצלחה!
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Danger Zone */}

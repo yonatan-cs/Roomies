@@ -19,6 +19,8 @@ export default function CleaningScreen() {
   const [showConfirmDone, setShowConfirmDone] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [showTaskAddedMessage, setShowTaskAddedMessage] = useState(false);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
@@ -35,6 +37,7 @@ export default function CleaningScreen() {
   const completeChecklistItem = useStore((s) => s.completeChecklistItem);
   const uncompleteChecklistItem = useStore((s) => s.uncompleteChecklistItem);
   const addChecklistItem = useStore((s) => s.addChecklistItem);
+  const removeChecklistItem = useStore((s) => s.removeChecklistItem);
   const finishCleaningTurn = useStore((s) => s.finishCleaningTurn);
 
   // Initialize cleaning if not exists and check for overdue tasks
@@ -107,12 +110,17 @@ export default function CleaningScreen() {
   const handleAddTask = async () => {
     if (!newTaskName.trim()) return;
     
+    setIsAddingTask(true);
     try {
       await addChecklistItem(newTaskName.trim());
       setNewTaskName('');
+      setShowTaskAddedMessage(true);
+      setTimeout(() => setShowTaskAddedMessage(false), 3000);
     } catch (error) {
       console.error('Error adding task:', error);
-      // Could show error message to user
+      setErrorMessage('לא ניתן להוסיף את המשימה');
+    } finally {
+      setIsAddingTask(false);
     }
   };
 
@@ -409,9 +417,13 @@ export default function CleaningScreen() {
                       <Pressable onPress={() => { setRenameTaskId(item.id); setRenameTaskName(item.title); }} className="p-2 mr-1">
                         <Ionicons name="pencil" size={18} color="#6b7280" />
                       </Pressable>
-                      <Pressable onPress={() => {
-                        // TODO: Implement remove functionality for checklist items
-                        console.log('Remove item:', item.id);
+                      <Pressable onPress={async () => {
+                        try {
+                          await removeChecklistItem(item.id);
+                        } catch (error) {
+                          console.error('Error removing checklist item:', error);
+                          setErrorMessage('לא ניתן למחוק את המשימה');
+                        }
                       }} className="p-2">
                         <Ionicons name="trash" size={18} color="#ef4444" />
                       </Pressable>
@@ -435,11 +447,31 @@ export default function CleaningScreen() {
                 textAlign="right"
                 onSubmitEditing={handleAddTask}
                 returnKeyType="done"
+                editable={!isAddingTask}
               />
-              <Pressable onPress={handleAddTask} className="bg-blue-500 w-12 h-12 rounded-xl items-center justify-center mr-3">
-                <Ionicons name="add" size={24} color="white" />
+              <Pressable 
+                onPress={handleAddTask} 
+                disabled={isAddingTask}
+                className={`w-12 h-12 rounded-xl items-center justify-center mr-3 ${
+                  isAddingTask ? 'bg-gray-400' : 'bg-blue-500'
+                }`}
+              >
+                {isAddingTask ? (
+                  <Ionicons name="hourglass" size={24} color="white" />
+                ) : (
+                  <Ionicons name="add" size={24} color="white" />
+                )}
               </Pressable>
             </View>
+            
+            {/* Success Message */}
+            {showTaskAddedMessage && (
+              <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
+                <Text className="text-green-800 text-center font-medium">
+                  ✅ המשימה נוספה בהצלחה!
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
