@@ -542,11 +542,11 @@ export const useStore = create<AppState>()(
 
       addChecklistItem: async (title: string, order?: number) => {
         const state = get();
-        const { isMyCleaningTurn, currentUser } = state;
+        const { currentUser } = state;
         
-        // Enhanced security check - only allow adding items if it's your turn
-        if (!isMyCleaningTurn || !currentUser) {
-          console.warn('Cannot add checklist item: not your turn or no user');
+        // Security check - only allow adding items if user is authenticated
+        if (!currentUser) {
+          console.warn('Cannot add checklist item: no authenticated user');
           throw new Error('Not authorized to add checklist items');
         }
 
