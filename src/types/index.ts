@@ -117,3 +117,36 @@ export interface DebtSettlement {
   date: Date;
   description?: string;
 }
+
+// New types for the debt management system
+export interface Debt {
+  id: string;
+  apartment_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  amount: number;
+  status: 'open' | 'closed';
+  created_at: Date;
+  closed_at?: Date;
+  closed_by?: string;
+  description?: string;
+}
+
+export interface UserBalance {
+  user_id: string;
+  apartment_id: string;
+  balance: number;
+}
+
+export interface Action {
+  id: string;
+  apartment_id: string;
+  type: 'debt_closed' | 'debt_created' | 'purchase' | 'transfer';
+  debt_id?: string;
+  from_user_id?: string;
+  to_user_id?: string;
+  amount?: number;
+  actor_uid: string;
+  created_at: Date;
+  description?: string;
+}

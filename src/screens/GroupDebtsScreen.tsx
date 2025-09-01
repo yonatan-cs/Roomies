@@ -28,6 +28,7 @@ export default function GroupDebtsScreen() {
   const [settlementToUser, setSettlementToUser] = useState('');
   const [settlementOriginalAmount, setSettlementOriginalAmount] = useState(0);
   const [useSimplified, setUseSimplified] = useState(true);
+  const [isSettling, setIsSettling] = useState(false);
   
   const { 
     expenses, 
@@ -36,11 +37,11 @@ export default function GroupDebtsScreen() {
     currentApartment, 
     getBalances, 
     getSimplifiedBalances, 
-    addDebtSettlement, 
-    loadDebtSettlements 
+    loadDebtSettlements,
+    settleCalculatedDebt
   } = useStore();
 
-  // Load debt settlements on component mount
+  // Load debt settlements on component mount (legacy - for display only)
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -51,6 +52,29 @@ export default function GroupDebtsScreen() {
     };
     loadData();
   }, [loadDebtSettlements]);
+
+  // TODO: Add real-time listeners for new system
+  // useEffect(() => {
+  //   if (!currentApartment?.id) return;
+  //   
+  //   // Listen to debts collection
+  //   const debtsQuery = query(
+  //     collection(db, 'debts'),
+  //     where('apartment_id', '==', currentApartment.id)
+  //   );
+  //   
+  //   // Listen to actions collection  
+  //   const actionsQuery = query(
+  //     collection(db, 'actions'),
+  //     where('apartment_id', '==', currentApartment.id),
+  //     orderBy('created_at', 'desc')
+  //   );
+  //   
+  //   // Listen to user balances
+  //   const balanceQuery = doc(db, 'balances', currentApartment.id, 'users', currentUser?.id || '');
+  //   
+  //   // TODO: Implement onSnapshot listeners when Firebase SDK is available
+  // }, [currentApartment?.id, currentUser?.id]);
 
   const balances = useMemo(() => {
     return useSimplified ? getSimplifiedBalances() : getBalances();
@@ -84,8 +108,16 @@ export default function GroupDebtsScreen() {
       return;
     }
 
+    // Prevent double-clicking
+    if (isSettling) {
+      return;
+    }
+
+    setIsSettling(true);
+
     try {
-      await addDebtSettlement(
+      // Use the new atomically transactional debt settlement
+      await settleCalculatedDebt(
         settlementFromUser,
         settlementToUser,
         amount,
@@ -97,9 +129,29 @@ export default function GroupDebtsScreen() {
       setSettlementFromUser('');
       setSettlementToUser('');
       setSettlementOriginalAmount(0);
+      
+      // The UI will update automatically via Firestore listeners (when implemented)
+      Alert.alert('הצלחה', 'החוב נסגר בהצלחה!');
+      
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן לסגור את החוב. נסה שוב.');
       console.error('Error settling debt:', error);
+      
+      // Show specific error messages based on error type
+      let errorMessage = 'לא ניתן לסגור את החוב. נסה שוב.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('PERMISSION_DENIED')) {
+          errorMessage = 'אין לך הרשאה לבצע פעולה זה.';
+        } else if (error.message.includes('APARTMENT_NOT_FOUND')) {
+          errorMessage = 'לא נמצא דירה רלוונטית.';
+        } else if (error.message.includes('TRANSACTION_COMMIT_FAILED')) {
+          errorMessage = 'שגיאה בביצוע הפעולה. נסה שוב.';
+        }
+      }
+      
+      Alert.alert('שגיאה', errorMessage);
+    } finally {
+      setIsSettling(false);
     }
   };
 
@@ -326,10 +378,14 @@ export default function GroupDebtsScreen() {
               
               <Pressable
                 onPress={confirmSettlement}
-                className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
+                disabled={isSettling}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl",
+                  isSettling ? "bg-gray-400" : "bg-blue-500"
+                )}
               >
                 <Text className="text-white font-medium text-center">
-                  אישור סגירה
+                  {isSettling ? 'סוגר...' : 'אישור סגירה'}
                 </Text>
               </Pressable>
             </View>
