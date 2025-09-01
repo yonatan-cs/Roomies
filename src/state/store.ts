@@ -91,7 +91,9 @@ interface AppState {
   // Actions - Shopping
   addShoppingItem: (name: string, userId: string) => Promise<void>;
   loadShoppingItems: () => Promise<void>;
-  markItemPurchased: (itemId: string, userId: string, price?: number, participants?: string[]) => Promise<void>;
+  markItemPurchased: (itemId: string, userId: string, price?: number, participants?: string[], category?: ExpenseCategory, note?: string, purchaseDate?: Date) => Promise<void>;
+  addItemToShoppingList: (name: string, userId: string) => Promise<void>;
+  markItemForRepurchase: (itemId: string) => Promise<void>;
   removeShoppingItem: (itemId: string) => void;
 
   // Actions - Cleaning (Firestore-based)
@@ -260,7 +262,7 @@ export const useStore = create<AppState>()(
         }
       },
 
-      markItemPurchased: async (itemId, userId, price, participants) => {
+      markItemPurchased: async (itemId, userId, price, participants, category, note, purchaseDate) => {
         try {
           // First, get the item details before marking as purchased
           const { shoppingItems, currentApartment } = get();
@@ -285,8 +287,8 @@ export const useStore = create<AppState>()(
               amount: price,
               paidBy: userId,
               participants: participantIds,
-              category: 'groceries',
-              description: `רכישה מרשימת הקניות`
+              category: category || 'groceries',
+              description: note || `רכישה מרשימת הקניות`
             });
           }
           
@@ -299,6 +301,35 @@ export const useStore = create<AppState>()(
           }
         } catch (error) {
           console.error('Error marking item purchased:', error);
+          throw error;
+        }
+      },
+
+      addItemToShoppingList: async (name, userId) => {
+        try {
+          await firestoreService.addShoppingItem(name, userId);
+          await get().loadShoppingItems();
+        } catch (error) {
+          console.error('Error adding item to shopping list:', error);
+          throw error;
+        }
+      },
+
+      markItemForRepurchase: async (itemId) => {
+        try {
+          // For now, we'll create a new item with the same name
+          // In the future, this could be a separate field in Firestore
+          const { shoppingItems } = get();
+          const item = shoppingItems.find(i => i.id === itemId);
+          
+          if (!item) {
+            throw new Error('Shopping item not found');
+          }
+
+          // Add the item again to the shopping list
+          await get().addItemToShoppingList(item.name, item.purchasedBy || '');
+        } catch (error) {
+          console.error('Error marking item for repurchase:', error);
           throw error;
         }
       },
