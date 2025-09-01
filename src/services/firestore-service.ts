@@ -2366,12 +2366,25 @@ export class FirestoreService {
    * Mark cleaning as completed and move to next person
    */
   async markCleaningCompleted(): Promise<any> {
+    console.log('🔄 Starting markCleaningCompleted...');
     const { uid, idToken, aptId } = await getApartmentContext();
+    console.log('✅ Got apartment context:', { uid, aptId });
 
     // Get current cleaning task
     const currentTask = await this.getCleaningTask();
     if (!currentTask) {
       throw new Error('No cleaning task found');
+    }
+    console.log('✅ Got cleaning task:', { 
+      taskId: currentTask.id, 
+      currentUserId: currentTask.user_id, 
+      myUserId: uid,
+      isMyTurn: currentTask.user_id === uid 
+    });
+
+    // Verify it's the current user's turn
+    if (currentTask.user_id !== uid) {
+      throw new Error('Not your turn to clean');
     }
 
     const queue = currentTask.queue || [];
@@ -2394,6 +2407,9 @@ export class FirestoreService {
     const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?` + 
       fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
     
+    console.log('📝 Updating cleaning task with URL:', url);
+    console.log('📋 Update body:', JSON.stringify(updateBody, null, 2));
+    
     const res = await fetch(url, {
       method: 'PATCH',
       headers: H(idToken),
@@ -2403,8 +2419,11 @@ export class FirestoreService {
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       console.error('Firestore markCleaningCompleted error:', res.status, text);
+      console.error('Request details:', { url, method: 'PATCH', body: updateBody });
       throw new Error(`UPDATE_CLEANING_TASK_${res.status}: ${text}`);
     }
+    
+    console.log('✅ Cleaning task updated successfully');
 
     return await res.json();
   }
@@ -2748,14 +2767,22 @@ export class FirestoreService {
    */
   async markChecklistItemCompleted(itemId: string): Promise<void> {
     try {
+      console.log('🔄 Starting markChecklistItemCompleted for item:', itemId);
       const { uid, idToken, aptId } = await getApartmentContext();
+      console.log('✅ Got apartment context:', { uid, aptId });
       await ensureCurrentApartmentIdMatches(aptId);
 
       // Read cleaning task to verify it's my turn (user_id)
       const task = await this.getCleaningTask();
       if (!task || task.user_id !== uid) {
+        console.error('❌ Not my turn:', { 
+          taskUserId: task?.user_id, 
+          myUserId: uid, 
+          hasTask: !!task 
+        });
         throw new Error("NOT_YOUR_TURN");
       }
+      console.log('✅ Verified it\'s my turn to clean');
 
       // Update document: completed=true, with by/at
       const nowIso = new Date().toISOString();
@@ -2783,8 +2810,15 @@ export class FirestoreService {
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         console.error('Checklist PATCH failed:', res.status, text);
+        console.error('Request details:', { 
+          url, 
+          method: 'PATCH', 
+          itemId, 
+          body: JSON.stringify(body, null, 2) 
+        });
         throw new Error(`CHECKLIST_UPDATE_FAILED_${res.status}`);
       }
+      console.log('✅ Checklist item marked as completed successfully');
     } catch (error) {
       console.error("Error marking checklist item completed:", error);
       throw error;
@@ -2891,11 +2925,24 @@ export class FirestoreService {
    */
   async resetAllChecklistItems(): Promise<void> {
     try {
+      console.log('🔄 Starting resetAllChecklistItems...');
       const { uid, idToken, aptId } = await getApartmentContext();
+      console.log('✅ Got apartment context:', { uid, aptId });
       await ensureCurrentApartmentIdMatches(aptId);
+
+      // Verify it's the current user's turn
+      const currentTask = await this.getCleaningTask();
+      if (!currentTask) {
+        throw new Error('No cleaning task found');
+      }
+      if (currentTask.user_id !== uid) {
+        throw new Error('Not your turn to clean');
+      }
+      console.log('✅ Verified it\'s my turn to clean');
 
       // Get all items first
       const items = await this.getCleaningChecklist();
+      console.log(`📋 Found ${items.length} checklist items to reset`);
       
       // Reset each item
       const resetPromises = items.map(item => {
@@ -2925,9 +2972,15 @@ export class FirestoreService {
         if (!results[i].ok) {
           const t = await results[i].text().catch(() => "");
           console.error(`RESET_CHECKLIST_ITEM_${i}_FAILED`, t);
-          throw new Error(`RESET_CHECKLIST_ITEM_${i}_FAILED`);
+          console.error(`Failed item details:`, { 
+            itemId: items[i]?.id, 
+            status: results[i].status, 
+            response: t 
+          });
+          throw new Error(`RESET_CHECKLIST_ITEM_${i}_FAILED_${results[i].status}`);
         }
       }
+      console.log('✅ All checklist items reset successfully');
     } catch (error) {
       console.error("Error resetting checklist items:", error);
       throw error;
