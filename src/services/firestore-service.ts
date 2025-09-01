@@ -2284,13 +2284,19 @@ export class FirestoreService {
         const doc = first.document;
         const f = doc.fields ?? {};
         const id = doc.name.split('/').pop();
-        return {
+        const task = {
           id,
           apartment_id: f.apartment_id?.stringValue ?? _aptId,
+          user_id: f.user_id?.stringValue ?? null, // Current turn user
           queue: (f.rotation?.arrayValue?.values || f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
           current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
           last_completed_at: f.last_completed_at?.timestampValue ?? f.assigned_at?.timestampValue ?? null,
+          last_completed_by: f.last_completed_by?.stringValue ?? null,
         };
+        
+
+        
+        return task;
       }
 
       // אין משימה קיימת → כל חבר יכול ליצור (לפי הכללים החדשים)
@@ -2906,6 +2912,105 @@ export class FirestoreService {
     }
   }
 
+  /**
+   * Clean up duplicate checklist items (for debugging)
+   */
+  async cleanupChecklistDuplicates(): Promise<void> {
+    try {
+      const { uid, idToken, aptId } = await getApartmentContext();
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      console.log('🧹 Starting cleanup for apartment:', aptId);
+
+      // Query all checklist items for this apartment
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: 'checklistItems', allDescendants: true }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                { fieldFilter: { field: { fieldPath: 'apartment_id' }, op: 'EQUAL', value: { stringValue: aptId } } },
+                { fieldFilter: { field: { fieldPath: 'cleaning_task_id' }, op: 'EQUAL', value: { stringValue: aptId } } },
+              ],
+            },
+          },
+          orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'ASCENDING' }], // Keep oldest first
+          limit: 500
+        }
+      };
+
+      const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+        method: 'POST',
+        headers: H(idToken),
+        body: JSON.stringify(queryBody),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Query failed: ${response.status} - ${errorText}`);
+      }
+
+      const rows = await response.json();
+      console.log(`📊 Found ${rows.length} checklist items`);
+
+      const byKey = new Map(); // template_key or title
+      const toDelete = [];
+
+      for (const row of rows) {
+        const doc = row.document;
+        if (!doc) continue;
+
+        const fields = doc.fields || {};
+        const title = fields.title?.stringValue || '';
+        const templateKey = fields.template_key?.stringValue;
+        
+        // Use template_key if available, otherwise use normalized title
+        const key = templateKey || title.trim().toLowerCase();
+        
+        if (!byKey.has(key)) {
+          byKey.set(key, doc); // Keep the first one (oldest)
+          console.log(`✅ Keeping: ${title} (${doc.name.split('/').pop()})`);
+        } else {
+          toDelete.push(doc.name);
+          console.log(`🗑️ Marking for deletion: ${title} (${doc.name.split('/').pop()})`);
+        }
+      }
+
+      if (toDelete.length > 0) {
+        console.log(`🔄 Deleting ${toDelete.length} duplicates...`);
+        
+        // Delete each duplicate
+        for (const docName of toDelete) {
+          try {
+            const deleteResponse = await fetch(`${FIRESTORE_BASE_URL}/${docName.replace('projects/roomies-hub/databases/(default)/documents/', '')}`, {
+              method: 'DELETE',
+              headers: H(idToken),
+            });
+            
+            if (deleteResponse.ok) {
+              console.log(`✅ Deleted: ${docName.split('/').pop()}`);
+            } else {
+              console.log(`❌ Failed to delete: ${docName.split('/').pop()} - ${deleteResponse.status}`);
+            }
+          } catch (deleteError) {
+            console.error(`❌ Error deleting ${docName.split('/').pop()}:`, deleteError);
+          }
+        }
+        
+        console.log(`✅ Cleanup completed! Deleted ${toDelete.length} duplicates`);
+      } else {
+        console.log(`✨ No duplicates found - cleanup not needed`);
+      }
+
+      console.log(`📋 Final count: ${byKey.size} unique items`);
+      
+    } catch (error) {
+      console.error('❌ Cleanup failed:', error);
+      throw error;
+    }
+  }
+
 }
 
 // Export singleton instance
@@ -2984,6 +3089,11 @@ if (process.env.NODE_ENV === 'development') {
         console.log('❓ Unexpected response status');
         return null;
       }
+    },
+    
+    cleanupChecklistDuplicates: async () => {
+      const service = FirestoreService.getInstance();
+      return await service.cleanupChecklistDuplicates();
     }
   };
   

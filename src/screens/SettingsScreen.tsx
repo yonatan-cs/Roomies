@@ -23,11 +23,15 @@ export default function SettingsScreen() {
     refreshApartmentMembers,
   } = useStore();
 
-  // Refresh apartment members when component mounts
+  // Refresh apartment members and load checklist when component mounts
   useEffect(() => {
     if (currentApartment) {
       console.log('🔄 Settings: Refreshing apartment members on mount');
       refreshApartmentMembers();
+      
+      // Also load checklist items to show in settings
+      const { loadCleaningChecklist } = useStore.getState();
+      loadCleaningChecklist();
     }
   }, [currentApartment?.id]); // Only refresh when apartment ID changes
 
