@@ -3354,6 +3354,34 @@ export class FirestoreService {
   }
 
   /**
+   * Remove checklist item from the apartment
+   */
+  async removeChecklistItem(itemId: string): Promise<void> {
+    try {
+      const { uid, idToken, aptId } = await getApartmentContext();
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      const path = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}/checklistItems/${itemId}`;
+      
+      const res = await fetch(path, {
+        method: "DELETE",
+        headers: H(idToken),
+      });
+
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        console.error("REMOVE_CHECKLIST_ITEM_400", t);
+        throw new Error("REMOVE_CHECKLIST_ITEM_FAILED");
+      }
+
+      console.log("✅ Checklist item removed successfully:", itemId);
+    } catch (error) {
+      console.error("Error removing checklist item:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Reset all checklist items (mark all as not completed)
    * Used when finishing a turn
    */

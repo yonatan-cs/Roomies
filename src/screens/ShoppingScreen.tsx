@@ -149,11 +149,17 @@ export default function ShoppingScreen() {
 
   const handleRepurchase = async (itemId: string) => {
     try {
+      const item = shoppingItems.find(i => i.id === itemId);
       await markItemForRepurchase(itemId);
       setShowItemDetailsModal(false);
       setSelectedItemId(null);
-      Alert.alert('הצלחה', 'הפריט נוסף שוב לרשימת הקניות');
+      Alert.alert(
+        'הצלחה! 🛒',
+        `הפריט "${item?.name}" נוסף שוב לרשימת הקניות`,
+        [{ text: 'בסדר', style: 'default' }]
+      );
     } catch (error) {
+      console.error('Error repurchasing item:', error);
       Alert.alert('שגיאה', 'לא ניתן להוסיף את הפריט שוב');
     }
   };

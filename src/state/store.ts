@@ -110,6 +110,7 @@ interface AppState {
   completeChecklistItem: (itemId: string) => Promise<void>;
       uncompleteChecklistItem: (itemId: string) => Promise<void>;
     addChecklistItem: (title: string, order?: number) => Promise<void>;
+    removeChecklistItem: (itemId: string) => Promise<void>;
     finishCleaningTurn: () => Promise<void>;
 }
 
@@ -348,15 +349,19 @@ export const useStore = create<AppState>()(
         try {
           // For now, we'll create a new item with the same name
           // In the future, this could be a separate field in Firestore
-          const { shoppingItems } = get();
+          const { shoppingItems, currentUser } = get();
           const item = shoppingItems.find(i => i.id === itemId);
           
           if (!item) {
             throw new Error('Shopping item not found');
           }
 
-          // Add the item again to the shopping list
-          await get().addItemToShoppingList(item.name, item.purchasedBy || '');
+          if (!currentUser) {
+            throw new Error('No current user');
+          }
+
+          // Add the item again to the shopping list with current user
+          await get().addItemToShoppingList(item.name, currentUser.id);
         } catch (error) {
           console.error('Error marking item for repurchase:', error);
           throw error;
@@ -565,6 +570,26 @@ export const useStore = create<AppState>()(
           await get().loadCleaningChecklist();
         } catch (error) {
           console.error('Error adding checklist item:', error);
+          throw error;
+        }
+      },
+
+      removeChecklistItem: async (itemId: string) => {
+        const state = get();
+        const { currentUser } = state;
+        
+        // Security check - only allow removing items if user is authenticated
+        if (!currentUser) {
+          console.warn('Cannot remove checklist item: no authenticated user');
+          throw new Error('Not authorized to remove checklist items');
+        }
+
+        try {
+          await firestoreService.removeChecklistItem(itemId);
+          // Reload to get the updated list
+          await get().loadCleaningChecklist();
+        } catch (error) {
+          console.error('Error removing checklist item:', error);
           throw error;
         }
       },
