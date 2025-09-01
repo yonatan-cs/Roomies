@@ -2120,6 +2120,59 @@ export class FirestoreService {
   }
 
   /**
+   * Update expense by ID
+   */
+  async updateExpense(expenseId: string, payload: {
+    amount?: number;
+    category?: string;
+    participants?: string[]; // UIDs
+    title?: string;
+    note?: string;
+  }): Promise<any> {
+    const { idToken } = await getApartmentContext();
+
+    const updateFields: any = {};
+    
+    if (payload.amount !== undefined) {
+      updateFields.amount = { doubleValue: Number(payload.amount) };
+    }
+    if (payload.participants !== undefined) {
+      updateFields.participants = { arrayValue: { values: (payload.participants || []).map(u => ({ stringValue: u })) } };
+    }
+    if (payload.category !== undefined) {
+      updateFields.category = payload.category ? { stringValue: payload.category } : null;
+    }
+    if (payload.title !== undefined) {
+      updateFields.title = payload.title ? { stringValue: payload.title } : null;
+    }
+    if (payload.note !== undefined) {
+      updateFields.note = payload.note ? { stringValue: payload.note } : null;
+    }
+
+    const body = {
+      fields: updateFields,
+    };
+
+    // Build URL with field paths for update mask
+    const fieldPaths = Object.keys(updateFields);
+    const url = `${FIRESTORE_BASE_URL}/expenses/${expenseId}?` + 
+      fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: authHeaders(idToken),
+      body: JSON.stringify(body),
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      throw new Error(`UPDATE_EXPENSE_${res.status}: ${errorText}`);
+    }
+    
+    return await res.json();
+  }
+
+  /**
    * Get expenses for current apartment
    */
   async getExpenses(): Promise<any[]> {

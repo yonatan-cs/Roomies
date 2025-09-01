@@ -16,6 +16,7 @@ import { ExpenseCategory } from '../types';
 type RootStackParamList = {
   AddExpense: undefined;
   GroupDebts: undefined;
+  EditExpense: { expenseId: string };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -184,11 +185,35 @@ export default function BudgetScreen() {
         </View>
         
         {expense.participants.length > 1 && (
-          <View className="flex-row items-center mt-2">
-            <Ionicons name="people-outline" size={16} color="#6b7280" />
-            <Text className="text-sm text-gray-500 mr-2">
-              {expense.participants.length} משתתפים • {formatCurrency(personalShare)} לאחד
-            </Text>
+          <View className="flex-row items-center justify-between mt-2">
+            <View className="flex-row items-center">
+              <Ionicons name="people-outline" size={16} color="#6b7280" />
+              <Text className="text-sm text-gray-500 mr-2">
+                {expense.participants.length} משתתפים • {formatCurrency(personalShare)} לאחד
+              </Text>
+            </View>
+            
+            <Pressable
+              onPress={() => navigation.navigate('EditExpense', { expenseId: expense.id })}
+              className="bg-blue-100 py-1 px-3 rounded-lg"
+            >
+              <Text className="text-blue-700 text-sm font-medium">
+                ערוך
+              </Text>
+            </Pressable>
+          </View>
+        )}
+        
+        {expense.participants.length === 1 && (
+          <View className="flex-row justify-end mt-2">
+            <Pressable
+              onPress={() => navigation.navigate('EditExpense', { expenseId: expense.id })}
+              className="bg-blue-100 py-1 px-3 rounded-lg"
+            >
+              <Text className="text-blue-700 text-sm font-medium">
+                ערוך
+              </Text>
+            </Pressable>
           </View>
         )}
       </View>

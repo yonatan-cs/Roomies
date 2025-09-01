@@ -80,6 +80,7 @@ interface AppState {
 
   // Actions - Expenses
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
+  updateExpense: (expenseId: string, updates: Partial<Omit<Expense, 'id' | 'date'>>) => Promise<void>;
   loadExpenses: () => Promise<void>;
   loadDebtSettlements: () => Promise<void>;
   addDebtSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
@@ -182,6 +183,30 @@ export const useStore = create<AppState>()(
           await get().loadExpenses();
         } catch (error) {
           console.error('Error adding expense:', error);
+          throw error;
+        }
+      },
+
+      updateExpense: async (expenseId, updates) => {
+        try {
+          const { currentUser } = get();
+          if (!currentUser) {
+            throw new Error('No current user');
+          }
+
+          // Update expense in Firestore
+          await firestoreService.updateExpense(expenseId, {
+            amount: updates.amount,
+            category: updates.category,
+            participants: updates.participants,
+            title: updates.title,
+            note: updates.description,
+          });
+
+          // Reload expenses from Firestore
+          await get().loadExpenses();
+        } catch (error) {
+          console.error('Error updating expense:', error);
           throw error;
         }
       },
