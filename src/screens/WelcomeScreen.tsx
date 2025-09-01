@@ -148,6 +148,9 @@ export default function WelcomeScreen() {
       console.log('Setting local apartment:', localApartment);
       useStore.setState({ currentApartment: localApartment });
       
+      // Give a moment for the AppNavigator to react to state changes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       console.log('Apartment creation completed successfully');
       
     } catch (error: any) {
@@ -214,6 +217,9 @@ export default function WelcomeScreen() {
         memberCount: localApartment.members.length
       });
       useStore.setState({ currentApartment: localApartment });
+      
+      // Give a moment for the AppNavigator to react to state changes
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('🎉 Apartment join process completed successfully!');
       

@@ -83,12 +83,18 @@ export default function AppNavigator() {
   const [isCheckingApartment, setIsCheckingApartment] = useState(true);
   const [hasApartment, setHasApartment] = useState(false);
 
-  // Check if user has an apartment on mount
+  // Check if user has an apartment on mount and when apartment state changes
   useEffect(() => {
     const checkApartmentAccess = async () => {
+      setIsCheckingApartment(true);
       try {
         if (currentUser?.id) {
           console.log('🔍 AppNavigator: Checking apartment access for user:', currentUser.id);
+          console.log('🔍 AppNavigator: Current apartment state:', {
+            currentApartmentId: currentUser.current_apartment_id,
+            localApartmentId: currentApartment?.id,
+            localApartmentName: currentApartment?.name
+          });
           
           // Try to get apartment context
           const apartmentContext = await getApartmentContext();
@@ -118,7 +124,7 @@ export default function AppNavigator() {
     };
 
     checkApartmentAccess();
-  }, [currentUser?.id]);
+  }, [currentUser?.id, currentUser?.current_apartment_id, currentApartment?.id]); // Listen to apartment changes
 
   // Show loading while checking apartment access
   if (isCheckingApartment) {
@@ -127,6 +133,15 @@ export default function AppNavigator() {
 
   // Show welcome screen if no user or no apartment
   const showWelcome = !currentUser || !hasApartment || !currentApartment;
+  
+  console.log('🚪 AppNavigator: Navigation decision:', {
+    showWelcome,
+    hasUser: !!currentUser,
+    hasApartment,
+    hasCurrentApartment: !!currentApartment,
+    userId: currentUser?.id,
+    apartmentId: currentApartment?.id
+  });
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
