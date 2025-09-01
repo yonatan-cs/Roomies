@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Share, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
-import { getUserDisplayInfo } from '../utils/userDisplay';
+import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import Clipboard from '@react-native-clipboard/clipboard';
 import ConfirmModal from '../components/ConfirmModal';
 import { firebaseAuth } from '../services/firebase-auth';
@@ -185,7 +185,7 @@ export default function SettingsScreen() {
                   <Pressable
                     onPress={() => {
                       setEditingName(false);
-                      setNewName(currentUser.name || '');
+                      setNewName(getDisplayName(currentUser));
                     }}
                     className="bg-red-100 p-2 rounded-lg"
                   >
@@ -195,7 +195,7 @@ export default function SettingsScreen() {
               </View>
             ) : (
               <Pressable onPress={() => setEditingName(true)} className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
-                <Text className="text-gray-900 text-base">{currentUser.name}</Text>
+                <Text className="text-gray-900 text-base">{getDisplayName(currentUser)}</Text>
                 <Ionicons name="pencil-outline" size={20} color="#6b7280" />
               </Pressable>
             )}

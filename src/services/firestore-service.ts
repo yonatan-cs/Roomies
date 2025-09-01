@@ -927,9 +927,11 @@ export class FirestoreService {
     }
 
     // Ensure no current_apartment_id in user creation (per security rules)
+    // Store both full_name and display_name for consistency
     const cleanUserData = {
       email: userData.email,
       full_name: userData.full_name,
+      display_name: userData.full_name, // Add consistent field for display
       ...(userData.phone && { phone: userData.phone })
     };
 
@@ -2290,7 +2292,7 @@ export class FirestoreService {
           user_id: f.user_id?.stringValue ?? null, // Current turn user
           queue: (f.rotation?.arrayValue?.values || f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
           current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
-          last_completed_at: f.last_completed_at?.timestampValue ?? f.assigned_at?.timestampValue ?? null,
+          last_completed_at: f.last_completed_at?.timestampValue ?? null,
           last_completed_by: f.last_completed_by?.stringValue ?? null,
         };
         
@@ -2370,10 +2372,13 @@ export class FirestoreService {
       fields: {
         user_id: F.str(queue[currentIndex] || uid), // מי התור הבא
         assigned_at: F.ts(new Date()),
+        last_completed_at: F.ts(new Date()), // Mark completion time
+        last_completed_by: F.str(uid), // Who completed the cleaning
+        current_index: F.int(currentIndex), // Update the queue index
       },
     };
 
-    const fieldPaths = ['user_id', 'assigned_at'];
+    const fieldPaths = ['user_id', 'assigned_at', 'last_completed_at', 'last_completed_by', 'current_index'];
     const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?` + 
       fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
     
@@ -2764,9 +2769,9 @@ export class FirestoreService {
       });
 
       if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        console.error("CHECKLIST_UPDATE_403/400", t);
-        throw new Error("CHECKLIST_UPDATE_FAILED");
+        const text = await res.text().catch(() => '');
+        console.error('Checklist PATCH failed:', res.status, text);
+        throw new Error(`CHECKLIST_UPDATE_FAILED_${res.status}`);
       }
     } catch (error) {
       console.error("Error marking checklist item completed:", error);
@@ -2810,9 +2815,9 @@ export class FirestoreService {
       });
 
       if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        console.error("CHECKLIST_UNMARK_403/400", t);
-        throw new Error("CHECKLIST_UNMARK_FAILED");
+        const text = await res.text().catch(() => '');
+        console.error('Checklist unmark PATCH failed:', res.status, text);
+        throw new Error(`CHECKLIST_UNMARK_FAILED_${res.status}`);
       }
     } catch (error) {
       console.error("Error unmarking checklist item:", error);
@@ -3075,86 +3080,4 @@ export class FirestoreService {
 // Export singleton instance
 export const firestoreService = FirestoreService.getInstance();
 
-// Debug utilities for development
-if (process.env.NODE_ENV === 'development') {
-  (global as any).debugFirestore = {
-    testAuth: async () => {
-      const service = FirestoreService.getInstance();
-      const currentUser = await firebaseAuth.getCurrentUser();
-      const idToken = await firebaseAuth.getCurrentIdToken();
-      
-      console.log('🔍 Debug Auth Status:');
-      console.log('👤 Current user:', currentUser?.email || 'Not signed in');
-      console.log('🔑 ID token present:', !!idToken);
-      
-      if (idToken) {
-        try {
-          const parts = idToken.split('.');
-          const payload = JSON.parse(atob(parts[1]));
-          console.log('📋 Token payload:', {
-            aud: payload.aud,
-            email: payload.email,
-            exp: new Date(payload.exp * 1000).toISOString(),
-            firebase: payload.firebase
-          });
-          
-          // Test if token works with a simple request
-          console.log('🧪 Testing token with simple request...');
-          const testUrl = `${FIRESTORE_BASE_URL}/users/${payload.user_id || payload.sub}`;
-          const testResponse = await fetch(testUrl, {
-            headers: { Authorization: `Bearer ${idToken}` }
-          });
-          console.log(`📊 Token test result: ${testResponse.status} (${testResponse.statusText})`);
-          
-        } catch (e) {
-          console.error('❌ Failed to decode token:', e);
-        }
-      }
-    },
-    
-    testInvite: async (code: string) => {
-      const service = FirestoreService.getInstance();
-      return await service.testInviteAccess(code);
-    },
-    
-    getInvite: async (code: string) => {
-      const service = FirestoreService.getInstance();
-      return await service.getApartmentByInviteCode(code);
-    },
-    
-    checkInviteExists: async (code: string) => {
-      const service = FirestoreService.getInstance();
-      
-      // Check if document exists without authentication first
-      const url = `${FIRESTORE_BASE_URL}/${COLLECTIONS.APARTMENT_INVITES}/${code.trim().toUpperCase()}`;
-      console.log('🌐 Checking if invite exists (no auth):', url);
-      
-      const response = await fetch(url + '?key=AIzaSyCdVexzHD5StQIK_w3GSbdYHYoE7fBqDps', {
-        method: 'GET',
-      });
-      
-      console.log(`📊 No-auth response: ${response.status} (${response.statusText})`);
-      
-      if (response.status === 403) {
-        console.log('🔒 Document exists but requires authentication (expected)');
-        return true;
-      } else if (response.status === 404) {
-        console.log('📭 Document does not exist');
-        return false;
-      } else if (response.status === 200) {
-        console.log('🔓 Document is publicly readable (unexpected but OK)');
-        return true;
-      } else {
-        console.log('❓ Unexpected response status');
-        return null;
-      }
-    },
-    
-    cleanupChecklistDuplicates: async () => {
-      const service = FirestoreService.getInstance();
-      return await service.cleanupChecklistDuplicates();
-    }
-  };
-  
-  console.log('🛠️ Debug utilities available at global.debugFirestore');
-}
+

@@ -123,9 +123,22 @@ export default function CleaningScreen() {
       } else {
         await uncompleteChecklistItem(taskId);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling task:', error);
-      // Could show error message to user
+      
+      // Show detailed error to help with debugging
+      let errorMessage = 'שגיאה בעדכון המשימה';
+      if (error.message?.includes('CHECKLIST_UPDATE_FAILED')) {
+        if (error.message.includes('403')) {
+          errorMessage = 'אין הרשאה לעדכן את המשימה. ודא שאתה חבר בדירה וזה התור שלך לנקות.';
+        } else if (error.message.includes('404')) {
+          errorMessage = 'המשימה לא נמצאה. נסה לרענן את המסך.';
+        } else {
+          errorMessage = `שגיאה בעדכון המשימה: ${error.message}`;
+        }
+      }
+      
+      setErrorMessage(errorMessage);
     }
   };
 
@@ -466,18 +479,7 @@ export default function CleaningScreen() {
         )}
       </ScrollView>
 
-      {/* Debug info when there's an issue */}
-      {!isMyTurn && currentUser && cleaningTask && (
-        <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mx-6 mb-4">
-          <Text className="text-yellow-800 text-sm font-medium mb-2">🔍 מידע דיבוג:</Text>
-          <Text className="text-yellow-700 text-xs">
-            התור הנוכחי: {cleaningTask.currentTurn || (cleaningTask as any).user_id || 'לא מוגדר'}{'\n'}
-            המשתמש שלך: {currentUser.id}{'\n'}
-            תור שלך: {isMyTurn ? 'כן' : 'לא'}{'\n'}
-            פריטים: {checklistItems.length}
-          </Text>
-        </View>
-      )}
+
 
       {/* Modals */}
       <ConfirmModal visible={showNotYourTurn} title="לא התור שלך" message="כרגע זה לא התור שלך לנקות" confirmText="הבנתי" cancelText="" onConfirm={() => setShowNotYourTurn(false)} onCancel={() => setShowNotYourTurn(false)} />

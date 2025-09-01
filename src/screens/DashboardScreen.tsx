@@ -10,7 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
-import { getUserDisplayInfo } from '../utils/userDisplay';
+import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 
 type RootStackParamList = {
   Settings: undefined;
@@ -172,7 +172,7 @@ export default function DashboardScreen() {
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-2">
           <Text className="text-2xl font-bold text-gray-900">
-            שלום, {currentUser?.name || 'משתמש'}!
+            שלום, {getDisplayName(currentUser)}!
           </Text>
           <Pressable
             onPress={() => navigation.navigate('Settings')}
