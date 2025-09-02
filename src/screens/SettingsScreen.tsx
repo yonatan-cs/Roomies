@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Share, Alert } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
@@ -89,6 +89,27 @@ export default function SettingsScreen() {
 
   const handleLeaveApartment = () => {
     setConfirmLeaveVisible(true);
+  };
+
+  const handleSendFeedback = () => {
+    const to = 'yonatan.cs23@gmail.com';
+    const subject = encodeURIComponent('משוב - Trail Angels');
+    const body = encodeURIComponent(`תיאור הבעיה / ההצעה:
+
+---
+
+Device: ${Platform.OS}
+App version: 1.0.0
+User: ${currentUser?.name || 'Unknown'}
+
+נא לתאר את הבעיה או ההצעה כאן:`);
+    
+    const mailtoUrl = `mailto:${to}?subject=${subject}&body=${body}`;
+    
+    Linking.openURL(mailtoUrl).catch((err) => {
+      console.error('Error opening mailto:', err);
+      Alert.alert('שגיאה', 'לא ניתן לפתוח את אפליקציית המייל');
+    });
   };
 
   if (!currentUser || !currentApartment) {
@@ -389,6 +410,23 @@ export default function SettingsScreen() {
               </Text>
             </View>
           )}
+        </View>
+
+        {/* Feedback Section */}
+        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+          <Text className="text-lg font-semibold text-gray-900 mb-4">משוב ותמיכה</Text>
+          <Text className="text-gray-600 text-sm mb-4">
+            יש לך הצעה לשיפור? נתקלת בבעיה? נשמח לשמוע ממך!
+          </Text>
+          <Pressable 
+            onPress={handleSendFeedback}
+            className="bg-blue-500 py-3 px-6 rounded-xl"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="mail-outline" size={20} color="white" className="ml-2" />
+              <Text className="text-white font-semibold text-center">שלח משוב / דווח בעיה</Text>
+            </View>
+          </Pressable>
         </View>
 
         {/* Danger Zone */}
