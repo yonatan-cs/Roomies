@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
-import { ExpenseCategory } from '../types';
+import ExpenseRow from '../components/ExpenseRow';
 
 type RootStackParamList = {
   AddExpense: undefined;
@@ -21,23 +21,7 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const CATEGORY_ICONS: Record<ExpenseCategory, keyof typeof Ionicons.glyphMap> = {
-  groceries: 'basket-outline',
-  utilities: 'flash-outline',
-  rent: 'home-outline',
-  cleaning: 'brush-outline',
-  internet: 'wifi-outline',
-  other: 'ellipsis-horizontal-outline'
-};
 
-const CATEGORY_NAMES: Record<ExpenseCategory, string> = {
-  groceries: 'מכולת',
-  utilities: 'שירותים',
-  rent: 'שכירות',
-  cleaning: 'ניקיון',
-  internet: 'אינטרנט',
-  other: 'אחר'
-};
 
 export default function BudgetScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -52,7 +36,8 @@ export default function BudgetScreen() {
     getBalances, 
     getMonthlyExpenses,
     getTotalApartmentExpenses,
-    loadDebtSettlements 
+    loadDebtSettlements,
+    deleteExpense
   } = useStore();
 
   // Load debt settlements on component mount
@@ -140,83 +125,25 @@ export default function BudgetScreen() {
 
   const personalSummary = getPersonalBalanceSummary();
 
+  const handleDeleteExpense = useCallback(async (expenseId: string) => {
+    try {
+      await deleteExpense(expenseId);
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      // Show error to user if needed
+    }
+  }, [deleteExpense]);
+
   const renderExpenseItem = ({ item: expense }: { item: any }) => {
-    const personalShare = expense.amount / expense.participants.length;
-    const isParticipant = currentUser && expense.participants.includes(currentUser.id);
-    const isPayer = currentUser && expense.paidBy === currentUser.id;
-    
     return (
-      <View className="bg-white rounded-xl p-4 mb-3 shadow-sm">
-        <View className="flex-row items-center justify-between mb-2">
-          <View className="flex-row items-center flex-1">
-            <View className="bg-gray-100 w-10 h-10 rounded-full items-center justify-center">
-              <Ionicons 
-                name={CATEGORY_ICONS[expense.category as keyof typeof CATEGORY_ICONS]} 
-                size={20} 
-                color="#6b7280" 
-              />
-            </View>
-            <View className="mr-3 flex-1">
-              <Text className="text-gray-900 font-medium">
-                {expense.title}
-              </Text>
-              <Text className="text-sm text-gray-500">
-                {CATEGORY_NAMES[expense.category as keyof typeof CATEGORY_NAMES]} • {formatDate(expense.date)}
-              </Text>
-              {isParticipant && (
-                <Text className={cn(
-                  "text-sm font-medium mt-1",
-                  isPayer ? "text-green-600" : "text-blue-600"
-                )}>
-                  {isPayer ? `שילמת: ${formatCurrency(expense.amount)}` : `החלק שלך: ${formatCurrency(personalShare)}`}
-                </Text>
-              )}
-            </View>
-          </View>
-          
-          <View className="items-end">
-            <Text className="text-lg font-semibold text-gray-900">
-              {formatCurrency(expense.amount)}
-            </Text>
-            <Text className="text-sm text-gray-500">
-              שילם: {getUserName(expense.paidBy)}
-            </Text>
-          </View>
-        </View>
-        
-        {expense.participants.length > 1 && (
-          <View className="flex-row items-center justify-between mt-2">
-            <View className="flex-row items-center">
-              <Ionicons name="people-outline" size={16} color="#6b7280" />
-              <Text className="text-sm text-gray-500 mr-2">
-                {expense.participants.length} משתתפים • {formatCurrency(personalShare)} לאחד
-              </Text>
-            </View>
-            
-            <Pressable
-              onPress={() => navigation.navigate('EditExpense', { expenseId: expense.id })}
-              className="bg-blue-100 py-1 px-3 rounded-lg"
-            >
-              <Text className="text-blue-700 text-sm font-medium">
-                ערוך
-              </Text>
-            </Pressable>
-          </View>
-        )}
-        
-        {expense.participants.length === 1 && (
-          <View className="flex-row justify-end mt-2">
-            <Pressable
-              onPress={() => navigation.navigate('EditExpense', { expenseId: expense.id })}
-              className="bg-blue-100 py-1 px-3 rounded-lg"
-            >
-              <Text className="text-blue-700 text-sm font-medium">
-                ערוך
-              </Text>
-            </Pressable>
-          </View>
-        )}
-      </View>
+      <ExpenseRow
+        item={expense}
+        onConfirmDelete={handleDeleteExpense}
+        formatCurrency={formatCurrency}
+        formatDate={formatDate}
+        getUserName={getUserName}
+        currentUserId={currentUser?.id}
+      />
     );
   };
 

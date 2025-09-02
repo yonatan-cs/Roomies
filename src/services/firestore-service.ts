@@ -2203,6 +2203,23 @@ export class FirestoreService {
   }
 
   /**
+   * Delete expense by ID
+   */
+  async deleteExpense(expenseId: string): Promise<void> {
+    const { idToken } = await getApartmentContext();
+
+    const res = await fetch(`${FIRESTORE_BASE_URL}/expenses/${expenseId}`, {
+      method: 'DELETE',
+      headers: authHeaders(idToken),
+    });
+    
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => '');
+      throw new Error(`DELETE_EXPENSE_${res.status}: ${errorText}`);
+    }
+  }
+
+  /**
    * Get expenses for current apartment
    */
   async getExpenses(): Promise<any[]> {

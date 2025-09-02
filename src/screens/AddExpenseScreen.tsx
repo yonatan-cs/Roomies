@@ -18,22 +18,12 @@ import { ExpenseCategory } from '../types';
 import { cn } from '../utils/cn';
 import { getUserDisplayInfo } from '../utils/userDisplay';
 
-const CATEGORIES: { key: ExpenseCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'groceries', label: 'מכולת', icon: 'basket-outline' },
-  { key: 'utilities', label: 'שירותים', icon: 'flash-outline' },
-  { key: 'rent', label: 'שכירות', icon: 'home-outline' },
-  { key: 'cleaning', label: 'ניקיון', icon: 'brush-outline' },
-  { key: 'internet', label: 'אינטרנט', icon: 'wifi-outline' },
-  { key: 'other', label: 'אחר', icon: 'ellipsis-horizontal-outline' }
-];
-
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
   const { currentUser, currentApartment, addExpense } = useStore();
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState<ExpenseCategory>('groceries');
   const [description, setDescription] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
     currentApartment?.members.map(m => m.id) || []
@@ -66,7 +56,7 @@ export default function AddExpenseScreen() {
       amount: numAmount,
       paidBy: currentUser.id,
       participants: selectedParticipants,
-      category,
+      category: 'other', // Default category since we removed category selection
       description: description.trim() || undefined,
     });
 
@@ -144,37 +134,6 @@ export default function AddExpenseScreen() {
                 {amountPerPerson.toFixed(2)}₪ לכל אחד
               </Text>
             )}
-          </View>
-
-          {/* Category */}
-          <View className="mb-6">
-            <Text className="text-gray-700 text-base mb-3 font-medium">
-              קטגוריה
-            </Text>
-            <View className="flex-row flex-wrap">
-              {CATEGORIES.map((cat) => (
-                <Pressable
-                  key={cat.key}
-                  onPress={() => setCategory(cat.key)}
-                  className={cn(
-                    "flex-row items-center py-2 px-4 rounded-xl mb-2 ml-2",
-                    category === cat.key ? "bg-blue-100 border border-blue-300" : "bg-gray-100"
-                  )}
-                >
-                  <Ionicons 
-                    name={cat.icon} 
-                    size={20} 
-                    color={category === cat.key ? "#007AFF" : "#6b7280"} 
-                  />
-                  <Text className={cn(
-                    "mr-2",
-                    category === cat.key ? "text-blue-700" : "text-gray-700"
-                  )}>
-                    {cat.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
           </View>
 
           {/* Participants */}
