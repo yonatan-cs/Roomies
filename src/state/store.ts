@@ -81,6 +81,7 @@ interface AppState {
   // Actions - Expenses
   addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
   updateExpense: (expenseId: string, updates: Partial<Omit<Expense, 'id' | 'date'>>) => Promise<void>;
+  deleteExpense: (expenseId: string) => Promise<void>;
   loadExpenses: () => Promise<void>;
   loadDebtSettlements: () => Promise<void>;
   getBalances: () => Balance[];
@@ -212,6 +213,24 @@ export const useStore = create<AppState>()(
           await get().loadExpenses();
         } catch (error) {
           console.error('Error updating expense:', error);
+          throw error;
+        }
+      },
+
+      deleteExpense: async (expenseId) => {
+        try {
+          const { currentUser } = get();
+          if (!currentUser) {
+            throw new Error('No current user');
+          }
+
+          // Delete expense from Firestore
+          await firestoreService.deleteExpense(expenseId);
+
+          // Reload expenses from Firestore
+          await get().loadExpenses();
+        } catch (error) {
+          console.error('Error deleting expense:', error);
           throw error;
         }
       },
