@@ -46,6 +46,7 @@ export default function SettingsScreen() {
   const [editingChoreName, setEditingChoreName] = useState('');
   const [isAddingChore, setIsAddingChore] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [deletingChoreId, setDeletingChoreId] = useState<string | null>(null);
 
   const handleSaveName = async () => {
     if (!newName.trim() || !currentUser) return;
@@ -288,15 +289,27 @@ export default function SettingsScreen() {
                     >
                       <Ionicons name="pencil" size={18} color="#6b7280" />
                     </Pressable>
-                    <Pressable onPress={async () => {
-                      try {
-                        await removeChecklistItem(item.id);
-                      } catch (error) {
-                        console.error('Error removing checklist item:', error);
-                        Alert.alert('שגיאה', 'לא ניתן למחוק את המשימה');
-                      }
-                    }} className="p-2">
-                      <Ionicons name="trash" size={18} color="#ef4444" />
+                    <Pressable 
+                      onPress={async () => {
+                        if (deletingChoreId) return; // Prevent multiple clicks
+                        setDeletingChoreId(item.id);
+                        try {
+                          await removeChecklistItem(item.id);
+                        } catch (error) {
+                          console.error('Error removing checklist item:', error);
+                          Alert.alert('שגיאה', 'לא ניתן למחוק את המשימה');
+                        } finally {
+                          setDeletingChoreId(null);
+                        }
+                      }} 
+                      disabled={deletingChoreId === item.id}
+                      className="p-2"
+                    >
+                      {deletingChoreId === item.id ? (
+                        <Ionicons name="hourglass" size={18} color="#6b7280" />
+                      ) : (
+                        <Ionicons name="trash" size={18} color="#ef4444" />
+                      )}
                     </Pressable>
                   </View>
                 ) : (

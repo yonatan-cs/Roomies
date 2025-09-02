@@ -21,6 +21,7 @@ export default function CleaningScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [showTaskAddedMessage, setShowTaskAddedMessage] = useState(false);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
@@ -417,15 +418,27 @@ export default function CleaningScreen() {
                       <Pressable onPress={() => { setRenameTaskId(item.id); setRenameTaskName(item.title); }} className="p-2 mr-1">
                         <Ionicons name="pencil" size={18} color="#6b7280" />
                       </Pressable>
-                      <Pressable onPress={async () => {
-                        try {
-                          await removeChecklistItem(item.id);
-                        } catch (error) {
-                          console.error('Error removing checklist item:', error);
-                          setErrorMessage('לא ניתן למחוק את המשימה');
-                        }
-                      }} className="p-2">
-                        <Ionicons name="trash" size={18} color="#ef4444" />
+                      <Pressable 
+                        onPress={async () => {
+                          if (deletingTaskId) return; // Prevent multiple clicks
+                          setDeletingTaskId(item.id);
+                          try {
+                            await removeChecklistItem(item.id);
+                          } catch (error) {
+                            console.error('Error removing checklist item:', error);
+                            setErrorMessage('לא ניתן למחוק את המשימה');
+                          } finally {
+                            setDeletingTaskId(null);
+                          }
+                        }} 
+                        disabled={deletingTaskId === item.id}
+                        className="p-2"
+                      >
+                        {deletingTaskId === item.id ? (
+                          <Ionicons name="hourglass" size={18} color="#6b7280" />
+                        ) : (
+                          <Ionicons name="trash" size={18} color="#ef4444" />
+                        )}
                       </Pressable>
                     </View>
                   ) : (
