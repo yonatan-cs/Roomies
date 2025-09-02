@@ -96,13 +96,12 @@ export default function SettingsScreen() {
     const subject = encodeURIComponent('משוב -  Roomies');
     const body = encodeURIComponent(`תיאור הבעיה / ההצעה:
 
----
 
 Device: ${Platform.OS}
 App version: 1.0.0
 User: ${currentUser?.name || 'Unknown'}
 
-נא לתאר את הבעיה או ההצעה כאן:`);
+`);
     
     const mailtoUrl = `mailto:${to}?subject=${subject}&body=${body}`;
     
@@ -424,7 +423,7 @@ User: ${currentUser?.name || 'Unknown'}
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="mail-outline" size={20} color="white" className="ml-2" />
-              <Text className="text-white font-semibold text-center">שלח משוב / דווח בעיה</Text>
+              <Text className="text-white font-semibold text-center"> שלח משוב / דווח בעיה </Text>
             </View>
           </Pressable>
         </View>
