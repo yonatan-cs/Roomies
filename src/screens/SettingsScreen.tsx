@@ -93,7 +93,7 @@ export default function SettingsScreen() {
 
   const handleSendFeedback = () => {
     const to = 'yonatan.cs23@gmail.com';
-    const subject = encodeURIComponent('משוב - Trail Angels');
+    const subject = encodeURIComponent('משוב -  Roomies');
     const body = encodeURIComponent(`תיאור הבעיה / ההצעה:
 
 ---
