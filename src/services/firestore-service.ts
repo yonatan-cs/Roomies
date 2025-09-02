@@ -2943,6 +2943,8 @@ export class FirestoreService {
             purchased: !!f.purchased?.booleanValue,
             purchased_by_user_id: f.purchased_by_user_id?.stringValue ?? null,
             added_by_user_id: f.added_by_user_id?.stringValue ?? null,
+            price: f.price?.doubleValue ? Number(f.price.doubleValue) : null,
+            purchased_at: f.purchased_at?.timestampValue ?? null,
           };
         });
 

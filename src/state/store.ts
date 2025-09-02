@@ -280,7 +280,7 @@ export const useStore = create<AppState>()(
             addedBy: item.added_by_user_id || '',
             purchased: item.purchased || false,
             purchasedBy: item.purchased_by_user_id || '',
-            price: item.price || 0,
+            purchasePrice: item.price || null,
             createdAt: item.created_at ? new Date(item.created_at) : new Date(),
             purchasedAt: item.purchased_at ? new Date(item.purchased_at) : undefined,
             addedAt: item.created_at ? new Date(item.created_at) : new Date(),

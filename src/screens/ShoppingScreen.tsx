@@ -173,7 +173,15 @@ export default function ShoppingScreen() {
       item.purchased && "bg-gray-50"
     )}>
       <View className="flex-row items-center justify-between">
-        <View className="flex-1">
+        <Pressable 
+          onPress={() => {
+            if (item.purchased) {
+              setSelectedItemId(item.id);
+              setShowItemDetailsModal(true);
+            }
+          }}
+          className="flex-1"
+        >
           <Text className={cn(
             "text-base font-medium",
             item.purchased ? "text-gray-500 line-through" : "text-gray-900"
@@ -196,16 +204,16 @@ export default function ShoppingScreen() {
               </Text>
             </View>
           )}
-        </View>
+        </Pressable>
 
         <Pressable
           onPress={() => handleRemoveItem(item.id)}
           className="p-2"
         >
           <Ionicons 
-            name={item.purchased ? "trash-outline" : "close-circle-outline"} 
+            name={item.purchased ? "information-circle-outline" : "close-circle-outline"} 
             size={24} 
-            color={item.purchased ? "#6b7280" : "#ef4444"}
+            color={item.purchased ? "#3b82f6" : "#ef4444"}
           />
         </Pressable>
       </View>
@@ -467,7 +475,7 @@ export default function ShoppingScreen() {
       {showItemDetailsModal && selectedItemId && (
         <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
           <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">
+            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
               פרטי הפריט
             </Text>
             
@@ -476,35 +484,44 @@ export default function ShoppingScreen() {
               if (!item) return null;
               
               return (
-                <View className="space-y-4">
+                <View className="space-y-5">
                   {/* Item Name */}
-                  <View>
-                    <Text className="text-gray-600 text-sm mb-1">שם הפריט</Text>
-                    <Text className="text-gray-900 font-medium text-lg">{item.name}</Text>
+                  <View className="bg-gray-50 p-4 rounded-xl">
+                    <Text className="text-gray-600 text-sm mb-2 text-center">שם הפריט</Text>
+                    <Text className="text-gray-900 font-semibold text-lg text-center">{item.name}</Text>
                   </View>
 
                   {/* Added Info */}
-                  <View>
-                    <Text className="text-gray-600 text-sm mb-1">נוסף על ידי</Text>
-                    <Text className="text-gray-900">{getUserName(item.addedBy)}</Text>
-                    <Text className="text-gray-500 text-sm">{formatDate(item.addedAt)}</Text>
+                  <View className="bg-blue-50 p-4 rounded-xl">
+                    <View className="flex-row items-center justify-center mb-2">
+                      <Ionicons name="person-add-outline" size={16} color="#3b82f6" />
+                      <Text className="text-blue-700 text-sm font-medium mr-2">נוסף על ידי</Text>
+                    </View>
+                    <Text className="text-blue-900 font-medium text-center">{getUserName(item.addedBy)}</Text>
+                    <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item.addedAt)}</Text>
                   </View>
 
                   {/* Purchase Info */}
                   {item.purchased && (
                     <>
-                      <View>
-                        <Text className="text-gray-600 text-sm mb-1">נקנה על ידי</Text>
-                        <Text className="text-gray-900">{getUserName(item.purchasedBy || '')}</Text>
+                      <View className="bg-green-50 p-4 rounded-xl">
+                        <View className="flex-row items-center justify-center mb-2">
+                          <Ionicons name="checkmark-circle-outline" size={16} color="#10b981" />
+                          <Text className="text-green-700 text-sm font-medium mr-2">נקנה על ידי</Text>
+                        </View>
+                        <Text className="text-green-900 font-medium text-center">{getUserName(item.purchasedBy || '')}</Text>
                         {item.purchasedAt && (
-                          <Text className="text-gray-500 text-sm">{formatDate(item.purchasedAt)}</Text>
+                          <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item.purchasedAt)}</Text>
                         )}
                       </View>
 
                       {item.purchasePrice && item.purchasePrice > 0 && (
-                        <View>
-                          <Text className="text-gray-600 text-sm mb-1">מחיר</Text>
-                          <Text className="text-gray-900 font-semibold">₪{item.purchasePrice}</Text>
+                        <View className="bg-yellow-50 p-4 rounded-xl">
+                          <View className="flex-row items-center justify-center mb-2">
+                            <Ionicons name="cash-outline" size={16} color="#eab308" />
+                            <Text className="text-yellow-700 text-sm font-medium mr-2">מחיר</Text>
+                          </View>
+                          <Text className="text-yellow-900 font-bold text-xl text-center">₪{item.purchasePrice}</Text>
                         </View>
                       )}
                     </>
@@ -529,7 +546,7 @@ export default function ShoppingScreen() {
                       className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
                     >
                       <Text className="text-white font-medium text-center">
-                        הוסף שוב
+                        הוסף שוב לרשימה
                       </Text>
                     </Pressable>
                   </View>
