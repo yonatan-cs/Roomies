@@ -3365,13 +3365,16 @@ export class FirestoreService {
       
       const res = await fetch(path, {
         method: "DELETE",
-        headers: H(idToken),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
       });
 
       if (!res.ok) {
         const t = await res.text().catch(() => "");
         console.error("REMOVE_CHECKLIST_ITEM_400", t);
-        throw new Error("REMOVE_CHECKLIST_ITEM_FAILED");
+        throw new Error(`REMOVE_CHECKLIST_ITEM_FAILED_${res.status}`);
       }
 
       console.log("✅ Checklist item removed successfully:", itemId);

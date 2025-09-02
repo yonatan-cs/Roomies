@@ -413,7 +413,7 @@ export default function BudgetScreen() {
             </View>
           ) : (
             <FlatList
-              data={monthlyData.expenses.slice().reverse()}
+              data={monthlyData.expenses}
               renderItem={renderExpenseItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
