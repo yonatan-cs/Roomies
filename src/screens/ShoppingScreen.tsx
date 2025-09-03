@@ -16,16 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
-import { ExpenseCategory } from '../types';
 
-const CATEGORIES: { key: ExpenseCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'groceries', label: 'מכולת', icon: 'basket-outline' },
-  { key: 'utilities', label: 'שירותים', icon: 'flash-outline' },
-  { key: 'rent', label: 'שכירות', icon: 'home-outline' },
-  { key: 'cleaning', label: 'ניקיון', icon: 'brush-outline' },
-  { key: 'internet', label: 'אינטרנט', icon: 'wifi-outline' },
-  { key: 'other', label: 'אחר', icon: 'ellipsis-horizontal-outline' }
-];
 
 // Priority levels with colors and labels
 const PRIORITIES = [
@@ -49,7 +40,7 @@ export default function ShoppingScreen() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [purchasePrice, setPurchasePrice] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [purchaseCategory, setPurchaseCategory] = useState<ExpenseCategory>('groceries');
+
   const [purchaseNote, setPurchaseNote] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(new Date());
 
@@ -157,7 +148,7 @@ export default function ShoppingScreen() {
       currentUser.id, 
       price > 0 ? price : undefined,
       selectedParticipants,
-      purchaseCategory,
+      undefined, // category - removed
       purchaseNote.trim() || undefined,
       purchaseDate
     );
@@ -167,7 +158,7 @@ export default function ShoppingScreen() {
     setSelectedItemId(null);
     setPurchasePrice('');
     setSelectedParticipants([]);
-    setPurchaseCategory('groceries');
+    
     setPurchaseNote('');
     setPurchaseDate(new Date());
   };
@@ -455,34 +446,6 @@ export default function ShoppingScreen() {
           </View>
         )}
 
-        {/* Purchased Items */}
-        {purchasedItems.length > 0 && (
-          <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">
-              נקנו
-            </Text>
-            <FlatList
-              data={purchasedItems.slice().reverse().slice(0, 10)}
-              renderItem={renderShoppingItem}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-            />
-          </View>
-        )}
-
-        {/* Empty State */}
-        {shoppingItems.length === 0 && (
-          <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
-            <Ionicons name="basket-outline" size={64} color="#6b7280" />
-            <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">
-              הרשימה ריקה
-            </Text>
-            <Text className="text-gray-600 text-center">
-              הוסף פריטים לרשימת הקניות השיתופית
-            </Text>
-          </View>
-        )}
-
         {/* No Items Match Filter */}
         {shoppingItems.length > 0 && pendingItems.length === 0 && selectedPriorityFilter !== 'all' && (
           <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
@@ -501,6 +464,34 @@ export default function ShoppingScreen() {
                 הצג את כל הפריטים
               </Text>
             </Pressable>
+          </View>
+        )}
+
+        {/* Empty State */}
+        {shoppingItems.length === 0 && (
+          <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
+            <Ionicons name="basket-outline" size={64} color="#6b7280" />
+            <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">
+              הרשימה ריקה
+            </Text>
+            <Text className="text-gray-600 text-center">
+              הוסף פריטים לרשימת הקניות השיתופית
+            </Text>
+          </View>
+        )}
+
+        {/* Purchased Items */}
+        {purchasedItems.length > 0 && (
+          <View className="mb-6">
+            <Text className="text-lg font-semibold text-gray-900 mb-4">
+              נקנו
+            </Text>
+            <FlatList
+              data={purchasedItems.slice().reverse().slice(0, 10)}
+              renderItem={renderShoppingItem}
+              keyExtractor={(item) => item.id}
+              scrollEnabled={false}
+            />
           </View>
         )}
       </ScrollView>
@@ -662,36 +653,7 @@ export default function ShoppingScreen() {
                 </View>
               </View>
 
-              {/* Category Selection */}
-              <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-3">קטגוריה</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {CATEGORIES.map((cat) => (
-                    <Pressable
-                      key={cat.key}
-                      onPress={() => setPurchaseCategory(cat.key)}
-                      className={cn(
-                        "flex-row items-center px-3 py-2 rounded-lg border",
-                        purchaseCategory === cat.key
-                          ? "bg-blue-100 border-blue-300"
-                          : "bg-gray-50 border-gray-200"
-                      )}
-                    >
-                      <Ionicons 
-                        name={cat.icon} 
-                        size={16} 
-                        color={purchaseCategory === cat.key ? "#3b82f6" : "#6b7280"} 
-                      />
-                      <Text className={cn(
-                        "mr-2 text-sm font-medium",
-                        purchaseCategory === cat.key ? "text-blue-700" : "text-gray-700"
-                      )}>
-                        {cat.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
+
 
               {/* Note Input */}
               <View className="mb-6">
@@ -775,7 +737,7 @@ export default function ShoppingScreen() {
                     setSelectedItemId(null);
                     setPurchasePrice('');
                     setSelectedParticipants([]);
-                    setPurchaseCategory('groceries');
+            
                     setPurchaseNote('');
                     setPurchaseDate(new Date());
                   }}

@@ -394,7 +394,14 @@ export const useStore = create<AppState>()(
           }
 
           // Add the item again to the shopping list with current user
-          await get().addItemToShoppingList(item.name, currentUser.id);
+          // Preserve the original priority, quantity, and notes
+          await get().addShoppingItem(
+            item.name, 
+            currentUser.id, 
+            item.priority || 'normal',
+            item.quantity || 1,
+            item.notes || ''
+          );
         } catch (error) {
           console.error('Error marking item for repurchase:', error);
           throw error;
