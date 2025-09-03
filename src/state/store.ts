@@ -85,6 +85,7 @@ interface AppState {
   loadExpenses: () => Promise<void>;
   loadDebtSettlements: () => Promise<void>;
   getBalances: () => Balance[];
+  getRawBalances: () => Balance[];
   getSimplifiedBalances: () => Balance[];
   getMonthlyExpenses: (year: number, month: number) => { expenses: Expense[], total: number, personalTotal: number };
   getTotalApartmentExpenses: (year: number, month: number) => number;
@@ -920,6 +921,69 @@ export const useStore = create<AppState>()(
         }
 
         // Calculate final net balances
+        Object.values(balances).forEach((balance) => {
+          const totalOwed = Object.values(balance.owed).reduce((sum, amount) => sum + amount, 0);
+          const totalOwes = Object.values(balance.owes).reduce((sum, amount) => sum + amount, 0);
+          balance.netBalance = Math.round((totalOwed - totalOwes) * 100) / 100;
+        });
+
+        return Object.values(balances);
+      },
+
+      // Get raw balances (before netting out debts) - shows all individual debts
+      getRawBalances: () => {
+        const { expenses, debtSettlements } = get();
+        
+        const balances: { [userId: string]: Balance } = {};
+
+        const ensure = (userId: string | undefined) => {
+          if (!userId) return false;
+          if (!balances[userId]) {
+            balances[userId] = { userId, owes: {}, owed: {}, netBalance: 0 };
+          }
+          return true;
+        };
+
+        // Calculate balances from expenses - don't rely on apartment members list
+        expenses.forEach((expense) => {
+          try {
+            if (!expense || typeof expense.amount !== 'number' || !isFinite(expense.amount)) return;
+
+            const paidBy = expense.paidBy;
+            const participants = Array.isArray(expense.participants) ? expense.participants : [];
+            const validParticipants = participants.filter((pid) => pid && typeof pid === 'string');
+
+            if (!paidBy || typeof paidBy !== 'string') return; // skip expenses with unknown payer
+            if (validParticipants.length === 0) return; // nothing to split
+
+            // Use precise calculation to avoid rounding errors
+            const perPersonAmount = Math.round((expense.amount / validParticipants.length) * 100) / 100;
+
+            // Ensure payer exists in balances
+            ensure(paidBy);
+
+            validParticipants.forEach((participantId) => {
+              if (!participantId || participantId === paidBy) return;
+              
+              // Ensure participant exists in balances
+              ensure(participantId);
+
+              if (balances[participantId].owes[paidBy] == null) {
+                balances[participantId].owes[paidBy] = 0;
+              }
+              if (balances[paidBy].owed[participantId] == null) {
+                balances[paidBy].owed[participantId] = 0;
+              }
+
+              balances[participantId].owes[paidBy] = Math.round((balances[participantId].owes[paidBy] + perPersonAmount) * 100) / 100;
+              balances[paidBy].owed[participantId] = Math.round((balances[paidBy].owed[participantId] + perPersonAmount) * 100) / 100;
+            });
+          } catch (e) {
+            console.warn('Error processing expense for balance calculation:', e);
+          }
+        });
+
+        // Calculate final net balances but DON'T net out the debts
         Object.values(balances).forEach((balance) => {
           const totalOwed = Object.values(balance.owed).reduce((sum, amount) => sum + amount, 0);
           const totalOwes = Object.values(balance.owes).reduce((sum, amount) => sum + amount, 0);

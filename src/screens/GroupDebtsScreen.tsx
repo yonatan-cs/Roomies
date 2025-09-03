@@ -41,6 +41,7 @@ export default function GroupDebtsScreen() {
     currentUser, 
     currentApartment, 
     getBalances, 
+    getRawBalances,
     getSimplifiedBalances, 
     loadDebtSettlements,
     settleCalculatedDebt,
@@ -119,8 +120,8 @@ export default function GroupDebtsScreen() {
   }, [currentApartment?.id, currentUser?.id]);
 
   const balances = useMemo(() => {
-    return useSimplified ? getSimplifiedBalances() : getBalances();
-  }, [expenses, debtSettlements, useSimplified]);
+    return useSimplified ? getSimplifiedBalances() : getRawBalances();
+  }, [expenses, debtSettlements, useSimplified, getRawBalances, getSimplifiedBalances]);
 
   const formatCurrency = (amount: number) => {
     // Show exact amount with up to 2 decimal places, no rounding
@@ -136,19 +137,6 @@ export default function GroupDebtsScreen() {
   };
 
   const handleSettleDebt = (fromUserId: string, toUserId: string, amount: number) => {
-    // Check if debt is already closed
-    const existingDebt = liveDebts.find(debt => 
-      debt.from_user_id === fromUserId && 
-      debt.to_user_id === toUserId && 
-      debt.amount === amount &&
-      debt.status === 'closed'
-    );
-    
-    if (existingDebt) {
-      Alert.alert('מידע', 'החוב הזה כבר סגור');
-      return;
-    }
-    
     setSettlementFromUser(fromUserId);
     setSettlementToUser(toUserId);
     setSettlementOriginalAmount(amount);
@@ -210,16 +198,23 @@ export default function GroupDebtsScreen() {
     }
   };
 
-  // Get all active debts for display from new system ONLY
+  // Get all active debts for display - use the same system as balance summary
   const getAllDebts = () => {
-    return liveDebts
-      .filter(debt => debt.status === 'open')
-      .map(debt => ({
-        fromUserId: debt.from_user_id,
-        toUserId: debt.to_user_id,
-        amount: debt.amount
-      }))
-      .sort((a, b) => b.amount - a.amount);
+    const debts: Array<{ fromUserId: string, toUserId: string, amount: number }> = [];
+    
+    balances.forEach(balance => {
+      Object.entries(balance.owes).forEach(([toUserId, amount]) => {
+        if (amount > 0.01) {
+          debts.push({
+            fromUserId: balance.userId,
+            toUserId,
+            amount
+          });
+        }
+      });
+    });
+    
+    return debts.sort((a, b) => b.amount - a.amount);
   };
 
   const allDebts = getAllDebts();
