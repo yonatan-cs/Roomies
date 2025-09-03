@@ -8,7 +8,8 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
@@ -24,8 +25,22 @@ const CATEGORIES: { key: ExpenseCategory; label: string; icon: keyof typeof Ioni
   { key: 'other', label: 'אחר', icon: 'ellipsis-horizontal-outline' }
 ];
 
+// Priority levels with colors and labels
+const PRIORITIES = [
+  { key: 'low', label: 'נמוכה', color: '#10b981', bgColor: '#d1fae5', icon: 'arrow-down' },
+  { key: 'normal', label: 'רגילה', color: '#3b82f6', bgColor: '#dbeafe', icon: 'remove' },
+  { key: 'high', label: 'גבוהה', color: '#ef4444', bgColor: '#fee2e2', icon: 'arrow-up' }
+];
+
 export default function ShoppingScreen() {
   const [newItemName, setNewItemName] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newItemQuantity, setNewItemQuantity] = useState('1');
+  const [newItemPriority, setNewItemPriority] = useState<'low' | 'normal' | 'high'>('normal');
+  const [newItemNotes, setNewItemNotes] = useState('');
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<'all' | 'low' | 'normal' | 'high'>('all');
+  
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showItemDetailsModal, setShowItemDetailsModal] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -45,11 +60,24 @@ export default function ShoppingScreen() {
     markItemForRepurchase
   } = useStore();
 
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     if (!newItemName.trim() || !currentUser) return;
     
-    addShoppingItem(newItemName.trim(), currentUser.id);
-    setNewItemName('');
+    setIsAddingItem(true);
+    try {
+      // TODO: Update addShoppingItem to accept priority, quantity, and notes
+      await addShoppingItem(newItemName.trim(), currentUser.id);
+      setNewItemName('');
+      setNewItemQuantity('1');
+      setNewItemPriority('normal');
+      setNewItemNotes('');
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error adding shopping item:', error);
+      Alert.alert('שגיאה', 'לא ניתן להוסיף את הפריט');
+    } finally {
+      setIsAddingItem(false);
+    }
   };
 
   const handleRemoveItem = (itemId: string) => {
@@ -164,7 +192,26 @@ export default function ShoppingScreen() {
     }
   };
 
-  const pendingItems = shoppingItems.filter(item => !item.purchased);
+  // Filter items by priority
+  const getFilteredItems = () => {
+    let items = shoppingItems.filter(item => !item.purchased);
+    
+    if (selectedPriorityFilter !== 'all') {
+      // TODO: Filter by priority when priority field is implemented
+      // items = items.filter(item => item.priority === selectedPriorityFilter);
+    }
+    
+    // Sort by priority (high first, then normal, then low)
+    // TODO: Implement proper priority sorting when priority field is added
+    // items.sort((a, b) => {
+    //   const priorityOrder = { high: 3, normal: 2, low: 1 };
+    //   return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+    // });
+    
+    return items;
+  };
+
+  const pendingItems = getFilteredItems();
   const purchasedItems = shoppingItems.filter(item => item.purchased);
 
   const renderShoppingItem = ({ item }: { item: any }) => (
@@ -187,6 +234,10 @@ export default function ShoppingScreen() {
             item.purchased ? "text-gray-500 line-through" : "text-gray-900"
           )}>
             {item.name}
+            {/* TODO: Show quantity when implemented */}
+            {/* {item.quantity && item.quantity > 1 && (
+              <Text className="text-gray-500 text-sm"> × {item.quantity}</Text>
+            )} */}
           </Text>
           
           <View className="flex-row items-center mt-1">
@@ -194,6 +245,54 @@ export default function ShoppingScreen() {
               נוסף על ידי {getUserName(item.addedBy)} • {formatDate(item.addedAt)}
             </Text>
           </View>
+
+          {/* TODO: Show priority when implemented */}
+          {/* {item.priority && (
+            <View className="mt-2 flex-row items-center space-x-2">
+              {PRIORITIES.find(p => p.key === item.priority) && (
+                <View className={cn(
+                  "px-2 py-1 rounded-lg flex-row items-center",
+                  PRIORITIES.find(p => p.key === item.priority)?.bgColor
+                )}>
+                  <Ionicons 
+                    name={PRIORITIES.find(p => p.key === item.priority)?.icon as any} 
+                    size={12} 
+                    color={PRIORITIES.find(p => p.key === item.priority)?.color} 
+                  />
+                  <Text className={cn(
+                    "text-xs font-medium mr-1",
+                    PRIORITIES.find(p => p.key === item.priority)?.color
+                  )}>
+                    {PRIORITIES.find(p => p.key === item.priority)?.label}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )} */}
+
+          {/* TODO: Show quantity when implemented */}
+          {/* {item.quantity && item.quantity > 1 && (
+            <View className="mt-2 flex-row items-center space-x-2">
+              <View className="bg-orange-100 px-2 py-1 rounded-lg flex-row items-center">
+                <Ionicons name="list-outline" size={12} color="#f97316" />
+                <Text className="text-xs font-medium text-orange-700 mr-1">
+                  כמות: {item.quantity}
+                </Text>
+              </View>
+            </View>
+          )} */}
+
+          {/* TODO: Show notes when implemented */}
+          {/* {item.notes && item.notes.trim() && (
+            <View className="mt-2 flex-row items-center space-x-2">
+              <View className="bg-indigo-100 px-2 py-1 rounded-lg flex-row items-center">
+                <Ionicons name="chatbubble-outline" size={12} color="#6366f1" />
+                <Text className="text-sm text-indigo-700 mr-1 italic">
+                  {item.notes}
+                </Text>
+              </View>
+            </View>
+          )} */}
 
           {item.purchased && (
             <View className="flex-row items-center mt-2">
@@ -239,28 +338,75 @@ export default function ShoppingScreen() {
         </Text>
         <Text className="text-gray-600 text-center">
           {pendingItems.length} פריטים לקנות
+          {selectedPriorityFilter !== 'all' && (
+            <Text className="text-blue-600 font-medium">
+              {' '}• {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}
+            </Text>
+          )}
         </Text>
       </View>
 
-      {/* Add New Item */}
+      {/* Priority Filter */}
       <View className="bg-white mx-6 mt-6 p-4 rounded-2xl shadow-sm">
-        <View className="flex-row items-center">
-          <TextInput
-            value={newItemName}
-            onChangeText={setNewItemName}
-            placeholder="הוסף פריט לקניות..."
-            className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
-            textAlign="right"
-            onSubmitEditing={handleAddItem}
-            returnKeyType="done"
-          />
+        <Text className="text-gray-700 text-base mb-3 text-center">סינון לפי דחיפות</Text>
+        <View className="flex-row justify-center space-x-2">
           <Pressable
-            onPress={handleAddItem}
-            className="bg-blue-500 w-12 h-12 rounded-xl items-center justify-center mr-3"
+            onPress={() => setSelectedPriorityFilter('all')}
+            className={cn(
+              "px-4 py-2 rounded-lg border-2",
+              selectedPriorityFilter === 'all'
+                ? "bg-blue-500 border-blue-500"
+                : "bg-gray-50 border-gray-200"
+            )}
           >
-            <Ionicons name="add" size={24} color="white" />
+            <Text className={cn(
+              "text-sm font-medium",
+              selectedPriorityFilter === 'all' ? "text-white" : "text-gray-700"
+            )}>
+              הכל
+            </Text>
           </Pressable>
+          
+          {PRIORITIES.map((priority) => (
+            <Pressable
+              key={priority.key}
+              onPress={() => setSelectedPriorityFilter(priority.key as any)}
+              className={cn(
+                "px-4 py-2 rounded-lg border-2 flex-row items-center",
+                selectedPriorityFilter === priority.key
+                  ? `bg-${priority.color} border-${priority.color}`
+                  : "bg-gray-50 border-gray-200"
+              )}
+            >
+              <Ionicons 
+                name={priority.icon as any} 
+                size={16} 
+                color={selectedPriorityFilter === priority.key ? "white" : priority.color} 
+              />
+              <Text className={cn(
+                "text-sm font-medium mr-1",
+                selectedPriorityFilter === priority.key ? "text-white" : "text-gray-700"
+              )}>
+                {priority.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
+      </View>
+
+      {/* Add New Item Button */}
+      <View className="mx-6 mt-4">
+        <Pressable
+          onPress={() => setShowAddModal(true)}
+          className="bg-blue-500 py-4 px-6 rounded-2xl shadow-sm"
+        >
+          <View className="flex-row items-center justify-center">
+            <Ionicons name="add-circle-outline" size={24} color="white" />
+            <Text className="text-white font-semibold text-lg mr-2">
+              הוסף פריט חדש
+            </Text>
+          </View>
+        </Pressable>
       </View>
 
       <ScrollView className="flex-1 px-6 py-6">
@@ -269,6 +415,11 @@ export default function ShoppingScreen() {
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-900 mb-4">
               לקנות
+              {selectedPriorityFilter !== 'all' && (
+                <Text className="text-blue-600 font-medium text-base">
+                  {' '}(דחיפות: {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label})
+                </Text>
+              )}
             </Text>
             <FlatList
               data={pendingItems}
@@ -306,7 +457,156 @@ export default function ShoppingScreen() {
             </Text>
           </View>
         )}
+
+        {/* No Items Match Filter */}
+        {shoppingItems.length > 0 && pendingItems.length === 0 && selectedPriorityFilter !== 'all' && (
+          <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
+            <Ionicons name="filter-outline" size={64} color="#6b7280" />
+            <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">
+              אין פריטים עם דחיפות זו
+            </Text>
+            <Text className="text-gray-600 text-center">
+              אין פריטים עם דחיפות "{PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}"
+            </Text>
+            <Pressable
+              onPress={() => setSelectedPriorityFilter('all')}
+              className="bg-blue-500 py-3 px-6 rounded-xl mt-4"
+            >
+              <Text className="text-white font-medium text-center">
+                הצג את כל הפריטים
+              </Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Add Item Modal */}
+      <Modal
+        visible={showAddModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-center items-center px-6">
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
+              הוסף פריט חדש
+            </Text>
+            
+            {/* Item Name */}
+            <View className="mb-6">
+              <Text className="text-gray-700 text-base mb-2">שם הפריט *</Text>
+              <TextInput
+                value={newItemName}
+                onChangeText={setNewItemName}
+                placeholder="למשל: חלב, לחם, ביצים..."
+                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                textAlign="right"
+                autoFocus
+              />
+            </View>
+
+            {/* Quantity */}
+            <View className="mb-6">
+              <Text className="text-gray-700 text-base mb-2">כמות</Text>
+              <TextInput
+                value={newItemQuantity}
+                onChangeText={setNewItemQuantity}
+                placeholder="1"
+                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                textAlign="center"
+                keyboardType="numeric"
+              />
+            </View>
+
+            {/* Priority */}
+            <View className="mb-6">
+              <Text className="text-gray-700 text-base mb-3">רמת דחיפות</Text>
+              <View className="flex-row space-x-2">
+                {PRIORITIES.map((priority) => (
+                  <Pressable
+                    key={priority.key}
+                    onPress={() => setNewItemPriority(priority.key as any)}
+                    className={cn(
+                      "flex-1 py-3 px-2 rounded-xl border-2 items-center",
+                      newItemPriority === priority.key
+                        ? `bg-${priority.bgColor} border-${priority.color}`
+                        : "bg-gray-50 border-gray-200"
+                    )}
+                  >
+                    <Ionicons 
+                      name={priority.icon as any} 
+                      size={20} 
+                      color={newItemPriority === priority.key ? priority.color : "#6b7280"} 
+                    />
+                    <Text className={cn(
+                      "text-sm font-medium mt-1 text-center",
+                      newItemPriority === priority.key ? priority.color : "text-gray-700"
+                    )}>
+                      {priority.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Notes */}
+            <View className="mb-6">
+              <Text className="text-gray-700 text-base mb-2">הערות (אופציונלי)</Text>
+              <TextInput
+                value={newItemNotes}
+                onChangeText={setNewItemNotes}
+                placeholder="פרטים נוספים, מותג מועדף..."
+                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                textAlign="right"
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Action Buttons */}
+            <View className="flex-row space-x-3">
+              <Pressable
+                onPress={() => {
+                  setShowAddModal(false);
+                  setNewItemName('');
+                  setNewItemQuantity('1');
+                  setNewItemPriority('normal');
+                  setNewItemNotes('');
+                }}
+                className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                disabled={isAddingItem}
+              >
+                <Text className="text-gray-700 font-medium text-center">
+                  ביטול
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={handleAddItem}
+                disabled={!newItemName.trim() || isAddingItem}
+                className={cn(
+                  "flex-1 py-3 px-4 rounded-xl",
+                  !newItemName.trim() || isAddingItem
+                    ? "bg-gray-400"
+                    : "bg-blue-500"
+                )}
+              >
+                <View className="flex-row items-center justify-center">
+                  {isAddingItem ? (
+                    <Ionicons name="hourglass" size={20} color="white" />
+                  ) : (
+                    <Ionicons name="add" size={20} color="white" />
+                  )}
+                  <Text className="text-white font-medium text-center mr-2">
+                    {isAddingItem ? 'מוסיף...' : 'הוסף'}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Purchase Confirmation Modal */}
       {showPurchaseModal && (
@@ -500,6 +800,45 @@ export default function ShoppingScreen() {
                     <Text className="text-blue-900 font-medium text-center">{getUserName(item.addedBy)}</Text>
                     <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item.addedAt)}</Text>
                   </View>
+
+                  {/* TODO: Show priority when implemented */}
+                  {/* {item.priority && (
+                    <View className="bg-purple-50 p-4 rounded-xl">
+                      <View className="flex-row items-center justify-center mb-2">
+                        <Ionicons 
+                          name={PRIORITIES.find(p => p.key === item.priority)?.icon as any} 
+                          size={16} 
+                          color={PRIORITIES.find(p => p.key === item.priority)?.color} 
+                        />
+                        <Text className="text-purple-700 text-sm font-medium mr-2">דחיפות</Text>
+                      </View>
+                      <Text className="text-purple-900 font-medium text-center">
+                        {PRIORITIES.find(p => p.key === item.priority)?.label}
+                      </Text>
+                    </View>
+                  )} */}
+
+                  {/* TODO: Show quantity when implemented */}
+                  {/* {item.quantity && item.quantity > 1 && (
+                    <View className="bg-orange-50 p-4 rounded-xl">
+                      <View className="flex-row items-center justify-center mb-2">
+                        <Ionicons name="list-outline" size={16} color="#f97316" />
+                        <Text className="text-orange-700 text-sm font-medium mr-2">כמות</Text>
+                      </View>
+                      <Text className="text-orange-900 font-bold text-xl text-center">{item.quantity}</Text>
+                    </View>
+                  )} */}
+
+                  {/* TODO: Show notes when implemented */}
+                  {/* {item.notes && item.notes.trim() && (
+                    <View className="bg-indigo-50 p-4 rounded-xl">
+                      <View className="flex-row items-center justify-center mb-2">
+                        <Ionicons name="chatbubble-outline" size={16} color="#6366f1" />
+                        <Text className="text-indigo-700 text-sm font-medium mr-2">הערות</Text>
+                      </View>
+                      <Text className="text-indigo-900 text-center">{item.notes}</Text>
+                    </View>
+                  )} */}
 
                   {/* Purchase Info */}
                   {item.purchased && (
