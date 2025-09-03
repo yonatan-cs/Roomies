@@ -95,12 +95,13 @@ interface AppState {
   cleanupDebtSystem: () => void;
 
   // Actions - Shopping
-  addShoppingItem: (name: string, userId: string) => Promise<void>;
+  addShoppingItem: (name: string, userId: string, priority?: 'low' | 'normal' | 'high', quantity?: number, notes?: string) => Promise<void>;
   loadShoppingItems: () => Promise<void>;
+  updateShoppingItem: (itemId: string, updates: { priority?: 'low' | 'normal' | 'high'; quantity?: number; notes?: string; name?: string }) => Promise<void>;
   markItemPurchased: (itemId: string, userId: string, price?: number, participants?: string[], category?: ExpenseCategory, note?: string, purchaseDate?: Date) => Promise<void>;
   addItemToShoppingList: (name: string, userId: string) => Promise<void>;
   markItemForRepurchase: (itemId: string) => Promise<void>;
-  removeShoppingItem: (itemId: string) => void;
+  removeShoppingItem: (itemId: string) => Promise<void>;
 
   // Actions - Cleaning (Firestore-based)
   loadCleaningTask: () => Promise<void>;
@@ -279,12 +280,22 @@ export const useStore = create<AppState>()(
 
       // ===== SHOPPING ACTIONS (Firestore-based) =====
 
-      addShoppingItem: async (name, userId) => {
+      addShoppingItem: async (name, userId, priority, quantity, notes) => {
         try {
-          await firestoreService.addShoppingItem(name, userId);
+          await firestoreService.addShoppingItem(name, userId, priority, quantity, notes);
           await get().loadShoppingItems();
         } catch (error) {
           console.error('Error adding shopping item:', error);
+          throw error;
+        }
+      },
+
+      updateShoppingItem: async (itemId, updates) => {
+        try {
+          await firestoreService.updateShoppingItem(itemId, updates);
+          await get().loadShoppingItems();
+        } catch (error) {
+          console.error('Error updating shopping item:', error);
           throw error;
         }
       },
@@ -297,6 +308,9 @@ export const useStore = create<AppState>()(
             id: item.id || uuidv4(),
             name: item.title || item.name || '',
             addedBy: item.added_by_user_id || '',
+            quantity: item.quantity || 1,
+            priority: item.priority || 'normal',
+            notes: item.notes || '',
             purchased: item.purchased || false,
             purchasedBy: item.purchased_by_user_id || '',
             purchasePrice: item.price || null,
@@ -1022,10 +1036,17 @@ export const useStore = create<AppState>()(
       },
 
       // Shopping actions
-      removeShoppingItem: (itemId) => {
-        set((state) => ({
-          shoppingItems: state.shoppingItems.filter((item) => item.id !== itemId),
-        }));
+      removeShoppingItem: async (itemId) => {
+        try {
+          await firestoreService.deleteShoppingItem(itemId);
+          // Remove from local state after successful deletion from server
+          set((state) => ({
+            shoppingItems: state.shoppingItems.filter((item) => item.id !== itemId),
+          }));
+        } catch (error) {
+          console.error('Error removing shopping item:', error);
+          throw error;
+        }
       },
 
       // ===== NEW DEBTS & BALANCES ACTIONS (Firestore-based) =====

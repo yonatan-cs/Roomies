@@ -2884,7 +2884,13 @@ export class FirestoreService {
   /**
    * Add shopping item with apartment context
    */
-  async addShoppingItem(name: string, addedByUserId: string): Promise<any> {
+  async addShoppingItem(
+    name: string, 
+    addedByUserId: string, 
+    priority?: 'low' | 'normal' | 'high',
+    quantity?: number,
+    notes?: string
+  ): Promise<any> {
     const { idToken, aptId } = await getApartmentContext();
 
     const body = {
@@ -2892,8 +2898,12 @@ export class FirestoreService {
         apartment_id: { stringValue: aptId },
         name: { stringValue: name },
         added_by_user_id: { stringValue: addedByUserId },
+        priority: { stringValue: priority || 'normal' },
+        quantity: { integerValue: quantity || 1 },
+        notes: { stringValue: notes || '' },
         purchased: { booleanValue: false },
         created_at: { timestampValue: new Date().toISOString() },
+        last_updated: { timestampValue: new Date().toISOString() },
       },
     };
 
@@ -2931,7 +2941,11 @@ export class FirestoreService {
               value: { stringValue: aptId },
             },
           },
-          orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
+          orderBy: [
+            { field: { fieldPath: 'purchased' }, direction: 'ASCENDING' },
+            { field: { fieldPath: 'priority' }, direction: 'DESCENDING' },
+            { field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }
+          ],
           limit: 200,
         },
       };
@@ -2956,12 +2970,15 @@ export class FirestoreService {
             title: f.title?.stringValue ?? f.name?.stringValue ?? '',
             name: f.name?.stringValue ?? f.title?.stringValue ?? '',
             quantity: f.quantity?.integerValue ? Number(f.quantity.integerValue) : 1,
+            priority: f.priority?.stringValue ?? 'normal',
+            notes: f.notes?.stringValue ?? '',
             created_at: f.created_at?.timestampValue ?? null,
             purchased: !!f.purchased?.booleanValue,
             purchased_by_user_id: f.purchased_by_user_id?.stringValue ?? null,
             added_by_user_id: f.added_by_user_id?.stringValue ?? null,
             price: f.price?.doubleValue ? Number(f.price.doubleValue) : null,
             purchased_at: f.purchased_at?.timestampValue ?? null,
+            last_updated: f.last_updated?.timestampValue ?? null,
           };
         });
 
@@ -2970,6 +2987,72 @@ export class FirestoreService {
       console.error('GET_SHOPPING_ITEMS_ERROR', e);
       return []; // תמיד מחזיר מערך ולא מפיל
     }
+  }
+
+  /**
+   * Update shopping item with new fields
+   */
+  async updateShoppingItem(itemId: string, updates: {
+    priority?: 'low' | 'normal' | 'high';
+    quantity?: number;
+    notes?: string;
+    name?: string;
+  }): Promise<any> {
+    const { idToken, aptId } = await getApartmentContext();
+    
+    // Build update mask
+    const updateMask = {
+      fieldPaths: Object.keys(updates).filter(key => updates[key as keyof typeof updates] !== undefined)
+    };
+
+    // Build fields object
+    const fields: any = {};
+    if (updates.priority !== undefined) fields.priority = { stringValue: updates.priority };
+    if (updates.quantity !== undefined) fields.quantity = { integerValue: updates.quantity };
+    if (updates.notes !== undefined) fields.notes = { stringValue: updates.notes };
+    if (updates.name !== undefined) fields.name = { stringValue: updates.name };
+    
+    // Always update last_updated
+    fields.last_updated = { timestampValue: new Date().toISOString() };
+
+    const body = {
+      fields,
+      updateMask
+    };
+
+    const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems/${itemId}`, {
+      method: 'PATCH',
+      headers: H(idToken),
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('Firestore updateShoppingItem error:', res.status, text);
+      throw new Error(`UPDATE_SHOPPING_ITEM_${res.status}: ${text}`);
+    }
+
+    return await res.json();
+  }
+
+  /**
+   * Delete shopping item from Firestore
+   */
+  async deleteShoppingItem(itemId: string): Promise<any> {
+    const { idToken } = await getApartmentContext();
+
+    const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems/${itemId}`, {
+      method: 'DELETE',
+      headers: H(idToken),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('Firestore deleteShoppingItem error:', res.status, text);
+      throw new Error(`DELETE_SHOPPING_ITEM_${res.status}: ${text}`);
+    }
+
+    return await res.json();
   }
 
   /**

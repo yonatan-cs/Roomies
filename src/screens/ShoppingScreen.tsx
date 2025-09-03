@@ -41,6 +41,7 @@ export default function ShoppingScreen() {
   const [newItemPriority, setNewItemPriority] = useState<'low' | 'normal' | 'high'>('normal');
   const [newItemNotes, setNewItemNotes] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null); // Track which item is being removed
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<'all' | 'low' | 'normal' | 'high'>('all');
   
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -67,8 +68,14 @@ export default function ShoppingScreen() {
     
     setIsAddingItem(true);
     try {
-      // TODO: Update addShoppingItem to accept priority, quantity, and notes
-      await addShoppingItem(newItemName.trim(), currentUser.id);
+      const quantity = parseInt(newItemQuantity) || 1;
+      await addShoppingItem(
+        newItemName.trim(), 
+        currentUser.id, 
+        newItemPriority, 
+        quantity, 
+        newItemNotes.trim() || undefined
+      );
       setNewItemName('');
       setNewItemQuantity('1');
       setNewItemPriority('normal');
@@ -82,7 +89,7 @@ export default function ShoppingScreen() {
     }
   };
 
-  const handleRemoveItem = (itemId: string) => {
+  const handleRemoveItem = async (itemId: string) => {
     const item = shoppingItems.find(i => i.id === itemId);
     if (!item) return;
 
@@ -98,7 +105,17 @@ export default function ShoppingScreen() {
         [
           {
             text: 'לא, רק תמחק',
-            onPress: () => removeShoppingItem(itemId),
+            onPress: async () => {
+              setIsRemovingItem(itemId);
+              try {
+                await removeShoppingItem(itemId);
+              } catch (error) {
+                console.error('Error removing item:', error);
+                Alert.alert('שגיאה', 'לא ניתן למחוק את הפריט');
+              } finally {
+                setIsRemovingItem(null);
+              }
+            },
             style: 'destructive'
           },
           {
@@ -199,17 +216,17 @@ export default function ShoppingScreen() {
     let items = shoppingItems.filter(item => !item.purchased);
     
     if (selectedPriorityFilter !== 'all') {
-      // Temporary filtering - show only first 3 items for high priority, next 3 for normal, rest for low
-      // This is just for demo purposes until we implement real priority field
-      const totalItems = items.length;
-      if (selectedPriorityFilter === 'high') {
-        items = items.slice(0, Math.min(3, totalItems));
-      } else if (selectedPriorityFilter === 'normal') {
-        items = items.slice(3, Math.min(6, totalItems));
-      } else if (selectedPriorityFilter === 'low') {
-        items = items.slice(6);
-      }
+      // Filter by actual priority field
+      items = items.filter(item => item.priority === selectedPriorityFilter);
     }
+    
+    // Sort by priority (high first, then normal, then low)
+    items.sort((a, b) => {
+      const priorityOrder = { high: 3, normal: 2, low: 1 };
+      const aPriority = a.priority || 'normal';
+      const bPriority = b.priority || 'normal';
+      return (priorityOrder[bPriority] || 0) - (priorityOrder[aPriority] || 0);
+    });
     
     return items;
   };
@@ -249,8 +266,8 @@ export default function ShoppingScreen() {
             </Text>
           </View>
 
-          {/* TODO: Show priority when implemented */}
-          {/* {item.priority && (
+          {/* Show priority */}
+          {item.priority && (
             <View className="mt-2 flex-row items-center space-x-2">
               {PRIORITIES.find(p => p.key === item.priority) && (
                 <View className={cn(
@@ -271,10 +288,10 @@ export default function ShoppingScreen() {
                 </View>
               )}
             </View>
-          )} */}
+          )}
 
-          {/* TODO: Show quantity when implemented */}
-          {/* {item.quantity && item.quantity > 1 && (
+          {/* Show quantity */}
+          {item.quantity && item.quantity > 1 && (
             <View className="mt-2 flex-row items-center space-x-2">
               <View className="bg-orange-100 px-2 py-1 rounded-lg flex-row items-center">
                 <Ionicons name="list-outline" size={12} color="#f97316" />
@@ -283,10 +300,10 @@ export default function ShoppingScreen() {
                 </Text>
               </View>
             </View>
-          )} */}
+          )}
 
-          {/* TODO: Show notes when implemented */}
-          {/* {item.notes && item.notes.trim() && (
+          {/* Show notes */}
+          {item.notes && item.notes.trim() && (
             <View className="mt-2 flex-row items-center space-x-2">
               <View className="bg-indigo-100 px-2 py-1 rounded-lg flex-row items-center">
                 <Ionicons name="chatbubble-outline" size={12} color="#6366f1" />
@@ -295,7 +312,7 @@ export default function ShoppingScreen() {
                 </Text>
               </View>
             </View>
-          )} */}
+          )}
 
           {item.purchased && (
             <View className="flex-row items-center mt-2">
@@ -311,12 +328,17 @@ export default function ShoppingScreen() {
         <Pressable
           onPress={() => handleRemoveItem(item.id)}
           className="p-2"
+          disabled={isRemovingItem === item.id}
         >
-          <Ionicons 
-            name={item.purchased ? "information-circle-outline" : "close-circle-outline"} 
-            size={24} 
-            color={item.purchased ? "#3b82f6" : "#ef4444"}
-          />
+          {isRemovingItem === item.id ? (
+            <Ionicons name="hourglass" size={24} color="#6b7280" />
+          ) : (
+            <Ionicons 
+              name={item.purchased ? "information-circle-outline" : "close-circle-outline"} 
+              size={24} 
+              color={item.purchased ? "#3b82f6" : "#ef4444"}
+            />
+          )}
         </Pressable>
       </View>
     </View>
@@ -808,8 +830,8 @@ export default function ShoppingScreen() {
                     <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item?.addedAt || new Date())}</Text>
                   </View>
 
-                  {/* TODO: Show priority when implemented */}
-                  {/* {item.priority && (
+                  {/* Show priority */}
+                  {item?.priority && (
                     <View className="bg-purple-50 p-4 rounded-xl">
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons 
@@ -823,10 +845,10 @@ export default function ShoppingScreen() {
                         {PRIORITIES.find(p => p.key === item.priority)?.label}
                       </Text>
                     </View>
-                  )} */}
+                  )}
 
-                  {/* TODO: Show quantity when implemented */}
-                  {/* {item.quantity && item.quantity > 1 && (
+                  {/* Show quantity */}
+                  {item?.quantity && item.quantity > 1 && (
                     <View className="bg-orange-50 p-4 rounded-xl">
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="list-outline" size={16} color="#f97316" />
@@ -834,10 +856,10 @@ export default function ShoppingScreen() {
                       </View>
                       <Text className="text-orange-900 font-bold text-xl text-center">{item.quantity}</Text>
                     </View>
-                  )} */}
+                  )}
 
-                  {/* TODO: Show notes when implemented */}
-                  {/* {item.notes && item.notes.trim() && (
+                  {/* Show notes */}
+                  {item?.notes && item.notes.trim() && (
                     <View className="bg-indigo-50 p-4 rounded-xl">
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="chatbubble-outline" size={16} color="#6366f1" />
@@ -845,7 +867,7 @@ export default function ShoppingScreen() {
                       </View>
                       <Text className="text-indigo-900 text-center">{item.notes}</Text>
                     </View>
-                  )} */}
+                  )}
 
                   {/* Purchase Info */}
                   {item?.purchased && (
