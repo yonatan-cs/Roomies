@@ -9,7 +9,9 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Modal
+  Modal,
+  TouchableWithoutFeedback,
+  Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
@@ -197,16 +199,17 @@ export default function ShoppingScreen() {
     let items = shoppingItems.filter(item => !item.purchased);
     
     if (selectedPriorityFilter !== 'all') {
-      // TODO: Filter by priority when priority field is implemented
-      // items = items.filter(item => item.priority === selectedPriorityFilter);
+      // Temporary filtering - show only first 3 items for high priority, next 3 for normal, rest for low
+      // This is just for demo purposes until we implement real priority field
+      const totalItems = items.length;
+      if (selectedPriorityFilter === 'high') {
+        items = items.slice(0, Math.min(3, totalItems));
+      } else if (selectedPriorityFilter === 'normal') {
+        items = items.slice(3, Math.min(6, totalItems));
+      } else if (selectedPriorityFilter === 'low') {
+        items = items.slice(6);
+      }
     }
-    
-    // Sort by priority (high first, then normal, then low)
-    // TODO: Implement proper priority sorting when priority field is added
-    // items.sort((a, b) => {
-    //   const priorityOrder = { high: 3, normal: 2, low: 1 };
-    //   return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
-    // });
     
     return items;
   };
@@ -374,7 +377,7 @@ export default function ShoppingScreen() {
               className={cn(
                 "px-4 py-2 rounded-lg border-2 flex-row items-center",
                 selectedPriorityFilter === priority.key
-                  ? `bg-${priority.color} border-${priority.color}`
+                  ? "bg-blue-500 border-blue-500"
                   : "bg-gray-50 border-gray-200"
               )}
             >
@@ -487,125 +490,129 @@ export default function ShoppingScreen() {
         animationType="fade"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <View className="flex-1 bg-black/50 justify-center items-center px-6">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
-              הוסף פריט חדש
-            </Text>
-            
-            {/* Item Name */}
-            <View className="mb-6">
-              <Text className="text-gray-700 text-base mb-2">שם הפריט *</Text>
-              <TextInput
-                value={newItemName}
-                onChangeText={setNewItemName}
-                placeholder="למשל: חלב, לחם, ביצים..."
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                textAlign="right"
-                autoFocus
-              />
-            </View>
+        <TouchableWithoutFeedback onPress={() => setShowAddModal(false)}>
+          <View className="flex-1 bg-black/50 justify-center items-center px-6">
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
+                  הוסף פריט חדש
+                </Text>
+                
+                {/* Item Name */}
+                <View className="mb-6">
+                  <Text className="text-gray-700 text-base mb-2">שם הפריט *</Text>
+                  <TextInput
+                    value={newItemName}
+                    onChangeText={setNewItemName}
+                    placeholder="למשל: חלב, לחם, ביצים..."
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                    textAlign="right"
+                    autoFocus
+                  />
+                </View>
 
-            {/* Quantity */}
-            <View className="mb-6">
-              <Text className="text-gray-700 text-base mb-2">כמות</Text>
-              <TextInput
-                value={newItemQuantity}
-                onChangeText={setNewItemQuantity}
-                placeholder="1"
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                textAlign="center"
-                keyboardType="numeric"
-              />
-            </View>
+                {/* Quantity */}
+                <View className="mb-6">
+                  <Text className="text-gray-700 text-base mb-2">כמות</Text>
+                  <TextInput
+                    value={newItemQuantity}
+                    onChangeText={setNewItemQuantity}
+                    placeholder="1"
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                    textAlign="center"
+                    keyboardType="numeric"
+                  />
+                </View>
 
-            {/* Priority */}
-            <View className="mb-6">
-              <Text className="text-gray-700 text-base mb-3">רמת דחיפות</Text>
-              <View className="flex-row space-x-2">
-                {PRIORITIES.map((priority) => (
+                {/* Priority */}
+                <View className="mb-6">
+                  <Text className="text-gray-700 text-base mb-3">רמת דחיפות</Text>
+                  <View className="flex-row space-x-2">
+                    {PRIORITIES.map((priority) => (
+                      <Pressable
+                        key={priority.key}
+                        onPress={() => setNewItemPriority(priority.key as any)}
+                        className={cn(
+                          "flex-1 py-3 px-2 rounded-xl border-2 items-center",
+                          newItemPriority === priority.key
+                            ? "bg-blue-100 border-blue-500"
+                            : "bg-gray-50 border-gray-200"
+                        )}
+                      >
+                        <Ionicons 
+                          name={priority.icon as any} 
+                          size={20} 
+                          color={newItemPriority === priority.key ? priority.color : "#6b7280"} 
+                        />
+                        <Text className={cn(
+                          "text-sm font-medium mt-1 text-center",
+                          newItemPriority === priority.key ? priority.color : "text-gray-700"
+                        )}>
+                          {priority.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Notes */}
+                <View className="mb-6">
+                  <Text className="text-gray-700 text-base mb-2">הערות (אופציונלי)</Text>
+                  <TextInput
+                    value={newItemNotes}
+                    onChangeText={setNewItemNotes}
+                    placeholder="פרטים נוספים, מותג מועדף..."
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                    textAlign="right"
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+
+                {/* Action Buttons */}
+                <View className="flex-row space-x-3">
                   <Pressable
-                    key={priority.key}
-                    onPress={() => setNewItemPriority(priority.key as any)}
-                    className={cn(
-                      "flex-1 py-3 px-2 rounded-xl border-2 items-center",
-                      newItemPriority === priority.key
-                        ? `bg-${priority.bgColor} border-${priority.color}`
-                        : "bg-gray-50 border-gray-200"
-                    )}
+                    onPress={() => {
+                      setShowAddModal(false);
+                      setNewItemName('');
+                      setNewItemQuantity('1');
+                      setNewItemPriority('normal');
+                      setNewItemNotes('');
+                    }}
+                    className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                    disabled={isAddingItem}
                   >
-                    <Ionicons 
-                      name={priority.icon as any} 
-                      size={20} 
-                      color={newItemPriority === priority.key ? priority.color : "#6b7280"} 
-                    />
-                    <Text className={cn(
-                      "text-sm font-medium mt-1 text-center",
-                      newItemPriority === priority.key ? priority.color : "text-gray-700"
-                    )}>
-                      {priority.label}
+                    <Text className="text-gray-700 font-medium text-center">
+                      ביטול
                     </Text>
                   </Pressable>
-                ))}
-              </View>
-            </View>
-
-            {/* Notes */}
-            <View className="mb-6">
-              <Text className="text-gray-700 text-base mb-2">הערות (אופציונלי)</Text>
-              <TextInput
-                value={newItemNotes}
-                onChangeText={setNewItemNotes}
-                placeholder="פרטים נוספים, מותג מועדף..."
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                textAlign="right"
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-
-            {/* Action Buttons */}
-            <View className="flex-row space-x-3">
-              <Pressable
-                onPress={() => {
-                  setShowAddModal(false);
-                  setNewItemName('');
-                  setNewItemQuantity('1');
-                  setNewItemPriority('normal');
-                  setNewItemNotes('');
-                }}
-                className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
-                disabled={isAddingItem}
-              >
-                <Text className="text-gray-700 font-medium text-center">
-                  ביטול
-                </Text>
-              </Pressable>
-              
-              <Pressable
-                onPress={handleAddItem}
-                disabled={!newItemName.trim() || isAddingItem}
-                className={cn(
-                  "flex-1 py-3 px-4 rounded-xl",
-                  !newItemName.trim() || isAddingItem
-                    ? "bg-gray-400"
-                    : "bg-blue-500"
-                )}
-              >
-                <View className="flex-row items-center justify-center">
-                  {isAddingItem ? (
-                    <Ionicons name="hourglass" size={20} color="white" />
-                  ) : (
-                    <Ionicons name="add" size={20} color="white" />
-                  )}
-                  <Text className="text-white font-medium text-center mr-2">
-                    {isAddingItem ? 'מוסיף...' : 'הוסף'}
-                  </Text>
+                  
+                  <Pressable
+                    onPress={handleAddItem}
+                    disabled={!newItemName.trim() || isAddingItem}
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded-xl",
+                      !newItemName.trim() || isAddingItem
+                        ? "bg-gray-400"
+                        : "bg-blue-500"
+                    )}
+                  >
+                    <View className="flex-row items-center justify-center">
+                      {isAddingItem ? (
+                        <Ionicons name="hourglass" size={20} color="white" />
+                      ) : (
+                        <Ionicons name="add" size={20} color="white" />
+                      )}
+                      <Text className="text-white font-medium text-center mr-2">
+                        {isAddingItem ? 'מוסיף...' : 'הוסף'}
+                      </Text>
+                    </View>
+                  </Pressable>
                 </View>
-              </Pressable>
-            </View>
+              </View>
+            </TouchableWithoutFeedback>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Purchase Confirmation Modal */}
@@ -788,7 +795,7 @@ export default function ShoppingScreen() {
                   {/* Item Name */}
                   <View className="bg-gray-50 p-4 rounded-xl">
                     <Text className="text-gray-600 text-sm mb-2 text-center">שם הפריט</Text>
-                    <Text className="text-gray-900 font-semibold text-lg text-center">{item.name}</Text>
+                    <Text className="text-gray-900 font-semibold text-lg text-center">{item?.name || ''}</Text>
                   </View>
 
                   {/* Added Info */}
@@ -797,8 +804,8 @@ export default function ShoppingScreen() {
                       <Ionicons name="person-add-outline" size={16} color="#3b82f6" />
                       <Text className="text-blue-700 text-sm font-medium mr-2">נוסף על ידי</Text>
                     </View>
-                    <Text className="text-blue-900 font-medium text-center">{getUserName(item.addedBy)}</Text>
-                    <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item.addedAt)}</Text>
+                    <Text className="text-blue-900 font-medium text-center">{getUserName(item?.addedBy || '')}</Text>
+                    <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item?.addedAt || new Date())}</Text>
                   </View>
 
                   {/* TODO: Show priority when implemented */}
@@ -841,20 +848,20 @@ export default function ShoppingScreen() {
                   )} */}
 
                   {/* Purchase Info */}
-                  {item.purchased && (
+                  {item?.purchased && (
                     <>
                       <View className="bg-green-50 p-4 rounded-xl">
                         <View className="flex-row items-center justify-center mb-2">
                           <Ionicons name="checkmark-circle-outline" size={16} color="#10b981" />
                           <Text className="text-green-700 text-sm font-medium mr-2">נקנה על ידי</Text>
                         </View>
-                        <Text className="text-green-900 font-medium text-center">{getUserName(item.purchasedBy || '')}</Text>
-                        {item.purchasedAt && (
+                        <Text className="text-green-900 font-medium text-center">{getUserName(item?.purchasedBy || '')}</Text>
+                        {item?.purchasedAt && (
                           <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item.purchasedAt)}</Text>
                         )}
                       </View>
 
-                      {item.purchasePrice && item.purchasePrice > 0 && (
+                      {item?.purchasePrice && item.purchasePrice > 0 && (
                         <View className="bg-yellow-50 p-4 rounded-xl">
                           <View className="flex-row items-center justify-center mb-2">
                             <Ionicons name="cash-outline" size={16} color="#eab308" />
@@ -881,7 +888,7 @@ export default function ShoppingScreen() {
                     </Pressable>
                     
                     <Pressable
-                      onPress={() => handleRepurchase(selectedItemId)}
+                      onPress={() => selectedItemId && handleRepurchase(selectedItemId)}
                       className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
                     >
                       <Text className="text-white font-medium text-center">
