@@ -329,7 +329,7 @@ export default function GroupDebtsScreen() {
                     {getUserName(debt.fromUserId)}
                   </Text>
                   <Text className="text-sm text-gray-500">
-                    חייב ל{getUserName(debt.toUserId)}
+                    {debt.fromUserId === currentUser?.id ? 'חייב לך' : `חייב ל${getUserName(debt.toUserId)}`}
                   </Text>
                 </View>
                 
