@@ -33,6 +33,7 @@ export default function ShoppingScreen() {
   const [newItemNotes, setNewItemNotes] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null); // Track which item is being removed
+  const [isPurchasingItem, setIsPurchasingItem] = useState<string | null>(null); // Track which item is being purchased
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<'all' | 'low' | 'normal' | 'high'>('all');
   
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
@@ -97,6 +98,9 @@ export default function ShoppingScreen() {
           {
             text: 'לא, רק תמחק',
             onPress: async () => {
+              // Check if item is already being purchased
+              if (isPurchasingItem === itemId) return;
+              
               setIsRemovingItem(itemId);
               try {
                 await removeShoppingItem(itemId);
@@ -112,6 +116,9 @@ export default function ShoppingScreen() {
           {
             text: 'כן, קניתי',
             onPress: () => {
+              // Check if item is already being purchased
+              if (isPurchasingItem === itemId) return;
+              
               setSelectedItemId(itemId);
               // Default to all apartment members
               if (currentApartment) {
@@ -129,7 +136,7 @@ export default function ShoppingScreen() {
     }
   };
 
-  const handlePurchaseConfirm = () => {
+  const handlePurchaseConfirm = async () => {
     if (!selectedItemId || !currentUser) return;
 
     const price = parseFloat(purchasePrice);
@@ -143,24 +150,32 @@ export default function ShoppingScreen() {
       return;
     }
 
-    markItemPurchased(
-      selectedItemId, 
-      currentUser.id, 
-      price > 0 ? price : undefined,
-      selectedParticipants,
-      undefined, // category - removed
-      purchaseNote.trim() || undefined,
-      purchaseDate
-    );
+    setIsPurchasingItem(selectedItemId);
+    try {
+      await markItemPurchased(
+        selectedItemId, 
+        currentUser.id, 
+        price > 0 ? price : undefined,
+        selectedParticipants,
+        undefined, // category - removed
+        purchaseNote.trim() || undefined,
+        purchaseDate
+      );
 
-    // Close modal and reset state
-    setShowPurchaseModal(false);
-    setSelectedItemId(null);
-    setPurchasePrice('');
-    setSelectedParticipants([]);
-    
-    setPurchaseNote('');
-    setPurchaseDate(new Date());
+      // Close modal and reset state
+      setShowPurchaseModal(false);
+      setSelectedItemId(null);
+      setPurchasePrice('');
+      setSelectedParticipants([]);
+      
+      setPurchaseNote('');
+      setPurchaseDate(new Date());
+    } catch (error) {
+      console.error('Error marking item as purchased:', error);
+      Alert.alert('שגיאה', 'לא ניתן לסמן את הפריט כנרכש');
+    } finally {
+      setIsPurchasingItem(null);
+    }
   };
 
   const formatDate = (date: Date | string) => {
@@ -319,7 +334,7 @@ export default function ShoppingScreen() {
         <Pressable
           onPress={() => handleRemoveItem(item.id)}
           className="p-2"
-          disabled={isRemovingItem === item.id}
+          disabled={isRemovingItem === item.id || isPurchasingItem === item.id}
         >
           {isRemovingItem === item.id ? (
             <Ionicons name="hourglass" size={24} color="#6b7280" />
@@ -750,11 +765,21 @@ export default function ShoppingScreen() {
                 
                 <Pressable
                   onPress={handlePurchaseConfirm}
+                  disabled={isPurchasingItem === selectedItemId}
                   className="flex-1 bg-green-500 py-3 px-4 rounded-xl"
                 >
-                  <Text className="text-white font-medium text-center">
-                    אישור
-                  </Text>
+                  {isPurchasingItem === selectedItemId ? (
+                    <View className="flex-row items-center justify-center">
+                      <Ionicons name="hourglass" size={20} color="white" />
+                      <Text className="text-white font-medium text-center mr-2">
+                        מוסיף...
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text className="text-white font-medium text-center">
+                      אישור
+                    </Text>
+                  )}
                 </Pressable>
               </View>
             </View>
