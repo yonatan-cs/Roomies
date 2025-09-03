@@ -92,6 +92,9 @@ export interface ShoppingItem {
   name: string;
   addedBy: string; // user id
   addedAt: Date;
+  quantity?: number; // Quantity of the item
+  priority?: 'low' | 'normal' | 'high'; // Priority level
+  notes?: string; // Additional notes
   purchased?: boolean;
   purchasedBy?: string;
   purchasePrice?: number;

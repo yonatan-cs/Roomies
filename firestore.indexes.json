@@ -37,6 +37,28 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "shoppingItems",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "apartment_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "purchased",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "priority",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
