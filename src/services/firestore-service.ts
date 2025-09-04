@@ -776,12 +776,18 @@ export class FirestoreService {
   }
 
   /**
-   * Update a document
+   * Update a document with optional updateMask support
    */
-  async updateDocument(collectionName: string, documentId: string, data: any): Promise<any> {
+  async updateDocument(collectionName: string, documentId: string, data: any, updateMaskFields?: string[]): Promise<any> {
     try {
       const headers = await this.getAuthHeaders();
-      const url = `${FIRESTORE_BASE_URL}/${collectionName}/${documentId}`;
+      let url = `${FIRESTORE_BASE_URL}/${collectionName}/${documentId}`;
+      
+      // Add updateMask to URL if specified
+      if (updateMaskFields && updateMaskFields.length > 0) {
+        const updateMaskParams = updateMaskFields.map(field => `updateMask.fieldPaths=${encodeURIComponent(field)}`).join('&');
+        url += `?${updateMaskParams}`;
+      }
 
       const response = await fetch(url, {
         method: 'PATCH',
@@ -794,10 +800,18 @@ export class FirestoreService {
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(`Failed to update document: ${responseData.error?.message || 'Unknown error'}`);
+        const errorMessage = responseData.error?.message || 'Unknown error';
+        console.error('❌ Update document failed:', {
+          status: response.status,
+          error: errorMessage,
+          url,
+          data,
+          updateMaskFields
+        });
+        throw new Error(`Failed to update document: ${errorMessage}`);
       }
 
-      const convertedData = this.fromFirestoreFormat(responseData.fields);
+      const convertedData = this.fromFirestoreFormat(responseData.fields || {});
       return {
         id: this.extractDocumentId(responseData.name),
         ...convertedData
@@ -2504,6 +2518,65 @@ export class FirestoreService {
     const data = await res.json();
     console.log('✅ getDebts success, documents:', data.length);
     return data.map((row: any) => row.document).filter(Boolean);
+  }
+
+  /**
+   * Close a debt by updating its status to 'closed'
+   * Uses updateMask to ensure only allowed fields are updated
+   */
+  async closeDebt(debtId: string): Promise<void> {
+    try {
+      const { uid } = await requireSession();
+      const nowIso = new Date().toISOString();
+      
+      console.log('🔒 Closing debt:', {
+        debtId,
+        closedBy: uid,
+        closedAt: nowIso
+      });
+
+      // Use updateDocument with updateMask to ensure only allowed fields are updated
+      await this.updateDocument('debts', debtId, {
+        status: 'closed',
+        closed_at: nowIso,
+        closed_by: uid
+      }, ['status', 'closed_at', 'closed_by']);
+
+      console.log('✅ Debt closed successfully:', debtId);
+    } catch (error) {
+      console.error('❌ Failed to close debt:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Close a debt with custom parameters
+   * This is a more flexible version that allows specifying who closed the debt
+   */
+  async closeDebtWithParams(debtId: string, closedBy?: string): Promise<void> {
+    try {
+      const { uid } = await requireSession();
+      const nowIso = new Date().toISOString();
+      const actualClosedBy = closedBy || uid;
+      
+      console.log('🔒 Closing debt with params:', {
+        debtId,
+        closedBy: actualClosedBy,
+        closedAt: nowIso
+      });
+
+      // Use updateDocument with updateMask to ensure only allowed fields are updated
+      await this.updateDocument('debts', debtId, {
+        status: 'closed',
+        closed_at: nowIso,
+        closed_by: actualClosedBy
+      }, ['status', 'closed_at', 'closed_by']);
+
+      console.log('✅ Debt closed successfully with params:', debtId);
+    } catch (error) {
+      console.error('❌ Failed to close debt with params:', error);
+      throw error;
+    }
   }
 
   /**
