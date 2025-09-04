@@ -5,7 +5,7 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, setLogLevel } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { firebaseConfig } from './firebase-config';
 
@@ -17,6 +17,12 @@ export const db = getFirestore(app);
 
 // Initialize Auth
 export const auth = getAuth(app);
+
+// Enable debug logging for Firestore (helps debug Rules issues)
+if (__DEV__) {
+  setLogLevel('debug');
+  console.log('🔧 Firestore debug logging enabled');
+}
 
 // Connect to emulators in development (if needed)
 if (__DEV__ && process.env.EXPO_PUBLIC_USE_EMULATOR === 'true') {

@@ -55,111 +55,8 @@ export class FirestoreSDKService {
     return FirestoreSDKService.instance;
   }
 
-  /**
-   * Settle calculated debt atomically using Firebase Web SDK transaction
-   * This replaces the REST API version that was causing 403 errors
-   */
-  async settleCalculatedDebt(data: DebtSettlementData): Promise<void> {
-    const { apartmentId, fromUserId, toUserId, amount, description } = data;
-    
-    console.log('🚀 Starting debt settlement transaction with SDK:', {
-      apartmentId,
-      fromUserId,
-      toUserId,
-      amount,
-      description
-    });
-
-    try {
-      // Get current user for actor_uid
-      const currentUser = await firebaseAuth.getCurrentUser();
-      if (!currentUser?.localId) {
-        throw new Error('AUTH_REQUIRED');
-      }
-
-      const actorUid = currentUser.localId;
-
-      // Generate deterministic IDs
-      const debtId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
-      const actionId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
-
-      await runTransaction(db, async (transaction) => {
-        console.log('🔄 Transaction started, processing debt settlement...');
-
-        // Document references
-        const debtRef = doc(db, 'debts', debtId);
-        const fromBalanceRef = doc(db, 'balances', apartmentId, 'users', fromUserId);
-        const toBalanceRef = doc(db, 'balances', apartmentId, 'users', toUserId);
-        const actionRef = doc(db, 'actions', actionId);
-
-        // Check if debt document already exists
-        const debtSnap = await transaction.get(debtRef);
-        
-        if (!debtSnap.exists()) {
-          // 1. Create debt document (status: 'open') with server timestamp
-          // This matches the "allow create" rule
-          transaction.set(debtRef, {
-            apartment_id: apartmentId,
-            from_user_id: fromUserId,
-            to_user_id: toUserId,
-            amount: amount,
-            status: 'open',
-            description: description || '',
-            created_at: serverTimestamp(),
-          });
-          console.log('📝 Creating new debt document');
-        } else {
-          // If debt already exists, check if it's already closed (idempotent)
-          const existingDebt = debtSnap.data();
-          if (existingDebt.status === 'closed') {
-            console.log('⚠️ Debt already closed, skipping settlement');
-            return; // Exit transaction early - idempotent operation
-          }
-          console.log('📋 Debt document exists, will only update status');
-        }
-
-        // 2. Close the debt (this matches the "allow update" rule)
-        // Only updates: status, closed_by, closed_at (allowed by rules)
-        transaction.update(debtRef, {
-          status: 'closed',
-          closed_by: actorUid,
-          closed_at: serverTimestamp(),
-        });
-
-        // 3. Update balances atomically using increment transforms
-        // From user gets +amount (they are owed money)
-        transaction.set(fromBalanceRef, {
-          balance: increment(amount)
-        }, { merge: true });
-
-        // To user gets -amount (they owe less money)
-        transaction.set(toBalanceRef, {
-          balance: increment(-amount)
-        }, { merge: true });
-
-        // 4. Create action log with server timestamp
-        transaction.set(actionRef, {
-          apartment_id: apartmentId,
-          type: 'debt_closed',
-          debt_id: debtId,
-          from_user_id: fromUserId,
-          to_user_id: toUserId,
-          amount: amount,
-          actor_uid: actorUid,
-          note: description || '',
-          created_at: serverTimestamp(),
-        });
-
-        console.log('✅ Transaction operations prepared successfully');
-      });
-
-      console.log('🎉 Debt settlement transaction completed successfully!');
-      
-    } catch (error) {
-      console.error('❌ Debt settlement transaction failed:', error);
-      throw error;
-    }
-  }
+  // REMOVED: Old settleCalculatedDebt function that touched debts collection
+  // Now using settleOutsideApp which only touches balances and actions
 
   /**
    * Update expense with transaction support using Firebase Web SDK
@@ -357,6 +254,16 @@ export class FirestoreSDKService {
       throw new Error('Amount must be > 0');
     }
 
+    // DEBUG: Confirm this is the function being called
+    console.log('🔍 [settleOutsideApp] DEBUG - This is the SIMPLE function being called:', {
+      apartmentId,
+      fromUserId,
+      toUserId,
+      amount,
+      note,
+      actorUid
+    });
+
     console.log('🚀 Starting simple debt settlement:', {
       apartmentId,
       fromUserId,
@@ -373,21 +280,32 @@ export class FirestoreSDKService {
 
       await runTransaction(db, async (tx) => {
         console.log('🔄 Transaction started, processing simple settlement...');
+        console.log('🔍 [DEBUG] Document references:', {
+          fromRef: fromRef.path,
+          toRef: toRef.path,
+          actionRef: actionRef.path
+        });
 
         // Ensure balance documents exist
+        console.log('🔍 [DEBUG] Checking if balance documents exist...');
         const fromSnap = await tx.get(fromRef);
         if (!fromSnap.exists()) {
+          console.log('📝 Creating from balance document:', fromRef.path);
           tx.set(fromRef, { balance: 0 });
-          console.log('📝 Created from balance document');
+        } else {
+          console.log('✅ From balance document exists');
         }
 
         const toSnap = await tx.get(toRef);
         if (!toSnap.exists()) {
+          console.log('📝 Creating to balance document:', toRef.path);
           tx.set(toRef, { balance: 0 });
-          console.log('📝 Created to balance document');
+        } else {
+          console.log('✅ To balance document exists');
         }
 
         // Update balances with increment transforms
+        console.log('🔍 [DEBUG] Updating balances with increment transforms...');
         // From user gets -amount (they owe less)
         tx.update(fromRef, { balance: increment(-amount) });
         // To user gets +amount (they are owed more)
@@ -399,7 +317,8 @@ export class FirestoreSDKService {
         });
 
         // Create action log
-        tx.set(actionRef, {
+        console.log('🔍 [DEBUG] Creating action log...');
+        const actionData = {
           apartment_id: apartmentId,
           type: 'debt_closed',
           actor_uid: actorUid,
@@ -408,10 +327,14 @@ export class FirestoreSDKService {
           amount,
           note: note ?? null,
           created_at: serverTimestamp(),
-        });
+        };
+        
+        console.log('🔍 [DEBUG] Action data:', actionData);
+        tx.set(actionRef, actionData);
 
         console.log('📝 Created action log');
         console.log('✅ Transaction operations prepared successfully');
+        console.log('🔍 [DEBUG] NO DEBTS COLLECTION TOUCHED - Only balances and actions');
       });
 
       console.log('🎉 Simple debt settlement completed successfully!');

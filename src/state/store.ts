@@ -1185,6 +1185,16 @@ export const useStore = create<AppState>()(
             throw new Error('AUTH_REQUIRED');
           }
 
+          // DEBUG: Log all parameters before calling the simple function
+          console.log('🔍 [settleCalculatedDebt] DEBUG - About to call settleOutsideApp:', {
+            actor: currentUser.id,
+            apartmentId: currentApartment.id,
+            fromUserId,
+            toUserId,
+            amount,
+            description
+          });
+
           await firestoreSDKService.settleOutsideApp({
             apartmentId: currentApartment.id,
             fromUserId,
