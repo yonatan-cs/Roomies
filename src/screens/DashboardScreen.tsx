@@ -6,6 +6,8 @@ import {
   Pressable,
   Modal,
   FlatList,
+  Alert,
+  Share,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -330,6 +332,45 @@ export default function DashboardScreen() {
   const currentTurnUser = getCurrentTurnUser();
   const isMyTurn = currentUser && cleaningTask && cleaningTask.currentTurn === currentUser.id;
 
+  // Share highlights function
+  const shareHighlights = async () => {
+    try {
+      const timeRangeText = timeRange === 'all' ? 'מאז תחילת השימוש' : 
+                           timeRange === 'year' ? 'השנה' :
+                           timeRange === 'month' ? 'החודש' : '30 הימים האחרונים';
+
+      let shareText = `📊 סיכום פעילות הדירה - ${timeRangeText}\n\n`;
+      
+      shareText += `💰 סך הוצאות: ${formatCurrency(highlightsStats.totalExpenses)}\n`;
+      
+      if (highlightsStats.kingOfExpenses) {
+        shareText += `👑 מלך ההוצאות: ${getUserName(highlightsStats.kingOfExpenses.userId)} (${formatCurrency(highlightsStats.kingOfExpenses.amount)})\n`;
+      }
+      
+      if (highlightsStats.shoppingKing) {
+        shareText += `🛒 אלוף הקניות: ${getUserName(highlightsStats.shoppingKing.userId)} (${highlightsStats.shoppingKing.count} פריטים)\n`;
+      }
+      
+      if (highlightsStats.cleaningKing) {
+        shareText += `🧹 אלוף הניקיון: ${getUserName(highlightsStats.cleaningKing.userId)} (${highlightsStats.cleaningKing.count} ניקיונות)\n`;
+      }
+      
+      if (highlightsStats.biggestExpenseLast30Days) {
+        shareText += `💸 ההוצאה הכי גדולה: ${formatCurrency(highlightsStats.biggestExpenseLast30Days.amount)} (${highlightsStats.biggestExpenseLast30Days.title})\n`;
+      }
+      
+      shareText += `\n📱 נשלח מהאפליקציה שלנו!`;
+
+      await Share.share({
+        message: shareText,
+        title: 'סיכום פעילות הדירה',
+      });
+    } catch (error) {
+      console.error('Error sharing highlights:', error);
+      Alert.alert('שגיאה', 'לא ניתן לשתף כרגע. נסה שוב.');
+    }
+  };
+
   return (
     <View className="flex-1 bg-gray-50">
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
@@ -354,7 +395,7 @@ export default function DashboardScreen() {
         <View className="flex-row mb-6">
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="flex-1 bg-blue-500 py-4 px-4 rounded-2xl items-center mr-2"
+            className="flex-1 bg-blue-500 py-4 px-4 rounded-2xl items-center ml-2"
           >
             <Ionicons name="basket-outline" size={24} color="white" />
             <Text className="text-white font-medium mt-1">קניות</Text>
@@ -362,7 +403,7 @@ export default function DashboardScreen() {
           
           <Pressable
             onPress={() => navigation.navigate('AddExpense')}
-            className="flex-1 bg-green-500 py-4 px-4 rounded-2xl items-center"
+            className="flex-1 bg-green-500 py-4 px-4 rounded-2xl items-center mr-2"
           >
             <Ionicons name="add-circle-outline" size={24} color="white" />
             <Text className="text-white font-medium mt-1">הוסף הוצאה</Text>
@@ -559,7 +600,7 @@ export default function DashboardScreen() {
               </Pressable>
               
               <Text className="text-2xl font-bold text-gray-900">
-                Highlights — פעילות הדירה
+              כל מה שחשוב בקצרה
               </Text>
               
               <View className="w-10" />
@@ -737,10 +778,7 @@ export default function DashboardScreen() {
               </Pressable>
               
               <Pressable
-                onPress={() => {
-                  // TODO: Implement share functionality
-                  console.log('Share highlights');
-                }}
+                onPress={shareHighlights}
                 className="flex-1 bg-blue-500 py-4 px-6 rounded-xl"
               >
                 <Text className="text-white font-medium text-center">
