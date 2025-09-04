@@ -95,6 +95,12 @@ export default function BudgetScreen() {
     return currentApartment?.members.find(m => m.id === userId)?.name || 'לא ידוע';
   };
 
+  const getActualUserName = (userId: string) => {
+    // Always return the actual name, not "אתה"
+    return currentApartment?.members.find(m => m.id === userId)?.name || 
+           (userId === currentUser?.id ? (currentUser?.name || currentUser?.display_name || 'לא ידוע') : 'לא ידוע');
+  };
+
   // Helper function to get month name in Hebrew
   const getMonthName = (month: number) => {
     const months = [
@@ -165,6 +171,7 @@ export default function BudgetScreen() {
         formatCurrency={formatCurrency}
         formatDate={formatDate}
         getUserName={getUserName}
+        getActualUserName={getActualUserName}
         currentUserId={currentUser?.id}
       />
     );
