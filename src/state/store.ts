@@ -243,23 +243,23 @@ export const useStore = create<AppState>()(
         try {
           const expensesData = await firestoreService.getExpenses();
           
-          // Convert Firestore format to local format and filter out hidden debt settlements
-          const expenses: Expense[] = expensesData
-            .filter((doc: any) => {
-              // Skip hidden debt settlement expenses
-              const note = doc.fields?.note?.stringValue;
-              return !note || !note.includes('HIDDEN_DEBT_SETTLEMENT_');
-            })
-            .map((doc: any) => ({
+          // Convert Firestore format to local format (keep all expenses for balance calculation)
+          const expenses: Expense[] = expensesData.map((doc: any) => {
+            const note = doc.fields?.note?.stringValue;
+            const isHiddenDebtSettlement = note && note.includes('HIDDEN_DEBT_SETTLEMENT_');
+            
+            return {
               id: doc.name.split('/').pop() || uuidv4(),
-              title: doc.fields?.title?.stringValue || doc.fields?.note?.stringValue || 'הוצאה',
+              title: isHiddenDebtSettlement ? 'סגירת חוב' : (doc.fields?.title?.stringValue || doc.fields?.note?.stringValue || 'הוצאה'),
               amount: doc.fields?.amount?.doubleValue || 0,
               paidBy: doc.fields?.paid_by_user_id?.stringValue || '',
               participants: doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
               category: (doc.fields?.category?.stringValue as ExpenseCategory) || 'groceries',
               date: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
-              description: doc.fields?.note?.stringValue,
-            }));
+              description: note,
+              isHiddenDebtSettlement: isHiddenDebtSettlement, // Add flag for filtering
+            };
+          });
 
           set({ expenses });
         } catch (error) {
@@ -1072,7 +1072,7 @@ export const useStore = create<AppState>()(
         const monthlyExpenses = expenses.filter(expense => {
           try {
             // Skip hidden debt settlement expenses
-            if (expense.description && expense.description.includes('HIDDEN_DEBT_SETTLEMENT_')) {
+            if (expense.isHiddenDebtSettlement) {
               return false;
             }
             
@@ -1115,7 +1115,7 @@ export const useStore = create<AppState>()(
         const monthlyExpenses = expenses.filter(expense => {
           try {
             // Skip hidden debt settlement expenses
-            if (expense.description && expense.description.includes('HIDDEN_DEBT_SETTLEMENT_')) {
+            if (expense.isHiddenDebtSettlement) {
               return false;
             }
             

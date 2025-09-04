@@ -81,6 +81,7 @@ export interface Expense {
   updatedAt?: Date;
   createdBy?: string;
   lastModifiedBy?: string;
+  isHiddenDebtSettlement?: boolean; // Flag for hidden debt settlement expenses
 }
 
 export type ExpenseCategory =
