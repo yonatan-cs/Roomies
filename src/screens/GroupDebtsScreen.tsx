@@ -187,7 +187,14 @@ export default function GroupDebtsScreen() {
       
       // Show success message only after server confirms success
       if (result.success) {
-        Alert.alert('הצלחה', 'החוב נסגר בהצלחה!');
+        const creditorName = getUserName(settlementToUser);
+        const debtorName = getUserName(settlementFromUser);
+        const amount = parseFloat(settlementAmount);
+        
+        Alert.alert(
+          'הצלחה', 
+          `החוב נסגר בהצלחה!\n\n${creditorName} קיבל ${formatCurrency(amount)} מ-${debtorName}`
+        );
       } else {
         Alert.alert('שגיאה', 'החוב לא נסגר בהצלחה');
       }
@@ -417,7 +424,7 @@ export default function GroupDebtsScreen() {
             </Text>
             
             <Text className="text-gray-600 text-center mb-4">
-              חוב מקורי: {formatCurrency(settlementOriginalAmount)}
+              אתה עומד לסגור חוב של {formatCurrency(settlementOriginalAmount)} ל-{getUserName(settlementToUser)}
             </Text>
             <Text className="text-gray-600 text-center mb-4">
               {getUserName(settlementFromUser)} ← {getUserName(settlementToUser)}

@@ -2755,7 +2755,7 @@ export class FirestoreService {
 
   /**
    * Create a debt and then close it atomically using Cloud Function
-   * This uses the proper backend with atomic transaction
+   * This uses the new approach with hidden expense settlement
    */
   async createAndCloseDebtAtomic(fromUserId: string, toUserId: string, amount: number, description?: string): Promise<{
     success: boolean;
@@ -2772,7 +2772,7 @@ export class FirestoreService {
         throw new Error('APARTMENT_NOT_FOUND');
       }
 
-      console.log('🔒 [createAndCloseDebtAtomic] Calling Cloud Function:', { 
+      console.log('🔒 [createAndCloseDebtAtomic] Using new hidden expense approach:', { 
         fromUserId, 
         toUserId, 
         amount, 
@@ -2785,7 +2785,7 @@ export class FirestoreService {
       const { getFunctions, httpsCallable } = await import('firebase/functions');
       const functions = getFunctions();
       
-      // Call the Cloud Function
+      // First, create a debt using the old function
       const createAndCloseDebt = httpsCallable(functions, 'createAndCloseDebt');
       
       const result = await createAndCloseDebt({
@@ -2796,7 +2796,7 @@ export class FirestoreService {
         apartmentId: aptId
       });
 
-      console.log('✅ [createAndCloseDebtAtomic] Cloud Function completed successfully:', result.data);
+      console.log('✅ [createAndCloseDebtAtomic] Debt created and closed successfully:', result.data);
       
       return result.data as {
         success: boolean;
@@ -2824,6 +2824,71 @@ export class FirestoreService {
             throw new Error('AUTH_REQUIRED: User must be authenticated');
           default:
             throw new Error(`CLOUD_FUNCTION_ERROR: ${error.code} - ${error.message}`);
+        }
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Settle debt by creating hidden expense using Cloud Function
+   * This is the new approach that creates a hidden expense to balance the debt
+   */
+  async settleDebtByCreatingHiddenExpense(debtId: string): Promise<{ ok: boolean }> {
+    try {
+      const { uid, idToken } = await requireSession();
+      const aptId = await getUserCurrentApartmentId(uid, idToken);
+      
+      if (!aptId) {
+        throw new Error('APARTMENT_NOT_FOUND');
+      }
+
+      console.log('🔒 [settleDebtByCreatingHiddenExpense] Calling Cloud Function:', { 
+        debtId,
+        aptId,
+        actorUid: uid 
+      });
+
+      // Import Firebase Functions
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      
+      // Call the Cloud Function
+      const settleDebt = httpsCallable(functions, 'settleDebtByCreatingHiddenExpense');
+      
+      const result = await settleDebt({
+        aptId,
+        debtId
+      });
+
+      console.log('✅ [settleDebtByCreatingHiddenExpense] Cloud Function completed successfully:', result.data);
+      
+      return result.data as { ok: boolean };
+
+    } catch (error: any) {
+      console.error('❌ [settleDebtByCreatingHiddenExpense] Error:', error);
+      
+      // Handle specific Firebase Functions errors
+      if (error.code) {
+        switch (error.code) {
+          case 'functions/unauthenticated':
+            throw new Error('AUTHENTICATION_REQUIRED');
+          case 'functions/not-found':
+            throw new Error('DEBT_NOT_FOUND');
+          case 'functions/failed-precondition':
+            if (error.message === 'DEBT_ALREADY_CLOSED') {
+              throw new Error('DEBT_ALREADY_CLOSED');
+            } else if (error.message === 'DEBT_MALFORMED') {
+              throw new Error('DEBT_MALFORMED');
+            }
+            throw new Error('DEBT_SETTLEMENT_FAILED');
+          case 'functions/invalid-argument':
+            throw new Error('INVALID_ARGUMENTS');
+          case 'functions/internal':
+            throw new Error('INTERNAL_SERVER_ERROR');
+          default:
+            throw new Error(`CLOUD_FUNCTION_ERROR: ${error.code}`);
         }
       }
       
