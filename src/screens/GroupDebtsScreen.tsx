@@ -45,7 +45,8 @@ export default function GroupDebtsScreen() {
     getSimplifiedBalances, 
     createAndCloseDebtAtomic,
     initializeDebtSystem,
-    cleanupDebtSystem
+    cleanupDebtSystem,
+    loadExpenses
   } = useStore();
 
 
@@ -171,6 +172,9 @@ export default function GroupDebtsScreen() {
       
       // Show success message only after server confirms success
       if (result.success) {
+        // Reload expenses to reflect the hidden debt settlement
+        await loadExpenses();
+        
         const creditorName = getUserName(settlementToUser);
         const debtorName = getUserName(settlementFromUser);
         const amount = parseFloat(settlementAmount);
