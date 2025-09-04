@@ -61,6 +61,25 @@ export default function ExpenseRow({
   const personalShare = item.amount / item.participants.length;
   const isParticipant = currentUserId && item.participants.includes(currentUserId);
   const isPayer = currentUserId && item.paidBy === currentUserId;
+  const isDebtSettlementMessage = item.isDebtSettlementMessage;
+
+  // Special rendering for debt settlement messages
+  if (isDebtSettlementMessage) {
+    return (
+      <View style={styles.debtSettlementRow}>
+        <View style={styles.debtSettlementContent}>
+          <View style={styles.debtSettlementIcon}>
+            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+          </View>
+          <View style={styles.debtSettlementTextContainer}>
+            <Text style={styles.debtSettlementTitle}>{item.title}</Text>
+            <Text style={styles.debtSettlementMessage}>{item.description}</Text>
+            <Text style={styles.debtSettlementDate}>{formatDate(item.date)}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.row}>
@@ -236,5 +255,40 @@ const styles = StyleSheet.create({
   },
   deleteButtonTextDisabled: {
     color: '#9ca3af',
+  },
+  // Debt settlement message styles
+  debtSettlementRow: {
+    backgroundColor: '#f0fdf4',
+    marginBottom: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  debtSettlementContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  debtSettlementIcon: {
+    marginRight: 12,
+  },
+  debtSettlementTextContainer: {
+    flex: 1,
+  },
+  debtSettlementTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#166534',
+    marginBottom: 2,
+  },
+  debtSettlementMessage: {
+    fontSize: 14,
+    color: '#15803d',
+    marginBottom: 2,
+  },
+  debtSettlementDate: {
+    fontSize: 12,
+    color: '#16a34a',
   },
 });
