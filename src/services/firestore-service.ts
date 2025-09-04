@@ -513,7 +513,15 @@ export class FirestoreService {
       if (value === null || value === undefined) {
         fields[key] = { nullValue: null };
       } else if (typeof value === 'string') {
-        fields[key] = { stringValue: value };
+        // Detect ISO timestamp strings for fields like 'closed_at', 'created_at', etc.
+        const isoLike = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+        const likelyTimestampField = /(_at$|date|time)/i.test(key);
+        if (likelyTimestampField && isoLike.test(value)) {
+          // Normalize to ISO
+          fields[key] = { timestampValue: new Date(value).toISOString() };
+        } else {
+          fields[key] = { stringValue: value };
+        }
       } else if (typeof value === 'number') {
         if (Number.isInteger(value)) {
           fields[key] = { integerValue: value.toString() };
@@ -789,12 +797,20 @@ export class FirestoreService {
         url += `?${updateMaskParams}`;
       }
 
+      const requestBody = {
+        fields: this.toFirestoreFormat(data)
+      };
+
+      console.log('🔍 PATCH request details:', {
+        url,
+        updateMaskFields,
+        body: JSON.stringify(requestBody, null, 2)
+      });
+
       const response = await fetch(url, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify({
-          fields: this.toFirestoreFormat(data)
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const responseData = await response.json();
@@ -2522,25 +2538,44 @@ export class FirestoreService {
 
   /**
    * Close a debt by updating its status to 'closed'
-   * Uses updateMask to ensure only allowed fields are updated
+   * Ensures apartment context matches rules and closed_at is a timestamp
    */
   async closeDebt(debtId: string): Promise<void> {
     try {
-      const { uid } = await requireSession();
-      const nowIso = new Date().toISOString();
-      
-      console.log('🔒 Closing debt:', {
+      const { uid, idToken } = await requireSession();
+
+      // Read debt to get apartment_id (so we can ensure context matches security rules)
+      const debtDoc = await this.getDocument('debts', debtId);
+      if (!debtDoc) {
+        throw new Error('DEBT_NOT_FOUND');
+      }
+      const aptId = debtDoc.apartment_id;
+      if (!aptId) {
+        throw new Error('DEBT_MISSING_APARTMENT_ID');
+      }
+
+      // Ensure user's profile current_apartment_id matches the debt's apartment (prevents rules rejection)
+      await ensureCurrentApartmentIdMatches(aptId);
+
+      const now = new Date();
+
+      console.log('🔒 Closing debt (ensured apartment context):', {
         debtId,
         closedBy: uid,
-        closedAt: nowIso
+        closedAt: now.toISOString(),
+        aptId
       });
 
-      // Use updateDocument with updateMask to ensure only allowed fields are updated
-      await this.updateDocument('debts', debtId, {
-        status: 'closed',
-        closed_at: nowIso,
-        closed_by: uid
-      }, ['status', 'closed_at', 'closed_by']);
+      await this.updateDocument(
+        'debts',
+        debtId,
+        {
+          status: 'closed',
+          closed_at: now,     // send Date so toFirestoreFormat will emit timestampValue
+          closed_by: uid
+        },
+        ['status', 'closed_at', 'closed_by']
+      );
 
       console.log('✅ Debt closed successfully:', debtId);
     } catch (error) {
@@ -2556,21 +2591,35 @@ export class FirestoreService {
   async closeDebtWithParams(debtId: string, closedBy?: string): Promise<void> {
     try {
       const { uid } = await requireSession();
-      const nowIso = new Date().toISOString();
+
+      const debtDoc = await this.getDocument('debts', debtId);
+      if (!debtDoc) throw new Error('DEBT_NOT_FOUND');
+
+      const aptId = debtDoc.apartment_id;
+      if (!aptId) throw new Error('DEBT_MISSING_APARTMENT_ID');
+
+      await ensureCurrentApartmentIdMatches(aptId);
+
       const actualClosedBy = closedBy || uid;
-      
-      console.log('🔒 Closing debt with params:', {
+      const now = new Date();
+
+      console.log('🔒 Closing debt with params (ensured apartment context):', {
         debtId,
         closedBy: actualClosedBy,
-        closedAt: nowIso
+        closedAt: now.toISOString(),
+        aptId
       });
 
-      // Use updateDocument with updateMask to ensure only allowed fields are updated
-      await this.updateDocument('debts', debtId, {
-        status: 'closed',
-        closed_at: nowIso,
-        closed_by: actualClosedBy
-      }, ['status', 'closed_at', 'closed_by']);
+      await this.updateDocument(
+        'debts',
+        debtId,
+        {
+          status: 'closed',
+          closed_at: now,
+          closed_by: actualClosedBy
+        },
+        ['status', 'closed_at', 'closed_by']
+      );
 
       console.log('✅ Debt closed successfully with params:', debtId);
     } catch (error) {
