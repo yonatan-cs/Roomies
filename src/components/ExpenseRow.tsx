@@ -65,6 +65,17 @@ export default function ExpenseRow({
 
   // Special rendering for debt settlement messages
   if (isDebtSettlementMessage) {
+    // Get actual names (not "אתה") for debt settlement messages
+    const getActualUserName = (userId: string) => {
+      // For debt settlement messages, always show the actual name, not "אתה"
+      if (userId === currentUserId) {
+        // Get the current user's actual name from the store
+        const { currentUser } = require('../state/store').getState();
+        return currentUser?.name || currentUser?.display_name || 'אתה';
+      }
+      return getUserName(userId);
+    };
+
     // Parse the message to replace user IDs with names
     let displayMessage = item.description || '';
     if (displayMessage) {
@@ -72,8 +83,8 @@ export default function ExpenseRow({
       const fromUserId = item.paidBy;
       const toUserId = item.participants.find(p => p !== fromUserId);
       if (fromUserId && toUserId) {
-        const fromUserName = getUserName(fromUserId);
-        const toUserName = getUserName(toUserId);
+        const fromUserName = getActualUserName(fromUserId);
+        const toUserName = getActualUserName(toUserId);
         displayMessage = displayMessage.replace(fromUserId, fromUserName).replace(toUserId, toUserName);
       }
     }
