@@ -99,7 +99,7 @@ export default function ExpenseRow({
           style={styles.editButton} 
           accessibilityLabel="ערוך הוצאה"
         >
-          <Ionicons name="pencil-outline" size={16} color="#3b82f6" />
+          <Ionicons name="pencil-outline" size={12} color="#64748b" />
           <Text style={styles.editButtonText}>ערוך</Text>
         </Pressable>
         <Pressable 
@@ -109,9 +109,9 @@ export default function ExpenseRow({
           disabled={isDeleting}
         >
           {isDeleting ? (
-            <Ionicons name="hourglass-outline" size={16} color="#9ca3af" />
+            <Ionicons name="hourglass-outline" size={12} color="#9ca3af" />
           ) : (
-            <Ionicons name="trash-outline" size={16} color="#ef4444" />
+            <Ionicons name="trash-outline" size={12} color="#dc2626" />
           )}
           <Text style={[styles.deleteButtonText, isDeleting && styles.deleteButtonTextDisabled]}>
             {isDeleting ? 'מוחק...' : 'מחק'}
@@ -191,51 +191,46 @@ const styles = StyleSheet.create({
   },
   actionButtonsContainer: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 12,
+    paddingVertical: 4,
+    gap: 8,
   },
   editButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#f0f9ff',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#f8fafc',
     borderWidth: 1,
-    borderColor: '#3b82f6',
-    gap: 6,
+    borderColor: '#e2e8f0',
+    gap: 4,
   },
   editButtonText: {
-    color: '#3b82f6',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: '400',
   },
   deleteButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
     backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: '#ef4444',
-    gap: 6,
+    borderColor: '#fecaca',
+    gap: 4,
   },
   deleteButtonDisabled: {
     backgroundColor: '#f9fafb',
-    borderColor: '#d1d5db',
+    borderColor: '#e5e7eb',
   },
   deleteButtonText: {
-    color: '#ef4444',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#dc2626',
+    fontSize: 12,
+    fontWeight: '400',
   },
   deleteButtonTextDisabled: {
     color: '#9ca3af',
