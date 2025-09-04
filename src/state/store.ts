@@ -92,9 +92,6 @@ interface AppState {
   getTotalApartmentExpenses: (year: number, month: number) => number;
 
   // Actions - Debts & Balances (Firestore-based system)
-  settleCalculatedDebt: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
-  closeDebt: (debtId: string) => Promise<void>;
-  closeDebtAtomic: (debtId: string) => Promise<{ success: boolean; debtId: string; expenseId: string; closedAt: string; }>;
   createAndCloseDebtAtomic: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<{ success: boolean; debtId: string; expenseId: string; closedAt: string; }>;
   initializeDebtSystem: (apartmentId: string, userIds: string[]) => Promise<void>;
   cleanupDebtSystem: () => void;
@@ -1175,124 +1172,6 @@ export const useStore = create<AppState>()(
       },
 
       /**
-       * Settle calculated debt using simple approach - only updates balances and creates action log
-       * This is the minimal approach that doesn't touch the debts collection at all
-       */
-      settleCalculatedDebt: async (fromUserId: string, toUserId: string, amount: number, description?: string) => {
-        try {
-          const { currentApartment, currentUser } = get();
-          if (!currentApartment) {
-            throw new Error('APARTMENT_NOT_FOUND');
-          }
-          if (!currentUser) {
-            throw new Error('AUTH_REQUIRED');
-          }
-
-          // DEBUG: Log all parameters before calling the simple function
-          console.log('🔍 [settleCalculatedDebt] DEBUG - About to call settleOutsideApp:', {
-            actor: currentUser.id,
-            apartmentId: currentApartment.id,
-            fromUserId,
-            toUserId,
-            amount,
-            description
-          });
-
-          console.log('🔍 [settleCalculatedDebt] DEBUG - Current user details:', {
-            userId: currentUser.id,
-            userEmail: currentUser.email,
-            currentApartmentId: currentApartment.id,
-            apartmentName: currentApartment.name
-          });
-
-          await firestoreSDKService.settleOutsideApp({
-            apartmentId: currentApartment.id,
-            fromUserId,
-            toUserId,
-            amount,
-            note: description,
-            actorUid: currentUser.id
-          });
-          
-          console.log('✅ Calculated debt settled successfully with simple approach:', { fromUserId, toUserId, amount });
-        } catch (error) {
-          console.error('❌ Error settling calculated debt:', error);
-          console.error('❌ Error details in store:', {
-            name: error.name,
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-          });
-          throw error;
-        }
-      },
-
-      /**
-       * Close a specific debt by updating its status to 'closed'
-       * This uses the new updateMask approach to ensure proper permissions
-       */
-      closeDebt: async (debtId: string) => {
-        try {
-          const { currentUser } = get();
-          if (!currentUser) {
-            throw new Error('AUTH_REQUIRED');
-          }
-
-          console.log('🔒 [closeDebt] Closing debt:', {
-            debtId,
-            userId: currentUser.id
-          });
-
-          // Use the new closeDebt function from firestoreService
-          await firestoreService.closeDebt(debtId);
-          
-          console.log('✅ Debt closed successfully:', debtId);
-        } catch (error) {
-          console.error('❌ Error closing debt:', error);
-          console.error('❌ Error details in store:', {
-            name: error.name,
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-          });
-          throw error;
-        }
-      },
-
-      /**
-       * Close debt with full atomic transaction - creates monthly expense and updates balances
-       * This is the complete solution that addresses the critical issue
-       */
-      closeDebtAtomic: async (debtId: string) => {
-        try {
-          const { currentUser } = get();
-          if (!currentUser) {
-            throw new Error('AUTH_REQUIRED');
-          }
-
-          console.log('🔒 [closeDebtAtomic] Starting atomic debt closure:', {
-            debtId,
-            userId: currentUser.id
-          });
-
-          // Use the new atomic closeDebt function from firestoreService
-          const result = await firestoreService.closeDebtAtomic(debtId);
-          
-          console.log('✅ [closeDebtAtomic] Debt closed atomically:', result);
-          return result;
-        } catch (error) {
-          console.error('❌ [closeDebtAtomic] Error closing debt atomically:', error);
-          console.error('❌ [closeDebtAtomic] Error details in store:', {
-            name: error.name,
-            message: error.message,
-            code: error.code,
-            stack: error.stack
-          });
-          throw error;
-        }
-      },
-
-      /**
        * Create and close debt atomically - for the current system that doesn't use debts collection
        * This creates a debt record first, then closes it with all the required operations
        */
@@ -1327,6 +1206,7 @@ export const useStore = create<AppState>()(
           throw error;
         }
       },
+
 
       /**
        * Initialize the new debt system with real-time listeners
