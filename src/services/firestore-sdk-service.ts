@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase-sdk';
 import { firebaseAuth } from './firebase-auth';
+import { firestoreService, requireSession, ensureCurrentApartmentIdMatches } from './firestore-service';
 
 export interface DebtSettlementData {
   apartmentId: string;
@@ -274,14 +275,11 @@ export class FirestoreSDKService {
     });
 
     try {
-      // Import the REST API service
-      const { firestoreService } = await import('./firestore-service');
-      
       // Get current user session
-      const { uid, idToken } = await firestoreService.requireSession();
+      const { uid, idToken } = await requireSession();
       
       // Ensure apartment context matches
-      await firestoreService.ensureCurrentApartmentIdMatches(apartmentId);
+      await ensureCurrentApartmentIdMatches(apartmentId);
 
       console.log('✅ Using REST API for debt settlement to avoid permission issues');
 
@@ -290,16 +288,16 @@ export class FirestoreSDKService {
       
       // Update from user balance (they owe less)
       await firestoreService.updateDocument(
-        `balances/${apartmentId}/users`,
-        fromUserId,
+        'balances',
+        `${apartmentId}_${fromUserId}`,
         { balance: -amount },
         ['balance']
       );
 
       // Update to user balance (they are owed more)  
       await firestoreService.updateDocument(
-        `balances/${apartmentId}/users`,
-        toUserId,
+        'balances',
+        `${apartmentId}_${toUserId}`,
         { balance: amount },
         ['balance']
       );
