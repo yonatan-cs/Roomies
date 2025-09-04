@@ -132,6 +132,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    paddingBottom: 8,
   },
   content: {
     paddingHorizontal: 16,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 0,
     gap: 8,
-    marginTop: -12,
+    marginTop: -8,
   },
   editButton: {
     flexDirection: 'row',

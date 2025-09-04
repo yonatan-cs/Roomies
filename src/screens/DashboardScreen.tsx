@@ -404,7 +404,7 @@ export default function DashboardScreen() {
         <View className="flex-row justify-center space-x-4 mb-6">
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-blue-500 rounded-full px-6 py-3 shadow-lg active:scale-95"
+            className="bg-blue-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
             style={{
               shadowColor: '#3b82f6',
               shadowOffset: { width: 0, height: 2 },
@@ -414,14 +414,14 @@ export default function DashboardScreen() {
             }}
           >
             <View className="flex-row items-center">
-              <Ionicons name="basket-outline" size={20} color="white" />
-              <Text className="text-white font-medium mr-2">קניות</Text>
+              <Ionicons name="basket-outline" size={22} color="white" />
+              <Text className="text-white font-medium mr-2 text-base">קניות</Text>
             </View>
           </Pressable>
           
           <Pressable
             onPress={() => navigation.navigate('AddExpense')}
-            className="bg-green-500 rounded-full px-6 py-3 shadow-lg active:scale-95"
+            className="bg-green-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
             style={{
               shadowColor: '#10b981',
               shadowOffset: { width: 0, height: 2 },
@@ -431,8 +431,8 @@ export default function DashboardScreen() {
             }}
           >
             <View className="flex-row items-center">
-              <Ionicons name="add-circle-outline" size={20} color="white" />
-              <Text className="text-white font-medium mr-2">הוסף הוצאה</Text>
+              <Ionicons name="add-circle-outline" size={22} color="white" />
+              <Text className="text-white font-medium mr-2 text-base">הוסף הוצאה</Text>
             </View>
           </Pressable>
         </View>
@@ -442,7 +442,14 @@ export default function DashboardScreen() {
           {/* My Balance */}
           <Pressable
             onPress={() => navigation.navigate('Budget')}
-            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3 mr-2"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 mr-2"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="wallet-outline" size={20} color="#6b7280" />
@@ -462,7 +469,14 @@ export default function DashboardScreen() {
           {/* Cleaning Turn */}
           <Pressable
             onPress={() => navigation.navigate('Cleaning')}
-            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="brush-outline" size={20} color="#6b7280" />
@@ -482,7 +496,14 @@ export default function DashboardScreen() {
           {/* Shopping Items */}
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3 mr-2"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 mr-2"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="basket-outline" size={20} color="#6b7280" />
@@ -499,7 +520,14 @@ export default function DashboardScreen() {
           {/* Roommates */}
           <Pressable
             onPress={() => navigation.navigate('Settings')}
-            className="bg-white p-4 rounded-2xl shadow-sm w-[48%] mb-3"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
+            style={{
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="people-outline" size={20} color="#6b7280" />
@@ -527,7 +555,15 @@ export default function DashboardScreen() {
         </View>
 
         {/* My Debts */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+        <View className="bg-white rounded-2xl p-6 mb-6 shadow-lg"
+          style={{
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
           <Text className="text-lg font-semibold text-gray-900 mb-4">
             החובות שלי
           </Text>
@@ -584,7 +620,7 @@ export default function DashboardScreen() {
 
 
         {/* Quick Look Button */}
-        <View className="items-center">
+        <View className="items-center mt-4">
           <Pressable
             onPress={() => setShowHighlightsModal(true)}
             className="bg-orange-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
