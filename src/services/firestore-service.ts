@@ -2641,13 +2641,23 @@ export class FirestoreService {
       const monthKey = new Date().toISOString().substring(0, 7);
       const expenseId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
+      console.log('🔒 [createAndCloseDebtAtomic] Creating hidden expense:', {
+        fromUserId,
+        toUserId,
+        amount,
+        amountDoubled: amount * 2,
+        apartmentId: aptId,
+        monthKey,
+        expenseId
+      });
+      
       // Create the hidden expense directly via REST API
       const expenseData = {
         fields: {
           apartment_id: { stringValue: aptId },
           amount: { doubleValue: amount * 2 }, // Double the debt amount for settlement
           title: { stringValue: `סגירת חוב - ${description || 'חוב'}` },
-          paid_by_user_id: { stringValue: toUserId }, // The creditor receives the payment
+          paid_by_user_id: { stringValue: fromUserId }, // The debtor pays (as you requested)
           participants: { arrayValue: { values: [{ stringValue: fromUserId }, { stringValue: toUserId }] } },
           category: { stringValue: 'debt_settlement' },
           created_at: { timestampValue: new Date().toISOString() },
@@ -2657,15 +2667,24 @@ export class FirestoreService {
         }
       };
 
-      const expenseUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/monthlyExpenses/${monthKey}/expenses/${expenseId}`;
+      const expenseUrl = `${FIRESTORE_BASE_URL}/expenses`;
+      
+      console.log('🔒 [createAndCloseDebtAtomic] Making request to:', expenseUrl);
+      console.log('🔒 [createAndCloseDebtAtomic] Request data:', JSON.stringify(expenseData, null, 2));
+      
       const expenseResponse = await fetch(expenseUrl, {
-        method: 'PATCH',
+        method: 'POST',
         headers: authHeaders(idToken),
         body: JSON.stringify(expenseData)
       });
 
+      console.log('🔒 [createAndCloseDebtAtomic] Response status:', expenseResponse.status);
+      console.log('🔒 [createAndCloseDebtAtomic] Response headers:', Object.fromEntries(expenseResponse.headers.entries()));
+
       if (!expenseResponse.ok) {
-        throw new Error(`Failed to create hidden expense: ${expenseResponse.status}`);
+        const errorText = await expenseResponse.text();
+        console.error('❌ [createAndCloseDebtAtomic] Error response:', errorText);
+        throw new Error(`Failed to create hidden expense: ${expenseResponse.status} - ${errorText}`);
       }
 
       const result = {
