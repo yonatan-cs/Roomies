@@ -283,38 +283,28 @@ export class FirestoreSDKService {
 
       console.log('✅ Using REST API for debt settlement to avoid permission issues');
 
-      // Update balances using REST API
       const now = new Date();
       
-      // Update from user balance (they owe less)
-      await firestoreService.updateDocument(
-        `balances/${apartmentId}/users`,
-        fromUserId,
-        { balance: -amount },
-        ['balance']
-      );
-
-      // Update to user balance (they are owed more)  
-      await firestoreService.updateDocument(
-        `balances/${apartmentId}/users`,
-        toUserId,
-        { balance: amount },
-        ['balance']
-      );
-
-      // Create action log
-      await firestoreService.createDocument('actions', {
+      // Step 1: Create a new debt document
+      const debtId = `${fromUserId}_${toUserId}_${Date.now()}`;
+      const debtData = {
         apartment_id: apartmentId,
-        type: 'debt_closed',
-        actor_uid: actorUid,
         from_user_id: fromUserId,
         to_user_id: toUserId,
-        amount,
-        note: note || null,
-        created_at: now
-      });
+        amount: amount,
+        status: 'open',
+        created_at: now,
+        description: note || 'Debt settlement'
+      };
+      
+      console.log('📝 Creating debt document:', debtData);
+      await firestoreService.createDocument('debts', debtData, debtId);
+      
+      // Step 2: Close the debt immediately
+      console.log('🔒 Closing debt immediately:', debtId);
+      await firestoreService.closeDebtSimple(debtId);
 
-      console.log('🎉 Simple debt settlement completed successfully with REST API!');
+      console.log('🎉 Debt created and closed successfully!');
       
     } catch (error) {
       console.error('❌ Simple debt settlement failed:', error);
