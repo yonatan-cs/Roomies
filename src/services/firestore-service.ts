@@ -79,7 +79,7 @@ function H(idToken: string) {
 }
 
 // Ensure we always have uid + idToken (try to restore session if missing from memory)
-async function requireSession(): Promise<{ uid: string; idToken: string }> {
+export async function requireSession(): Promise<{ uid: string; idToken: string }> {
   try {
     // Try to get current user and token
     const currentUser = await firebaseAuth.getCurrentUser();
