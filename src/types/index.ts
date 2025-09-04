@@ -82,6 +82,7 @@ export interface Expense {
   createdBy?: string;
   lastModifiedBy?: string;
   isHiddenDebtSettlement?: boolean; // Flag for hidden debt settlement expenses
+  isDebtSettlementMessage?: boolean; // Flag for debt settlement message expenses
 }
 
 export type ExpenseCategory =
