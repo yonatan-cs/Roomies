@@ -2752,182 +2752,17 @@ export class FirestoreService {
     }
   }
 
-  /**
-   * Close debt with full atomic transaction - creates monthly expense and updates balances
-   * This is the complete solution that addresses the critical issue
-   */
-  async closeDebtAtomic(debtId: string): Promise<{
-    success: boolean;
-    debtId: string;
-    expenseId: string;
-    closedAt: string;
-  }> {
-    try {
-      const { uid, idToken } = await requireSession();
-
-      console.log('🔒 [closeDebtAtomic] Starting atomic debt closure:', { debtId, uid });
-
-      // 1. Read debt to get all required information
-      const debtDoc = await this.getDocument('debts', debtId);
-      if (!debtDoc) {
-        throw new Error('DEBT_NOT_FOUND');
-      }
-
-      const aptId = debtDoc.apartment_id;
-      if (!aptId) {
-        throw new Error('DEBT_MISSING_APARTMENT_ID');
-      }
-
-      // Check if debt is already closed
-      if (debtDoc.status === 'closed') {
-        throw new Error('ALREADY_CLOSED');
-      }
-
-      // Ensure user's profile current_apartment_id matches the debt's apartment
-      await ensureCurrentApartmentIdMatches(aptId);
-
-      const now = new Date();
-      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const expenseId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      console.log('🔒 [closeDebtAtomic] Debt details:', {
-        debtId,
-        apartmentId: aptId,
-        fromUserId: debtDoc.from_user_id,
-        toUserId: debtDoc.to_user_id,
-        amount: debtDoc.amount,
-        monthKey,
-        expenseId
-      });
-
-      // 2. Create monthly expense document
-      const monthlyExpenseData = {
-        apartment_id: { stringValue: aptId },
-        amount: { doubleValue: debtDoc.amount },
-        title: { stringValue: debtDoc.description || 'סגירת חוב' },
-        created_at: { timestampValue: now.toISOString() },
-        created_by: { stringValue: uid },
-        linked_debt_id: { stringValue: debtId },
-        payer_id: { stringValue: debtDoc.from_user_id },
-        receiver_id: { stringValue: debtDoc.to_user_id },
-        description: { stringValue: `סגירת חוב בין ${debtDoc.from_user_id} ל-${debtDoc.to_user_id}` }
-      };
-
-      // 3. Update debt status
-      const debtUpdateData = {
-        status: { stringValue: 'closed' },
-        closed_at: { timestampValue: now.toISOString() },
-        closed_by: { stringValue: uid },
-        cleared_amount: { doubleValue: debtDoc.amount }
-      };
-
-      // 4. Update balances using increment
-      const fromBalanceRef = `balances/${aptId}/users/${debtDoc.from_user_id}`;
-      const toBalanceRef = `balances/${aptId}/users/${debtDoc.to_user_id}`;
-
-      const fromBalanceData = {
-        balance: { doubleValue: -debtDoc.amount } // Debtor pays (negative balance)
-      };
-
-      const toBalanceData = {
-        balance: { doubleValue: debtDoc.amount } // Creditor receives (positive balance)
-      };
-
-      // 5. Create action log
-      const actionId = `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const actionData = {
-        apartment_id: { stringValue: aptId },
-        type: { stringValue: 'close_debt' },
-        debt_id: { stringValue: debtId },
-        actor: { stringValue: uid },
-        amount: { doubleValue: debtDoc.amount },
-        from_user_id: { stringValue: debtDoc.from_user_id },
-        to_user_id: { stringValue: debtDoc.to_user_id },
-        at: { timestampValue: now.toISOString() }
-      };
-
-      console.log('🔒 [closeDebtAtomic] Executing atomic operations...');
-
-      // Execute all operations in sequence (since we can't use transactions with REST API)
-      // We'll use batched writes to ensure atomicity
-      const batch = [];
-
-      // Add debt update
-      batch.push({
-        method: 'PATCH',
-        url: `${FIRESTORE_BASE_URL}/debts/${debtId}?updateMask.fieldPaths=status&updateMask.fieldPaths=closed_at&updateMask.fieldPaths=closed_by&updateMask.fieldPaths=cleared_amount`,
-        body: { fields: debtUpdateData }
-      });
-
-      // Add monthly expense creation
-      batch.push({
-        method: 'POST',
-        url: `${FIRESTORE_BASE_URL}/apartments/${aptId}/monthlyExpenses/${monthKey}/expenses`,
-        body: { fields: monthlyExpenseData }
-      });
-
-      // Add balance updates
-      batch.push({
-        method: 'PATCH',
-        url: `${FIRESTORE_BASE_URL}/${fromBalanceRef}?updateMask.fieldPaths=balance`,
-        body: { fields: fromBalanceData }
-      });
-
-      batch.push({
-        method: 'PATCH',
-        url: `${FIRESTORE_BASE_URL}/${toBalanceRef}?updateMask.fieldPaths=balance`,
-        body: { fields: toBalanceData }
-      });
-
-      // Add action log
-      batch.push({
-        method: 'POST',
-        url: `${FIRESTORE_BASE_URL}/actions`,
-        body: { fields: actionData }
-      });
-
-      // Execute all operations
-      const results = await Promise.all(
-        batch.map(async (operation) => {
-          const response = await fetch(operation.url, {
-            method: operation.method,
-            headers: authHeaders(idToken),
-            body: JSON.stringify(operation.body)
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            throw new Error(`${operation.method}_${response.status}: ${errorText}`);
-          }
-
-          return await response.json();
-        })
-      );
-
-      console.log('✅ [closeDebtAtomic] All operations completed successfully');
-
-      return {
-        success: true,
-        debtId,
-        expenseId,
-        closedAt: now.toISOString()
-      };
-
-    } catch (error) {
-      console.error('❌ [closeDebtAtomic] Failed to close debt atomically:', error);
-      throw error;
-    }
-  }
 
   /**
-   * Create a debt and then close it atomically - for the current system that doesn't use debts collection
-   * This creates a debt record first, then closes it with all the required operations
+   * Create a debt and then close it atomically using Cloud Function
+   * This uses the proper backend with atomic transaction
    */
   async createAndCloseDebtAtomic(fromUserId: string, toUserId: string, amount: number, description?: string): Promise<{
     success: boolean;
     debtId: string;
     expenseId: string;
     closedAt: string;
+    logId?: string;
   }> {
     try {
       const { uid, idToken } = await requireSession();
@@ -2937,154 +2772,133 @@ export class FirestoreService {
         throw new Error('APARTMENT_NOT_FOUND');
       }
 
-      console.log('🔒 [createAndCloseDebtAtomic] Starting debt creation and closure:', { 
+      console.log('🔒 [createAndCloseDebtAtomic] Calling Cloud Function:', { 
         fromUserId, 
         toUserId, 
         amount, 
         description,
         apartmentId: aptId,
-        uid 
+        actorUid: uid 
       });
 
-      // Ensure user's profile current_apartment_id matches the apartment
-      await ensureCurrentApartmentIdMatches(aptId);
+      // Import Firebase Functions
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      
+      // Call the Cloud Function
+      const createAndCloseDebt = httpsCallable(functions, 'createAndCloseDebt');
+      
+      const result = await createAndCloseDebt({
+        fromUserId,
+        toUserId,
+        amount,
+        description,
+        apartmentId: aptId
+      });
 
-      const now = new Date();
-      const debtId = `debt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const expenseId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      // 1. Create debt document
-      const debtData = {
-        apartment_id: { stringValue: aptId },
-        from_user_id: { stringValue: fromUserId },
-        to_user_id: { stringValue: toUserId },
-        amount: { doubleValue: amount },
-        status: { stringValue: 'open' },
-        created_at: { timestampValue: now.toISOString() },
-        description: { stringValue: description || 'חוב שנוצר ונסוגר' }
+      console.log('✅ [createAndCloseDebtAtomic] Cloud Function completed successfully:', result.data);
+      
+      return result.data as {
+        success: boolean;
+        debtId: string;
+        expenseId: string;
+        closedAt: string;
+        logId?: string;
       };
 
-      // 2. Create monthly expense document
-      const monthlyExpenseData = {
-        apartment_id: { stringValue: aptId },
-        amount: { doubleValue: amount },
-        title: { stringValue: description || 'סגירת חוב' },
-        created_at: { timestampValue: now.toISOString() },
-        created_by: { stringValue: uid },
-        linked_debt_id: { stringValue: debtId },
-        payer_id: { stringValue: fromUserId },
-        receiver_id: { stringValue: toUserId },
-        description: { stringValue: `סגירת חוב בין ${fromUserId} ל-${toUserId}` }
-      };
+    } catch (error: any) {
+      console.error('❌ [createAndCloseDebtAtomic] Cloud Function failed:', error);
+      
+      // Handle Firebase Functions errors
+      if (error.code) {
+        switch (error.code) {
+          case 'functions/permission-denied':
+            throw new Error('PERMISSION_DENIED: User is not a member of this apartment');
+          case 'functions/not-found':
+            throw new Error('DEBT_NOT_FOUND: Debt not found');
+          case 'functions/already-exists':
+            throw new Error('ALREADY_CLOSED: Debt is already closed');
+          case 'functions/invalid-argument':
+            throw new Error('INVALID_ARGUMENT: ' + error.message);
+          case 'functions/unauthenticated':
+            throw new Error('AUTH_REQUIRED: User must be authenticated');
+          default:
+            throw new Error(`CLOUD_FUNCTION_ERROR: ${error.code} - ${error.message}`);
+        }
+      }
+      
+      throw error;
+    }
+  }
 
-      // 3. Update debt status to closed
-      const debtUpdateData = {
-        status: { stringValue: 'closed' },
-        closed_at: { timestampValue: now.toISOString() },
-        closed_by: { stringValue: uid },
-        cleared_amount: { doubleValue: amount }
-      };
+  /**
+   * Close an existing debt atomically using Cloud Function
+   */
+  async closeDebtAtomic(debtId: string): Promise<{
+    success: boolean;
+    debtId: string;
+    expenseId: string;
+    closedAt: string;
+    logId?: string;
+  }> {
+    try {
+      const { uid, idToken } = await requireSession();
+      const aptId = await getUserCurrentApartmentId(uid, idToken);
+      
+      if (!aptId) {
+        throw new Error('APARTMENT_NOT_FOUND');
+      }
 
-      // 4. Update balances
-      const fromBalanceRef = `balances/${aptId}/users/${fromUserId}`;
-      const toBalanceRef = `balances/${aptId}/users/${toUserId}`;
-
-      const fromBalanceData = {
-        balance: { doubleValue: -amount } // Debtor pays (negative balance)
-      };
-
-      const toBalanceData = {
-        balance: { doubleValue: amount } // Creditor receives (positive balance)
-      };
-
-      // 5. Create action log
-      const actionData = {
-        apartment_id: { stringValue: aptId },
-        type: { stringValue: 'close_debt' },
-        debt_id: { stringValue: debtId },
-        actor: { stringValue: uid },
-        amount: { doubleValue: amount },
-        from_user_id: { stringValue: fromUserId },
-        to_user_id: { stringValue: toUserId },
-        at: { timestampValue: now.toISOString() }
-      };
-
-      console.log('🔒 [createAndCloseDebtAtomic] Executing atomic operations...');
-
-      // Execute all operations in sequence
-      const batch = [];
-
-      // Add debt creation
-      batch.push({
-        method: 'POST',
-        url: `${FIRESTORE_BASE_URL}/debts`,
-        body: { fields: debtData }
-      });
-
-      // Add debt update to closed
-      batch.push({
-        method: 'PATCH',
-        url: `${FIRESTORE_BASE_URL}/debts/${debtId}?updateMask.fieldPaths=status&updateMask.fieldPaths=closed_at&updateMask.fieldPaths=closed_by&updateMask.fieldPaths=cleared_amount`,
-        body: { fields: debtUpdateData }
-      });
-
-      // Add monthly expense creation
-      batch.push({
-        method: 'POST',
-        url: `${FIRESTORE_BASE_URL}/apartments/${aptId}/monthlyExpenses/${monthKey}/expenses`,
-        body: { fields: monthlyExpenseData }
-      });
-
-      // Add balance updates
-      batch.push({
-        method: 'PATCH',
-        url: `${FIRESTORE_BASE_URL}/${fromBalanceRef}?updateMask.fieldPaths=balance`,
-        body: { fields: fromBalanceData }
-      });
-
-      batch.push({
-        method: 'PATCH',
-        url: `${FIRESTORE_BASE_URL}/${toBalanceRef}?updateMask.fieldPaths=balance`,
-        body: { fields: toBalanceData }
-      });
-
-      // Add action log
-      batch.push({
-        method: 'POST',
-        url: `${FIRESTORE_BASE_URL}/actions`,
-        body: { fields: actionData }
-      });
-
-      // Execute all operations
-      const results = await Promise.all(
-        batch.map(async (operation) => {
-          const response = await fetch(operation.url, {
-            method: operation.method,
-            headers: authHeaders(idToken),
-            body: JSON.stringify(operation.body)
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text().catch(() => '');
-            throw new Error(`${operation.method}_${response.status}: ${errorText}`);
-          }
-
-          return await response.json();
-        })
-      );
-
-      console.log('✅ [createAndCloseDebtAtomic] All operations completed successfully');
-
-      return {
-        success: true,
+      console.log('🔒 [closeDebtAtomic] Calling Cloud Function:', { 
         debtId,
-        expenseId,
-        closedAt: now.toISOString()
+        apartmentId: aptId,
+        actorUid: uid 
+      });
+
+      // Import Firebase Functions
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const functions = getFunctions();
+      
+      // Call the Cloud Function
+      const closeDebt = httpsCallable(functions, 'closeDebt');
+      
+      const result = await closeDebt({
+        debtId,
+        apartmentId: aptId,
+        actorUid: uid
+      });
+
+      console.log('✅ [closeDebtAtomic] Cloud Function completed successfully:', result.data);
+      
+      return result.data as {
+        success: boolean;
+        debtId: string;
+        expenseId: string;
+        closedAt: string;
+        logId?: string;
       };
 
-    } catch (error) {
-      console.error('❌ [createAndCloseDebtAtomic] Failed to create and close debt atomically:', error);
+    } catch (error: any) {
+      console.error('❌ [closeDebtAtomic] Cloud Function failed:', error);
+      
+      // Handle Firebase Functions errors
+      if (error.code) {
+        switch (error.code) {
+          case 'functions/permission-denied':
+            throw new Error('PERMISSION_DENIED: User is not a member of this apartment');
+          case 'functions/not-found':
+            throw new Error('DEBT_NOT_FOUND: Debt not found');
+          case 'functions/already-exists':
+            throw new Error('ALREADY_CLOSED: Debt is already closed');
+          case 'functions/invalid-argument':
+            throw new Error('INVALID_ARGUMENT: ' + error.message);
+          case 'functions/unauthenticated':
+            throw new Error('AUTH_REQUIRED: User must be authenticated');
+          default:
+            throw new Error(`CLOUD_FUNCTION_ERROR: ${error.code} - ${error.message}`);
+        }
+      }
+      
       throw error;
     }
   }

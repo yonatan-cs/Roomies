@@ -209,8 +209,16 @@ export default function GroupDebtsScreen() {
           errorMessage = 'אין לך הרשאה לבצע פעולה זה.';
         } else if (error.message.includes('APARTMENT_NOT_FOUND')) {
           errorMessage = 'לא נמצא דירה רלוונטית.';
-        } else if (error.message.includes('TRANSACTION_COMMIT_FAILED')) {
-          errorMessage = 'שגיאה בביצוע הפעולה. נסה שוב.';
+        } else if (error.message.includes('DEBT_NOT_FOUND')) {
+          errorMessage = 'החוב לא נמצא.';
+        } else if (error.message.includes('ALREADY_CLOSED')) {
+          errorMessage = 'החוב כבר סגור.';
+        } else if (error.message.includes('AUTH_REQUIRED')) {
+          errorMessage = 'נדרשת התחברות מחדש.';
+        } else if (error.message.includes('INVALID_ARGUMENT')) {
+          errorMessage = 'נתונים לא תקינים.';
+        } else if (error.message.includes('CLOUD_FUNCTION_ERROR')) {
+          errorMessage = 'שגיאה בשרת. נסה שוב מאוחר יותר.';
         }
       }
       
