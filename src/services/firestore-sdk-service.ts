@@ -274,6 +274,26 @@ export class FirestoreSDKService {
     });
 
     try {
+      // First, verify the actor is a member of the apartment
+      console.log('🔍 [DEBUG] Verifying actor membership...');
+      const membershipRef = doc(db, 'apartmentMembers', `${apartmentId}_${actorUid}`);
+      const membershipSnap = await getDoc(membershipRef);
+      
+      if (!membershipSnap.exists()) {
+        console.error('🚫 Actor is not a member of the apartment:', {
+          actorUid,
+          apartmentId,
+          membershipDocId: `${apartmentId}_${actorUid}`
+        });
+        throw new Error('ACTOR_NOT_MEMBER');
+      }
+      
+      console.log('✅ Actor membership verified:', {
+        actorUid,
+        apartmentId,
+        role: membershipSnap.data()?.role
+      });
+
       const fromRef = doc(db, 'balances', apartmentId, 'users', fromUserId);
       const toRef = doc(db, 'balances', apartmentId, 'users', toUserId);
       const actionRef = doc(collection(db, 'actions'));
@@ -363,6 +383,24 @@ export class FirestoreSDKService {
         console.error('🚫 To User:', toUserId);
         console.error('🚫 Check if user is member of apartment:', `${apartmentId}_${actorUid}`);
         console.error('🚫 Check if user current apartment matches:', apartmentId);
+        
+        // Additional debugging - check if the user document exists and has correct apartment
+        try {
+          const userRef = doc(db, 'users', actorUid);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            console.error('🚫 User document data:', {
+              current_apartment_id: userData.current_apartment_id,
+              expected_apartment_id: apartmentId,
+              matches: userData.current_apartment_id === apartmentId
+            });
+          } else {
+            console.error('🚫 User document does not exist!');
+          }
+        } catch (debugError) {
+          console.error('🚫 Error checking user document:', debugError);
+        }
       }
       
       throw error;
