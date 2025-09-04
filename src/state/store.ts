@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { firestoreService } from '../services/firestore-service';
+import { firestoreSDKService } from '../services/firestore-sdk-service';
 import {
   User,
   Apartment,
@@ -202,8 +203,9 @@ export const useStore = create<AppState>()(
             throw new Error('No current user');
           }
 
-          // Update expense in Firestore
-          await firestoreService.updateExpense(expenseId, {
+          // Update expense using Firebase Web SDK (replaces REST API version)
+          await firestoreSDKService.updateExpense({
+            expenseId,
             amount: updates.amount,
             category: updates.category,
             participants: updates.participants,
@@ -1170,12 +1172,25 @@ export const useStore = create<AppState>()(
       },
 
       /**
-       * Settle calculated debt atomically in one transaction
+       * Settle calculated debt atomically in one transaction using Firebase Web SDK
+       * This replaces the REST API version that was causing 403 errors
        */
       settleCalculatedDebt: async (fromUserId: string, toUserId: string, amount: number, description?: string) => {
         try {
-          await firestoreService.settleCalculatedDebt(fromUserId, toUserId, amount, description);
-          console.log('✅ Calculated debt settled successfully:', { fromUserId, toUserId, amount });
+          const { currentApartment } = get();
+          if (!currentApartment) {
+            throw new Error('APARTMENT_NOT_FOUND');
+          }
+
+          await firestoreSDKService.settleCalculatedDebt({
+            apartmentId: currentApartment.id,
+            fromUserId,
+            toUserId,
+            amount,
+            description
+          });
+          
+          console.log('✅ Calculated debt settled successfully with SDK:', { fromUserId, toUserId, amount });
         } catch (error) {
           console.error('❌ Error settling calculated debt:', error);
           throw error;
