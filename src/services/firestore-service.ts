@@ -2662,8 +2662,7 @@ export class FirestoreService {
           category: { stringValue: 'debt_settlement' },
           created_at: { timestampValue: new Date().toISOString() },
           created_by: { stringValue: uid },
-          description: { stringValue: `סגירת חוב בין ${fromUserId} ל-${toUserId}` },
-          visibleInUI: { booleanValue: false } // Hidden from regular expense list
+          note: { stringValue: `HIDDEN_DEBT_SETTLEMENT_${fromUserId}_${toUserId}_${Date.now()}` } // Hidden marker
         }
       };
 
