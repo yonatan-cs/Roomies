@@ -38,32 +38,16 @@ export default function GroupDebtsScreen() {
   
   const { 
     expenses, 
-    debtSettlements, 
     currentUser, 
     currentApartment, 
     getBalances, 
     getRawBalances,
     getSimplifiedBalances, 
-    loadDebtSettlements,
-    settleCalculatedDebt,
     createAndCloseDebtAtomic,
     initializeDebtSystem,
     cleanupDebtSystem
   } = useStore();
 
-  // Load debt settlements on component mount (legacy - for background data only)
-  // TODO: Remove this when new system is fully integrated
-  // NOTE: This is NOT used for UI display anymore
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        await loadDebtSettlements();
-      } catch (error) {
-        console.error('Error loading debt settlements in Group Debts screen:', error);
-      }
-    };
-    loadData();
-  }, [loadDebtSettlements]);
 
   // Track last apartment ID to prevent duplicate listeners
   const lastApartmentIdRef = useRef<string | null>(null);
@@ -123,7 +107,7 @@ export default function GroupDebtsScreen() {
 
   const balances = useMemo(() => {
     return useSimplified ? getSimplifiedBalances() : getRawBalances();
-  }, [expenses, debtSettlements, useSimplified, getRawBalances, getSimplifiedBalances]);
+  }, [expenses, useSimplified, getRawBalances, getSimplifiedBalances]);
 
   const formatCurrency = (amount: number) => {
     // Show exact amount with up to 2 decimal places, no rounding
