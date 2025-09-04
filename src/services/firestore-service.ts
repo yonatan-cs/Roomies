@@ -19,7 +19,7 @@ const authHeaders = (idToken: string) => ({
  */
 async function beginTransactionWithRefresh(): Promise<{ transactionId: string; refreshedToken: string }> {
   console.log('🔄 Refreshing ID token before transaction...');
-  const refreshedIdToken = await firebaseAuth.getCurrentIdToken(true); // Force refresh
+  const refreshedIdToken = await firebaseAuth.getCurrentIdToken(); // Get current token
   
   if (!refreshedIdToken) {
     throw new Error('AUTH_TOKEN_REFRESH_FAILED');
