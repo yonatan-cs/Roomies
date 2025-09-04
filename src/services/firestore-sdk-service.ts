@@ -285,26 +285,20 @@ export class FirestoreSDKService {
 
       const now = new Date();
       
-      // Step 1: Create a new debt document
-      const debtId = `${fromUserId}_${toUserId}_${Date.now()}`;
-      const debtData = {
+      // Create a debt settlement record (this is what the old system expects)
+      const settlementData = {
         apartment_id: apartmentId,
-        from_user_id: fromUserId,
-        to_user_id: toUserId,
+        payer_user_id: fromUserId,
+        receiver_user_id: toUserId,
         amount: amount,
-        status: 'open',
-        created_at: now,
-        description: note || 'Debt settlement'
+        date: now,
+        description: note || 'סגירת חוב'
       };
       
-      console.log('📝 Creating debt document:', debtData);
-      await firestoreService.createDocument('debts', debtData, debtId);
-      
-      // Step 2: Close the debt immediately
-      console.log('🔒 Closing debt immediately:', debtId);
-      await firestoreService.closeDebtSimple(debtId);
+      console.log('📝 Creating debt settlement record:', settlementData);
+      await firestoreService.createDocument('debtSettlements', settlementData);
 
-      console.log('🎉 Debt created and closed successfully!');
+      console.log('🎉 Debt settlement created successfully!');
       
     } catch (error) {
       console.error('❌ Simple debt settlement failed:', error);
