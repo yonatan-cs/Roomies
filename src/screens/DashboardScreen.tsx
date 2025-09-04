@@ -512,9 +512,6 @@ export default function DashboardScreen() {
             <Text className="text-2xl font-bold text-gray-900">
               {pendingShoppingItems.length}
             </Text>
-            <Text className="text-xs text-gray-500">
-              {pendingShoppingItems[0]?.name || 'אין פריטים'}
-            </Text>
           </Pressable>
 
           {/* Roommates */}
@@ -734,7 +731,7 @@ export default function DashboardScreen() {
                         ({highlightsStats.kingOfExpenses.percentage.toFixed(1)}% מהסך)
                       </Text>
                       <Text className="text-xs text-gray-400 mt-1">
-                        תן לו כתר… או חשבון לחזרה 👑
+                        תנו לו כתר… או העברה בנקאית; � �👑
                       </Text>
                     </>
                   ) : (
@@ -775,7 +772,7 @@ export default function DashboardScreen() {
                         {highlightsStats.shoppingKing.count} פריטים
                       </Text>
                       <Text className="text-xs text-gray-400">
-                        קונה כמו שאין מחר — יש סביבות! 🛒
+                        קונה כאילו אין מחר - יש מסיבה?! 🛒
                       </Text>
                     </>
                   ) : (

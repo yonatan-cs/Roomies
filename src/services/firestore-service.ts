@@ -13,6 +13,55 @@ const authHeaders = (idToken: string) => ({
   'Content-Type': 'application/json',
 });
 
+/**
+ * Helper function to refresh ID token and begin a Firestore transaction
+ * This prevents 403 errors that occur when tokens expire during mobile network usage
+ */
+async function beginTransactionWithRefresh(): Promise<{ transactionId: string; refreshedToken: string }> {
+  console.log('🔄 Refreshing ID token before transaction...');
+  const refreshedIdToken = await firebaseAuth.getCurrentIdToken(true); // Force refresh
+  
+  if (!refreshedIdToken) {
+    throw new Error('AUTH_TOKEN_REFRESH_FAILED');
+  }
+  
+  console.log('✅ ID token refreshed successfully for transaction');
+
+  const transactionUrl = `${FIRESTORE_BASE_URL}:beginTransaction`;
+  
+  // Log transaction attempt details for debugging
+  console.log('🚀 Starting transaction:', {
+    url: transactionUrl,
+    hasAuthHeader: !!refreshedIdToken,
+    tokenPreview: refreshedIdToken.substring(0, 20) + '...'
+  });
+  
+  const beginResponse = await fetch(transactionUrl, {
+    method: 'POST',
+    headers: authHeaders(refreshedIdToken),
+    body: JSON.stringify({}), // Explicit empty body
+  });
+
+  if (!beginResponse.ok) {
+    const errorText = await beginResponse.text().catch(() => '');
+    console.error('❌ Transaction begin failed:', {
+      status: beginResponse.status,
+      statusText: beginResponse.statusText,
+      errorText,
+      url: transactionUrl,
+      hasAuthHeader: !!refreshedIdToken
+    });
+    throw new Error(`TRANSACTION_BEGIN_FAILED_${beginResponse.status}: ${errorText}`);
+  }
+
+  const transactionData = await beginResponse.json();
+  const transactionId = transactionData.transaction;
+  
+  console.log('✅ Transaction started successfully:', { transactionId: transactionId.substring(0, 20) + '...' });
+  
+  return { transactionId, refreshedToken: refreshedIdToken };
+}
+
 // --- Firestore REST value builders (STRICT) ---
 const F = {
   str: (v: string) => ({ stringValue: String(v) }),
@@ -2161,9 +2210,14 @@ export class FirestoreService {
   }): Promise<any> {
     const { idToken } = await getApartmentContext();
 
+    // Use helper function to begin transaction with token refresh
+    const { transactionId, refreshedToken: refreshedIdToken } = await beginTransactionWithRefresh();
+    
+    console.log('🚀 Expense update transaction started:', { expenseId });
+
     // First, get the current expense to calculate impact
     const currentExpenseRes = await fetch(`${FIRESTORE_BASE_URL}/expenses/${expenseId}`, {
-      headers: authHeaders(idToken),
+      headers: authHeaders(refreshedIdToken),
     });
     
     if (!currentExpenseRes.ok) {
@@ -2172,20 +2226,6 @@ export class FirestoreService {
     
     const currentExpense = await currentExpenseRes.json();
     const currentExpenseData = currentExpense.fields;
-
-    // Start transaction
-    const transactionRes = await fetch(`${FIRESTORE_BASE_URL}/documents:beginTransaction`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify({}),
-    });
-
-    if (!transactionRes.ok) {
-      throw new Error(`BEGIN_TRANSACTION_${transactionRes.status}: Failed to begin transaction`);
-    }
-
-    const transactionData = await transactionRes.json();
-    const transactionId = transactionData.transaction;
 
     try {
       // Prepare expense update
@@ -2224,7 +2264,7 @@ export class FirestoreService {
 
       const expenseUpdateRes = await fetch(`${FIRESTORE_BASE_URL}/documents:commit`, {
         method: 'POST',
-        headers: authHeaders(idToken),
+        headers: authHeaders(refreshedIdToken), // Use refreshed token for commit
         body: JSON.stringify(expenseUpdateBody),
       });
 
@@ -2246,7 +2286,7 @@ export class FirestoreService {
 
       const auditLogRes = await fetch(`${FIRESTORE_BASE_URL}/expense_audit_logs`, {
         method: 'POST',
-        headers: authHeaders(idToken),
+        headers: authHeaders(refreshedIdToken), // Use refreshed token for audit log
         body: JSON.stringify(auditLogData),
       });
 
@@ -2261,7 +2301,7 @@ export class FirestoreService {
       try {
         await fetch(`${FIRESTORE_BASE_URL}/documents:rollback`, {
           method: 'POST',
-          headers: authHeaders(idToken),
+          headers: authHeaders(refreshedIdToken), // Use refreshed token for rollback
           body: JSON.stringify({ transaction: transactionId }),
         });
       } catch (rollbackError) {
@@ -2380,21 +2420,17 @@ export class FirestoreService {
       const debtId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
       const actionId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
 
-      // Use Firestore REST API transaction for atomic operation
-      const transactionUrl = `${FIRESTORE_BASE_URL}:beginTransaction`;
+      // Use helper function to begin transaction with token refresh
+      const { transactionId, refreshedToken: refreshedIdToken } = await beginTransactionWithRefresh();
       
-      // Start transaction - this returns a transaction token
-      const beginResponse = await fetch(transactionUrl, {
-        method: 'POST',
-        headers: authHeaders(idToken),
+      console.log('🚀 Debt settlement transaction started:', {
+        apartmentId,
+        fromUserId,
+        toUserId,
+        amount,
+        debtId,
+        actionId
       });
-
-      if (!beginResponse.ok) {
-        throw new Error(`TRANSACTION_BEGIN_FAILED_${beginResponse.status}`);
-      }
-
-      const transactionData = await beginResponse.json();
-      const transactionId = transactionData.transaction;
 
       // Prepare batch write for atomic operation
       const writes = [];
@@ -2483,7 +2519,7 @@ export class FirestoreService {
 
       const commitResponse = await fetch(commitUrl, {
         method: 'POST',
-        headers: authHeaders(idToken),
+        headers: authHeaders(refreshedIdToken), // Use refreshed token for commit too
         body: JSON.stringify(commitBody),
       });
 
