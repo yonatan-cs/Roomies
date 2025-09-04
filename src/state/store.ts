@@ -93,6 +93,7 @@ interface AppState {
 
   // Actions - Debts & Balances (Firestore-based system)
   settleCalculatedDebt: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
+  closeDebt: (debtId: string) => Promise<void>;
   initializeDebtSystem: (apartmentId: string, userIds: string[]) => Promise<void>;
   cleanupDebtSystem: () => void;
 
@@ -1214,6 +1215,38 @@ export const useStore = create<AppState>()(
           console.log('✅ Calculated debt settled successfully with simple approach:', { fromUserId, toUserId, amount });
         } catch (error) {
           console.error('❌ Error settling calculated debt:', error);
+          console.error('❌ Error details in store:', {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+          });
+          throw error;
+        }
+      },
+
+      /**
+       * Close a specific debt by updating its status to 'closed'
+       * This uses the new updateMask approach to ensure proper permissions
+       */
+      closeDebt: async (debtId: string) => {
+        try {
+          const { currentUser } = get();
+          if (!currentUser) {
+            throw new Error('AUTH_REQUIRED');
+          }
+
+          console.log('🔒 [closeDebt] Closing debt:', {
+            debtId,
+            userId: currentUser.id
+          });
+
+          // Use the new closeDebt function from firestoreService
+          await firestoreService.closeDebt(debtId);
+          
+          console.log('✅ Debt closed successfully:', debtId);
+        } catch (error) {
+          console.error('❌ Error closing debt:', error);
           console.error('❌ Error details in store:', {
             name: error.name,
             message: error.message,
