@@ -92,18 +92,34 @@ export class FirestoreSDKService {
         const toBalanceRef = doc(db, 'balances', apartmentId, 'users', toUserId);
         const actionRef = doc(db, 'actions', actionId);
 
-        // 1. Create debt document (status: 'open') with server timestamp
-        transaction.set(debtRef, {
-          apartment_id: apartmentId,
-          from_user_id: fromUserId,
-          to_user_id: toUserId,
-          amount: amount,
-          status: 'open',
-          description: description || '',
-          created_at: serverTimestamp(),
-        });
+        // Check if debt document already exists
+        const debtSnap = await transaction.get(debtRef);
+        
+        if (!debtSnap.exists()) {
+          // 1. Create debt document (status: 'open') with server timestamp
+          // This matches the "allow create" rule
+          transaction.set(debtRef, {
+            apartment_id: apartmentId,
+            from_user_id: fromUserId,
+            to_user_id: toUserId,
+            amount: amount,
+            status: 'open',
+            description: description || '',
+            created_at: serverTimestamp(),
+          });
+          console.log('📝 Creating new debt document');
+        } else {
+          // If debt already exists, check if it's already closed (idempotent)
+          const existingDebt = debtSnap.data();
+          if (existingDebt.status === 'closed') {
+            console.log('⚠️ Debt already closed, skipping settlement');
+            return; // Exit transaction early - idempotent operation
+          }
+          console.log('📋 Debt document exists, will only update status');
+        }
 
-        // 2. Close the debt immediately
+        // 2. Close the debt (this matches the "allow update" rule)
+        // Only updates: status, closed_by, closed_at (allowed by rules)
         transaction.update(debtRef, {
           status: 'closed',
           closed_by: actorUid,
@@ -314,6 +330,94 @@ export class FirestoreSDKService {
       return docRef.id;
     } catch (error) {
       console.error(`❌ Error creating document in ${collectionName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Simple debt settlement - only updates balances and creates action log
+   * This is the minimal approach that doesn't touch the debts collection at all
+   */
+  async settleOutsideApp({
+    apartmentId,
+    fromUserId,
+    toUserId,
+    amount,
+    note,
+    actorUid
+  }: {
+    apartmentId: string;
+    fromUserId: string;
+    toUserId: string;
+    amount: number;
+    note?: string;
+    actorUid: string;
+  }): Promise<void> {
+    if (amount <= 0) {
+      throw new Error('Amount must be > 0');
+    }
+
+    console.log('🚀 Starting simple debt settlement:', {
+      apartmentId,
+      fromUserId,
+      toUserId,
+      amount,
+      note,
+      actorUid
+    });
+
+    try {
+      const fromRef = doc(db, 'balances', apartmentId, 'users', fromUserId);
+      const toRef = doc(db, 'balances', apartmentId, 'users', toUserId);
+      const actionRef = doc(collection(db, 'actions'));
+
+      await runTransaction(db, async (tx) => {
+        console.log('🔄 Transaction started, processing simple settlement...');
+
+        // Ensure balance documents exist
+        const fromSnap = await tx.get(fromRef);
+        if (!fromSnap.exists()) {
+          tx.set(fromRef, { balance: 0 });
+          console.log('📝 Created from balance document');
+        }
+
+        const toSnap = await tx.get(toRef);
+        if (!toSnap.exists()) {
+          tx.set(toRef, { balance: 0 });
+          console.log('📝 Created to balance document');
+        }
+
+        // Update balances with increment transforms
+        // From user gets -amount (they owe less)
+        tx.update(fromRef, { balance: increment(-amount) });
+        // To user gets +amount (they are owed more)
+        tx.update(toRef, { balance: increment(+amount) });
+
+        console.log('💰 Updated balances:', {
+          fromUser: `-${amount}`,
+          toUser: `+${amount}`
+        });
+
+        // Create action log
+        tx.set(actionRef, {
+          apartment_id: apartmentId,
+          type: 'debt_closed',
+          actor_uid: actorUid,
+          from_user_id: fromUserId,
+          to_user_id: toUserId,
+          amount,
+          note: note ?? null,
+          created_at: serverTimestamp(),
+        });
+
+        console.log('📝 Created action log');
+        console.log('✅ Transaction operations prepared successfully');
+      });
+
+      console.log('🎉 Simple debt settlement completed successfully!');
+      
+    } catch (error) {
+      console.error('❌ Simple debt settlement failed:', error);
       throw error;
     }
   }

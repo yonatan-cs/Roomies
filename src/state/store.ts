@@ -1172,25 +1172,29 @@ export const useStore = create<AppState>()(
       },
 
       /**
-       * Settle calculated debt atomically in one transaction using Firebase Web SDK
-       * This replaces the REST API version that was causing 403 errors
+       * Settle calculated debt using simple approach - only updates balances and creates action log
+       * This is the minimal approach that doesn't touch the debts collection at all
        */
       settleCalculatedDebt: async (fromUserId: string, toUserId: string, amount: number, description?: string) => {
         try {
-          const { currentApartment } = get();
+          const { currentApartment, currentUser } = get();
           if (!currentApartment) {
             throw new Error('APARTMENT_NOT_FOUND');
           }
+          if (!currentUser) {
+            throw new Error('AUTH_REQUIRED');
+          }
 
-          await firestoreSDKService.settleCalculatedDebt({
+          await firestoreSDKService.settleOutsideApp({
             apartmentId: currentApartment.id,
             fromUserId,
             toUserId,
             amount,
-            description
+            note: description,
+            actorUid: currentUser.id
           });
           
-          console.log('✅ Calculated debt settled successfully with SDK:', { fromUserId, toUserId, amount });
+          console.log('✅ Calculated debt settled successfully with simple approach:', { fromUserId, toUserId, amount });
         } catch (error) {
           console.error('❌ Error settling calculated debt:', error);
           throw error;
