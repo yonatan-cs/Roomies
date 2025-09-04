@@ -288,16 +288,16 @@ export class FirestoreSDKService {
       
       // Update from user balance (they owe less)
       await firestoreService.updateDocument(
-        'balances',
-        `${apartmentId}_${fromUserId}`,
+        `balances/${apartmentId}/users`,
+        fromUserId,
         { balance: -amount },
         ['balance']
       );
 
       // Update to user balance (they are owed more)  
       await firestoreService.updateDocument(
-        'balances',
-        `${apartmentId}_${toUserId}`,
+        `balances/${apartmentId}/users`,
+        toUserId,
         { balance: amount },
         ['balance']
       );
