@@ -278,6 +278,12 @@ export class FirestoreSDKService {
       const toRef = doc(db, 'balances', apartmentId, 'users', toUserId);
       const actionRef = doc(collection(db, 'actions'));
 
+      console.log('🔍 [DEBUG] Document references created:', {
+        fromRef: fromRef.path,
+        toRef: toRef.path,
+        actionRef: actionRef.path
+      });
+
       await runTransaction(db, async (tx) => {
         console.log('🔄 Transaction started, processing simple settlement...');
         console.log('🔍 [DEBUG] Document references:', {
@@ -341,6 +347,24 @@ export class FirestoreSDKService {
       
     } catch (error) {
       console.error('❌ Simple debt settlement failed:', error);
+      console.error('❌ Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      
+      // Add more specific error handling
+      if (error.code === 'permission-denied') {
+        console.error('🚫 PERMISSION DENIED - Check Firestore rules');
+        console.error('🚫 User:', actorUid);
+        console.error('🚫 Apartment:', apartmentId);
+        console.error('🚫 From User:', fromUserId);
+        console.error('🚫 To User:', toUserId);
+        console.error('🚫 Check if user is member of apartment:', `${apartmentId}_${actorUid}`);
+        console.error('🚫 Check if user current apartment matches:', apartmentId);
+      }
+      
       throw error;
     }
   }

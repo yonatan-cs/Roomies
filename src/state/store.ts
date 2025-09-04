@@ -1195,6 +1195,13 @@ export const useStore = create<AppState>()(
             description
           });
 
+          console.log('🔍 [settleCalculatedDebt] DEBUG - Current user details:', {
+            userId: currentUser.id,
+            userEmail: currentUser.email,
+            currentApartmentId: currentApartment.id,
+            apartmentName: currentApartment.name
+          });
+
           await firestoreSDKService.settleOutsideApp({
             apartmentId: currentApartment.id,
             fromUserId,
@@ -1207,6 +1214,12 @@ export const useStore = create<AppState>()(
           console.log('✅ Calculated debt settled successfully with simple approach:', { fromUserId, toUserId, amount });
         } catch (error) {
           console.error('❌ Error settling calculated debt:', error);
+          console.error('❌ Error details in store:', {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+          });
           throw error;
         }
       },
