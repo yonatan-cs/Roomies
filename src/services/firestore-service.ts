@@ -2698,7 +2698,7 @@ export class FirestoreService {
           category: { stringValue: 'debt_settlement' },
           created_at: { timestampValue: new Date().toISOString() },
           created_by: { stringValue: uid },
-          note: { stringValue: `DEBT_SETTLEMENT_MESSAGE_${fromUserId}_${toUserId}_${amount}` } // Special marker for debt settlement message
+          note: { stringValue: `DEBT_SETTLEMENT_MESSAGE_${amount}` } // Special marker for debt settlement message
         }
       };
 
