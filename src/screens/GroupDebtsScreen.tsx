@@ -46,6 +46,7 @@ export default function GroupDebtsScreen() {
     getSimplifiedBalances, 
     loadDebtSettlements,
     settleCalculatedDebt,
+    createAndCloseDebtAtomic,
     initializeDebtSystem,
     cleanupDebtSystem
   } = useStore();
@@ -168,15 +169,15 @@ export default function GroupDebtsScreen() {
     setIsSettling(true);
 
     try {
-      // Use the new atomically transactional debt settlement
-      await settleCalculatedDebt(
+      // Use the new atomically transactional debt settlement that creates debts, monthlyExpenses, and updates balances
+      const result = await createAndCloseDebtAtomic(
         settlementFromUser,
         settlementToUser,
         amount,
         `סגירת חוב`
       );
 
-      console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully');
+      console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully:', result);
 
       setShowSettlementModal(false);
       setSettlementAmount('');
@@ -184,8 +185,12 @@ export default function GroupDebtsScreen() {
       setSettlementToUser('');
       setSettlementOriginalAmount(0);
       
-      // No need to manually refresh - onSnapshot will update the UI automatically
-      Alert.alert('הצלחה', 'החוב נסגר בהצלחה!');
+      // Show success message only after server confirms success
+      if (result.success) {
+        Alert.alert('הצלחה', 'החוב נסגר בהצלחה!');
+      } else {
+        Alert.alert('שגיאה', 'החוב לא נסגר בהצלחה');
+      }
       
     } catch (error: any) {
       console.error('❌ [GroupDebtsScreen] Error settling debt:', error);

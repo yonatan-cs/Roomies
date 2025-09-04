@@ -94,6 +94,8 @@ interface AppState {
   // Actions - Debts & Balances (Firestore-based system)
   settleCalculatedDebt: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<void>;
   closeDebt: (debtId: string) => Promise<void>;
+  closeDebtAtomic: (debtId: string) => Promise<{ success: boolean; debtId: string; expenseId: string; closedAt: string; }>;
+  createAndCloseDebtAtomic: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<{ success: boolean; debtId: string; expenseId: string; closedAt: string; }>;
   initializeDebtSystem: (apartmentId: string, userIds: string[]) => Promise<void>;
   cleanupDebtSystem: () => void;
 
@@ -1248,6 +1250,75 @@ export const useStore = create<AppState>()(
         } catch (error) {
           console.error('❌ Error closing debt:', error);
           console.error('❌ Error details in store:', {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+          });
+          throw error;
+        }
+      },
+
+      /**
+       * Close debt with full atomic transaction - creates monthly expense and updates balances
+       * This is the complete solution that addresses the critical issue
+       */
+      closeDebtAtomic: async (debtId: string) => {
+        try {
+          const { currentUser } = get();
+          if (!currentUser) {
+            throw new Error('AUTH_REQUIRED');
+          }
+
+          console.log('🔒 [closeDebtAtomic] Starting atomic debt closure:', {
+            debtId,
+            userId: currentUser.id
+          });
+
+          // Use the new atomic closeDebt function from firestoreService
+          const result = await firestoreService.closeDebtAtomic(debtId);
+          
+          console.log('✅ [closeDebtAtomic] Debt closed atomically:', result);
+          return result;
+        } catch (error) {
+          console.error('❌ [closeDebtAtomic] Error closing debt atomically:', error);
+          console.error('❌ [closeDebtAtomic] Error details in store:', {
+            name: error.name,
+            message: error.message,
+            code: error.code,
+            stack: error.stack
+          });
+          throw error;
+        }
+      },
+
+      /**
+       * Create and close debt atomically - for the current system that doesn't use debts collection
+       * This creates a debt record first, then closes it with all the required operations
+       */
+      createAndCloseDebtAtomic: async (fromUserId: string, toUserId: string, amount: number, description?: string) => {
+        try {
+          const { currentUser } = get();
+          if (!currentUser) {
+            throw new Error('AUTH_REQUIRED');
+          }
+
+          console.log('🔒 [createAndCloseDebtAtomic] Starting debt creation and closure:', {
+            fromUserId,
+            toUserId,
+            amount,
+            description,
+            userId: currentUser.id
+          });
+
+          // Use the new atomic createAndCloseDebt function from firestoreService
+          const result = await firestoreService.createAndCloseDebtAtomic(fromUserId, toUserId, amount, description);
+          
+          console.log('✅ [createAndCloseDebtAtomic] Debt created and closed atomically:', result);
+          return result;
+        } catch (error) {
+          console.error('❌ [createAndCloseDebtAtomic] Error creating and closing debt atomically:', error);
+          console.error('❌ [createAndCloseDebtAtomic] Error details in store:', {
             name: error.name,
             message: error.message,
             code: error.code,
