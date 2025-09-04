@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +27,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function DashboardScreen() {
   const navigation = useNavigation<NavigationProp>();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [showHighlightsModal, setShowHighlightsModal] = useState(false);
+  const [timeRange, setTimeRange] = useState<'all' | 'year' | 'month' | '30days'>('all');
   const { 
     currentUser, 
     currentApartment, 
@@ -122,12 +126,171 @@ export default function DashboardScreen() {
   }, [expenses]);
 
   const pendingShoppingItems = shoppingItems.filter(item => !item.purchased);
-  const recentExpenses = expenses.slice(-4).reverse();
 
   // Statistics
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
   const cleaningCount = cleaningTask?.history?.length || 0;
   const purchasedItemsCount = shoppingItems.filter(item => item.purchased).length;
+
+  // Advanced Statistics for Highlights Modal
+  const highlightsStats = useMemo(() => {
+    if (!currentApartment || !expenses.length) {
+      return {
+        totalExpenses: 0,
+        kingOfExpenses: null,
+        shoppingKing: null,
+        cleaningKing: null,
+        biggestExpenseLast30Days: null,
+        averagePerMember: 0,
+        monthsActive: 1,
+        filteredExpenses: []
+      };
+    }
+
+    // Filter expenses by time range
+    const now = new Date();
+    let filteredExpenses = expenses;
+    
+    switch (timeRange) {
+      case '30days':
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        filteredExpenses = expenses.filter(expense => {
+          const expenseDate = new Date(expense.date);
+          return expenseDate >= thirtyDaysAgo;
+        });
+        break;
+      case 'month':
+        filteredExpenses = expenses.filter(expense => {
+          const expenseDate = new Date(expense.date);
+          return expenseDate.getMonth() === now.getMonth() && 
+                 expenseDate.getFullYear() === now.getFullYear();
+        });
+        break;
+      case 'year':
+        filteredExpenses = expenses.filter(expense => {
+          const expenseDate = new Date(expense.date);
+          return expenseDate.getFullYear() === now.getFullYear();
+        });
+        break;
+      case 'all':
+      default:
+        filteredExpenses = expenses;
+        break;
+    }
+
+    const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+    // King of Expenses - who paid the most
+    const expensesByUser = filteredExpenses.reduce((acc, expense) => {
+      acc[expense.paidBy] = (acc[expense.paidBy] || 0) + expense.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const kingOfExpenses = Object.entries(expensesByUser)
+      .sort(([,a], [,b]) => b - a)[0];
+
+    // Shopping King - who bought the most items (filter by time range)
+    const shoppingByUser = shoppingItems
+      .filter(item => {
+        if (!item.purchased || !item.purchasedByUserId) return false;
+        
+        // Filter by time range if item has purchase date
+        if (item.purchasedAt) {
+          const purchaseDate = new Date(item.purchasedAt);
+          switch (timeRange) {
+            case '30days':
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              return purchaseDate >= thirtyDaysAgo;
+            case 'month':
+              return purchaseDate.getMonth() === now.getMonth() && 
+                     purchaseDate.getFullYear() === now.getFullYear();
+            case 'year':
+              return purchaseDate.getFullYear() === now.getFullYear();
+            case 'all':
+            default:
+              return true;
+          }
+        }
+        return true; // If no purchase date, include all
+      })
+      .reduce((acc, item) => {
+        acc[item.purchasedByUserId!] = (acc[item.purchasedByUserId!] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+    const shoppingKing = Object.entries(shoppingByUser)
+      .sort(([,a], [,b]) => b - a)[0];
+
+    // Cleaning King - who did the most cleanings (filter by time range)
+    const cleaningByUser = cleaningTask?.history
+      ?.filter(entry => {
+        if (!entry.completedBy) return false;
+        
+        // Filter by time range if entry has completion date
+        if (entry.completedAt) {
+          const completionDate = new Date(entry.completedAt);
+          switch (timeRange) {
+            case '30days':
+              const thirtyDaysAgo = new Date();
+              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+              return completionDate >= thirtyDaysAgo;
+            case 'month':
+              return completionDate.getMonth() === now.getMonth() && 
+                     completionDate.getFullYear() === now.getFullYear();
+            case 'year':
+              return completionDate.getFullYear() === now.getFullYear();
+            case 'all':
+            default:
+              return true;
+          }
+        }
+        return true; // If no completion date, include all
+      })
+      .reduce((acc, entry) => {
+        acc[entry.completedBy!] = (acc[entry.completedBy!] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+    const cleaningKing = Object.entries(cleaningByUser)
+      .sort(([,a], [,b]) => b - a)[0];
+
+    // Biggest expense in filtered range
+    const biggestExpense = filteredExpenses
+      .sort((a, b) => b.amount - a.amount)[0];
+
+    // Calculate months active (rough estimate)
+    const firstExpense = filteredExpenses.sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    )[0];
+    
+    const monthsActive = firstExpense ? 
+      Math.max(1, Math.ceil((Date.now() - new Date(firstExpense.date).getTime()) / (1000 * 60 * 60 * 24 * 30))) : 1;
+
+    const averagePerMember = totalExpenses / (currentApartment.members.length * monthsActive);
+
+    return {
+      totalExpenses,
+      kingOfExpenses: kingOfExpenses ? {
+        userId: kingOfExpenses[0],
+        amount: kingOfExpenses[1],
+        percentage: totalExpenses > 0 ? (kingOfExpenses[1] / totalExpenses) * 100 : 0
+      } : null,
+      shoppingKing: shoppingKing ? {
+        userId: shoppingKing[0],
+        count: shoppingKing[1]
+      } : null,
+      cleaningKing: cleaningKing ? {
+        userId: cleaningKing[0],
+        count: cleaningKing[1]
+      } : null,
+      biggestExpenseLast30Days: biggestExpense,
+      averagePerMember,
+      monthsActive,
+      filteredExpenses
+    };
+  }, [expenses, shoppingItems, cleaningTask, currentApartment, timeRange]);
 
   // Find current turn user
   const getCurrentTurnUser = () => {
@@ -351,58 +514,18 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        {/* Recent Expenses */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            הוצאות אחרונות
-          </Text>
-          
-          {recentExpenses.length > 0 ? (
-            <View>
-              {recentExpenses.map((expense) => (
-                <View key={expense.id} className="flex-row justify-between items-center py-2">
-                  <View>
-                    <Text className="text-gray-900 font-medium">
-                      {expense.title}
-                    </Text>
-                    <Text className="text-sm text-gray-500">
-                      {getUserName(expense.paidBy)} • {formatDate(expense.date)}
-                    </Text>
-                  </View>
-                  <Text className="text-gray-900 font-semibold">
-                    {formatCurrency(expense.amount)}
-                  </Text>
-                </View>
-              ))}
 
-              <Pressable
-                onPress={() => navigation.navigate('Budget')}
-                className="bg-blue-100 py-2 px-4 rounded-xl mt-3"
-              >
-                <Text className="text-blue-700 text-center font-medium">
-                  הצג הכל
-                </Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View className="items-center py-4">
-              <Ionicons name="wallet-outline" size={48} color="#6b7280" />
-              <Text className="text-gray-500 mt-2">אין הוצאות עדיין</Text>
-              <Pressable
-                onPress={() => navigation.navigate('AddExpense')}
-                className="bg-blue-500 py-2 px-4 rounded-xl mt-3"
-              >
-                <Text className="text-white font-medium">הוסף הוצאה ראשונה</Text>
-              </Pressable>
-            </View>
-          )}
-        </View>
-
-        {/* Apartment Highlights */}
-        <View className="bg-white rounded-2xl p-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            הייליטס של הדירה
-          </Text>
+        {/* Apartment Highlights Button */}
+        <Pressable
+          onPress={() => setShowHighlightsModal(true)}
+          className="bg-white rounded-2xl p-6 shadow-sm"
+        >
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-lg font-semibold text-gray-900">
+              הייליטס של הדירה
+            </Text>
+            <Ionicons name="chevron-back" size={20} color="#6b7280" />
+          </View>
           
           <View className="flex-row flex-wrap justify-between">
             <View className="items-center w-[48%] mb-4">
@@ -433,8 +556,220 @@ export default function DashboardScreen() {
               <Text className="text-sm text-gray-500">החודש</Text>
             </View>
           </View>
-        </View>
+        </Pressable>
       </ScrollView>
+
+      {/* Highlights Modal */}
+      <Modal
+        visible={showHighlightsModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowHighlightsModal(false)}
+      >
+        <View className="flex-1 bg-gray-50">
+          {/* Header */}
+          <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
+            <View className="flex-row items-center justify-between mb-4">
+              <Pressable
+                onPress={() => setShowHighlightsModal(false)}
+                className="w-10 h-10 rounded-full items-center justify-center bg-gray-100"
+              >
+                <Ionicons name="arrow-forward" size={24} color="#374151" />
+              </Pressable>
+              
+              <Text className="text-2xl font-bold text-gray-900">
+                Highlights — פעילות הדירה
+              </Text>
+              
+              <View className="w-10" />
+            </View>
+          </View>
+
+          <ScrollView className="flex-1 px-6 py-6">
+            {/* Time Range Filter */}
+            <View className="bg-white rounded-2xl p-4 mb-6 shadow-sm">
+              <Text className="text-sm text-gray-500 mb-3">טווח זמן</Text>
+              <View className="flex-row space-x-2">
+                {[
+                  { key: 'all', label: 'כל הזמן' },
+                  { key: 'year', label: 'השנה' },
+                  { key: 'month', label: 'החודש' },
+                  { key: '30days', label: '30 יום' }
+                ].map((option) => (
+                  <Pressable
+                    key={option.key}
+                    onPress={() => setTimeRange(option.key as any)}
+                    className={cn(
+                      "flex-1 py-2 px-3 rounded-lg",
+                      timeRange === option.key 
+                        ? "bg-blue-500" 
+                        : "bg-gray-100"
+                    )}
+                  >
+                    <Text className={cn(
+                      "text-center text-sm font-medium",
+                      timeRange === option.key 
+                        ? "text-white" 
+                        : "text-gray-700"
+                    )}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Statistics Cards */}
+            <View className="space-y-4">
+              {/* Total Spent & King of Expenses */}
+              <View className="flex-row space-x-4">
+                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
+                  <Text className="text-sm text-gray-500 mb-2">סך הוצאות</Text>
+                  <Text className="text-2xl font-bold text-blue-600 mb-1">
+                    {formatCurrency(highlightsStats.totalExpenses)}
+                  </Text>
+                  <Text className="text-xs text-gray-400">
+                    ({timeRange === 'all' ? 'מאז תחילת השימוש' : 
+                      timeRange === 'year' ? 'השנה' :
+                      timeRange === 'month' ? 'החודש' : '30 הימים האחרונים'})
+                  </Text>
+                </View>
+                
+                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
+                  <Text className="text-sm text-gray-500 mb-2">מלך ההוצאות</Text>
+                  {highlightsStats.kingOfExpenses ? (
+                    <>
+                      <Text className="text-lg font-bold text-yellow-600 mb-1">
+                        {getUserName(highlightsStats.kingOfExpenses.userId)}
+                      </Text>
+                      <Text className="text-sm text-gray-600">
+                        {formatCurrency(highlightsStats.kingOfExpenses.amount)}
+                      </Text>
+                      <Text className="text-xs text-gray-400">
+                        ({highlightsStats.kingOfExpenses.percentage.toFixed(1)}% מהסך)
+                      </Text>
+                      <Text className="text-xs text-gray-400 mt-1">
+                        תן לו כתר… או חשבון לחזרה 👑
+                      </Text>
+                    </>
+                  ) : (
+                    <Text className="text-gray-500">אין נתונים</Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Cleanings Done & Shopping King */}
+              <View className="flex-row space-x-4">
+                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
+                  <Text className="text-sm text-gray-500 mb-2">ניקיונות שבוצעו</Text>
+                  <Text className="text-2xl font-bold text-green-600 mb-1">
+                    {cleaningCount}
+                  </Text>
+                  {highlightsStats.cleaningKing ? (
+                    <>
+                      <Text className="text-sm text-gray-600">
+                        אלוף: {getUserName(highlightsStats.cleaningKing.userId)}
+                      </Text>
+                      <Text className="text-xs text-gray-400">
+                        מרסק את האבק מאז 2023 🧹
+                      </Text>
+                    </>
+                  ) : (
+                    <Text className="text-xs text-gray-400">אין אלוף עדיין</Text>
+                  )}
+                </View>
+                
+                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
+                  <Text className="text-sm text-gray-500 mb-2">אלוף הקניות</Text>
+                  {highlightsStats.shoppingKing ? (
+                    <>
+                      <Text className="text-lg font-bold text-orange-600 mb-1">
+                        {getUserName(highlightsStats.shoppingKing.userId)}
+                      </Text>
+                      <Text className="text-sm text-gray-600">
+                        {highlightsStats.shoppingKing.count} פריטים
+                      </Text>
+                      <Text className="text-xs text-gray-400">
+                        קונה כמו שאין מחר — יש סביבות! 🛒
+                      </Text>
+                    </>
+                  ) : (
+                    <Text className="text-gray-500">אין נתונים</Text>
+                  )}
+                </View>
+              </View>
+
+              {/* Biggest Expense & Average */}
+              <View className="flex-row space-x-4">
+                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
+                  <Text className="text-sm text-gray-500 mb-2">
+                    ההוצאה הכי גדולה {timeRange === '30days' ? '(30 יום)' : 
+                      timeRange === 'month' ? '(החודש)' :
+                      timeRange === 'year' ? '(השנה)' : '(כל הזמן)'}
+                  </Text>
+                  {highlightsStats.biggestExpenseLast30Days ? (
+                    <>
+                      <Text className="text-lg font-bold text-red-600 mb-1">
+                        {formatCurrency(highlightsStats.biggestExpenseLast30Days.amount)}
+                      </Text>
+                      <Text className="text-sm text-gray-600">
+                        {highlightsStats.biggestExpenseLast30Days.title}
+                      </Text>
+                    </>
+                  ) : (
+                    <Text className="text-gray-500">אין הוצאות בחודש האחרון</Text>
+                  )}
+                </View>
+                
+                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
+                  <Text className="text-sm text-gray-500 mb-2">ממוצע לחבר</Text>
+                  <Text className="text-lg font-bold text-purple-600 mb-1">
+                    {formatCurrency(highlightsStats.averagePerMember)}
+                  </Text>
+                  <Text className="text-xs text-gray-400">לחודש</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* No Data State */}
+            {highlightsStats.totalExpenses === 0 && (
+              <View className="bg-white rounded-2xl p-8 items-center shadow-sm mt-6">
+                <Ionicons name="stats-chart-outline" size={64} color="#6b7280" />
+                <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">
+                  אין נתונים עדיין
+                </Text>
+                <Text className="text-gray-600 text-center">
+                  תתחילו לקנות/לנקות כדי שנוכל לשפוט 😄
+                </Text>
+              </View>
+            )}
+
+            {/* Action Buttons */}
+            <View className="flex-row mt-8 space-x-4">
+              <Pressable
+                onPress={() => setShowHighlightsModal(false)}
+                className="flex-1 bg-gray-100 py-4 px-6 rounded-xl"
+              >
+                <Text className="text-gray-700 font-medium text-center">
+                  סגור
+                </Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={() => {
+                  // TODO: Implement share functionality
+                  console.log('Share highlights');
+                }}
+                className="flex-1 bg-blue-500 py-4 px-6 rounded-xl"
+              >
+                <Text className="text-white font-medium text-center">
+                  שתף
+                </Text>
+              </Pressable>
+            </View>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 }
