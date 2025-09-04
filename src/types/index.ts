@@ -72,11 +72,15 @@ export interface Expense {
   id: string;
   title: string;
   amount: number;
-  paidBy: string; // user id
+  paidBy: string; // user id - cannot be changed after creation
   participants: string[]; // array of user ids
   category: ExpenseCategory;
   date: Date;
   description?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  createdBy?: string;
+  lastModifiedBy?: string;
 }
 
 export type ExpenseCategory =

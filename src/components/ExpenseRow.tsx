@@ -8,6 +8,7 @@ import { Expense } from '../types';
 type Props = {
   item: Expense;
   onConfirmDelete: (id: string) => Promise<void>;
+  onEdit?: (id: string) => void;
   formatCurrency: (amount: number) => string;
   formatDate: (date: Date | string) => string;
   getUserName: (userId: string) => string;
@@ -17,6 +18,7 @@ type Props = {
 export default function ExpenseRow({ 
   item, 
   onConfirmDelete, 
+  onEdit,
   formatCurrency, 
   formatDate, 
   getUserName,
@@ -49,11 +51,23 @@ export default function ExpenseRow({
     );
   };
 
+  const handleEdit = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});
+    if (onEdit) {
+      onEdit(item.id);
+    }
+    ref.current?.close();
+  };
+
   const RightActions = () => (
-    <View style={styles.actionContainer}>
+    <View style={styles.actionsContainer}>
+      <Pressable onPress={handleEdit} style={styles.editButton} accessibilityLabel="ערוך הוצאה">
+        <Ionicons name="pencil-outline" size={20} color="white" />
+        <Text style={styles.actionText}>ערוך</Text>
+      </Pressable>
       <Pressable onPress={confirmDelete} style={styles.trashButton} accessibilityLabel="מחק הוצאה">
-        <Ionicons name="trash-outline" size={22} color="white" />
-        <Text style={styles.trashText}>למחוק?</Text>
+        <Ionicons name="trash-outline" size={20} color="white" />
+        <Text style={styles.actionText}>מחק</Text>
       </Pressable>
     </View>
   );
@@ -170,23 +184,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
   },
-  actionContainer: {
-    width: 96,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ef4444',
+  actionsContainer: {
+    flexDirection: 'row',
+    width: 160,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
+    overflow: 'hidden',
   },
-  trashButton: {
+  editButton: {
+    flex: 1,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
+    gap: 4,
     paddingVertical: 12,
   },
-  trashText: {
+  trashButton: {
+    flex: 1,
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 12,
+  },
+  actionText: {
     color: 'white',
     fontWeight: '700',
-    fontSize: 12,
+    fontSize: 11,
   },
 });
