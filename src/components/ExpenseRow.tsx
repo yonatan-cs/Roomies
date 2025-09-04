@@ -1,6 +1,5 @@
-import React, { useRef } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, Alert, StyleSheet } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/Swipeable';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Expense } from '../types';
@@ -24,7 +23,7 @@ export default function ExpenseRow({
   getUserName,
   currentUserId
 }: Props) {
-  const ref = useRef<Swipeable>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const confirmDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});
@@ -32,18 +31,19 @@ export default function ExpenseRow({
       'למחוק הוצאה?',
       `האם למחוק את "${item.title}"?`,
       [
-        { text: 'ביטול', style: 'cancel', onPress: () => ref.current?.close() },
+        { text: 'ביטול', style: 'cancel' },
         {
           text: 'מחק',
           style: 'destructive',
           onPress: async () => {
+            setIsDeleting(true);
             try {
               await onConfirmDelete(item.id);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(()=>{});
             } catch (e) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(()=>{});
             } finally {
-              ref.current?.close();
+              setIsDeleting(false);
             }
           },
         },
@@ -56,64 +56,69 @@ export default function ExpenseRow({
     if (onEdit) {
       onEdit(item.id);
     }
-    ref.current?.close();
   };
-
-  const RightActions = () => (
-    <View style={styles.actionsContainer}>
-      <Pressable onPress={handleEdit} style={styles.editButton} accessibilityLabel="ערוך הוצאה">
-        <Ionicons name="pencil-outline" size={20} color="white" />
-        <Text style={styles.actionText}>ערוך</Text>
-      </Pressable>
-      <Pressable onPress={confirmDelete} style={styles.trashButton} accessibilityLabel="מחק הוצאה">
-        <Ionicons name="trash-outline" size={20} color="white" />
-        <Text style={styles.actionText}>מחק</Text>
-      </Pressable>
-    </View>
-  );
 
   const personalShare = item.amount / item.participants.length;
   const isParticipant = currentUserId && item.participants.includes(currentUserId);
   const isPayer = currentUserId && item.paidBy === currentUserId;
 
   return (
-    <Swipeable
-      ref={ref}
-      friction={2}
-      rightThreshold={40}
-      overshootRight={false}
-      renderRightActions={RightActions}
-    >
-      <View style={styles.row}>
-        <View style={styles.content}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.date}>{formatDate(item.date)}</Text>
-            {item.description && (
-              <Text style={styles.description}>{item.description}</Text>
-            )}
-            {isParticipant && (
-              <Text style={[
-                styles.personalInfo,
-                isPayer ? styles.payerText : styles.participantText
-              ]}>
-                {isPayer ? `שילמת: ${formatCurrency(item.amount)}` : `החלק שלך: ${formatCurrency(personalShare)}`}
-              </Text>
-            )}
-          </View>
-          
-          <View style={styles.amountContainer}>
-            <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
-            <Text style={styles.payer}>שילם: {getUserName(item.paidBy)}</Text>
-            {item.participants.length > 1 && (
-              <Text style={styles.participants}>
-                {item.participants.length} משתתפים • {formatCurrency(personalShare)} לאחד
-              </Text>
-            )}
-          </View>
+    <View style={styles.row}>
+      <View style={styles.content}>
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.date}>{formatDate(item.date)}</Text>
+          {item.description && (
+            <Text style={styles.description}>{item.description}</Text>
+          )}
+          {isParticipant && (
+            <Text style={[
+              styles.personalInfo,
+              isPayer ? styles.payerText : styles.participantText
+            ]}>
+              {isPayer ? `שילמת: ${formatCurrency(item.amount)}` : `החלק שלך: ${formatCurrency(personalShare)}`}
+            </Text>
+          )}
+        </View>
+        
+        <View style={styles.amountContainer}>
+          <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
+          <Text style={styles.payer}>שילם: {getUserName(item.paidBy)}</Text>
+          {item.participants.length > 1 && (
+            <Text style={styles.participants}>
+              {item.participants.length} משתתפים • {formatCurrency(personalShare)} לאחד
+            </Text>
+          )}
         </View>
       </View>
-    </Swipeable>
+      
+      {/* Action buttons at the bottom */}
+      <View style={styles.actionButtonsContainer}>
+        <Pressable 
+          onPress={handleEdit} 
+          style={styles.editButton} 
+          accessibilityLabel="ערוך הוצאה"
+        >
+          <Ionicons name="pencil-outline" size={16} color="#3b82f6" />
+          <Text style={styles.editButtonText}>ערוך</Text>
+        </Pressable>
+        <Pressable 
+          onPress={confirmDelete} 
+          style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]} 
+          accessibilityLabel="מחק הוצאה"
+          disabled={isDeleting}
+        >
+          {isDeleting ? (
+            <Ionicons name="hourglass-outline" size={16} color="#9ca3af" />
+          ) : (
+            <Ionicons name="trash-outline" size={16} color="#ef4444" />
+          )}
+          <Text style={[styles.deleteButtonText, isDeleting && styles.deleteButtonTextDisabled]}>
+            {isDeleting ? 'מוחק...' : 'מחק'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -184,32 +189,55 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
   },
-  actionsContainer: {
+  actionButtonsContainer: {
     flexDirection: 'row',
-    width: 160,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
-    overflow: 'hidden',
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 12,
   },
   editButton: {
     flex: 1,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#f0f9ff',
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+    gap: 6,
   },
-  trashButton: {
+  editButtonText: {
+    color: '#3b82f6',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  deleteButton: {
     flex: 1,
-    backgroundColor: '#ef4444',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    gap: 6,
   },
-  actionText: {
-    color: 'white',
-    fontWeight: '700',
-    fontSize: 11,
+  deleteButtonDisabled: {
+    backgroundColor: '#f9fafb',
+    borderColor: '#d1d5db',
+  },
+  deleteButtonText: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  deleteButtonTextDisabled: {
+    color: '#9ca3af',
   },
 });

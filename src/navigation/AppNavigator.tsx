@@ -11,7 +11,6 @@ import ShoppingScreen from '../screens/ShoppingScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import WelcomeScreen from '../screens/WelcomeScreen';
 import AddExpenseScreen from '../screens/AddExpenseScreen';
-import EditExpenseScreen from '../screens/EditExpenseScreen';
 import GroupDebtsScreen from '../screens/GroupDebtsScreen';
 
 import { useStore } from '../state/store';
@@ -163,13 +162,6 @@ export default function AppNavigator() {
           <Stack.Screen 
             name="GroupDebts" 
             component={GroupDebtsScreen}
-            options={{ 
-              headerShown: false
-            }}
-          />
-          <Stack.Screen 
-            name="EditExpense" 
-            component={EditExpenseScreen}
             options={{ 
               headerShown: false
             }}
