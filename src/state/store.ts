@@ -247,19 +247,34 @@ export const useStore = create<AppState>()(
           const expenses: Expense[] = expensesData.map((doc: any) => {
             const note = doc.fields?.note?.stringValue;
             const isHiddenDebtSettlement = note && note.includes('HIDDEN_DEBT_SETTLEMENT_');
+            const isDebtSettlementMessage = note && note.includes('DEBT_SETTLEMENT_MESSAGE_');
             const category = doc.fields?.category?.stringValue as ExpenseCategory;
-            const isDebtSettlement = category === 'debt_settlement';
+            
+            // Parse debt settlement message
+            let debtSettlementMessage = '';
+            if (isDebtSettlementMessage) {
+              const parts = note.split('_');
+              if (parts.length >= 5) {
+                const fromUserId = parts[3];
+                const toUserId = parts[4];
+                const amount = parts[5];
+                debtSettlementMessage = `${fromUserId} שילם ${amount}₪ ל-${toUserId}`;
+              }
+            }
             
             return {
               id: doc.name.split('/').pop() || uuidv4(),
-              title: isHiddenDebtSettlement ? 'סגירת חוב' : (doc.fields?.title?.stringValue || doc.fields?.note?.stringValue || 'הוצאה'),
+              title: isHiddenDebtSettlement ? 'סגירת חוב' : 
+                     isDebtSettlementMessage ? 'סגירת חוב' : 
+                     (doc.fields?.title?.stringValue || doc.fields?.note?.stringValue || 'הוצאה'),
               amount: doc.fields?.amount?.doubleValue || 0,
               paidBy: doc.fields?.paid_by_user_id?.stringValue || '',
               participants: doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
               category: category || 'groceries',
               date: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
-              description: note,
+              description: isDebtSettlementMessage ? debtSettlementMessage : note,
               isHiddenDebtSettlement: isHiddenDebtSettlement, // Add flag for filtering
+              isDebtSettlementMessage: isDebtSettlementMessage, // Add flag for debt settlement messages
             };
           });
 
@@ -1116,8 +1131,8 @@ export const useStore = create<AppState>()(
         
         const monthlyExpenses = expenses.filter(expense => {
           try {
-            // Skip hidden debt settlement expenses and visible debt settlement expenses (they have zero amount)
-            if (expense.isHiddenDebtSettlement || expense.category === 'debt_settlement') {
+            // Skip hidden debt settlement expenses and debt settlement messages (they have zero amount)
+            if (expense.isHiddenDebtSettlement || expense.isDebtSettlementMessage) {
               return false;
             }
             
