@@ -156,6 +156,14 @@ export default function GroupDebtsScreen() {
       return;
     }
 
+    console.log('🔍 [GroupDebtsScreen] Starting debt settlement:', {
+      fromUser: settlementFromUser,
+      toUser: settlementToUser,
+      amount,
+      currentUser: currentUser?.id,
+      currentApartment: currentApartment?.id
+    });
+
     setIsSettling(true);
 
     try {
@@ -167,6 +175,8 @@ export default function GroupDebtsScreen() {
         `סגירת חוב`
       );
 
+      console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully');
+
       setShowSettlementModal(false);
       setSettlementAmount('');
       setSettlementFromUser('');
@@ -177,13 +187,19 @@ export default function GroupDebtsScreen() {
       Alert.alert('הצלחה', 'החוב נסגר בהצלחה!');
       
     } catch (error) {
-      console.error('Error settling debt:', error);
+      console.error('❌ [GroupDebtsScreen] Error settling debt:', error);
+      console.error('❌ [GroupDebtsScreen] Error details:', {
+        name: error.name,
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
       
       // Show specific error messages based on error type
       let errorMessage = 'לא ניתן לסגור את החוב. נסה שוב.';
       
       if (error instanceof Error) {
-        if (error.message.includes('PERMISSION_DENIED')) {
+        if (error.message.includes('PERMISSION_DENIED') || error.code === 'permission-denied') {
           errorMessage = 'אין לך הרשאה לבצע פעולה זה.';
         } else if (error.message.includes('APARTMENT_NOT_FOUND')) {
           errorMessage = 'לא נמצא דירה רלוונטית.';
