@@ -2637,24 +2637,47 @@ export class FirestoreService {
         actorUid: uid 
       });
 
-      // Import Firebase Functions
-      const { getFunctions, httpsCallable } = await import('firebase/functions');
-      const functions = getFunctions();
+      // Simply create a hidden expense to balance the debt
+      const monthKey = new Date().toISOString().substring(0, 7);
+      const expenseId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      // First, create a debt using the old function
-      const createAndCloseDebt = httpsCallable(functions, 'createAndCloseDebt');
-      
-      const result = await createAndCloseDebt({
-        fromUserId,
-        toUserId,
-        amount,
-        description,
-        apartmentId: aptId
+      // Create the hidden expense directly via REST API
+      const expenseData = {
+        fields: {
+          apartment_id: { stringValue: aptId },
+          amount: { doubleValue: amount * 2 }, // Double the debt amount for settlement
+          title: { stringValue: `סגירת חוב - ${description || 'חוב'}` },
+          paid_by_user_id: { stringValue: toUserId }, // The creditor receives the payment
+          participants: { arrayValue: { values: [{ stringValue: fromUserId }, { stringValue: toUserId }] } },
+          category: { stringValue: 'debt_settlement' },
+          created_at: { timestampValue: new Date().toISOString() },
+          created_by: { stringValue: uid },
+          description: { stringValue: `סגירת חוב בין ${fromUserId} ל-${toUserId}` },
+          visibleInUI: { booleanValue: false } // Hidden from regular expense list
+        }
+      };
+
+      const expenseUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/monthlyExpenses/${monthKey}/expenses/${expenseId}`;
+      const expenseResponse = await fetch(expenseUrl, {
+        method: 'PATCH',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(expenseData)
       });
 
-      console.log('✅ [createAndCloseDebtAtomic] Debt created and closed successfully:', result.data);
+      if (!expenseResponse.ok) {
+        throw new Error(`Failed to create hidden expense: ${expenseResponse.status}`);
+      }
+
+      const result = {
+        success: true,
+        debtId: `virtual_debt_${Date.now()}`,
+        expenseId: expenseId,
+        closedAt: new Date().toISOString()
+      };
+
+      console.log('✅ [createAndCloseDebtAtomic] Hidden expense created successfully:', result);
       
-      return result.data as {
+      return result as {
         success: boolean;
         debtId: string;
         expenseId: string;
