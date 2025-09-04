@@ -254,11 +254,17 @@ export const useStore = create<AppState>()(
             let debtSettlementMessage = '';
             if (isDebtSettlementMessage) {
               const parts = note.split('_');
-              if (parts.length >= 5) {
-                const fromUserId = parts[3];
-                const toUserId = parts[4];
-                const amount = parts[5];
-                debtSettlementMessage = `${fromUserId} שילם ${amount}₪ ל-${toUserId}`;
+              if (parts.length >= 3) {
+                const amount = parts[3];
+                // We'll use the participants from the expense to get the names
+                const fromUserId = doc.fields?.paid_by_user_id?.stringValue;
+                const participants = doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [];
+                const toUserId = participants.find((p: string) => p !== fromUserId);
+                
+                if (fromUserId && toUserId) {
+                  // We'll need to get the actual names in the component
+                  debtSettlementMessage = `${fromUserId} שילם ${amount}₪ ל-${toUserId}`;
+                }
               }
             }
             

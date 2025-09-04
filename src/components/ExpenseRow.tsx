@@ -65,15 +65,28 @@ export default function ExpenseRow({
 
   // Special rendering for debt settlement messages
   if (isDebtSettlementMessage) {
+    // Parse the message to replace user IDs with names
+    let displayMessage = item.description || '';
+    if (displayMessage) {
+      // Replace user IDs with actual names
+      const fromUserId = item.paidBy;
+      const toUserId = item.participants.find(p => p !== fromUserId);
+      if (fromUserId && toUserId) {
+        const fromUserName = getUserName(fromUserId);
+        const toUserName = getUserName(toUserId);
+        displayMessage = displayMessage.replace(fromUserId, fromUserName).replace(toUserId, toUserName);
+      }
+    }
+
     return (
       <View style={styles.debtSettlementRow}>
         <View style={styles.debtSettlementContent}>
           <View style={styles.debtSettlementIcon}>
-            <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+            <Ionicons name="checkmark-circle" size={16} color="#6b7280" />
           </View>
           <View style={styles.debtSettlementTextContainer}>
             <Text style={styles.debtSettlementTitle}>{item.title}</Text>
-            <Text style={styles.debtSettlementMessage}>{item.description}</Text>
+            <Text style={styles.debtSettlementMessage}>{displayMessage}</Text>
             <Text style={styles.debtSettlementDate}>{formatDate(item.date)}</Text>
           </View>
         </View>
@@ -258,37 +271,35 @@ const styles = StyleSheet.create({
   },
   // Debt settlement message styles
   debtSettlementRow: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#374151',
     marginBottom: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   debtSettlementContent: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   debtSettlementIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   debtSettlementTextContainer: {
     flex: 1,
   },
   debtSettlementTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#166534',
+    color: '#f9fafb',
     marginBottom: 2,
   },
   debtSettlementMessage: {
-    fontSize: 14,
-    color: '#15803d',
+    fontSize: 13,
+    color: '#d1d5db',
     marginBottom: 2,
   },
   debtSettlementDate: {
-    fontSize: 12,
-    color: '#16a34a',
+    fontSize: 11,
+    color: '#9ca3af',
   },
 });
