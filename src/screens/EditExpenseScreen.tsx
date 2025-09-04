@@ -43,6 +43,7 @@ export default function EditExpenseScreen() {
   const [description, setDescription] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showImpactPreview, setShowImpactPreview] = useState(false);
 
   // Find the expense to edit
   const expense = expenses.find(e => e.id === expenseId);
@@ -79,6 +80,92 @@ export default function EditExpenseScreen() {
       return;
     }
 
+    // Check if there are significant changes that might affect balances
+    const originalAmount = expense?.amount || 0;
+    const originalParticipants = expense?.participants || [];
+    const amountChanged = Math.abs(numAmount - originalAmount) > 0.01;
+    const participantsChanged = 
+      selectedParticipants.length !== originalParticipants.length ||
+      !selectedParticipants.every(id => originalParticipants.includes(id));
+
+    if (amountChanged || participantsChanged) {
+      const changePercentage = originalAmount > 0 ? Math.abs((numAmount - originalAmount) / originalAmount) * 100 : 0;
+      
+      if (changePercentage > 50) {
+        Alert.alert(
+          'שינוי משמעותי',
+          `השינוי בסכום הוא ${changePercentage.toFixed(0)}%. האם אתה בטוח שברצונך להמשיך?`,
+          [
+            { text: 'ביטול', style: 'cancel' },
+            { text: 'המשך', onPress: () => performUpdate() }
+          ]
+        );
+        return;
+      }
+      
+      // Show impact preview for any changes
+      setShowImpactPreview(true);
+      return;
+    }
+
+    await performUpdate();
+  };
+
+  const calculateImpact = () => {
+    if (!expense || !currentApartment) return null;
+
+    const numAmount = parseFloat(amount);
+    const originalAmount = expense.amount;
+    const originalParticipants = expense.participants;
+    
+    const originalShare = originalAmount / originalParticipants.length;
+    const newShare = numAmount / selectedParticipants.length;
+    
+    const impact = currentApartment.members.map(member => {
+      const wasParticipant = originalParticipants.includes(member.id);
+      const isParticipant = selectedParticipants.includes(member.id);
+      const isPayer = expense.paidBy === member.id;
+      
+      let change = 0;
+      let description = '';
+      
+      if (isPayer) {
+        // The payer's change is the difference in total amount
+        change = numAmount - originalAmount;
+        description = change > 0 ? `תשלם יותר ${Math.abs(change).toFixed(2)} ₪` : 
+                     change < 0 ? `תשלם פחות ${Math.abs(change).toFixed(2)} ₪` : 
+                     'אין שינוי';
+      } else if (wasParticipant && isParticipant) {
+        // Participant in both - change in their share
+        change = newShare - originalShare;
+        description = change > 0 ? `ישלם יותר ${Math.abs(change).toFixed(2)} ₪` : 
+                     change < 0 ? `ישלם פחות ${Math.abs(change).toFixed(2)} ₪` : 
+                     'אין שינוי';
+      } else if (!wasParticipant && isParticipant) {
+        // New participant
+        change = newShare;
+        description = `ישלם ${change.toFixed(2)} ₪ (חדש)`;
+      } else if (wasParticipant && !isParticipant) {
+        // No longer participant
+        change = -originalShare;
+        description = `לא ישלם יותר (חסכון של ${Math.abs(change).toFixed(2)} ₪)`;
+      }
+      
+      return {
+        member,
+        change,
+        description,
+        wasParticipant,
+        isParticipant,
+        isPayer
+      };
+    }).filter(impact => impact.change !== 0 || impact.wasParticipant !== impact.isParticipant);
+    
+    return impact;
+  };
+
+  const performUpdate = async () => {
+    const numAmount = parseFloat(amount);
     setLoading(true);
     try {
       await updateExpense(expenseId, {
@@ -304,18 +391,58 @@ export default function EditExpenseScreen() {
             />
           </View>
 
+          {/* Impact Preview */}
+          {showImpactPreview && (
+            <View className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+              <Text className="text-yellow-800 text-base font-semibold mb-3">
+                השפעת השינויים:
+              </Text>
+              {calculateImpact()?.map((impact, index) => (
+                <View key={index} className="flex-row items-center justify-between mb-2">
+                  <Text className="text-yellow-700 text-sm flex-1">
+                    {impact.member.name}:
+                  </Text>
+                  <Text className={cn(
+                    "text-sm font-medium",
+                    impact.change > 0 ? "text-red-600" : 
+                    impact.change < 0 ? "text-green-600" : "text-gray-600"
+                  )}>
+                    {impact.description}
+                  </Text>
+                </View>
+              ))}
+              <View className="flex-row mt-3">
+                <Pressable
+                  onPress={() => setShowImpactPreview(false)}
+                  className="flex-1 bg-yellow-200 py-2 px-4 rounded-lg mr-2"
+                >
+                  <Text className="text-yellow-800 text-center font-medium">ביטול</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setShowImpactPreview(false);
+                    performUpdate();
+                  }}
+                  className="flex-1 bg-green-500 py-2 px-4 rounded-lg"
+                >
+                  <Text className="text-white text-center font-medium">אשר שינויים</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {/* Update Button */}
           <Pressable
             onPress={handleUpdateExpense}
-            disabled={loading}
+            disabled={loading || showImpactPreview}
             className={cn(
               "py-4 px-6 rounded-xl mb-6",
-              loading ? "bg-gray-300" : "bg-blue-500"
+              loading || showImpactPreview ? "bg-gray-300" : "bg-blue-500"
             )}
           >
             <Text className={cn(
               "text-lg font-semibold text-center",
-              loading ? "text-gray-500" : "text-white"
+              loading || showImpactPreview ? "text-gray-500" : "text-white"
             )}>
               {loading ? 'מעדכן...' : 'עדכן הוצאה'}
             </Text>

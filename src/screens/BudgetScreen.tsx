@@ -134,11 +134,16 @@ export default function BudgetScreen() {
     }
   }, [deleteExpense]);
 
+  const handleEditExpense = useCallback((expenseId: string) => {
+    navigation.navigate('EditExpense', { expenseId });
+  }, [navigation]);
+
   const renderExpenseItem = ({ item: expense }: { item: any }) => {
     return (
       <ExpenseRow
         item={expense}
         onConfirmDelete={handleDeleteExpense}
+        onEdit={handleEditExpense}
         formatCurrency={formatCurrency}
         formatDate={formatDate}
         getUserName={getUserName}

@@ -2150,7 +2150,7 @@ export class FirestoreService {
   }
 
   /**
-   * Update expense by ID
+   * Update expense by ID with transaction support
    */
   async updateExpense(expenseId: string, payload: {
     amount?: number;
@@ -2161,45 +2161,114 @@ export class FirestoreService {
   }): Promise<any> {
     const { idToken } = await getApartmentContext();
 
-    const updateFields: any = {};
-    
-    if (payload.amount !== undefined) {
-      updateFields.amount = { doubleValue: Number(payload.amount) };
-    }
-    if (payload.participants !== undefined) {
-      updateFields.participants = { arrayValue: { values: (payload.participants || []).map(u => ({ stringValue: u })) } };
-    }
-    if (payload.category !== undefined) {
-      updateFields.category = payload.category ? { stringValue: payload.category } : null;
-    }
-    if (payload.title !== undefined) {
-      updateFields.title = payload.title ? { stringValue: payload.title } : null;
-    }
-    if (payload.note !== undefined) {
-      updateFields.note = payload.note ? { stringValue: payload.note } : null;
-    }
-
-    const body = {
-      fields: updateFields,
-    };
-
-    // Build URL with field paths for update mask
-    const fieldPaths = Object.keys(updateFields);
-    const url = `${FIRESTORE_BASE_URL}/expenses/${expenseId}?` + 
-      fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
-
-    const res = await fetch(url, {
-      method: 'PATCH',
+    // First, get the current expense to calculate impact
+    const currentExpenseRes = await fetch(`${FIRESTORE_BASE_URL}/expenses/${expenseId}`, {
       headers: authHeaders(idToken),
-      body: JSON.stringify(body),
     });
     
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => '');
-      throw new Error(`UPDATE_EXPENSE_${res.status}: ${errorText}`);
+    if (!currentExpenseRes.ok) {
+      throw new Error(`GET_EXPENSE_${currentExpenseRes.status}: Failed to get current expense`);
     }
     
-    return await res.json();
+    const currentExpense = await currentExpenseRes.json();
+    const currentExpenseData = currentExpense.fields;
+
+    // Start transaction
+    const transactionRes = await fetch(`${FIRESTORE_BASE_URL}/documents:beginTransaction`, {
+      method: 'POST',
+      headers: authHeaders(idToken),
+      body: JSON.stringify({}),
+    });
+
+    if (!transactionRes.ok) {
+      throw new Error(`BEGIN_TRANSACTION_${transactionRes.status}: Failed to begin transaction`);
+    }
+
+    const transactionData = await transactionRes.json();
+    const transactionId = transactionData.transaction;
+
+    try {
+      // Prepare expense update
+      const updateFields: any = {};
+      
+      if (payload.amount !== undefined) {
+        updateFields.amount = { doubleValue: Number(payload.amount) };
+      }
+      if (payload.participants !== undefined) {
+        updateFields.participants = { arrayValue: { values: (payload.participants || []).map(u => ({ stringValue: u })) } };
+      }
+      if (payload.category !== undefined) {
+        updateFields.category = payload.category ? { stringValue: payload.category } : null;
+      }
+      if (payload.title !== undefined) {
+        updateFields.title = payload.title ? { stringValue: payload.title } : null;
+      }
+      if (payload.note !== undefined) {
+        updateFields.note = payload.note ? { stringValue: payload.note } : null;
+      }
+
+      // Always add updated_at timestamp and lastModifiedBy
+      updateFields.updated_at = { timestampValue: new Date().toISOString() };
+      updateFields.lastModifiedBy = { stringValue: (await getApartmentContext()).uid };
+
+      // Update expense document
+      const expenseUpdateBody = {
+        writes: [{
+          update: {
+            name: `${FIRESTORE_BASE_URL}/expenses/${expenseId}`,
+            fields: updateFields,
+          }
+        }],
+        transaction: transactionId,
+      };
+
+      const expenseUpdateRes = await fetch(`${FIRESTORE_BASE_URL}/documents:commit`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(expenseUpdateBody),
+      });
+
+      if (!expenseUpdateRes.ok) {
+        throw new Error(`UPDATE_EXPENSE_${expenseUpdateRes.status}: Failed to update expense`);
+      }
+
+      // Create audit log entry
+      const auditLogData = {
+        fields: {
+          expenseId: { stringValue: expenseId },
+          action: { stringValue: 'update' },
+          changes: { stringValue: JSON.stringify(payload) },
+          previousData: { stringValue: JSON.stringify(currentExpenseData) },
+          modifiedBy: { stringValue: (await getApartmentContext()).uid },
+          timestamp: { timestampValue: new Date().toISOString() },
+        }
+      };
+
+      const auditLogRes = await fetch(`${FIRESTORE_BASE_URL}/expense_audit_logs`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(auditLogData),
+      });
+
+      if (!auditLogRes.ok) {
+        console.warn(`AUDIT_LOG_${auditLogRes.status}: Failed to create audit log, but expense was updated`);
+      }
+
+      return await expenseUpdateRes.json();
+
+    } catch (error) {
+      // Rollback transaction on error
+      try {
+        await fetch(`${FIRESTORE_BASE_URL}/documents:rollback`, {
+          method: 'POST',
+          headers: authHeaders(idToken),
+          body: JSON.stringify({ transaction: transactionId }),
+        });
+      } catch (rollbackError) {
+        console.error('Failed to rollback transaction:', rollbackError);
+      }
+      throw error;
+    }
   }
 
   /**
