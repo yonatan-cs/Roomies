@@ -243,17 +243,23 @@ export const useStore = create<AppState>()(
         try {
           const expensesData = await firestoreService.getExpenses();
           
-          // Convert Firestore format to local format
-          const expenses: Expense[] = expensesData.map((doc: any) => ({
-            id: doc.name.split('/').pop() || uuidv4(),
-            title: doc.fields?.title?.stringValue || doc.fields?.note?.stringValue || 'הוצאה',
-            amount: doc.fields?.amount?.doubleValue || 0,
-            paidBy: doc.fields?.paid_by_user_id?.stringValue || '',
-            participants: doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
-            category: (doc.fields?.category?.stringValue as ExpenseCategory) || 'groceries',
-            date: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
-            description: doc.fields?.note?.stringValue,
-          }));
+          // Convert Firestore format to local format and filter out hidden debt settlements
+          const expenses: Expense[] = expensesData
+            .filter((doc: any) => {
+              // Skip hidden debt settlement expenses
+              const note = doc.fields?.note?.stringValue;
+              return !note || !note.includes('HIDDEN_DEBT_SETTLEMENT_');
+            })
+            .map((doc: any) => ({
+              id: doc.name.split('/').pop() || uuidv4(),
+              title: doc.fields?.title?.stringValue || doc.fields?.note?.stringValue || 'הוצאה',
+              amount: doc.fields?.amount?.doubleValue || 0,
+              paidBy: doc.fields?.paid_by_user_id?.stringValue || '',
+              participants: doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
+              category: (doc.fields?.category?.stringValue as ExpenseCategory) || 'groceries',
+              date: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
+              description: doc.fields?.note?.stringValue,
+            }));
 
           set({ expenses });
         } catch (error) {
@@ -1065,6 +1071,11 @@ export const useStore = create<AppState>()(
         
         const monthlyExpenses = expenses.filter(expense => {
           try {
+            // Skip hidden debt settlement expenses
+            if (expense.description && expense.description.includes('HIDDEN_DEBT_SETTLEMENT_')) {
+              return false;
+            }
+            
             const expenseDate = new Date(expense.date);
             if (isNaN(expenseDate.getTime())) return false;
             return expenseDate.getMonth() === month && expenseDate.getFullYear() === year;
@@ -1103,6 +1114,11 @@ export const useStore = create<AppState>()(
         
         const monthlyExpenses = expenses.filter(expense => {
           try {
+            // Skip hidden debt settlement expenses
+            if (expense.description && expense.description.includes('HIDDEN_DEBT_SETTLEMENT_')) {
+              return false;
+            }
+            
             const expenseDate = new Date(expense.date);
             if (isNaN(expenseDate.getTime())) return false;
             return expenseDate.getMonth() === month && expenseDate.getFullYear() === year;
@@ -1198,10 +1214,10 @@ export const useStore = create<AppState>()(
         } catch (error) {
           console.error('❌ [createAndCloseDebtAtomic] Error creating and closing debt atomically:', error);
           console.error('❌ [createAndCloseDebtAtomic] Error details in store:', {
-            name: error.name,
-            message: error.message,
-            code: error.code,
-            stack: error.stack
+            name: error instanceof Error ? error.name : 'Unknown',
+            message: error instanceof Error ? error.message : String(error),
+            code: (error as any)?.code || 'Unknown',
+            stack: error instanceof Error ? error.stack : 'No stack'
           });
           throw error;
         }
