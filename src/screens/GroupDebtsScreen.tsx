@@ -13,6 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
+import { firestoreService } from '../services/firestore-service';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -186,20 +187,20 @@ export default function GroupDebtsScreen() {
       // No need to manually refresh - onSnapshot will update the UI automatically
       Alert.alert('הצלחה', 'החוב נסגר בהצלחה!');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ [GroupDebtsScreen] Error settling debt:', error);
       console.error('❌ [GroupDebtsScreen] Error details:', {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        stack: error.stack
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack
       });
       
       // Show specific error messages based on error type
       let errorMessage = 'לא ניתן לסגור את החוב. נסה שוב.';
       
       if (error instanceof Error) {
-        if (error.message.includes('PERMISSION_DENIED') || error.code === 'permission-denied') {
+        if (error.message.includes('PERMISSION_DENIED') || error.message.includes('permission-denied')) {
           errorMessage = 'אין לך הרשאה לבצע פעולה זה.';
         } else if (error.message.includes('APARTMENT_NOT_FOUND')) {
           errorMessage = 'לא נמצא דירה רלוונטית.';

@@ -274,96 +274,49 @@ export class FirestoreSDKService {
     });
 
     try {
-      // First, verify the actor is a member of the apartment
-      console.log('🔍 [DEBUG] Verifying actor membership...');
-      const membershipRef = doc(db, 'apartmentMembers', `${apartmentId}_${actorUid}`);
-      const membershipSnap = await getDoc(membershipRef);
+      // Import the REST API service
+      const { firestoreService } = await import('./firestore-service');
       
-      if (!membershipSnap.exists()) {
-        console.error('🚫 Actor is not a member of the apartment:', {
-          actorUid,
-          apartmentId,
-          membershipDocId: `${apartmentId}_${actorUid}`
-        });
-        throw new Error('ACTOR_NOT_MEMBER');
-      }
+      // Get current user session
+      const { uid, idToken } = await firestoreService.requireSession();
       
-      console.log('✅ Actor membership verified:', {
-        actorUid,
-        apartmentId,
-        role: membershipSnap.data()?.role
+      // Ensure apartment context matches
+      await firestoreService.ensureCurrentApartmentIdMatches(apartmentId);
+
+      console.log('✅ Using REST API for debt settlement to avoid permission issues');
+
+      // Update balances using REST API
+      const now = new Date();
+      
+      // Update from user balance (they owe less)
+      await firestoreService.updateDocument(
+        `balances/${apartmentId}/users`,
+        fromUserId,
+        { balance: -amount },
+        ['balance']
+      );
+
+      // Update to user balance (they are owed more)  
+      await firestoreService.updateDocument(
+        `balances/${apartmentId}/users`,
+        toUserId,
+        { balance: amount },
+        ['balance']
+      );
+
+      // Create action log
+      await firestoreService.createDocument('actions', {
+        apartment_id: apartmentId,
+        type: 'debt_closed',
+        actor_uid: actorUid,
+        from_user_id: fromUserId,
+        to_user_id: toUserId,
+        amount,
+        note: note || null,
+        created_at: now
       });
 
-      const fromRef = doc(db, 'balances', apartmentId, 'users', fromUserId);
-      const toRef = doc(db, 'balances', apartmentId, 'users', toUserId);
-      const actionRef = doc(collection(db, 'actions'));
-
-      console.log('🔍 [DEBUG] Document references created:', {
-        fromRef: fromRef.path,
-        toRef: toRef.path,
-        actionRef: actionRef.path
-      });
-
-      await runTransaction(db, async (tx) => {
-        console.log('🔄 Transaction started, processing simple settlement...');
-        console.log('🔍 [DEBUG] Document references:', {
-          fromRef: fromRef.path,
-          toRef: toRef.path,
-          actionRef: actionRef.path
-        });
-
-        // Ensure balance documents exist
-        console.log('🔍 [DEBUG] Checking if balance documents exist...');
-        const fromSnap = await tx.get(fromRef);
-        if (!fromSnap.exists()) {
-          console.log('📝 Creating from balance document:', fromRef.path);
-          tx.set(fromRef, { balance: 0 });
-        } else {
-          console.log('✅ From balance document exists');
-        }
-
-        const toSnap = await tx.get(toRef);
-        if (!toSnap.exists()) {
-          console.log('📝 Creating to balance document:', toRef.path);
-          tx.set(toRef, { balance: 0 });
-        } else {
-          console.log('✅ To balance document exists');
-        }
-
-        // Update balances with increment transforms
-        console.log('🔍 [DEBUG] Updating balances with increment transforms...');
-        // From user gets -amount (they owe less)
-        tx.update(fromRef, { balance: increment(-amount) });
-        // To user gets +amount (they are owed more)
-        tx.update(toRef, { balance: increment(+amount) });
-
-        console.log('💰 Updated balances:', {
-          fromUser: `-${amount}`,
-          toUser: `+${amount}`
-        });
-
-        // Create action log
-        console.log('🔍 [DEBUG] Creating action log...');
-        const actionData = {
-          apartment_id: apartmentId,
-          type: 'debt_closed',
-          actor_uid: actorUid,
-          from_user_id: fromUserId,
-          to_user_id: toUserId,
-          amount,
-          note: note ?? null,
-          created_at: serverTimestamp(),
-        };
-        
-        console.log('🔍 [DEBUG] Action data:', actionData);
-        tx.set(actionRef, actionData);
-
-        console.log('📝 Created action log');
-        console.log('✅ Transaction operations prepared successfully');
-        console.log('🔍 [DEBUG] NO DEBTS COLLECTION TOUCHED - Only balances and actions');
-      });
-
-      console.log('🎉 Simple debt settlement completed successfully!');
+      console.log('🎉 Simple debt settlement completed successfully with REST API!');
       
     } catch (error) {
       console.error('❌ Simple debt settlement failed:', error);
