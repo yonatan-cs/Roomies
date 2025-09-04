@@ -99,7 +99,7 @@ export default function ExpenseRow({
           style={styles.editButton} 
           accessibilityLabel="ערוך הוצאה"
         >
-          <Ionicons name="pencil-outline" size={12} color="#64748b" />
+          <Ionicons name="pencil-outline" size={12} color="#2563eb" />
           <Text style={styles.editButtonText}>ערוך</Text>
         </Pressable>
         <Pressable 
@@ -193,8 +193,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingVertical: 0,
     gap: 8,
+    marginTop: -8,
   },
   editButton: {
     flexDirection: 'row',
@@ -202,13 +203,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#eff6ff',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#bfdbfe',
     gap: 4,
   },
   editButtonText: {
-    color: '#64748b',
+    color: '#2563eb',
     fontSize: 12,
     fontWeight: '400',
   },

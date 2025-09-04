@@ -516,19 +516,28 @@ export default function DashboardScreen() {
 
 
         {/* Quick Look Button */}
-        <Pressable
-          onPress={() => setShowHighlightsModal(true)}
-          className="bg-white rounded-2xl p-6 shadow-sm"
-          accessibilityLabel="🔍 מבט מהיר"
-          accessibilityHint="מבט מהיר על הפעילות"
-        >
-          <View className="flex-row items-center justify-center">
-            <Text className="text-lg font-semibold text-gray-900 mr-2">
-              מבט מהיר
-            </Text>
-            <Text className="text-xl">🔍</Text>
-          </View>
-        </Pressable>
+        <View className="items-center">
+          <Pressable
+            onPress={() => setShowHighlightsModal(true)}
+            className="bg-orange-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
+            accessibilityLabel="🔍 מבט מהיר"
+            accessibilityHint="מבט מהיר על הפעילות"
+            style={{
+              shadowColor: '#f97316',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <View className="flex-row items-center">
+              <Text className="text-lg font-semibold text-white mr-2">
+                מבט מהיר
+              </Text>
+              <Text className="text-xl">🔍</Text>
+            </View>
+          </Pressable>
+        </View>
       </ScrollView>
 
       {/* Highlights Modal */}
