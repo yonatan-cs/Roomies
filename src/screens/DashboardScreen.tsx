@@ -344,15 +344,24 @@ export default function DashboardScreen() {
       shareText += `💰 סך הוצאות: ${formatCurrency(highlightsStats.totalExpenses)}\n`;
       
       if (highlightsStats.kingOfExpenses) {
-        shareText += `👑 מלך ההוצאות: ${getUserName(highlightsStats.kingOfExpenses.userId)} (${formatCurrency(highlightsStats.kingOfExpenses.amount)})\n`;
+        const kingName = highlightsStats.kingOfExpenses.userId === currentUser?.id 
+          ? getDisplayName(currentUser) 
+          : getUserName(highlightsStats.kingOfExpenses.userId);
+        shareText += `👑 מלך ההוצאות: ${kingName} (${formatCurrency(highlightsStats.kingOfExpenses.amount)})\n`;
       }
       
       if (highlightsStats.shoppingKing) {
-        shareText += `🛒 אלוף הקניות: ${getUserName(highlightsStats.shoppingKing.userId)} (${highlightsStats.shoppingKing.count} פריטים)\n`;
+        const shoppingKingName = highlightsStats.shoppingKing.userId === currentUser?.id 
+          ? getDisplayName(currentUser) 
+          : getUserName(highlightsStats.shoppingKing.userId);
+        shareText += `🛒 אלוף הקניות: ${shoppingKingName} (${highlightsStats.shoppingKing.count} פריטים)\n`;
       }
       
       if (highlightsStats.cleaningKing) {
-        shareText += `🧹 אלוף הניקיון: ${getUserName(highlightsStats.cleaningKing.userId)} (${highlightsStats.cleaningKing.count} ניקיונות)\n`;
+        const cleaningKingName = highlightsStats.cleaningKing.userId === currentUser?.id 
+          ? getDisplayName(currentUser) 
+          : getUserName(highlightsStats.cleaningKing.userId);
+        shareText += `🧹 אלוף הניקיון: ${cleaningKingName} (${highlightsStats.cleaningKing.count} ניקיונות)\n`;
       }
       
       if (highlightsStats.biggestExpenseLast30Days) {
@@ -392,21 +401,39 @@ export default function DashboardScreen() {
 
       <ScrollView className="flex-1 px-6 py-6">
         {/* Quick Actions */}
-        <View className="flex-row mb-6">
+        <View className="flex-row justify-center space-x-4 mb-6">
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="flex-1 bg-blue-500 py-4 px-4 rounded-2xl items-center ml-2"
+            className="bg-blue-500 rounded-full px-6 py-3 shadow-lg active:scale-95"
+            style={{
+              shadowColor: '#3b82f6',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
           >
-            <Ionicons name="basket-outline" size={24} color="white" />
-            <Text className="text-white font-medium mt-1">קניות</Text>
+            <View className="flex-row items-center">
+              <Ionicons name="basket-outline" size={20} color="white" />
+              <Text className="text-white font-medium mr-2">קניות</Text>
+            </View>
           </Pressable>
           
           <Pressable
             onPress={() => navigation.navigate('AddExpense')}
-            className="flex-1 bg-green-500 py-4 px-4 rounded-2xl items-center mr-2"
+            className="bg-green-500 rounded-full px-6 py-3 shadow-lg active:scale-95"
+            style={{
+              shadowColor: '#10b981',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 4,
+            }}
           >
-            <Ionicons name="add-circle-outline" size={24} color="white" />
-            <Text className="text-white font-medium mt-1">הוסף הוצאה</Text>
+            <View className="flex-row items-center">
+              <Ionicons name="add-circle-outline" size={20} color="white" />
+              <Text className="text-white font-medium mr-2">הוסף הוצאה</Text>
+            </View>
           </Pressable>
         </View>
 

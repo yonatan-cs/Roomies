@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 0,
     gap: 8,
-    marginTop: -8,
+    marginTop: -12,
   },
   editButton: {
     flexDirection: 'row',
