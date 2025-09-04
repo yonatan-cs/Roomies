@@ -193,7 +193,7 @@ export default function DashboardScreen() {
     // Shopping King - who bought the most items (filter by time range)
     const shoppingByUser = shoppingItems
       .filter(item => {
-        if (!item.purchased || !item.purchasedByUserId) return false;
+        if (!item.purchased || !item.purchasedBy) return false;
         
         // Filter by time range if item has purchase date
         if (item.purchasedAt) {
@@ -216,7 +216,7 @@ export default function DashboardScreen() {
         return true; // If no purchase date, include all
       })
       .reduce((acc, item) => {
-        acc[item.purchasedByUserId!] = (acc[item.purchasedByUserId!] || 0) + 1;
+        acc[item.purchasedBy!] = (acc[item.purchasedBy!] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
 
@@ -226,11 +226,11 @@ export default function DashboardScreen() {
     // Cleaning King - who did the most cleanings (filter by time range)
     const cleaningByUser = cleaningTask?.history
       ?.filter(entry => {
-        if (!entry.completedBy) return false;
+        if (!entry.userId) return false;
         
         // Filter by time range if entry has completion date
-        if (entry.completedAt) {
-          const completionDate = new Date(entry.completedAt);
+        if (entry.cleanedAt) {
+          const completionDate = new Date(entry.cleanedAt);
           switch (timeRange) {
             case '30days':
               const thirtyDaysAgo = new Date();
@@ -249,7 +249,7 @@ export default function DashboardScreen() {
         return true; // If no completion date, include all
       })
       .reduce((acc, entry) => {
-        acc[entry.completedBy!] = (acc[entry.completedBy!] || 0) + 1;
+        acc[entry.userId!] = (acc[entry.userId!] || 0) + 1;
         return acc;
       }, {} as Record<string, number>) || {};
 
@@ -515,46 +515,18 @@ export default function DashboardScreen() {
         </View>
 
 
-        {/* Apartment Highlights Button */}
+        {/* Quick Look Button */}
         <Pressable
           onPress={() => setShowHighlightsModal(true)}
           className="bg-white rounded-2xl p-6 shadow-sm"
+          accessibilityLabel="🔍 מבט מהיר"
+          accessibilityHint="מבט מהיר על הפעילות"
         >
-          <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-gray-900">
-              הייליטס של הדירה
+          <View className="flex-row items-center justify-center">
+            <Text className="text-lg font-semibold text-gray-900 mr-2">
+              מבט מהיר
             </Text>
-            <Ionicons name="chevron-back" size={20} color="#6b7280" />
-          </View>
-          
-          <View className="flex-row flex-wrap justify-between">
-            <View className="items-center w-[48%] mb-4">
-              <Text className="text-2xl font-bold text-blue-600">
-                {formatCurrency(totalExpenses)}
-              </Text>
-              <Text className="text-sm text-gray-500">סך הוצאות</Text>
-            </View>
-
-            <View className="items-center w-[48%] mb-4">
-              <Text className="text-2xl font-bold text-green-600">
-                {cleaningCount}
-              </Text>
-              <Text className="text-sm text-gray-500">ניקיונות</Text>
-            </View>
-
-            <View className="items-center w-[48%]">
-              <Text className="text-2xl font-bold text-orange-600">
-                {purchasedItemsCount}
-              </Text>
-              <Text className="text-sm text-gray-500">קניות</Text>
-            </View>
-
-            <View className="items-center w-[48%]">
-              <Text className="text-2xl font-bold text-purple-600">
-                {formatCurrency(monthlyExpenses)}
-              </Text>
-              <Text className="text-sm text-gray-500">החודש</Text>
-            </View>
+            <Text className="text-xl">🔍</Text>
           </View>
         </Pressable>
       </ScrollView>
