@@ -307,6 +307,25 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    // ---------- monthlyExpenses ----------
+    match /apartments/{apartmentId}/monthlyExpenses/{monthKey}/expenses/{expenseId} {
+      // Read: כל חבר בדירה
+      allow read: if isAuthenticated()
+        && apartmentId == currentUserApartmentId()
+        && isApartmentMemberOfThisApartment(apartmentId, request.auth.uid);
+
+      // Create: כל חבר בדירה יכול ליצור expense חודשי
+      allow create: if isAuthenticated()
+        && apartmentId == currentUserApartmentId()
+        && isApartmentMemberOfThisApartment(apartmentId, request.auth.uid)
+        && request.resource.data.apartment_id == apartmentId
+        && request.resource.data.amount is number
+        && request.resource.data.created_by == request.auth.uid;
+
+      // Update/Delete: לא מותר
+      allow update, delete: if false;
+    }
+
     // ---------- actions (audit log) ----------
     match /actions/{actionId} {
       // Read
