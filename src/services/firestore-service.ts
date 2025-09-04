@@ -118,6 +118,35 @@ async function requireSession(): Promise<{ uid: string; idToken: string }> {
   }
 }
 
+// Safe base64 decoder that works in both browser and Node.js environments
+function safeBase64Decode(b64: string): string {
+  try {
+    if (typeof atob === 'function') {
+      return atob(b64);
+    }
+  } catch {}
+  try {
+    // Node.js Buffer
+    return Buffer.from(b64, 'base64').toString('utf8');
+  } catch (e) {
+    return '';
+  }
+}
+
+// Safe JWT decoder
+function decodeJwt(token: string): { header: any; payload: any } | null {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    return {
+      header: JSON.parse(safeBase64Decode(parts[0])),
+      payload: JSON.parse(safeBase64Decode(parts[1])),
+    };
+  } catch (e) { 
+    return null; 
+  }
+}
+
 // Get user's current apartment ID from profile or fallback to latest membership
 async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<string | null> {
   try {
@@ -328,7 +357,7 @@ export class FirestoreService {
     try {
       const tokenParts = idToken.split('.');
       if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]));
+        const payload = JSON.parse(safeBase64Decode(tokenParts[1]));
         const now = Math.floor(Date.now() / 1000);
         const buffer = 300; // 5 minutes buffer before expiry
         
@@ -356,8 +385,8 @@ export class FirestoreService {
       }
       
       // Decode header and payload for debugging (not verification)
-      const header = JSON.parse(atob(tokenParts[0]));
-      const payload = JSON.parse(atob(tokenParts[1]));
+      const header = JSON.parse(safeBase64Decode(tokenParts[0]));
+      const payload = JSON.parse(safeBase64Decode(tokenParts[1]));
       
       console.log('🔍 Token info:', {
         algorithm: header.alg,
@@ -423,12 +452,13 @@ export class FirestoreService {
       try {
         const tokenParts = idToken.split('.');
         if (tokenParts.length === 3) {
-          const payload = JSON.parse(atob(tokenParts[1]));
+          const payload = JSON.parse(safeBase64Decode(tokenParts[1]));
           console.log('🔍 Token details:', {
             aud: payload.aud,
             email: payload.email,
             exp: new Date(payload.exp * 1000).toISOString(),
-            firebase: payload.firebase
+            firebase: payload.firebase,
+            projectId: payload.aud || payload.firebase?.project_id
           });
           
           // Check expiry
@@ -2258,36 +2288,63 @@ export class FirestoreService {
     const currentExpenseData = currentExpense.fields;
 
     try {
-      // Prepare expense update
+      // Prepare expense update with updateMask
       const updateFields: any = {};
+      const fieldPaths: string[] = [];
       
       if (payload.amount !== undefined) {
         updateFields.amount = { doubleValue: Number(payload.amount) };
+        fieldPaths.push('amount');
       }
       if (payload.participants !== undefined) {
         updateFields.participants = { arrayValue: { values: (payload.participants || []).map(u => ({ stringValue: u })) } };
+        fieldPaths.push('participants');
       }
       if (payload.category !== undefined) {
-        updateFields.category = payload.category ? { stringValue: payload.category } : null;
+        if (payload.category === null) {
+          updateFields.category = { nullValue: null };
+        } else {
+          updateFields.category = { stringValue: payload.category };
+        }
+        fieldPaths.push('category');
       }
       if (payload.title !== undefined) {
-        updateFields.title = payload.title ? { stringValue: payload.title } : null;
+        updateFields.title = payload.title === null ? { nullValue: null } : { stringValue: payload.title };
+        fieldPaths.push('title');
       }
       if (payload.note !== undefined) {
-        updateFields.note = payload.note ? { stringValue: payload.note } : null;
+        updateFields.note = payload.note === null ? { nullValue: null } : { stringValue: payload.note };
+        fieldPaths.push('note');
       }
 
       // Always add updated_at timestamp and lastModifiedBy
       updateFields.updated_at = { timestampValue: new Date().toISOString() };
       updateFields.lastModifiedBy = { stringValue: (await getApartmentContext()).uid };
+      fieldPaths.push('updated_at', 'lastModifiedBy');
+
+      // Build resource name (projects/.../databases/(default)/documents/expenses/expenseId)
+      const resourcePrefix = FIRESTORE_BASE_URL.replace(/^https?:\/\/[^/]+\/v1\//, '');
+      const resourceName = `${resourcePrefix}/expenses/${expenseId}`;
+
+      console.log('🔍 Transaction commit details:', {
+        resourceName,
+        fieldPaths,
+        updateFields: Object.keys(updateFields),
+        transactionId
+      });
 
       // Update expense document
       const expenseUpdateBody = {
         writes: [{
           update: {
-            name: `${FIRESTORE_BASE_URL}/expenses/${expenseId}`,
+            name: resourceName,
             fields: updateFields,
-          }
+          },
+          updateMask: {
+            fieldPaths
+          },
+          // Require that document exists at commit time (precondition)
+          currentDocument: { exists: true }
         }],
         transaction: transactionId,
       };
@@ -2299,7 +2356,15 @@ export class FirestoreService {
       });
 
       if (!expenseUpdateRes.ok) {
-        throw new Error(`UPDATE_EXPENSE_${expenseUpdateRes.status}: Failed to update expense`);
+        const errorText = await expenseUpdateRes.text().catch(() => '');
+        console.error('❌ Transaction commit failed:', {
+          status: expenseUpdateRes.status,
+          error: errorText,
+          resourceName,
+          fieldPaths,
+          transactionId
+        });
+        throw new Error(`UPDATE_EXPENSE_${expenseUpdateRes.status}: ${errorText}`);
       }
 
       // Create audit log entry
