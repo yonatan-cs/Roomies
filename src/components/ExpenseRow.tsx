@@ -11,6 +11,7 @@ type Props = {
   formatCurrency: (amount: number) => string;
   formatDate: (date: Date | string) => string;
   getUserName: (userId: string) => string;
+  getActualUserName?: (userId: string) => string; // For debt settlement messages
   currentUserId?: string;
 };
 
@@ -21,6 +22,7 @@ export default function ExpenseRow({
   formatCurrency, 
   formatDate, 
   getUserName,
+  getActualUserName,
   currentUserId
 }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
@@ -65,20 +67,9 @@ export default function ExpenseRow({
 
   // Special rendering for debt settlement messages
   if (isDebtSettlementMessage) {
-    // Get actual names (not "אתה") for debt settlement messages
-    const getActualUserName = (userId: string) => {
-      // For debt settlement messages, always show the actual name, not "אתה"
-      if (userId === currentUserId) {
-        // Get the current user's actual name from the store
-        const { currentUser } = require('../state/store').getState();
-        return currentUser?.name || currentUser?.display_name || 'אתה';
-      }
-      return getUserName(userId);
-    };
-
     // Parse the message to replace user IDs with names
     let displayMessage = item.description || '';
-    if (displayMessage) {
+    if (displayMessage && getActualUserName) {
       // Replace user IDs with actual names
       const fromUserId = item.paidBy;
       const toUserId = item.participants.find(p => p !== fromUserId);
