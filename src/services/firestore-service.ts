@@ -2694,6 +2694,65 @@ export class FirestoreService {
   }
 
   /**
+   * Simple, reliable close debt (minimal steps)
+   * 1) Read debt document to get apartment_id
+   * 2) Ensure current_user.current_apartment_id == debt.apartment_id (PATCH user if needed)
+   * 3) PATCH debt: set status='closed', closed_at (timestamp), closed_by (uid)
+   *
+   * Uses existing helpers: requireSession(), updateDocument(), getDocument(), ensureCurrentApartmentIdMatches()
+   */
+  async closeDebtSimple(debtId: string): Promise<void> {
+    try {
+      if (!debtId) throw new Error('MISSING_DEBT_ID');
+
+      // 1) ensure we have session
+      const { uid, idToken } = await requireSession();
+
+      // 2) read debt document (uses existing helper - returns parsed object)
+      const debtDoc = await this.getDocument('debts', debtId);
+      if (!debtDoc) throw new Error('DEBT_NOT_FOUND');
+
+      const apartmentId = debtDoc.apartment_id;
+      if (!apartmentId) throw new Error('DEBT_MISSING_APARTMENT_ID');
+
+      console.log('closeDebtSimple: debt found', { debtId, apartmentId, uid });
+
+      // 3) Ensure user's current_apartment_id matches the debt apartment (this is required by rules)
+      //    This will PATCH users/{uid}?updateMask.fieldPaths=current_apartment_id if needed.
+      //    The helper will throw if it cannot update due to permissions.
+      await ensureCurrentApartmentIdMatches(apartmentId);
+
+      // 4) Now update the debt - only the allowed fields (rules expect changedKeys hasOnly(['status','closed_at','closed_by']))
+      const now = new Date();
+      const updatePayload = {
+        status: 'closed',
+        closed_at: now,
+        closed_by: uid,
+      };
+
+      // Use updateDocument helper with updateMask to only change allowed fields
+      await this.updateDocument('debts', debtId, updatePayload, ['status', 'closed_at', 'closed_by']);
+
+      console.log('closeDebtSimple: debt closed successfully', { debtId });
+    } catch (err: any) {
+      // Normalize common errors for the caller / UI
+      console.error('closeDebtSimple error:', err);
+      const msg = String(err?.message || err || 'UNKNOWN_ERROR');
+
+      if (msg.includes('PERMISSION_DENIED') || msg.includes('Missing or insufficient permissions')) {
+        // bubble up a clear permission error for diagnostics
+        throw new Error('PERMISSION_DENIED_WHILE_CLOSING_DEBT');
+      }
+
+      if (msg.includes('DEBT_NOT_FOUND')) throw new Error('DEBT_NOT_FOUND');
+      if (msg.includes('DEBT_MISSING_APARTMENT_ID')) throw new Error('DEBT_MISSING_APARTMENT_ID');
+
+      // fallback - rethrow
+      throw err;
+    }
+  }
+
+  /**
    * Get actions for current apartment
    * 
    * REQUIRES COMPOSITE INDEX:
