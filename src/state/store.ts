@@ -247,6 +247,8 @@ export const useStore = create<AppState>()(
           const expenses: Expense[] = expensesData.map((doc: any) => {
             const note = doc.fields?.note?.stringValue;
             const isHiddenDebtSettlement = note && note.includes('HIDDEN_DEBT_SETTLEMENT_');
+            const category = doc.fields?.category?.stringValue as ExpenseCategory;
+            const isDebtSettlement = category === 'debt_settlement';
             
             return {
               id: doc.name.split('/').pop() || uuidv4(),
@@ -254,7 +256,7 @@ export const useStore = create<AppState>()(
               amount: doc.fields?.amount?.doubleValue || 0,
               paidBy: doc.fields?.paid_by_user_id?.stringValue || '',
               participants: doc.fields?.participants?.arrayValue?.values?.map((v: any) => v.stringValue) || [],
-              category: (doc.fields?.category?.stringValue as ExpenseCategory) || 'groceries',
+              category: category || 'groceries',
               date: new Date(doc.fields?.created_at?.timestampValue || Date.now()),
               description: note,
               isHiddenDebtSettlement: isHiddenDebtSettlement, // Add flag for filtering
@@ -1114,8 +1116,8 @@ export const useStore = create<AppState>()(
         
         const monthlyExpenses = expenses.filter(expense => {
           try {
-            // Skip hidden debt settlement expenses
-            if (expense.isHiddenDebtSettlement) {
+            // Skip hidden debt settlement expenses and visible debt settlement expenses (they have zero amount)
+            if (expense.isHiddenDebtSettlement || expense.category === 'debt_settlement') {
               return false;
             }
             

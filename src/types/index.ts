@@ -90,6 +90,7 @@ export type ExpenseCategory =
   | 'rent'
   | 'cleaning'
   | 'internet'
+  | 'debt_settlement'
   | 'other';
 
 export interface ShoppingItem {

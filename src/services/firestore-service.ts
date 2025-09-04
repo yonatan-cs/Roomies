@@ -2686,6 +2686,34 @@ export class FirestoreService {
         throw new Error(`Failed to create hidden expense: ${expenseResponse.status} - ${errorText}`);
       }
 
+      // Now create a visible expense to show the debt settlement in the UI
+      const visibleExpenseId = `exp_visible_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const visibleExpenseData = {
+        fields: {
+          apartment_id: { stringValue: aptId },
+          amount: { doubleValue: 0 }, // Zero amount - just for display
+          title: { stringValue: `סגירת חוב` },
+          paid_by_user_id: { stringValue: fromUserId }, // The debtor
+          participants: { arrayValue: { values: [{ stringValue: fromUserId }, { stringValue: toUserId }] } },
+          category: { stringValue: 'debt_settlement' },
+          created_at: { timestampValue: new Date().toISOString() },
+          created_by: { stringValue: uid },
+          note: { stringValue: `${fromUserId} שילם ${amount}₪ ל-${toUserId}` } // Display message
+        }
+      };
+
+      const visibleExpenseResponse = await fetch(`${FIRESTORE_BASE_URL}/expenses`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(visibleExpenseData)
+      });
+
+      if (!visibleExpenseResponse.ok) {
+        const errorText = await visibleExpenseResponse.text();
+        console.error('❌ [createAndCloseDebtAtomic] Error creating visible expense:', errorText);
+        // Don't throw error here - the hidden expense was created successfully
+      }
+
       const result = {
         success: true,
         debtId: `virtual_debt_${Date.now()}`,
