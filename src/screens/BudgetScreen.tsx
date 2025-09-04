@@ -12,11 +12,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import ExpenseRow from '../components/ExpenseRow';
+import ExpenseEditModal from '../components/ExpenseEditModal';
+import { Expense } from '../types';
 
 type RootStackParamList = {
   AddExpense: undefined;
   GroupDebts: undefined;
-  EditExpense: { expenseId: string };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -27,6 +28,9 @@ export default function BudgetScreen() {
   const navigation = useNavigation<NavigationProp>();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   
   const { 
     expenses, 
@@ -135,8 +139,22 @@ export default function BudgetScreen() {
   }, [deleteExpense]);
 
   const handleEditExpense = useCallback((expenseId: string) => {
-    navigation.navigate('EditExpense', { expenseId });
-  }, [navigation]);
+    const expense = expenses.find(e => e.id === expenseId);
+    if (expense) {
+      setSelectedExpense(expense);
+      setEditModalVisible(true);
+    }
+  }, [expenses]);
+
+  const handleCloseEditModal = useCallback(() => {
+    setEditModalVisible(false);
+    setSelectedExpense(null);
+  }, []);
+
+  const handleEditSuccess = useCallback(() => {
+    // Refresh expenses or any other data if needed
+    // The store will automatically update
+  }, []);
 
   const renderExpenseItem = ({ item: expense }: { item: any }) => {
     return (
@@ -353,6 +371,14 @@ export default function BudgetScreen() {
           )}
         </View>
       </ScrollView>
+      
+      {/* Edit Expense Modal */}
+      <ExpenseEditModal
+        visible={editModalVisible}
+        expense={selectedExpense}
+        onClose={handleCloseEditModal}
+        onSuccess={handleEditSuccess}
+      />
     </View>
   );
 }
