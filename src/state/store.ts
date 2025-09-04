@@ -1071,6 +1071,13 @@ export const useStore = create<AppState>()(
           }
         });
 
+        // Sort expenses by date in descending order (newest first)
+        const sortedExpenses = monthlyExpenses.sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+        });
+
         const total = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
         
         // Calculate personal total (expenses where current user participated)
@@ -1082,7 +1089,7 @@ export const useStore = create<AppState>()(
           }, 0);
 
         return {
-          expenses: monthlyExpenses,
+          expenses: sortedExpenses,
           total: Math.round(total * 100) / 100,
           personalTotal: Math.round(personalTotal * 100) / 100
         };
