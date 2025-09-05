@@ -116,6 +116,11 @@ export default function DashboardScreen() {
     const now = new Date();
     const thisMonth = expenses.filter(expense => {
       try {
+        // Skip hidden debt settlement expenses
+        if (expense.isHiddenDebtSettlement) {
+          return false;
+        }
+        
         const expenseDate = new Date(expense.date);
         if (isNaN(expenseDate.getTime())) return false;
         return expenseDate.getMonth() === now.getMonth() && 
@@ -130,7 +135,9 @@ export default function DashboardScreen() {
   const pendingShoppingItems = shoppingItems.filter(item => !item.purchased);
 
   // Statistics
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalExpenses = expenses
+    .filter(expense => !expense.isHiddenDebtSettlement)
+    .reduce((sum, expense) => sum + expense.amount, 0);
   const cleaningCount = cleaningTask?.history?.length || 0;
   const purchasedItemsCount = shoppingItems.filter(item => item.purchased).length;
 
@@ -149,35 +156,35 @@ export default function DashboardScreen() {
       };
     }
 
-    // Filter expenses by time range
+    // Filter expenses by time range and exclude hidden debt settlement expenses
     const now = new Date();
-    let filteredExpenses = expenses;
+    let filteredExpenses = expenses.filter(expense => !expense.isHiddenDebtSettlement);
     
     switch (timeRange) {
       case '30days':
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        filteredExpenses = expenses.filter(expense => {
+        filteredExpenses = filteredExpenses.filter(expense => {
           const expenseDate = new Date(expense.date);
           return expenseDate >= thirtyDaysAgo;
         });
         break;
       case 'month':
-        filteredExpenses = expenses.filter(expense => {
+        filteredExpenses = filteredExpenses.filter(expense => {
           const expenseDate = new Date(expense.date);
           return expenseDate.getMonth() === now.getMonth() && 
                  expenseDate.getFullYear() === now.getFullYear();
         });
         break;
       case 'year':
-        filteredExpenses = expenses.filter(expense => {
+        filteredExpenses = filteredExpenses.filter(expense => {
           const expenseDate = new Date(expense.date);
           return expenseDate.getFullYear() === now.getFullYear();
         });
         break;
       case 'all':
       default:
-        filteredExpenses = expenses;
+        // filteredExpenses already has hidden expenses filtered out
         break;
     }
 
