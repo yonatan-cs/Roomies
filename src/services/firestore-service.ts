@@ -3915,7 +3915,7 @@ export class FirestoreService {
           order: order !== undefined ? { integerValue: String(order) } : { nullValue: null },
           created_at: { timestampValue: nowIso },
           apartment_id: { stringValue: aptId },
-          cleaning_task_id: { stringValue: aptId }, // taskId = apartmentId
+          // cleaning_task_id removed - not needed since path contains taskId
         }
       };
 
