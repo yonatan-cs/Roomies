@@ -278,3 +278,47 @@ export const settleDebtByCreatingHiddenExpense = functions.https.onCall(async (d
     throw new functions.https.HttpsError('internal', err instanceof Error ? err.message : 'INTERNAL_ERROR');
   }
 });
+
+/**
+ * Cloud Function: onApartmentMemberDeleted
+ * Triggered when an apartmentMembers document is deleted
+ * Updates the user's current_apartment_id to null
+ */
+export const onApartmentMemberDeleted = functions.firestore
+  .document('apartmentMembers/{memberId}')
+  .onDelete(async (snap, context) => {
+    const memberId = context.params.memberId;
+    console.log(`🗑️ Apartment member deleted: ${memberId}`);
+    
+    try {
+      // Extract user ID from memberId (format: apartmentId_userId)
+      const parts = memberId.split('_');
+      if (parts.length < 2) {
+        console.error('❌ Invalid memberId format:', memberId);
+        return;
+      }
+      
+      const userId = parts.slice(1).join('_'); // In case userId contains underscores
+      console.log(`👤 Updating user ${userId} current_apartment_id to null`);
+      
+      // Update user's current_apartment_id to null
+      await db.collection('users').doc(userId).update({
+        current_apartment_id: admin.firestore.FieldValue.delete()
+      });
+      
+      console.log(`✅ User ${userId} current_apartment_id cleared successfully`);
+      
+      // Log the action for audit trail
+      await db.collection('actions').add({
+        type: 'member_removed_cleanup',
+        user_id: userId,
+        member_id: memberId,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+        note: 'User current_apartment_id cleared after member removal'
+      });
+      
+    } catch (error) {
+      console.error('❌ Error in onApartmentMemberDeleted:', error);
+      // Don't throw - this is a background function
+    }
+  });

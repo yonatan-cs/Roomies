@@ -2076,6 +2076,64 @@ export class FirestoreService {
     }
   }
 
+  /**
+   * Remove a member from apartment with balance validation
+   * Only allows removal if user has zero balance and no open debts
+   */
+  async removeApartmentMember(apartmentId: string, targetUserId: string, actorUserId: string): Promise<void> {
+    try {
+      console.log(`🗑️ Removing member ${targetUserId} from apartment ${apartmentId} by ${actorUserId}`);
+      
+      // First, check if the user can be removed (balance validation)
+      const balanceData = await this.getUserBalanceForRemoval(targetUserId, apartmentId);
+      
+      if (!balanceData.canBeRemoved) {
+        const errorMessage = balanceData.hasOpenDebts 
+          ? 'לא ניתן להסיר שותף עם חובות פתוחים'
+          : `לא ניתן להסיר שותף עם מאזן של ${balanceData.netBalance.toFixed(2)}₪`;
+        throw new Error(errorMessage);
+      }
+      
+      const memberId = `${apartmentId}_${targetUserId}`;
+      
+      // Remove membership record
+      console.log('🗑️ Removing apartment membership record...');
+      await this.deleteDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
+      console.log('✅ Membership record removed');
+      
+      // Log the removal action for audit trail
+      await this.logMemberRemovalAction(apartmentId, targetUserId, actorUserId);
+      
+      console.log('✅ Member removed successfully');
+      
+    } catch (error) {
+      console.error('❌ Remove apartment member error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Log member removal action for audit trail
+   */
+  private async logMemberRemovalAction(apartmentId: string, removedUserId: string, actorUserId: string): Promise<void> {
+    try {
+      const actionData = {
+        apartment_id: apartmentId,
+        type: 'member_removed',
+        removed_user_id: removedUserId,
+        actor_uid: actorUserId,
+        created_at: new Date().toISOString(),
+        note: 'Member removed from apartment'
+      };
+      
+      await this.createDocument(COLLECTIONS.ACTIONS, actionData);
+      console.log('✅ Member removal action logged');
+    } catch (error) {
+      console.error('❌ Error logging member removal action:', error);
+      // Don't throw here - this is just for audit, not critical for the operation
+    }
+  }
+
   // This function is replaced by the new getApartmentMembers that uses runQuery
   // Keeping for backward compatibility but it's deprecated
   async getApartmentMembersOld(apartmentId: string): Promise<any[]> {
@@ -2980,6 +3038,83 @@ export class FirestoreService {
     } catch (error) {
       console.error('❌ Error getting user balance:', error);
       return 0;
+    }
+  }
+
+  /**
+   * Get user balance data for member removal validation
+   * Returns net balance and has_open_debts status
+   */
+  async getUserBalanceForRemoval(userId: string, apartmentId: string): Promise<{
+    netBalance: number;
+    hasOpenDebts: boolean;
+    canBeRemoved: boolean;
+  }> {
+    const { idToken } = await requireSession();
+    
+    try {
+      const balanceDocUrl = `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${userId}`;
+      console.log('🔍 getUserBalanceForRemoval URL:', balanceDocUrl);
+      
+      const response = await fetch(balanceDocUrl, {
+        method: 'GET',
+        headers: authHeaders(idToken),
+      });
+
+      if (response.status === 404) {
+        // Balance document doesn't exist yet, user can be removed
+        console.log('ℹ️ getUserBalanceForRemoval: Balance document not found, user can be removed');
+        return {
+          netBalance: 0,
+          hasOpenDebts: false,
+          canBeRemoved: true
+        };
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('❌ getUserBalanceForRemoval failed:', response.status, errorText);
+        throw new Error(`GET_BALANCE_FOR_REMOVAL_${response.status}`);
+      }
+
+      const balanceDoc = await response.json();
+      const fields = balanceDoc.fields || {};
+      
+      // Get net balance (prefer 'net' field, fallback to 'balance')
+      const netBalance = parseFloat(
+        fields.net?.doubleValue || 
+        fields.net?.integerValue || 
+        fields.balance?.doubleValue || 
+        fields.balance?.integerValue || 
+        '0'
+      );
+      
+      // Check if user has open debts
+      const hasOpenDebts = fields.has_open_debts?.booleanValue || false;
+      
+      // User can be removed if net balance is close to zero (±0.01) and no open debts
+      const canBeRemoved = Math.abs(netBalance) <= 0.01 && !hasOpenDebts;
+      
+      console.log('✅ getUserBalanceForRemoval success:', { 
+        userId, 
+        netBalance, 
+        hasOpenDebts, 
+        canBeRemoved 
+      });
+      
+      return {
+        netBalance,
+        hasOpenDebts,
+        canBeRemoved
+      };
+    } catch (error) {
+      console.error('❌ Error getting user balance for removal:', error);
+      // In case of error, don't allow removal for safety
+      return {
+        netBalance: 0,
+        hasOpenDebts: true,
+        canBeRemoved: false
+      };
     }
   }
 
