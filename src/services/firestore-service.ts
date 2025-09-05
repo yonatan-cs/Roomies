@@ -3053,6 +3053,9 @@ export class FirestoreService {
     const { idToken } = await requireSession();
     
     try {
+      // First, check for open debts directly
+      const hasOpenDebts = await this.checkUserHasOpenDebts(userId, apartmentId);
+      
       const balanceDocUrl = `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${userId}`;
       console.log('🔍 getUserBalanceForRemoval URL:', balanceDocUrl);
       
@@ -3062,12 +3065,12 @@ export class FirestoreService {
       });
 
       if (response.status === 404) {
-        // Balance document doesn't exist yet, user can be removed
-        console.log('ℹ️ getUserBalanceForRemoval: Balance document not found, user can be removed');
+        // Balance document doesn't exist yet, check if there are open debts
+        console.log('ℹ️ getUserBalanceForRemoval: Balance document not found');
         return {
           netBalance: 0,
-          hasOpenDebts: false,
-          canBeRemoved: true
+          hasOpenDebts,
+          canBeRemoved: !hasOpenDebts
         };
       }
 
@@ -3088,9 +3091,6 @@ export class FirestoreService {
         fields.balance?.integerValue || 
         '0'
       );
-      
-      // Check if user has open debts
-      const hasOpenDebts = fields.has_open_debts?.booleanValue || false;
       
       // User can be removed if net balance is close to zero (±0.01) and no open debts
       const canBeRemoved = Math.abs(netBalance) <= 0.01 && !hasOpenDebts;
@@ -3115,6 +3115,85 @@ export class FirestoreService {
         hasOpenDebts: true,
         canBeRemoved: false
       };
+    }
+  }
+
+  /**
+   * Check if user has open debts by querying the debts collection
+   */
+  private async checkUserHasOpenDebts(userId: string, apartmentId: string): Promise<boolean> {
+    const { idToken } = await requireSession();
+    
+    try {
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: COLLECTIONS.DEBTS }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'apartment_id' },
+                    op: 'EQUAL',
+                    value: { stringValue: apartmentId }
+                  }
+                },
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'status' },
+                    op: 'EQUAL',
+                    value: { stringValue: 'open' }
+                  }
+                },
+                {
+                  compositeFilter: {
+                    op: 'OR',
+                    filters: [
+                      {
+                        fieldFilter: {
+                          field: { fieldPath: 'from_user_id' },
+                          op: 'EQUAL',
+                          value: { stringValue: userId }
+                        }
+                      },
+                      {
+                        fieldFilter: {
+                          field: { fieldPath: 'to_user_id' },
+                          op: 'EQUAL',
+                          value: { stringValue: userId }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          limit: 1
+        }
+      };
+      
+      const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(queryBody),
+      });
+
+      if (!response.ok) {
+        console.error('❌ checkUserHasOpenDebts failed:', response.status);
+        return true; // Assume has debts for safety
+      }
+
+      const data = await response.json();
+      const hasOpenDebts = data.length > 0;
+      
+      console.log('🔍 checkUserHasOpenDebts result:', { userId, hasOpenDebts });
+      return hasOpenDebts;
+      
+    } catch (error) {
+      console.error('❌ Error checking open debts:', error);
+      return true; // Assume has debts for safety
     }
   }
 

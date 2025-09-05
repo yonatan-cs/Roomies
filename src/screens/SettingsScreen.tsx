@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform, TouchableWithoutFeedback } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
@@ -54,6 +54,7 @@ export default function SettingsScreen() {
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [confirmRemoveVisible, setConfirmRemoveVisible] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{id: string, name: string} | null>(null);
+  const [showMemberOptions, setShowMemberOptions] = useState<string | null>(null);
 
   const handleSaveName = async () => {
     if (!newName.trim() || !currentUser) return;
@@ -118,12 +119,18 @@ User: ${currentUser?.name || 'Unknown'}
     });
   };
 
-  const handleLongPressMember = async (member: any) => {
+  const handleMemberOptionsPress = (member: any) => {
     if (!currentUser || member.id === currentUser.id) {
       // Don't show remove option for current user (they should use "Leave Apartment")
       return;
     }
+    
+    setShowMemberOptions(member.id);
+  };
 
+  const handleRemoveMemberPress = async (member: any) => {
+    setShowMemberOptions(null);
+    
     try {
       // Check if member can be removed
       const canBeRemoved = await checkMemberCanBeRemoved(member.id);
@@ -175,10 +182,11 @@ User: ${currentUser?.name || 'Unknown'}
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 text-center">הגדרות</Text>
-      </View>
+    <TouchableWithoutFeedback onPress={() => setShowMemberOptions(null)}>
+      <View className="flex-1 bg-gray-50">
+        <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
+          <Text className="text-2xl font-bold text-gray-900 text-center">הגדרות</Text>
+        </View>
 
       <ScrollView className="flex-1 px-6 py-6">
         {/* Apartment Details */}
@@ -223,15 +231,11 @@ User: ${currentUser?.name || 'Unknown'}
             </Pressable>
           </View>
           <Text className="text-xs text-gray-500 mb-4">
-            לחיצה ארוכה על שותף להסרה (רק אם המאזן שלו אפס)
+            לחיצה על 3 נקודות ליד שותף להסרה (רק אם המאזן שלו אפס)
           </Text>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
-              <Pressable
-                onLongPress={() => handleLongPressMember(member)}
-                disabled={removingMemberId === member.id}
-                className="flex-row items-center"
-              >
+              <View className="flex-row items-center">
                 <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
                   <Text className="text-blue-700 font-semibold text-lg">
                     {getUserDisplayInfo(member).initial}
@@ -243,17 +247,33 @@ User: ${currentUser?.name || 'Unknown'}
                   </Text>
                   <Text className="text-gray-500 text-sm">{member.email || 'אין אימייל'}</Text>
                 </View>
-                {removingMemberId === member.id && (
+                {removingMemberId === member.id ? (
                   <View className="ml-2">
                     <Ionicons name="hourglass" size={20} color="#6b7280" />
                   </View>
-                )}
-                {member.id !== currentUser.id && removingMemberId !== member.id && (
-                  <View className="ml-2">
-                    <Ionicons name="ellipsis-horizontal" size={20} color="#9ca3af" />
+                ) : member.id !== currentUser.id ? (
+                  <View className="relative">
+                    <Pressable
+                      onPress={() => handleMemberOptionsPress(member)}
+                      className="p-2"
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={20} color="#9ca3af" />
+                    </Pressable>
+                    
+                    {/* Popup menu */}
+                    {showMemberOptions === member.id && (
+                      <View className="absolute top-10 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                        <Pressable
+                          onPress={() => handleRemoveMemberPress(member)}
+                          className="px-4 py-3 border-b border-gray-100"
+                        >
+                          <Text className="text-red-600 font-medium">הסר שותף</Text>
+                        </Pressable>
+                      </View>
+                    )}
                   </View>
-                )}
-              </Pressable>
+                ) : null}
+              </View>
             </View>
           ))}
         </View>
@@ -586,6 +606,7 @@ User: ${currentUser?.name || 'Unknown'}
           setMemberToRemove(null);
         }}
       />
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
