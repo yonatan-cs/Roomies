@@ -22,6 +22,8 @@ export default function SettingsScreen() {
     addChecklistItem,
     removeChecklistItem,
     refreshApartmentMembers,
+    checkMemberCanBeRemoved,
+    removeApartmentMember,
   } = useStore();
 
   // Refresh apartment members and load checklist when component mounts
@@ -47,6 +49,11 @@ export default function SettingsScreen() {
   const [isAddingChore, setIsAddingChore] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [deletingChoreId, setDeletingChoreId] = useState<string | null>(null);
+  
+  // Member removal states
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [confirmRemoveVisible, setConfirmRemoveVisible] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{id: string, name: string} | null>(null);
 
   const handleSaveName = async () => {
     if (!newName.trim() || !currentUser) return;
@@ -111,6 +118,54 @@ User: ${currentUser?.name || 'Unknown'}
     });
   };
 
+  const handleLongPressMember = async (member: any) => {
+    if (!currentUser || member.id === currentUser.id) {
+      // Don't show remove option for current user (they should use "Leave Apartment")
+      return;
+    }
+
+    try {
+      // Check if member can be removed
+      const canBeRemoved = await checkMemberCanBeRemoved(member.id);
+      
+      if (!canBeRemoved.canBeRemoved) {
+        Alert.alert(
+          'לא ניתן להסיר שותף',
+          `אי אפשר להסיר את ${getUserDisplayInfo(member).displayName} כי ${canBeRemoved.reason}. סגרו חובות ואז נסו שוב.`,
+          [{ text: 'אישור' }]
+        );
+        return;
+      }
+
+      // Show confirmation dialog
+      setMemberToRemove({
+        id: member.id,
+        name: getUserDisplayInfo(member).displayName
+      });
+      setConfirmRemoveVisible(true);
+    } catch (error) {
+      console.error('Error checking if member can be removed:', error);
+      Alert.alert('שגיאה', 'לא ניתן לבדוק אם ניתן להסיר את השותף');
+    }
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+
+    setRemovingMemberId(memberToRemove.id);
+    try {
+      await removeApartmentMember(memberToRemove.id);
+      Alert.alert('הצלחה', `${memberToRemove.name} הוסר מהדירה בהצלחה`);
+    } catch (error: any) {
+      console.error('Error removing member:', error);
+      Alert.alert('שגיאה', error.message || 'לא ניתן להסיר את השותף');
+    } finally {
+      setRemovingMemberId(null);
+      setConfirmRemoveVisible(false);
+      setMemberToRemove(null);
+    }
+  };
+
   if (!currentUser || !currentApartment) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
@@ -167,9 +222,16 @@ User: ${currentUser?.name || 'Unknown'}
               <Ionicons name="refresh" size={20} color="#007AFF" />
             </Pressable>
           </View>
+          <Text className="text-xs text-gray-500 mb-4">
+            לחיצה ארוכה על שותף להסרה (רק אם המאזן שלו אפס)
+          </Text>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
-              <View className="flex-row items-center">
+              <Pressable
+                onLongPress={() => handleLongPressMember(member)}
+                disabled={removingMemberId === member.id}
+                className="flex-row items-center"
+              >
                 <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
                   <Text className="text-blue-700 font-semibold text-lg">
                     {getUserDisplayInfo(member).initial}
@@ -181,9 +243,17 @@ User: ${currentUser?.name || 'Unknown'}
                   </Text>
                   <Text className="text-gray-500 text-sm">{member.email || 'אין אימייל'}</Text>
                 </View>
-              </View>
-
-
+                {removingMemberId === member.id && (
+                  <View className="ml-2">
+                    <Ionicons name="hourglass" size={20} color="#6b7280" />
+                  </View>
+                )}
+                {member.id !== currentUser.id && removingMemberId !== member.id && (
+                  <View className="ml-2">
+                    <Ionicons name="ellipsis-horizontal" size={20} color="#9ca3af" />
+                  </View>
+                )}
+              </Pressable>
             </View>
           ))}
         </View>
@@ -502,6 +572,19 @@ User: ${currentUser?.name || 'Unknown'}
           }
         }}
         onCancel={() => setConfirmLeaveVisible(false)}
+      />
+
+      <ConfirmModal
+        visible={confirmRemoveVisible}
+        title="הסרת שותף"
+        message={`האם אתה בטוח שברצונך להסיר את ${memberToRemove?.name} מהדירה? פעולה זו אינה ניתנת לביטול.`}
+        confirmText="כן, הסר שותף"
+        cancelText="ביטול"
+        onConfirm={handleConfirmRemoveMember}
+        onCancel={() => {
+          setConfirmRemoveVisible(false);
+          setMemberToRemove(null);
+        }}
       />
     </View>
   );

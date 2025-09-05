@@ -116,6 +116,13 @@ interface AppState {
     addChecklistItem: (title: string, order?: number) => Promise<void>;
     removeChecklistItem: (itemId: string) => Promise<void>;
     finishCleaningTurn: () => Promise<void>;
+    
+    // Member management actions
+    removeApartmentMember: (targetUserId: string) => Promise<void>;
+    checkMemberCanBeRemoved: (targetUserId: string) => Promise<{
+      canBeRemoved: boolean;
+      reason?: string;
+    }>;
 }
 
 export const useStore = create<AppState>()(
@@ -1274,6 +1281,59 @@ export const useStore = create<AppState>()(
           });
         } catch (error) {
           console.error('❌ Error cleaning up debt system:', error);
+        }
+      },
+
+      /**
+       * Check if a member can be removed (balance validation)
+       */
+      checkMemberCanBeRemoved: async (targetUserId: string) => {
+        const { currentApartment } = get();
+        if (!currentApartment) {
+          throw new Error('No current apartment found');
+        }
+
+        try {
+          const balanceData = await firestoreService.getUserBalanceForRemoval(targetUserId, currentApartment.id);
+          
+          if (!balanceData.canBeRemoved) {
+            const reason = balanceData.hasOpenDebts 
+              ? 'יש חובות פתוחים'
+              : `מאזן של ${balanceData.netBalance.toFixed(2)}₪`;
+            return { canBeRemoved: false, reason };
+          }
+          
+          return { canBeRemoved: true };
+        } catch (error) {
+          console.error('❌ Error checking if member can be removed:', error);
+          return { canBeRemoved: false, reason: 'שגיאה בבדיקת המאזן' };
+        }
+      },
+
+      /**
+       * Remove a member from the apartment
+       */
+      removeApartmentMember: async (targetUserId: string) => {
+        const { currentUser, currentApartment } = get();
+        if (!currentUser || !currentApartment) {
+          throw new Error('No current user or apartment found');
+        }
+
+        try {
+          // Remove the member using Firestore service
+          await firestoreService.removeApartmentMember(
+            currentApartment.id, 
+            targetUserId, 
+            currentUser.id
+          );
+          
+          // Refresh apartment members to update the UI
+          await get().refreshApartmentMembers();
+          
+          console.log('✅ Member removed successfully');
+        } catch (error) {
+          console.error('❌ Error removing apartment member:', error);
+          throw error;
         }
       },
     }),
