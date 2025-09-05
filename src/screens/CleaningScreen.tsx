@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, RefreshControl } from 'react-native';
+import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../state/store';
@@ -10,18 +10,11 @@ import { User } from '../types';
 const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export default function CleaningScreen() {
-  const [newTaskName, setNewTaskName] = useState('');
-  const [renameTaskId, setRenameTaskId] = useState<string | null>(null);
-  const [renameTaskName, setRenameTaskName] = useState('');
-
   const [showNotYourTurn, setShowNotYourTurn] = useState(false);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [showConfirmDone, setShowConfirmDone] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isAddingTask, setIsAddingTask] = useState(false);
-  const [showTaskAddedMessage, setShowTaskAddedMessage] = useState(false);
-  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
@@ -37,8 +30,6 @@ export default function CleaningScreen() {
   const loadCleaningChecklist = useStore((s) => s.loadCleaningChecklist);
   const completeChecklistItem = useStore((s) => s.completeChecklistItem);
   const uncompleteChecklistItem = useStore((s) => s.uncompleteChecklistItem);
-  const addChecklistItem = useStore((s) => s.addChecklistItem);
-  const removeChecklistItem = useStore((s) => s.removeChecklistItem);
   const finishCleaningTurn = useStore((s) => s.finishCleaningTurn);
 
   // Initialize cleaning if not exists and check for overdue tasks
@@ -108,22 +99,6 @@ export default function CleaningScreen() {
     setShowConfirmDone(true);
   };
 
-  const handleAddTask = async () => {
-    if (!newTaskName.trim()) return;
-    
-    setIsAddingTask(true);
-    try {
-      await addChecklistItem(newTaskName.trim());
-      setNewTaskName('');
-      setShowTaskAddedMessage(true);
-      setTimeout(() => setShowTaskAddedMessage(false), 3000);
-    } catch (error) {
-      console.error('Error adding task:', error);
-      setErrorMessage('לא ניתן להוסיף את המשימה');
-    } finally {
-      setIsAddingTask(false);
-    }
-  };
 
   const handleToggleTask = async (taskId: string, completed: boolean) => {
     try {
@@ -387,104 +362,16 @@ export default function CleaningScreen() {
 
             {checklistItems.map((item) => {
               const isCompleted = item.completed;
-              const isEditing = renameTaskId === item.id;
               return (
                 <View key={item.id} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
                   <Pressable onPress={() => handleToggleTask(item.id, !isCompleted)} className={cn('w-6 h-6 rounded border-2 items-center justify-center ml-3', isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-300')}>
                     {isCompleted && <Ionicons name="checkmark" size={16} color="white" />}
                   </Pressable>
-                  {isEditing ? (
-                    <TextInput
-                      value={renameTaskName}
-                      onChangeText={setRenameTaskName}
-                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-base mr-2"
-                      textAlign="right"
-                      onSubmitEditing={() => {
-                        if (renameTaskName.trim()) {
-                          // TODO: Implement rename functionality for checklist items
-                          setRenameTaskId(null);
-                          setRenameTaskName('');
-                        } else {
-                          setRenameTaskId(null);
-                        }
-                      }}
-                      returnKeyType="done"
-                    />
-                  ) : (
-                    <Text className={cn('flex-1 text-base', isCompleted ? 'text-gray-500 line-through' : 'text-gray-900')}>{item.title}</Text>
-                  )}
-                  {!isEditing ? (
-                    <View className="flex-row">
-                      <Pressable onPress={() => { setRenameTaskId(item.id); setRenameTaskName(item.title); }} className="p-2 mr-1">
-                        <Ionicons name="pencil" size={18} color="#6b7280" />
-                      </Pressable>
-                      <Pressable 
-                        onPress={async () => {
-                          if (deletingTaskId) return; // Prevent multiple clicks
-                          setDeletingTaskId(item.id);
-                          try {
-                            await removeChecklistItem(item.id);
-                          } catch (error) {
-                            console.error('Error removing checklist item:', error);
-                            setErrorMessage('לא ניתן למחוק את המשימה');
-                          } finally {
-                            setDeletingTaskId(null);
-                          }
-                        }} 
-                        disabled={deletingTaskId === item.id}
-                        className="p-2"
-                      >
-                        {deletingTaskId === item.id ? (
-                          <Ionicons name="hourglass" size={18} color="#6b7280" />
-                        ) : (
-                          <Ionicons name="trash" size={18} color="#ef4444" />
-                        )}
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Pressable onPress={() => { setRenameTaskId(null); setRenameTaskName(''); }} className="p-2">
-                      <Ionicons name="close" size={18} color="#ef4444" />
-                    </Pressable>
-                  )}
+                  <Text className={cn('flex-1 text-base', isCompleted ? 'text-gray-500 line-through' : 'text-gray-900')}>{item.title}</Text>
                 </View>
               );
             })}
 
-            {/* Add new task */}
-            <View className="flex-row items-center mt-4">
-              <TextInput
-                value={newTaskName}
-                onChangeText={setNewTaskName}
-                placeholder="הוסף משימה חדשה..."
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
-                textAlign="right"
-                onSubmitEditing={handleAddTask}
-                returnKeyType="done"
-                editable={!isAddingTask}
-              />
-              <Pressable 
-                onPress={handleAddTask} 
-                disabled={isAddingTask}
-                className={`w-12 h-12 rounded-xl items-center justify-center mr-3 ${
-                  isAddingTask ? 'bg-gray-400' : 'bg-blue-500'
-                }`}
-              >
-                {isAddingTask ? (
-                  <Ionicons name="hourglass" size={24} color="white" />
-                ) : (
-                  <Ionicons name="add" size={24} color="white" />
-                )}
-              </Pressable>
-            </View>
-            
-            {/* Success Message */}
-            {showTaskAddedMessage && (
-              <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
-                <Text className="text-green-800 text-center font-medium">
-                  ✅ המשימה נוספה בהצלחה!
-                </Text>
-              </View>
-            )}
           </View>
         )}
 
