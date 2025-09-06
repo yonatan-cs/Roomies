@@ -94,27 +94,36 @@ function H(idToken: string) {
 // Ensure we always have uid + idToken (try to restore session if missing from memory)
 export async function requireSession(): Promise<{ uid: string; idToken: string }> {
   try {
-    // Use SDK Auth instead of REST Auth to avoid mismatch
-    const { auth } = await import('./firebase-sdk');
+    // Try to get current user and token
+    const currentUser = await firebaseAuth.getCurrentUser();
+    const idToken = await firebaseAuth.getCurrentIdToken();
     
-    if (!auth.currentUser) {
-      console.log('❌ No current user in SDK Auth');
-      throw new Error('AUTH_REQUIRED');
+    if (currentUser?.localId && idToken) {
+      console.log('✅ Session available:', { 
+        uid: currentUser.localId, 
+        tokenPreview: idToken.substring(0, 20) + '...',
+        hasUid: !!currentUser.localId,
+        hasToken: !!idToken,
+        uidLength: currentUser.localId?.length || 0,
+        tokenLength: idToken?.length || 0
+      });
+      return { uid: currentUser.localId, idToken };
     }
     
-    const uid = auth.currentUser.uid;
-    const idToken = await auth.currentUser.getIdToken(true); // Force refresh
+    // If no current user, try to restore session
+    console.log('🔄 No current session, attempting to restore...');
+    const restoredUser = await firebaseAuth.restoreUserSession();
     
-    console.log('✅ SDK Session available:', { 
-      uid: uid, 
-      tokenPreview: idToken.substring(0, 20) + '...',
-      hasUid: !!uid,
-      hasToken: !!idToken,
-      uidLength: uid?.length || 0,
-      tokenLength: idToken?.length || 0
-    });
+    if (restoredUser?.localId) {
+      const restoredToken = await firebaseAuth.getCurrentIdToken();
+      if (restoredToken) {
+        console.log('✅ Session restored:', { uid: restoredUser.localId, tokenPreview: restoredToken.substring(0, 20) + '...' });
+        return { uid: restoredUser.localId, idToken: restoredToken };
+      }
+    }
     
-    return { uid, idToken };
+    console.log('❌ No valid session found');
+    throw new Error('AUTH_REQUIRED');
     
   } catch (error) {
     console.error('❌ Error in requireSession:', error);
