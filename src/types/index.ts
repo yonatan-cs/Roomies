@@ -34,6 +34,11 @@ export interface CleaningTask {
   lastCleanedBy?: string;
   status: 'pending' | 'completed' | 'skipped';
   history: CleaningHistory[];
+  // New fields for cycle calculation
+  assigned_at?: string | null; // ISO timestamp
+  frequency_days?: number;
+  last_completed_at?: string | null; // ISO timestamp
+  last_completed_by?: string | null;
 }
 
 export interface CleaningHistory {

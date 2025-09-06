@@ -479,6 +479,11 @@ export const useStore = create<AppState>()(
               lastCleanedBy: cleaningTaskData.last_completed_by,
               status: 'pending',
               history: [], // TODO: Load from separate collection if needed
+              // Add new fields for cycle calculation
+              assigned_at: cleaningTaskData.assigned_at,
+              frequency_days: cleaningTaskData.frequency_days || intervalDays,
+              last_completed_at: cleaningTaskData.last_completed_at,
+              last_completed_by: cleaningTaskData.last_completed_by,
             };
 
             set({ cleaningTask });
@@ -675,12 +680,36 @@ export const useStore = create<AppState>()(
 
       finishCleaningTurn: async () => {
         const state = get();
-        const { isMyCleaningTurn, currentUser, checklistItems } = state;
+        const { isMyCleaningTurn, currentUser, checklistItems, cleaningTask } = state;
         
         // Enhanced security check
-        if (!isMyCleaningTurn || !currentUser) {
-          console.warn('Cannot finish cleaning turn: not your turn or no user');
+        if (!isMyCleaningTurn || !currentUser || !cleaningTask) {
+          console.warn('Cannot finish cleaning turn: not your turn or no user or no task');
           throw new Error('Not authorized to finish cleaning turn');
+        }
+
+        // Import cycle calculation functions
+        const { isTurnCompletedForCurrentCycle } = await import('../utils/dateUtils');
+        
+        // Check if turn is already completed for current cycle
+        const isAlreadyCompleted = isTurnCompletedForCurrentCycle({
+          uid: currentUser.id,
+          task: {
+            assigned_at: cleaningTask.assigned_at || null,
+            frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
+            last_completed_at: cleaningTask.last_completed_at || null,
+            last_completed_by: cleaningTask.last_completed_by || null,
+          },
+          checklistItems: checklistItems.map(item => ({
+            completed: item.completed,
+            completed_by: item.completed_by,
+            completed_at: item.completed_at,
+          }))
+        });
+
+        if (isAlreadyCompleted) {
+          console.log('Turn already completed for current cycle');
+          return; // Don't throw error, just return silently
         }
 
         // Check if all items are completed

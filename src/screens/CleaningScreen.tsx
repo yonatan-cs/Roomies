@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
+import { isTurnCompletedForCurrentCycle, getCurrentCycle } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
 import { User } from '../types';
 
@@ -15,6 +16,7 @@ export default function CleaningScreen() {
   const [showConfirmDone, setShowConfirmDone] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [turnCompleted, setTurnCompleted] = useState(false);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
@@ -43,6 +45,27 @@ export default function CleaningScreen() {
     
     initialize();
   }, [currentApartment, cleaningTask, initializeCleaning, checkOverdueTasks]);
+
+  // Check if turn is completed for current cycle
+  useEffect(() => {
+    if (currentUser && cleaningTask && checklistItems.length > 0) {
+      const isCompleted = isTurnCompletedForCurrentCycle({
+        uid: currentUser.id,
+        task: {
+          assigned_at: cleaningTask.assigned_at || null,
+          frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
+          last_completed_at: cleaningTask.last_completed_at || null,
+          last_completed_by: cleaningTask.last_completed_by || null,
+        },
+        checklistItems: checklistItems.map(item => ({
+          completed: item.completed,
+          completed_by: item.completed_by,
+          completed_at: item.completed_at,
+        }))
+      });
+      setTurnCompleted(isCompleted);
+    }
+  }, [currentUser, cleaningTask, checklistItems]);
 
   // Load checklist data when screen comes into focus (for live updates)
   useFocusEffect(
@@ -88,6 +111,19 @@ export default function CleaningScreen() {
       return;
     }
 
+    // Check if turn is already completed for current cycle
+    if (turnCompleted && cleaningTask) {
+      const { cycleEnd } = getCurrentCycle({
+        assigned_at: cleaningTask.assigned_at || null,
+        frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
+        last_completed_at: cleaningTask.last_completed_at || null,
+        last_completed_by: cleaningTask.last_completed_by || null,
+      });
+      // Show success message with next turn date
+      setErrorMessage(`מעולה, ניקית! התור יעבור לשותף הבא בתאריך ${cycleEnd.toLocaleDateString('he-IL')}`);
+      return;
+    }
+
     // Check if all checklist items are completed using the new system
     const completedTasks = checklistItems.filter(item => item.completed);
 
@@ -101,6 +137,11 @@ export default function CleaningScreen() {
 
 
   const handleToggleTask = async (taskId: string, completed: boolean) => {
+    // Don't allow toggling if turn is completed
+    if (turnCompleted) {
+      return;
+    }
+
     try {
       if (completed) {
         await completeChecklistItem(taskId);
@@ -130,6 +171,7 @@ export default function CleaningScreen() {
     try {
       await finishCleaningTurn();
       setShowConfirmDone(false);
+      setTurnCompleted(true); // Mark as completed locally
     } catch (error) {
       console.error('Error finishing turn:', error);
       // Could show error message to user
@@ -288,9 +330,19 @@ export default function CleaningScreen() {
                 <View className="w-full bg-gray-200 rounded-full h-2 mb-4">
                   <View className="bg-blue-500 h-2 rounded-full" style={{ width: `${getCompletionPercentage()}%` }} />
                 </View>
-                <Pressable onPress={handleMarkCleaned} className={cn('py-3 px-8 rounded-xl', getCompletionPercentage() === 100 ? 'bg-green-500' : 'bg-gray-300')} disabled={getCompletionPercentage() !== 100}>
-                  <Text className={cn('font-semibold text-lg text-center', getCompletionPercentage() === 100 ? 'text-white' : 'text-gray-500')}>
-                    {getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות'}
+                <Pressable 
+                  onPress={handleMarkCleaned} 
+                  className={cn(
+                    'py-3 px-8 rounded-xl', 
+                    turnCompleted ? 'bg-gray-400' : (getCompletionPercentage() === 100 ? 'bg-green-500' : 'bg-gray-300')
+                  )} 
+                  disabled={turnCompleted || getCompletionPercentage() !== 100}
+                >
+                  <Text className={cn(
+                    'font-semibold text-lg text-center', 
+                    turnCompleted ? 'text-gray-600' : (getCompletionPercentage() === 100 ? 'text-white' : 'text-gray-500')
+                  )}>
+                    {turnCompleted ? 'ניקית במחזור זה! ✅' : (getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות')}
                   </Text>
                 </Pressable>
               </>
@@ -362,9 +414,17 @@ export default function CleaningScreen() {
 
             {checklistItems.map((item) => {
               const isCompleted = item.completed;
+              const isDisabled = turnCompleted || (isCompleted && isMyTurn);
               return (
                 <View key={item.id} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
-                  <Pressable onPress={() => handleToggleTask(item.id, !isCompleted)} className={cn('w-6 h-6 rounded border-2 items-center justify-center ml-3', isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-300')}>
+                  <Pressable 
+                    onPress={() => !isDisabled && handleToggleTask(item.id, !isCompleted)} 
+                    className={cn(
+                      'w-6 h-6 rounded border-2 items-center justify-center ml-3', 
+                      isDisabled ? 'bg-gray-200 border-gray-200' : (isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-300')
+                    )}
+                    disabled={isDisabled}
+                  >
                     {isCompleted && <Ionicons name="checkmark" size={16} color="white" />}
                   </Pressable>
                   <Text className={cn('flex-1 text-base', isCompleted ? 'text-gray-500 line-through' : 'text-gray-900')}>{item.title}</Text>
