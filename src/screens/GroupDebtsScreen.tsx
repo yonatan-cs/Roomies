@@ -14,6 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { firestoreService } from '../services/firestore-service';
+import { firestoreSDKService } from '../services/firestore-sdk-service';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -43,9 +44,6 @@ export default function GroupDebtsScreen() {
     getBalances, 
     getRawBalances,
     getSimplifiedBalances, 
-    createAndCloseDebtAtomic,
-    closeDebtAndRefreshBalances,
-    createDebtForSettlement,
     initializeDebtSystem,
     cleanupDebtSystem,
     loadExpenses
@@ -156,15 +154,15 @@ export default function GroupDebtsScreen() {
     setIsSettling(true);
 
     try {
-      // First, create a debt in the debts collection
-      const debtId = await createDebtForSettlement(settlementFromUser, settlementToUser, amount);
-      
-      // Then close the debt and refresh balances
-      await closeDebtAndRefreshBalances(debtId, {
-        payerUserId: settlementFromUser,
-        receiverUserId: settlementToUser,
-        amount
-      });
+      // Use the new debt settlement function that properly closes debts and updates balances
+      await firestoreSDKService.closeDebtWithoutDebtId(
+        currentApartment?.id!,
+        {
+          payerUserId: settlementFromUser,
+          receiverUserId: settlementToUser,
+          amount: amount
+        }
+      );
 
       console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully');
 
@@ -174,11 +172,13 @@ export default function GroupDebtsScreen() {
       setSettlementToUser('');
       setSettlementOriginalAmount(0);
       
-      // Reload expenses to reflect the settlement
+      // Reload expenses and balances to reflect the debt settlement
       await loadExpenses();
+      await getBalances();
       
       const creditorName = getUserName(settlementToUser);
       const debtorName = getUserName(settlementFromUser);
+      const amount = parseFloat(settlementAmount);
       
       Alert.alert(
         'הצלחה', 
