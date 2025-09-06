@@ -162,7 +162,7 @@ export class FirestoreSDKService {
   ): Unsubscribe {
     console.log(`📡 Setting up real-time subscription for ${collectionName}`);
 
-    let q = collection(db, collectionName);
+    let q: any = collection(db, collectionName);
     
     // Apply filters if provided
     if (filters) {
@@ -176,15 +176,15 @@ export class FirestoreSDKService {
       q = query(q, orderBy(orderByField, orderDirection));
     }
 
-    return onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({
+    return onSnapshot(q, (snapshot: any) => {
+      const docs = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data()
       }));
       
       console.log(`📊 ${collectionName} subscription update: ${docs.length} documents`);
       callback(docs);
-    }, (error) => {
+    }, (error: any) => {
       console.error(`❌ ${collectionName} subscription error:`, error);
     });
   }
@@ -300,17 +300,17 @@ export class FirestoreSDKService {
 
       console.log('🎉 Debt settlement created successfully!');
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Simple debt settlement failed:', error);
       console.error('❌ Error details:', {
-        name: error.name,
-        message: error.message,
-        code: error.code,
-        stack: error.stack
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack
       });
       
       // Add more specific error handling
-      if (error.code === 'permission-denied') {
+      if (error?.code === 'permission-denied') {
         console.error('🚫 PERMISSION DENIED - Check Firestore rules');
         console.error('🚫 User:', actorUid);
         console.error('🚫 Apartment:', apartmentId);
