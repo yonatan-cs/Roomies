@@ -233,6 +233,223 @@ export class FirestoreSDKService {
   }
 
   /**
+   * Close debt and refresh balances - Complete solution using transactions
+   * This properly closes the debt and updates balances in one atomic operation
+   */
+  async closeDebtAndRefreshBalances(
+    apartmentId: string,
+    debtId: string,
+    { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
+  ): Promise<void> {
+    console.log('🚀 Starting debt closure and balance refresh:', {
+      apartmentId,
+      debtId,
+      payerUserId,
+      receiverUserId,
+      amount
+    });
+
+    try {
+      // Get current user
+      const currentUser = await firebaseAuth.getCurrentUser();
+      if (!currentUser?.localId) {
+        throw new Error('AUTH_REQUIRED');
+      }
+
+      const uid = currentUser.localId;
+
+      // 1) Close debt in transaction
+      await runTransaction(db, async (tx) => {
+        console.log('🔄 Transaction started, processing debt closure...');
+
+        const debtRef = doc(db, 'debts', debtId);
+        const debtSnap = await tx.get(debtRef);
+        
+        if (!debtSnap.exists()) {
+          throw new Error('DEBT_NOT_FOUND');
+        }
+
+        const debt = debtSnap.data() as any;
+        if (debt.status !== 'open') {
+          throw new Error('ALREADY_CLOSED');
+        }
+        if (debt.apartment_id !== apartmentId) {
+          throw new Error('WRONG_APARTMENT');
+        }
+
+        console.log('📋 Current debt data:', debt);
+
+        // Update debt to closed
+        tx.update(debtRef, {
+          status: 'closed',
+          closed_at: serverTimestamp(),
+          closed_by: uid,
+        });
+
+        // Create settlement record
+        const settlementRef = doc(collection(db, 'debtSettlements'));
+        tx.set(settlementRef, {
+          apartment_id: apartmentId,
+          payer_user_id: payerUserId,
+          receiver_user_id: receiverUserId,
+          amount,
+          created_at: serverTimestamp(),
+        });
+
+        // Create action log
+        const actionRef = doc(collection(db, 'actions'));
+        tx.set(actionRef, {
+          apartment_id: apartmentId,
+          type: 'debt_closed',
+          actor_uid: uid,
+          created_at: serverTimestamp(),
+          debt_id: debtId,
+          amount,
+          payer_user_id: payerUserId,
+          receiver_user_id: receiverUserId,
+        });
+
+        console.log('✅ Transaction operations prepared successfully');
+      });
+
+      console.log('✅ Debt closed successfully');
+
+      // 2) Refresh balances (Batch)
+      await this.refreshBalancesFromOpenDebts(apartmentId);
+
+      console.log('🎉 Debt closed and balances refreshed successfully!');
+      
+    } catch (error) {
+      console.error('❌ Debt closure failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Refresh balances from open debts
+   * This calculates net balances for all users based on open debts
+   */
+  async refreshBalancesFromOpenDebts(apartmentId: string): Promise<void> {
+    console.log('🔄 Refreshing balances from open debts for apartment:', apartmentId);
+
+    try {
+      // Get all open debts for this apartment
+      const q = query(
+        collection(db, 'debts'),
+        where('apartment_id', '==', apartmentId),
+        where('status', '==', 'open')
+      );
+      const openDebtsSnap = await getDocs(q);
+
+      // Get all apartment members to ensure we update everyone
+      const membersQuery = query(
+        collection(db, 'apartmentMembers'),
+        where('apartment_id', '==', apartmentId)
+      );
+      const membersSnap = await getDocs(membersQuery);
+      const allUids = new Set<string>();
+      membersSnap.forEach(d => allUids.add((d.data() as any).user_id));
+
+      // Calculate net balances
+      const net: Record<string, number> = {};
+      openDebtsSnap.forEach(d => {
+        const { from_user_id, to_user_id, amount } = d.data() as any;
+        net[from_user_id] = (net[from_user_id] || 0) - amount;
+        net[to_user_id] = (net[to_user_id] || 0) + amount;
+        allUids.add(from_user_id);
+        allUids.add(to_user_id);
+      });
+
+      console.log('📊 Calculated net balances:', net);
+
+      // Update all balances in batch
+      const batch = writeBatch(db);
+      for (const uid of allUids) {
+        const value = Number((net[uid] || 0).toFixed(2));
+        const balanceRef = doc(db, `balances/${apartmentId}/users/${uid}`);
+        batch.set(balanceRef, {
+          net: value,
+          has_open_debts: value !== 0,
+          updated_at: serverTimestamp(),
+        }, { merge: true });
+      }
+
+      await batch.commit();
+      console.log('✅ Balances updated successfully');
+
+    } catch (error) {
+      console.error('❌ Error refreshing balances:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Close debt without debtId - for cases where we want to create settlement without existing debt
+   * This creates a settlement record and refreshes balances
+   */
+  async closeDebtWithoutDebtId(
+    apartmentId: string,
+    { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
+  ): Promise<void> {
+    console.log('🚀 Starting debt settlement without debtId:', {
+      apartmentId,
+      payerUserId,
+      receiverUserId,
+      amount
+    });
+
+    try {
+      // Get current user
+      const currentUser = await firebaseAuth.getCurrentUser();
+      if (!currentUser?.localId) {
+        throw new Error('AUTH_REQUIRED');
+      }
+
+      const uid = currentUser.localId;
+
+      // Create settlement record and action log in transaction
+      await runTransaction(db, async (tx) => {
+        console.log('🔄 Transaction started, processing debt settlement...');
+
+        // Create settlement record
+        const settlementRef = doc(collection(db, 'debtSettlements'));
+        tx.set(settlementRef, {
+          apartment_id: apartmentId,
+          payer_user_id: payerUserId,
+          receiver_user_id: receiverUserId,
+          amount,
+          created_at: serverTimestamp(),
+        });
+
+        // Create action log
+        const actionRef = doc(collection(db, 'actions'));
+        tx.set(actionRef, {
+          apartment_id: apartmentId,
+          type: 'debt_closed',
+          actor_uid: uid,
+          created_at: serverTimestamp(),
+          amount,
+          payer_user_id: payerUserId,
+          receiver_user_id: receiverUserId,
+        });
+
+        console.log('✅ Transaction operations prepared successfully');
+      });
+
+      console.log('✅ Debt settlement created successfully');
+
+      // Refresh balances
+      await this.refreshBalancesFromOpenDebts(apartmentId);
+
+      console.log('🎉 Debt settlement completed and balances refreshed successfully!');
+      
+    } catch (error) {
+      console.error('❌ Debt settlement failed:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Simple debt settlement - only updates balances and creates action log
    * This is the minimal approach that doesn't touch the debts collection at all
    */
@@ -310,7 +527,7 @@ export class FirestoreSDKService {
       });
       
       // Add more specific error handling
-      if (error?.code === 'permission-denied') {
+      if (error.code === 'permission-denied') {
         console.error('🚫 PERMISSION DENIED - Check Firestore rules');
         console.error('🚫 User:', actorUid);
         console.error('🚫 Apartment:', apartmentId);

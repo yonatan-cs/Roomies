@@ -6,19 +6,6 @@
 import { FIRESTORE_BASE_URL, COLLECTIONS } from './firebase-config';
 import { firebaseAuth } from './firebase-auth';
 import { ChecklistItem } from '../types';
-import { 
-  doc, 
-  getDoc, 
-  runTransaction, 
-  serverTimestamp, 
-  collection, 
-  addDoc, 
-  writeBatch, 
-  query, 
-  where, 
-  getDocs 
-} from 'firebase/firestore';
-import { db } from './firebase-sdk';
 
 // --- Session helpers ---
 const authHeaders = (idToken: string) => ({
@@ -94,27 +81,36 @@ function H(idToken: string) {
 // Ensure we always have uid + idToken (try to restore session if missing from memory)
 export async function requireSession(): Promise<{ uid: string; idToken: string }> {
   try {
-    // Use SDK Auth instead of REST Auth to avoid mismatch
-    const { auth } = await import('./firebase-sdk');
+    // Try to get current user and token
+    const currentUser = await firebaseAuth.getCurrentUser();
+    const idToken = await firebaseAuth.getCurrentIdToken();
     
-    if (!auth.currentUser) {
-      console.log('❌ No current user in SDK Auth');
-      throw new Error('AUTH_REQUIRED');
+    if (currentUser?.localId && idToken) {
+      console.log('✅ Session available:', { 
+        uid: currentUser.localId, 
+        tokenPreview: idToken.substring(0, 20) + '...',
+        hasUid: !!currentUser.localId,
+        hasToken: !!idToken,
+        uidLength: currentUser.localId?.length || 0,
+        tokenLength: idToken?.length || 0
+      });
+      return { uid: currentUser.localId, idToken };
     }
     
-    const uid = auth.currentUser.uid;
-    const idToken = await auth.currentUser.getIdToken(true); // Force refresh
+    // If no current user, try to restore session
+    console.log('🔄 No current session, attempting to restore...');
+    const restoredUser = await firebaseAuth.restoreUserSession();
     
-    console.log('✅ SDK Session available:', { 
-      uid: uid, 
-      tokenPreview: idToken.substring(0, 20) + '...',
-      hasUid: !!uid,
-      hasToken: !!idToken,
-      uidLength: uid?.length || 0,
-      tokenLength: idToken?.length || 0
-    });
+    if (restoredUser?.localId) {
+      const restoredToken = await firebaseAuth.getCurrentIdToken();
+      if (restoredToken) {
+        console.log('✅ Session restored:', { uid: restoredUser.localId, tokenPreview: restoredToken.substring(0, 20) + '...' });
+        return { uid: restoredUser.localId, idToken: restoredToken };
+      }
+    }
     
-    return { uid, idToken };
+    console.log('❌ No valid session found');
+    throw new Error('AUTH_REQUIRED');
     
   } catch (error) {
     console.error('❌ Error in requireSession:', error);
@@ -308,13 +304,6 @@ export class FirestoreService {
       FirestoreService.instance = new FirestoreService();
     }
     return FirestoreService.instance;
-  }
-
-  /**
-   * Run a Firestore transaction
-   */
-  private async runTransaction(updateFunction: (transaction: any) => Promise<void>): Promise<void> {
-    return runTransaction(db, updateFunction);
   }
 
   /**
@@ -2677,230 +2666,6 @@ export class FirestoreService {
 
 
 
-
-  /**
-   * Close debt and refresh balances from client side using transactions
-   * This bypasses Cloud Functions and updates everything atomically from the client
-   */
-  async closeDebtAndRefreshBalances(
-    apartmentId: string,
-    debtId: string,
-    { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
-  ): Promise<void> {
-    const { uid, idToken } = await requireSession();
-    
-    if (!uid) throw new Error('UNAUTHENTICATED');
-
-    // 5) Verify user is properly authenticated - use same app
-    const { auth, assertSameProject } = await import('./firebase-sdk');
-    if (!auth.currentUser || auth.currentUser.uid !== uid) {
-      throw new Error('AUTH_MISMATCH: User not properly authenticated');
-    }
-    
-    // 6) Runtime project verification - this will catch the exact mismatch
-    await assertSameProject();
-    
-    console.log('✅ [closeDebtAndRefreshBalances] User authentication verified:', {
-      auth_uid: auth.currentUser.uid,
-      session_uid: uid,
-      auth_project: auth.app.options.projectId
-    });
-
-    // 1) Ensure apartment context matches - this is crucial for Firestore rules
-    await ensureCurrentApartmentIdMatches(apartmentId);
-
-    // 2) Verify context after ensure - read back and verify
-    const userSnap = await getDoc(doc(db, 'users', uid));
-    console.log('🔍 [closeDebtAndRefreshBalances] Current apartment context:', {
-      current_apartment_id: userSnap.data()?.current_apartment_id,
-      expected_apartment_id: apartmentId,
-      uid: uid
-    });
-
-    // 3) Verify membership exists
-    const membershipRef = doc(db, 'apartmentMembers', `${apartmentId}_${uid}`);
-    const membershipSnap = await getDoc(membershipRef);
-    if (!membershipSnap.exists()) {
-      throw new Error(`User ${uid} is not a member of apartment ${apartmentId}`);
-    }
-    console.log('✅ [closeDebtAndRefreshBalances] Membership verified');
-
-    console.log('🔒 [closeDebtAndRefreshBalances] Starting debt closure and balance refresh:', {
-      apartmentId,
-      debtId,
-      payerUserId,
-      receiverUserId,
-      amount,
-      actorUid: uid
-    });
-
-    // 4) Close debt - update only allowed fields
-    const debtRef = doc(db, 'debts', debtId);
-    const debtSnap = await getDoc(debtRef);
-    
-    if (!debtSnap.exists()) throw new Error('DEBT_NOT_FOUND');
-    const debt = debtSnap.data() as any;
-    if (debt.status !== 'open') throw new Error('ALREADY_CLOSED');
-    if (debt.apartment_id !== apartmentId) throw new Error('WRONG_APARTMENT');
-
-    // Update debt to closed - ONLY allowed fields: status|closed_at|closed_by
-    const { updateDoc } = await import('firebase/firestore');
-    await updateDoc(debtRef, {
-      status: 'closed',
-      closed_at: serverTimestamp(),
-      closed_by: uid,
-    });
-    console.log('✅ [closeDebtAndRefreshBalances] Debt closed successfully');
-
-    // 5) Create settlement record
-    const settlementRef = doc(collection(db, 'debtSettlements'));
-    await addDoc(collection(db, 'debtSettlements'), {
-      apartment_id: apartmentId,
-      payer_user_id: payerUserId,
-      receiver_user_id: receiverUserId,
-      amount,
-      created_at: serverTimestamp(),
-    });
-    console.log('✅ [closeDebtAndRefreshBalances] Settlement record created');
-
-    // 6) Create action log
-    await addDoc(collection(db, 'actions'), {
-      apartment_id: apartmentId,
-      type: 'debt_closed',
-      actor_uid: uid,
-      created_at: serverTimestamp(),
-      debt_id: debtId,
-      amount,
-      payer_user_id: payerUserId,
-      receiver_user_id: receiverUserId,
-    });
-    console.log('✅ [closeDebtAndRefreshBalances] Action log created');
-
-    // 2) Refresh balances (Batch)
-    await this.refreshBalancesFromOpenDebts(apartmentId);
-
-    console.log('✅ [closeDebtAndRefreshBalances] Debt closed and balances refreshed successfully');
-  }
-
-  /**
-   * Refresh balances from open debts using batch operations
-   */
-  private async refreshBalancesFromOpenDebts(apartmentId: string): Promise<void> {
-    const { idToken } = await requireSession();
-    
-    try {
-      // Get all open debts for this apartment
-      const queryBody = {
-        structuredQuery: {
-          from: [{ collectionId: 'debts' }],
-          where: {
-            compositeFilter: {
-              op: 'AND',
-              filters: [
-                {
-                  fieldFilter: {
-                    field: { fieldPath: 'apartment_id' },
-                    op: 'EQUAL',
-                    value: { stringValue: apartmentId }
-                  }
-                },
-                {
-                  fieldFilter: {
-                    field: { fieldPath: 'status' },
-                    op: 'EQUAL',
-                    value: { stringValue: 'open' }
-                  }
-                }
-              ]
-            }
-          }
-        }
-      };
-
-      const response = await fetch(`${FIRESTORE_BASE_URL}/debts:runQuery`, {
-        method: 'POST',
-        headers: authHeaders(idToken),
-        body: JSON.stringify(queryBody),
-      });
-
-      if (!response.ok) {
-        throw new Error(`GET_OPEN_DEBTS_${response.status}`);
-      }
-
-      const openDebtsData = await response.json();
-      const openDebts = openDebtsData.map((row: any) => row.document).filter(Boolean);
-
-      // Get all apartment members to ensure we update balances for all users
-      const membersResponse = await fetch(`${FIRESTORE_BASE_URL}/apartmentMembers:runQuery`, {
-        method: 'POST',
-        headers: authHeaders(idToken),
-        body: JSON.stringify({
-          structuredQuery: {
-            from: [{ collectionId: 'apartmentMembers' }],
-            where: {
-              fieldFilter: {
-                field: { fieldPath: 'apartment_id' },
-                op: 'EQUAL',
-                value: { stringValue: apartmentId }
-              }
-            }
-          }
-        }),
-      });
-
-      if (!membersResponse.ok) {
-        throw new Error(`GET_APARTMENT_MEMBERS_${membersResponse.status}`);
-      }
-
-      const membersData = await membersResponse.json();
-      const members = membersData.map((row: any) => row.document).filter(Boolean);
-      const allUids = new Set<string>();
-      members.forEach((member: any) => {
-        const userId = member.fields?.user_id?.stringValue;
-        if (userId) allUids.add(userId);
-      });
-
-      // Calculate net balances from open debts
-      const net: Record<string, number> = {};
-      openDebts.forEach((debt: any) => {
-        const fromUserId = debt.fields?.from_user_id?.stringValue;
-        const toUserId = debt.fields?.to_user_id?.stringValue;
-        const amount = parseFloat(debt.fields?.amount?.doubleValue || debt.fields?.amount?.integerValue || '0');
-        
-        if (fromUserId && toUserId) {
-          net[fromUserId] = (net[fromUserId] || 0) - amount;
-          net[toUserId] = (net[toUserId] || 0) + amount;
-          allUids.add(fromUserId);
-          allUids.add(toUserId);
-        }
-      });
-
-      // Update balances for all users - correct path: balances/{apartmentId}/users/{uid}
-      const batch = writeBatch(db);
-      for (const uid of allUids) {
-        const value = Number((net[uid] || 0).toFixed(2));
-        const balanceRef = doc(db, `balances/${apartmentId}/users/${uid}`);
-        console.log('🔍 [refreshBalancesFromOpenDebts] Updating balance:', {
-          path: `balances/${apartmentId}/users/${uid}`,
-          net: value,
-          has_open_debts: value !== 0
-        });
-        batch.set(balanceRef, {
-          net: value,
-          has_open_debts: value !== 0,
-          updated_at: serverTimestamp(),
-        }, { merge: true });
-      }
-      
-      await batch.commit();
-      
-      console.log('✅ [refreshBalancesFromOpenDebts] Balances updated successfully');
-      
-    } catch (error) {
-      console.error('❌ [refreshBalancesFromOpenDebts] Error refreshing balances:', error);
-      throw error;
-    }
-  }
 
   /**
    * Create a debt and then close it atomically using Cloud Function
