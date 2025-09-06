@@ -7,7 +7,6 @@ import { FIRESTORE_BASE_URL, COLLECTIONS } from './firebase-config';
 import { firebaseAuth } from './firebase-auth';
 import { ChecklistItem } from '../types';
 import { 
-  getFirestore, 
   doc, 
   getDoc, 
   runTransaction, 
@@ -19,9 +18,7 @@ import {
   where, 
   getDocs 
 } from 'firebase/firestore';
-
-// Initialize Firestore instance
-const db = getFirestore();
+import { db } from './firebase-sdk';
 
 // --- Session helpers ---
 const authHeaders = (idToken: string) => ({
