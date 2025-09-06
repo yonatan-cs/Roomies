@@ -132,9 +132,28 @@ export default function GroupDebtsScreen() {
   };
 
   const confirmSettlement = async () => {
-    const amount = parseFloat(settlementAmount);
-    if (!amount || amount <= 0 || amount > settlementOriginalAmount || isNaN(amount)) {
-      Alert.alert('שגיאה', 'הכנס סכום תקין');
+    console.log('🔍 [confirmSettlement] Debug values:', {
+      settlementAmount,
+      settlementAmountType: typeof settlementAmount,
+      settlementOriginalAmount,
+      settlementOriginalAmountType: typeof settlementOriginalAmount
+    });
+
+    // Use original amount if settlement amount is empty or invalid
+    const amountToUse = settlementAmount && settlementAmount.trim() !== '' ? settlementAmount : settlementOriginalAmount.toString();
+    const amount = parseFloat(amountToUse);
+    
+    console.log('🔍 [confirmSettlement] Parsed amount:', {
+      settlementAmount,
+      amountToUse,
+      amount,
+      amountType: typeof amount,
+      isNaN: isNaN(amount),
+      isFinite: isFinite(amount)
+    });
+
+    if (isNaN(amount) || !isFinite(amount) || amount <= 0 || amount > settlementOriginalAmount) {
+      Alert.alert('שגיאה', `הכנס סכום תקין. נוכחי: ${settlementAmount}, נדרש: 0-${settlementOriginalAmount}`);
       return;
     }
 
