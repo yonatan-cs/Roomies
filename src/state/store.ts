@@ -1340,6 +1340,10 @@ export const useStore = create<AppState>()(
             userId: currentUser.id
           });
 
+          // Ensure apartment context matches - this is crucial for Firestore rules
+          const { ensureCurrentApartmentIdMatches } = await import('../services/firestore-service');
+          await ensureCurrentApartmentIdMatches(currentApartment.id);
+
           // Create debt using Firestore SDK
           const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
           const { db } = await import('../services/firebase-sdk');
