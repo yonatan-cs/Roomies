@@ -2700,15 +2700,15 @@ export class FirestoreService {
     
     if (!uid) throw new Error('UNAUTHENTICATED');
 
-    // 5) Verify user is properly authenticated
-    const { getAuth } = await import('firebase/auth');
-    const auth = getAuth();
+    // 5) Verify user is properly authenticated - use same app
+    const { auth } = await import('./firebase-sdk');
     if (!auth.currentUser || auth.currentUser.uid !== uid) {
       throw new Error('AUTH_MISMATCH: User not properly authenticated');
     }
     console.log('✅ [closeDebtAndRefreshBalances] User authentication verified:', {
       auth_uid: auth.currentUser.uid,
-      session_uid: uid
+      session_uid: uid,
+      auth_project: auth.app.options.projectId
     });
 
     // 1) Ensure apartment context matches - this is crucial for Firestore rules

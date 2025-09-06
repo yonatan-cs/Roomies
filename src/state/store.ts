@@ -1340,15 +1340,15 @@ export const useStore = create<AppState>()(
             userId: currentUser.id
           });
 
-          // 5) Verify user is properly authenticated
-          const { getAuth } = await import('firebase/auth');
-          const auth = getAuth();
+          // 5) Verify user is properly authenticated - use same app
+          const { auth } = await import('../services/firebase-sdk');
           if (!auth.currentUser || auth.currentUser.uid !== currentUser.id) {
             throw new Error('AUTH_MISMATCH: User not properly authenticated');
           }
           console.log('✅ [createDebtForSettlement] User authentication verified:', {
             auth_uid: auth.currentUser.uid,
-            store_uid: currentUser.id
+            store_uid: currentUser.id,
+            auth_project: auth.app.options.projectId
           });
 
           // Ensure apartment context matches - this is crucial for Firestore rules

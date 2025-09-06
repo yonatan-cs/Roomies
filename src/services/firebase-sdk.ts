@@ -4,19 +4,23 @@
  * Used for transactions and other operations that require SDK features
  */
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator, setLogLevel } from 'firebase/firestore';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { firebaseConfig } from './firebase-config';
 
-// Initialize Firebase app
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase app - use existing app if available
+export const app: FirebaseApp = getApps()[0] ?? initializeApp(firebaseConfig);
 
-// Initialize Firestore
+// Initialize Firestore and Auth with the same app
 export const db = getFirestore(app);
-
-// Initialize Auth
 export const auth = getAuth(app);
+
+// 2) Debug check - both must be 'roomies-hub'
+console.log('🔍 Firebase App Debug:');
+console.log('auth project:', auth.app.options.projectId);
+console.log('db project:', db.app.options.projectId);
+console.log('app name:', app.name);
 
 // Enable debug logging for Firestore (helps debug Rules issues)
 if (__DEV__) {
