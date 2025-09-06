@@ -235,18 +235,18 @@ export class FirestoreSDKService {
   /**
    * Close debt and refresh balances - Complete solution using transactions
    * This properly closes the debt and updates balances in one atomic operation
+   * Amount is taken from the debt document itself, not from UI input
    */
   async closeDebtAndRefreshBalances(
     apartmentId: string,
     debtId: string,
-    { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
+    { payerUserId, receiverUserId }: { payerUserId: string; receiverUserId: string; }
   ): Promise<void> {
     console.log('🚀 Starting debt closure and balance refresh:', {
       apartmentId,
       debtId,
       payerUserId,
-      receiverUserId,
-      amount
+      receiverUserId
     });
 
     try {
@@ -279,6 +279,17 @@ export class FirestoreSDKService {
 
         console.log('📋 Current debt data:', debt);
 
+        // Get amount from document - support both amount_cents and amount fields
+        const amountCentsFromDoc = Number.isInteger(debt.amount_cents)
+          ? debt.amount_cents
+          : Math.round(Number(debt.amount ?? 0) * 100);
+
+        if (!Number.isInteger(amountCentsFromDoc) || amountCentsFromDoc <= 0) {
+          throw new Error(`INVALID_DEBT_AMOUNT_IN_DOC: ${debt.amount_cents || debt.amount}`);
+        }
+
+        console.log('💰 Amount from document:', { amountCentsFromDoc, originalAmount: debt.amount, originalAmountCents: debt.amount_cents });
+
         // Update debt to closed
         tx.update(debtRef, {
           status: 'closed',
@@ -292,7 +303,7 @@ export class FirestoreSDKService {
           apartment_id: apartmentId,
           payer_user_id: payerUserId,
           receiver_user_id: receiverUserId,
-          amount,
+          amount_cents: amountCentsFromDoc,
           created_at: serverTimestamp(),
         });
 
@@ -304,7 +315,7 @@ export class FirestoreSDKService {
           actor_uid: uid,
           created_at: serverTimestamp(),
           debt_id: debtId,
-          amount,
+          amount_cents: amountCentsFromDoc,
           payer_user_id: payerUserId,
           receiver_user_id: receiverUserId,
         });
@@ -386,14 +397,15 @@ export class FirestoreSDKService {
   /**
    * Close debt without debtId - for cases where we want to create settlement without existing debt
    * This creates a settlement record and refreshes balances
+   * Amount must be provided in cents (integer)
    */
   async closeDebtWithoutDebtId(
     apartmentId: string,
-    { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
+    { payerUserId, receiverUserId, amountCents }: { payerUserId: string; receiverUserId: string; amountCents: number; }
   ): Promise<void> {
     // Validate inputs
-    if (!amount || amount <= 0 || isNaN(amount)) {
-      throw new Error(`Invalid amount: ${amount}`);
+    if (!Number.isInteger(amountCents) || amountCents <= 0) {
+      throw new Error(`INVALID_AMOUNT_CENTS: ${amountCents}`);
     }
     if (!payerUserId || !receiverUserId) {
       throw new Error(`Invalid user IDs: payer=${payerUserId}, receiver=${receiverUserId}`);
@@ -406,8 +418,8 @@ export class FirestoreSDKService {
       apartmentId,
       payerUserId,
       receiverUserId,
-      amount,
-      amountType: typeof amount
+      amountCents,
+      amountType: typeof amountCents
     });
 
     try {
@@ -429,7 +441,7 @@ export class FirestoreSDKService {
           apartment_id: apartmentId,
           payer_user_id: payerUserId,
           receiver_user_id: receiverUserId,
-          amount,
+          amount_cents: amountCents,
           created_at: serverTimestamp(),
         });
 
@@ -440,7 +452,7 @@ export class FirestoreSDKService {
           type: 'debt_closed',
           actor_uid: uid,
           created_at: serverTimestamp(),
-          amount,
+          amount_cents: amountCents,
           payer_user_id: payerUserId,
           receiver_user_id: receiverUserId,
         });
