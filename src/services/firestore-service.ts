@@ -3157,9 +3157,6 @@ export class FirestoreService {
     const { idToken } = await requireSession();
     
     try {
-      // First, check for open debts directly
-      const hasOpenDebts = await this.checkUserHasOpenDebts(userId, apartmentId);
-      
       const balanceDocUrl = `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${userId}`;
       console.log('🔍 getUserBalanceForRemoval URL:', balanceDocUrl);
       
@@ -3169,12 +3166,12 @@ export class FirestoreService {
       });
 
       if (response.status === 404) {
-        // Balance document doesn't exist yet, check if there are open debts
-        console.log('ℹ️ getUserBalanceForRemoval: Balance document not found');
+        // Balance document doesn't exist yet, assume no debts
+        console.log('ℹ️ getUserBalanceForRemoval: Balance document not found, assuming no debts');
         return {
           netBalance: 0,
-          hasOpenDebts,
-          canBeRemoved: !hasOpenDebts
+          hasOpenDebts: false,
+          canBeRemoved: true
         };
       }
 
@@ -3195,6 +3192,9 @@ export class FirestoreService {
         fields.balance?.integerValue || 
         '0'
       );
+      
+      // Get has_open_debts from balances collection (this is the source of truth)
+      const hasOpenDebts = fields.has_open_debts?.booleanValue || false;
       
       // User can be removed if net balance is close to zero (±0.01) and no open debts
       const canBeRemoved = Math.abs(netBalance) <= 0.01 && !hasOpenDebts;
