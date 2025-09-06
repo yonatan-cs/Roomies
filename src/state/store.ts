@@ -1340,22 +1340,50 @@ export const useStore = create<AppState>()(
             userId: currentUser.id
           });
 
+          // 5) Verify user is properly authenticated
+          const { getAuth } = await import('firebase/auth');
+          const auth = getAuth();
+          if (!auth.currentUser || auth.currentUser.uid !== currentUser.id) {
+            throw new Error('AUTH_MISMATCH: User not properly authenticated');
+          }
+          console.log('✅ [createDebtForSettlement] User authentication verified:', {
+            auth_uid: auth.currentUser.uid,
+            store_uid: currentUser.id
+          });
+
           // Ensure apartment context matches - this is crucial for Firestore rules
           const { ensureCurrentApartmentIdMatches } = await import('../services/firestore-service');
           await ensureCurrentApartmentIdMatches(currentApartment.id);
 
-          // Create debt using Firestore SDK
-          const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+          // Verify context after ensure
+          const { getDoc, doc } = await import('firebase/firestore');
           const { db } = await import('../services/firebase-sdk');
+          const userSnap = await getDoc(doc(db, 'users', currentUser.id));
+          console.log('🔍 [createDebtForSettlement] Current apartment context:', {
+            current_apartment_id: userSnap.data()?.current_apartment_id,
+            expected_apartment_id: currentApartment.id,
+            uid: currentUser.id
+          });
+
+          // Verify membership exists
+          const membershipRef = doc(db, 'apartmentMembers', `${currentApartment.id}_${currentUser.id}`);
+          const membershipSnap = await getDoc(membershipRef);
+          if (!membershipSnap.exists()) {
+            throw new Error(`User ${currentUser.id} is not a member of apartment ${currentApartment.id}`);
+          }
+          console.log('✅ [createDebtForSettlement] Membership verified');
+
+          // Create debt using Firestore SDK - payload must match rules exactly
+          const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
           
           const debtRef = await addDoc(collection(db, 'debts'), {
-            apartment_id: currentApartment.id,
-            from_user_id: fromUserId,
-            to_user_id: toUserId,
-            amount: amount,
-            status: 'open',
-            created_at: serverTimestamp(),
-            description: description || 'חוב לסגירה'
+            apartment_id: currentApartment.id,           // string
+            from_user_id: fromUserId,                    // string
+            to_user_id: toUserId,                        // string
+            amount: Number(amount),                      // number אמיתי - לא string!
+            status: 'open',                              // חובה
+            created_at: serverTimestamp(),               // Timestamp, לא Date
+            description: description || 'חוב לסגירה'    // אופציונלי
           });
           
           console.log('✅ [createDebtForSettlement] Debt created successfully:', debtRef.id);

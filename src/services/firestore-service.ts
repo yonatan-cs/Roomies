@@ -2700,8 +2700,35 @@ export class FirestoreService {
     
     if (!uid) throw new Error('UNAUTHENTICATED');
 
-    // Ensure apartment context matches - this is crucial for Firestore rules
+    // 5) Verify user is properly authenticated
+    const { getAuth } = await import('firebase/auth');
+    const auth = getAuth();
+    if (!auth.currentUser || auth.currentUser.uid !== uid) {
+      throw new Error('AUTH_MISMATCH: User not properly authenticated');
+    }
+    console.log('✅ [closeDebtAndRefreshBalances] User authentication verified:', {
+      auth_uid: auth.currentUser.uid,
+      session_uid: uid
+    });
+
+    // 1) Ensure apartment context matches - this is crucial for Firestore rules
     await ensureCurrentApartmentIdMatches(apartmentId);
+
+    // 2) Verify context after ensure - read back and verify
+    const userSnap = await getDoc(doc(db, 'users', uid));
+    console.log('🔍 [closeDebtAndRefreshBalances] Current apartment context:', {
+      current_apartment_id: userSnap.data()?.current_apartment_id,
+      expected_apartment_id: apartmentId,
+      uid: uid
+    });
+
+    // 3) Verify membership exists
+    const membershipRef = doc(db, 'apartmentMembers', `${apartmentId}_${uid}`);
+    const membershipSnap = await getDoc(membershipRef);
+    if (!membershipSnap.exists()) {
+      throw new Error(`User ${uid} is not a member of apartment ${apartmentId}`);
+    }
+    console.log('✅ [closeDebtAndRefreshBalances] Membership verified');
 
     console.log('🔒 [closeDebtAndRefreshBalances] Starting debt closure and balance refresh:', {
       apartmentId,
@@ -2712,46 +2739,47 @@ export class FirestoreService {
       actorUid: uid
     });
 
-    // 1) Close debt in transaction
-    await this.runTransaction(async (tx) => {
-      const debtRef = doc(db, 'debts', debtId);
-      const debtSnap = await tx.get(debtRef);
-      
-      if (!debtSnap.exists()) throw new Error('DEBT_NOT_FOUND');
-      const debt = debtSnap.data() as any;
-      if (debt.status !== 'open') throw new Error('ALREADY_CLOSED');
-      if (debt.apartment_id !== apartmentId) throw new Error('WRONG_APARTMENT');
+    // 4) Close debt - update only allowed fields
+    const debtRef = doc(db, 'debts', debtId);
+    const debtSnap = await getDoc(debtRef);
+    
+    if (!debtSnap.exists()) throw new Error('DEBT_NOT_FOUND');
+    const debt = debtSnap.data() as any;
+    if (debt.status !== 'open') throw new Error('ALREADY_CLOSED');
+    if (debt.apartment_id !== apartmentId) throw new Error('WRONG_APARTMENT');
 
-      // Update debt to closed
-      tx.update(debtRef, {
-        status: 'closed',
-        closed_at: serverTimestamp(),
-        closed_by: uid,
-      });
-
-      // Create settlement record
-      const settlementRef = doc(collection(db, 'debtSettlements'));
-      tx.set(settlementRef, {
-        apartment_id: apartmentId,
-        payer_user_id: payerUserId,
-        receiver_user_id: receiverUserId,
-        amount,
-        created_at: serverTimestamp(),
-      });
-
-      // Create action log
-      const actionRef = doc(collection(db, 'actions'));
-      tx.set(actionRef, {
-        apartment_id: apartmentId,
-        type: 'debt_closed',
-        actor_uid: uid,
-        created_at: serverTimestamp(),
-        debt_id: debtId,
-        amount,
-        payer_user_id: payerUserId,
-        receiver_user_id: receiverUserId,
-      });
+    // Update debt to closed - ONLY allowed fields: status|closed_at|closed_by
+    const { updateDoc } = await import('firebase/firestore');
+    await updateDoc(debtRef, {
+      status: 'closed',
+      closed_at: serverTimestamp(),
+      closed_by: uid,
     });
+    console.log('✅ [closeDebtAndRefreshBalances] Debt closed successfully');
+
+    // 5) Create settlement record
+    const settlementRef = doc(collection(db, 'debtSettlements'));
+    await addDoc(collection(db, 'debtSettlements'), {
+      apartment_id: apartmentId,
+      payer_user_id: payerUserId,
+      receiver_user_id: receiverUserId,
+      amount,
+      created_at: serverTimestamp(),
+    });
+    console.log('✅ [closeDebtAndRefreshBalances] Settlement record created');
+
+    // 6) Create action log
+    await addDoc(collection(db, 'actions'), {
+      apartment_id: apartmentId,
+      type: 'debt_closed',
+      actor_uid: uid,
+      created_at: serverTimestamp(),
+      debt_id: debtId,
+      amount,
+      payer_user_id: payerUserId,
+      receiver_user_id: receiverUserId,
+    });
+    console.log('✅ [closeDebtAndRefreshBalances] Action log created');
 
     // 2) Refresh balances (Batch)
     await this.refreshBalancesFromOpenDebts(apartmentId);
@@ -2852,11 +2880,16 @@ export class FirestoreService {
         }
       });
 
-      // Update balances for all users
+      // Update balances for all users - correct path: balances/{apartmentId}/users/{uid}
       const batch = writeBatch(db);
       for (const uid of allUids) {
         const value = Number((net[uid] || 0).toFixed(2));
         const balanceRef = doc(db, `balances/${apartmentId}/users/${uid}`);
+        console.log('🔍 [refreshBalancesFromOpenDebts] Updating balance:', {
+          path: `balances/${apartmentId}/users/${uid}`,
+          net: value,
+          has_open_debts: value !== 0
+        });
         batch.set(balanceRef, {
           net: value,
           has_open_debts: value !== 0,
