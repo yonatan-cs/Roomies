@@ -19,7 +19,7 @@ function validateSettlementInput(body: any) {
  * Cloud Function for creating and closing a debt atomically
  * This is for the current system that doesn't have existing debts
  */
-export const createAndCloseDebt = functions.https.onCall(async (data: any, context: any) => {
+export const createAndCloseDebt = functions.https.onCall(async (data, context) => {
   // Validate authentication
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -43,7 +43,7 @@ export const createAndCloseDebt = functions.https.onCall(async (data: any, conte
     console.log(`[${logId}] Starting debt creation and closure:`, { fromUserId, toUserId, amount, apartmentId, actorUid });
 
     // Perform all operations in a single transaction
-    const result = await db.runTransaction(async (transaction: any) => {
+    const result = await db.runTransaction(async (transaction) => {
       // 1. Check membership
       const membershipRef = db.collection('apartmentMembers').doc(`${apartmentId}_${actorUid}`);
       const membershipDoc = await transaction.get(membershipRef);
@@ -180,7 +180,7 @@ export const createAndCloseDebt = functions.https.onCall(async (data: any, conte
  *   - updates debt with closed=true, closedAt, settlementExpenseId
  *   - writes audit log
  */
-export const settleDebtByCreatingHiddenExpense = functions.https.onCall(async (data: any, context: any) => {
+export const settleDebtByCreatingHiddenExpense = functions.https.onCall(async (data, context) => {
   // auth check
   if (!context.auth || !context.auth.uid) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -200,7 +200,7 @@ export const settleDebtByCreatingHiddenExpense = functions.https.onCall(async (d
   const auditCol = db.collection(`apartments/${aptId}/audit_logs`);
 
   try {
-    await db.runTransaction(async (t: any) => {
+    await db.runTransaction(async (t) => {
       const debtSnap = await t.get(debtRef);
       if (!debtSnap.exists) {
         throw new functions.https.HttpsError('not-found', 'DEBT_NOT_FOUND');
@@ -286,7 +286,7 @@ export const settleDebtByCreatingHiddenExpense = functions.https.onCall(async (d
  */
 export const onApartmentMemberDeleted = functions.firestore
   .document('apartmentMembers/{memberId}')
-  .onDelete(async (snap: any, context: any) => {
+  .onDelete(async (snap, context) => {
     const memberId = context.params.memberId;
     console.log(`🗑️ Apartment member deleted: ${memberId}`);
     
@@ -322,122 +322,3 @@ export const onApartmentMemberDeleted = functions.firestore
       // Don't throw - this is a background function
     }
   });
-
-/**
- * Recompute balances from open debts only
- * This is the source of truth for balance calculations
- */
-async function recomputeBalances(apartmentId: string) {
-  const db = admin.firestore();
-  
-  console.log(`🔄 [recomputeBalances] Starting balance recomputation for apartment ${apartmentId}`);
-  
-  try {
-    // Get all open debts for this apartment
-    const debtsSnap = await db.collection('debts')
-      .where('apartment_id', '==', apartmentId)
-      .where('status', '==', 'open')
-      .get();
-
-    console.log(`🔄 [recomputeBalances] Found ${debtsSnap.size} open debts`);
-
-    const net: Record<string, number> = {};
-    const hasOpen: Record<string, boolean> = {};
-
-    // Process each open debt
-    debtsSnap.forEach((doc: any) => {
-      const debt = doc.data();
-      const { from_user_id, to_user_id, amount } = debt;
-      
-      if (!net[from_user_id]) net[from_user_id] = 0;
-      if (!net[to_user_id]) net[to_user_id] = 0;
-      
-      // Debtor owes money (negative balance)
-      net[from_user_id] -= amount;
-      // Creditor is owed money (positive balance)
-      net[to_user_id] += amount;
-
-      // Mark both users as having open debts
-      hasOpen[from_user_id] = true;
-      hasOpen[to_user_id] = true;
-    });
-
-    console.log(`🔄 [recomputeBalances] Calculated balances:`, net);
-    console.log(`🔄 [recomputeBalances] Users with open debts:`, hasOpen);
-
-    // Write balances to Firestore
-    const batch = db.batch();
-    const usersSet = new Set(Object.keys(net).concat(Object.keys(hasOpen)));
-    
-    for (const uid of usersSet) {
-      const docRef = db.doc(`balances/${apartmentId}/users/${uid}`);
-      batch.set(docRef, {
-        net: Number((net[uid] || 0).toFixed(2)),
-        has_open_debts: !!hasOpen[uid],
-        updated_at: admin.firestore.FieldValue.serverTimestamp(),
-        apartment_id: apartmentId,
-        user_id: uid
-      }, { merge: true });
-    }
-
-    await batch.commit();
-    console.log(`✅ [recomputeBalances] Successfully updated balances for ${usersSet.size} users`);
-    
-  } catch (error) {
-    console.error(`❌ [recomputeBalances] Error recomputing balances:`, error);
-    throw error;
-  }
-}
-
-/**
- * Trigger on debt changes to recompute balances
- */
-export const onDebtWrite = functions.firestore
-  .document('debts/{debtId}')
-  .onWrite(async (change: any, context: any) => {
-    const after = change.after.exists ? change.after.data() : null;
-    const before = change.before.exists ? change.before.data() : null;
-    
-    // Get apartment ID from either the new or old document
-    const apartmentId = (after || before)?.apartment_id;
-    
-    if (!apartmentId) {
-      console.warn('⚠️ [onDebtWrite] No apartment_id found in debt document');
-      return;
-    }
-
-    console.log(`🔄 [onDebtWrite] Debt changed for apartment ${apartmentId}, recomputing balances`);
-    
-    try {
-      await recomputeBalances(apartmentId);
-    } catch (error) {
-      console.error(`❌ [onDebtWrite] Error recomputing balances:`, error);
-    }
-  });
-
-/**
- * Callable function to manually recompute balances
- * Useful for refreshing balances before member removal
- */
-export const recomputeBalancesCallable = functions.https.onCall(
-  async ({ apartmentId }: any, context: any) => {
-    // Validate authentication
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'AUTH_REQUIRED');
-    }
-
-    if (!apartmentId) {
-      throw new functions.https.HttpsError('invalid-argument', 'APARTMENT_ID_REQUIRED');
-    }
-
-    console.log(`🔄 [recomputeBalancesCallable] Manual balance recomputation requested for apartment ${apartmentId} by user ${context.auth.uid}`);
-
-    try {
-      await recomputeBalances(apartmentId);
-      return { success: true, message: 'Balances recomputed successfully' };
-    } catch (error) {
-      console.error(`❌ [recomputeBalancesCallable] Error:`, error);
-      throw new functions.https.HttpsError('internal', 'Failed to recompute balances');
-    }
-  }
-);

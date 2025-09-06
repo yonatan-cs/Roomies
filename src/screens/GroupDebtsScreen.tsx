@@ -44,6 +44,8 @@ export default function GroupDebtsScreen() {
     getRawBalances,
     getSimplifiedBalances, 
     createAndCloseDebtAtomic,
+    closeDebtAndRefreshBalances,
+    createDebtForSettlement,
     initializeDebtSystem,
     cleanupDebtSystem,
     loadExpenses
@@ -154,15 +156,17 @@ export default function GroupDebtsScreen() {
     setIsSettling(true);
 
     try {
-      // Use the new atomically transactional debt settlement that creates debts, monthlyExpenses, and updates balances
-      const result = await createAndCloseDebtAtomic(
-        settlementFromUser,
-        settlementToUser,
-        amount,
-        `סגירת חוב`
-      );
+      // First, create a debt in the debts collection
+      const debtId = await createDebtForSettlement(settlementFromUser, settlementToUser, amount);
+      
+      // Then close the debt and refresh balances
+      await closeDebtAndRefreshBalances(debtId, {
+        payerUserId: settlementFromUser,
+        receiverUserId: settlementToUser,
+        amount
+      });
 
-      console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully:', result);
+      console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully');
 
       setShowSettlementModal(false);
       setSettlementAmount('');
@@ -170,22 +174,16 @@ export default function GroupDebtsScreen() {
       setSettlementToUser('');
       setSettlementOriginalAmount(0);
       
-      // Show success message only after server confirms success
-      if (result.success) {
-        // Reload expenses to reflect the hidden debt settlement
-        await loadExpenses();
-        
-        const creditorName = getUserName(settlementToUser);
-        const debtorName = getUserName(settlementFromUser);
-        const amount = parseFloat(settlementAmount);
-        
-        Alert.alert(
-          'הצלחה', 
-          `החוב נסגר בהצלחה!\n\n${creditorName} קיבל ${formatCurrency(amount)} מ-${debtorName}`
-        );
-      } else {
-        Alert.alert('שגיאה', 'החוב לא נסגר בהצלחה');
-      }
+      // Reload expenses to reflect the settlement
+      await loadExpenses();
+      
+      const creditorName = getUserName(settlementToUser);
+      const debtorName = getUserName(settlementFromUser);
+      
+      Alert.alert(
+        'הצלחה', 
+        `החוב נסגר בהצלחה!\n\n${creditorName} קיבל ${formatCurrency(amount)} מ-${debtorName}`
+      );
       
     } catch (error: any) {
       console.error('❌ [GroupDebtsScreen] Error settling debt:', error);

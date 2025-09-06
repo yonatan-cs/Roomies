@@ -93,6 +93,8 @@ interface AppState {
 
   // Actions - Debts & Balances (Firestore-based system)
   createAndCloseDebtAtomic: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<{ success: boolean; debtId: string; expenseId: string; closedAt: string; }>;
+  closeDebtAndRefreshBalances: (debtId: string, { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }) => Promise<void>;
+  createDebtForSettlement: (fromUserId: string, toUserId: string, amount: number, description?: string) => Promise<string>;
   initializeDebtSystem: (apartmentId: string, userIds: string[]) => Promise<void>;
   cleanupDebtSystem: () => void;
 
@@ -1282,6 +1284,83 @@ export const useStore = create<AppState>()(
         }
       },
 
+      /**
+       * Close debt and refresh balances from client side
+       * This bypasses Cloud Functions and updates everything atomically
+       */
+      closeDebtAndRefreshBalances: async (
+        debtId: string,
+        { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
+      ) => {
+        try {
+          const { currentUser, currentApartment } = get();
+          if (!currentUser || !currentApartment) {
+            throw new Error('AUTH_REQUIRED');
+          }
+
+          console.log('🔒 [closeDebtAndRefreshBalances] Starting debt closure and balance refresh:', {
+            debtId,
+            payerUserId,
+            receiverUserId,
+            amount,
+            apartmentId: currentApartment.id,
+            userId: currentUser.id
+          });
+
+          // Use the new client-side debt closing function
+          await firestoreService.closeDebtAndRefreshBalances(
+            currentApartment.id,
+            debtId,
+            { payerUserId, receiverUserId, amount }
+          );
+          
+          console.log('✅ [closeDebtAndRefreshBalances] Debt closed and balances refreshed successfully');
+        } catch (error) {
+          console.error('❌ [closeDebtAndRefreshBalances] Error closing debt and refreshing balances:', error);
+          throw error;
+        }
+      },
+
+      /**
+       * Create a debt for settlement purposes
+       */
+      createDebtForSettlement: async (fromUserId: string, toUserId: string, amount: number, description?: string) => {
+        try {
+          const { currentUser, currentApartment } = get();
+          if (!currentUser || !currentApartment) {
+            throw new Error('AUTH_REQUIRED');
+          }
+
+          console.log('🔒 [createDebtForSettlement] Creating debt for settlement:', {
+            fromUserId,
+            toUserId,
+            amount,
+            description,
+            apartmentId: currentApartment.id,
+            userId: currentUser.id
+          });
+
+          // Create debt using Firestore SDK
+          const { getFirestore, collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+          const db = getFirestore();
+          
+          const debtRef = await addDoc(collection(db, 'debts'), {
+            apartment_id: currentApartment.id,
+            from_user_id: fromUserId,
+            to_user_id: toUserId,
+            amount: amount,
+            status: 'open',
+            created_at: serverTimestamp(),
+            description: description || 'חוב לסגירה'
+          });
+          
+          console.log('✅ [createDebtForSettlement] Debt created successfully:', debtRef.id);
+          return debtRef.id;
+        } catch (error) {
+          console.error('❌ [createDebtForSettlement] Error creating debt:', error);
+          throw error;
+        }
+      },
 
       /**
        * Initialize the new debt system with real-time listeners
