@@ -2700,6 +2700,9 @@ export class FirestoreService {
     
     if (!uid) throw new Error('UNAUTHENTICATED');
 
+    // Ensure apartment context matches - this is crucial for Firestore rules
+    await ensureCurrentApartmentIdMatches(apartmentId);
+
     console.log('🔒 [closeDebtAndRefreshBalances] Starting debt closure and balance refresh:', {
       apartmentId,
       debtId,
