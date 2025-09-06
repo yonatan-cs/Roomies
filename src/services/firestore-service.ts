@@ -2084,7 +2084,14 @@ export class FirestoreService {
     try {
       console.log(`🗑️ Removing member ${targetUserId} from apartment ${apartmentId} by ${actorUserId}`);
       
-      // First, check if the user can be removed (balance validation)
+      // First, recompute balances to ensure we have the latest state
+      console.log('🔄 Recomputing balances before member removal...');
+      await this.recomputeBalances(apartmentId);
+      
+      // Wait a moment for the balances to be updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Now check if the user can be removed (balance validation)
       const balanceData = await this.getUserBalanceForRemoval(targetUserId, apartmentId);
       
       if (!balanceData.canBeRemoved) {
@@ -2669,7 +2676,7 @@ export class FirestoreService {
 
   /**
    * Create a debt and then close it atomically using Cloud Function
-   * This uses the new approach with hidden expense settlement
+   * This uses the existing createAndCloseDebt Cloud Function that properly handles debts collection
    */
   async createAndCloseDebtAtomic(fromUserId: string, toUserId: string, amount: number, description?: string): Promise<{
     success: boolean;
@@ -2686,7 +2693,7 @@ export class FirestoreService {
         throw new Error('APARTMENT_NOT_FOUND');
       }
 
-      console.log('🔒 [createAndCloseDebtAtomic] Using new hidden expense approach:', { 
+      console.log('🔒 [createAndCloseDebtAtomic] Using Cloud Function createAndCloseDebt:', { 
         fromUserId, 
         toUserId, 
         amount, 
@@ -2695,99 +2702,42 @@ export class FirestoreService {
         actorUid: uid 
       });
 
-      // Simply create a hidden expense to balance the debt
-      const monthKey = new Date().toISOString().substring(0, 7);
-      const expenseId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Use the existing Cloud Function that properly creates and closes debts
+      const functionUrl = `https://us-central1-roomies-hub.cloudfunctions.net/createAndCloseDebt`;
       
-      console.log('🔒 [createAndCloseDebtAtomic] Creating hidden expense:', {
+      const requestData = {
         fromUserId,
         toUserId,
         amount,
-        amountDoubled: amount * 2,
+        description: description || 'סגירת חוב',
         apartmentId: aptId,
-        monthKey,
-        expenseId
-      });
-      
-      // Create the hidden expense directly via REST API
-      const expenseData = {
-        fields: {
-          apartment_id: { stringValue: aptId },
-          amount: { doubleValue: amount * 2 }, // Double the debt amount for settlement
-          title: { stringValue: `סגירת חוב - ${description || 'חוב'}` },
-          paid_by_user_id: { stringValue: fromUserId }, // The debtor pays (as you requested)
-          participants: { arrayValue: { values: [{ stringValue: fromUserId }, { stringValue: toUserId }] } },
-          category: { stringValue: 'debt_settlement' },
-          created_at: { timestampValue: new Date().toISOString() },
-          created_by: { stringValue: uid },
-          note: { stringValue: `HIDDEN_DEBT_SETTLEMENT_${fromUserId}_${toUserId}_${Date.now()}` } // Hidden marker
-        }
+        actorUid: uid
       };
 
-      const expenseUrl = `${FIRESTORE_BASE_URL}/expenses`;
-      
-      console.log('🔒 [createAndCloseDebtAtomic] Making request to:', expenseUrl);
-      console.log('🔒 [createAndCloseDebtAtomic] Request data:', JSON.stringify(expenseData, null, 2));
-      
-      const expenseResponse = await fetch(expenseUrl, {
+      console.log('🔒 [createAndCloseDebtAtomic] Calling Cloud Function:', functionUrl);
+      console.log('🔒 [createAndCloseDebtAtomic] Request data:', requestData);
+
+      const response = await fetch(functionUrl, {
         method: 'POST',
-        headers: authHeaders(idToken),
-        body: JSON.stringify(expenseData)
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify(requestData)
       });
 
-      console.log('🔒 [createAndCloseDebtAtomic] Response status:', expenseResponse.status);
-      console.log('🔒 [createAndCloseDebtAtomic] Response headers:', Object.fromEntries(expenseResponse.headers.entries()));
+      console.log('🔒 [createAndCloseDebtAtomic] Response status:', response.status);
 
-      if (!expenseResponse.ok) {
-        const errorText = await expenseResponse.text();
-        console.error('❌ [createAndCloseDebtAtomic] Error response:', errorText);
-        throw new Error(`Failed to create hidden expense: ${expenseResponse.status} - ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ [createAndCloseDebtAtomic] Cloud Function error:', errorText);
+        throw new Error(`Cloud Function failed: ${response.status} - ${errorText}`);
       }
 
-      // Now create a visible expense to show the debt settlement in the UI
-      const visibleExpenseId = `exp_visible_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const visibleExpenseData = {
-        fields: {
-          apartment_id: { stringValue: aptId },
-          amount: { doubleValue: 0 }, // Zero amount - just for display
-          title: { stringValue: `סגירת חוב` },
-          paid_by_user_id: { stringValue: fromUserId }, // The debtor
-          participants: { arrayValue: { values: [{ stringValue: fromUserId }, { stringValue: toUserId }] } },
-          category: { stringValue: 'debt_settlement' },
-          created_at: { timestampValue: new Date().toISOString() },
-          created_by: { stringValue: uid },
-          note: { stringValue: `DEBT_SETTLEMENT_MESSAGE_${amount}` } // Special marker for debt settlement message
-        }
-      };
-
-      const visibleExpenseResponse = await fetch(`${FIRESTORE_BASE_URL}/expenses`, {
-        method: 'POST',
-        headers: authHeaders(idToken),
-        body: JSON.stringify(visibleExpenseData)
-      });
-
-      if (!visibleExpenseResponse.ok) {
-        const errorText = await visibleExpenseResponse.text();
-        console.error('❌ [createAndCloseDebtAtomic] Error creating visible expense:', errorText);
-        // Don't throw error here - the hidden expense was created successfully
-      }
-
-      const result = {
-        success: true,
-        debtId: `virtual_debt_${Date.now()}`,
-        expenseId: expenseId,
-        closedAt: new Date().toISOString()
-      };
-
-      console.log('✅ [createAndCloseDebtAtomic] Hidden expense created successfully:', result);
+      const result = await response.json();
+      console.log('✅ [createAndCloseDebtAtomic] Cloud Function success:', result);
       
-      return result as {
-        success: boolean;
-        debtId: string;
-        expenseId: string;
-        closedAt: string;
-        logId?: string;
-      };
+      return result;
 
     } catch (error: any) {
       console.error('❌ [createAndCloseDebtAtomic] Cloud Function failed:', error);
@@ -3115,6 +3065,39 @@ export class FirestoreService {
         hasOpenDebts: true,
         canBeRemoved: false
       };
+    }
+  }
+
+  /**
+   * Recompute balances by calling the Cloud Function
+   */
+  async recomputeBalances(apartmentId: string): Promise<void> {
+    const { idToken } = await requireSession();
+    
+    try {
+      const functionUrl = `https://us-central1-roomies-hub.cloudfunctions.net/recomputeBalancesCallable`;
+      
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({ apartmentId })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ recomputeBalances failed:', response.status, errorText);
+        throw new Error(`Failed to recompute balances: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ recomputeBalances success:', result);
+      
+    } catch (error) {
+      console.error('❌ Error recomputing balances:', error);
+      throw error;
     }
   }
 
