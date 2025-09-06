@@ -2081,6 +2081,8 @@ export class FirestoreService {
    * Only allows removal if user has zero balance and no open debts
    */
   async removeApartmentMember(apartmentId: string, targetUserId: string, actorUserId: string): Promise<void> {
+    const { idToken } = await requireSession();
+    
     try {
       console.log(`🗑️ Removing member ${targetUserId} from apartment ${apartmentId} by ${actorUserId}`);
       
@@ -2096,12 +2098,34 @@ export class FirestoreService {
       
       const memberId = `${apartmentId}_${targetUserId}`;
       
-      // Remove membership record
+      // Step 1: Remove membership record
       console.log('🗑️ Removing apartment membership record...');
       await this.deleteDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
       console.log('✅ Membership record removed');
       
-      // Log the removal action for audit trail
+      // Step 2: Reset current_apartment_id to null (only allowed after membership is deleted)
+      console.log('🔄 Resetting current_apartment_id to null...');
+      const userUpdateUrl = `${FIRESTORE_BASE_URL}/users/${targetUserId}?updateMask.fieldPaths=current_apartment_id`;
+      const userUpdateResponse = await fetch(userUpdateUrl, {
+        method: 'PATCH',
+        headers: authHeaders(idToken),
+        body: JSON.stringify({
+          fields: { current_apartment_id: { nullValue: null } }
+        })
+      });
+      
+      if (!userUpdateResponse.ok) {
+        const errorText = await userUpdateResponse.text().catch(() => '');
+        console.error('❌ Error resetting current_apartment_id:', errorText);
+        // Don't throw - membership was already removed
+      } else {
+        console.log('✅ current_apartment_id reset to null');
+      }
+      
+      // Step 3: Clean up all references to the removed member
+      await this.cleanupRemovedMember(apartmentId, targetUserId, actorUserId);
+      
+      // Step 4: Log the removal action for audit trail (optional, doesn't block)
       await this.logMemberRemovalAction(apartmentId, targetUserId, actorUserId);
       
       console.log('✅ Member removed successfully');
@@ -2113,24 +2137,264 @@ export class FirestoreService {
   }
 
   /**
+   * Clean up all references to a removed member
+   * This prevents "ghost" references in highlights, cleaning rotation, etc.
+   */
+  private async cleanupRemovedMember(apartmentId: string, removedUserId: string, actorUserId: string): Promise<void> {
+    try {
+      console.log(`🧹 Cleaning up references to removed member ${removedUserId}`);
+      
+      // 1. Clean up cleaning rotation
+      await this.cleanupCleaningRotation(apartmentId, removedUserId);
+      
+      // 2. Clean up balances document (optional - can keep for audit)
+      await this.cleanupBalancesDocument(apartmentId, removedUserId);
+      
+      // 3. Clean up shopping list references
+      await this.cleanupShoppingListReferences(apartmentId, removedUserId);
+      
+      console.log('✅ Member cleanup completed');
+      
+    } catch (error) {
+      console.error('⚠️ Error during member cleanup:', error);
+      // Don't throw - cleanup is not critical for the main operation
+    }
+  }
+
+  /**
+   * Clean up cleaning rotation to remove the removed member
+   */
+  private async cleanupCleaningRotation(apartmentId: string, removedUserId: string): Promise<void> {
+    try {
+      const { idToken } = await requireSession();
+      
+      // Get current cleaning task
+      const taskUrl = `${FIRESTORE_BASE_URL}/cleaningTasks/${apartmentId}`;
+      const response = await fetch(taskUrl, {
+        method: 'GET',
+        headers: authHeaders(idToken),
+      });
+      
+      if (!response.ok) {
+        console.log('ℹ️ No cleaning task found, skipping rotation cleanup');
+        return;
+      }
+      
+      const taskDoc = await response.json();
+      const fields = taskDoc.fields || {};
+      
+      // Get current rotation and index
+      const rotation = fields.rotation?.arrayValue?.values?.map((v: any) => v.stringValue) || [];
+      const currentIndex = parseInt(fields.current_index?.integerValue || '0');
+      
+      // Remove the removed user from rotation
+      const newRotation = rotation.filter((uid: string) => uid !== removedUserId);
+      
+      // Adjust current index if needed
+      let newIndex = currentIndex;
+      if (newIndex >= newRotation.length) {
+        newIndex = 0; // wrap-around
+      } else if (newIndex > 0 && rotation[newIndex] === removedUserId) {
+        // If the removed user was the current one, keep the same index
+        // (the next person in line will be at the same index now)
+      }
+      
+      // Update the cleaning task
+      const updateUrl = `${FIRESTORE_BASE_URL}/cleaningTasks/${apartmentId}?updateMask.fieldPaths=rotation&updateMask.fieldPaths=current_index`;
+      const updateResponse = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: authHeaders(idToken),
+        body: JSON.stringify({
+          fields: {
+            rotation: {
+              arrayValue: {
+                values: newRotation.map((uid: string) => ({ stringValue: uid }))
+              }
+            },
+            current_index: { integerValue: newIndex.toString() }
+          }
+        })
+      });
+      
+      if (updateResponse.ok) {
+        console.log('✅ Cleaning rotation updated, removed member cleaned up');
+      } else {
+        console.error('⚠️ Failed to update cleaning rotation');
+      }
+      
+    } catch (error) {
+      console.error('⚠️ Error cleaning up cleaning rotation:', error);
+    }
+  }
+
+  /**
+   * Clean up balances document (optional - can keep for audit trail)
+   */
+  private async cleanupBalancesDocument(apartmentId: string, removedUserId: string): Promise<void> {
+    try {
+      const { idToken } = await requireSession();
+      
+      // Delete the balances document for the removed user
+      const balanceUrl = `${FIRESTORE_BASE_URL}/balances/${apartmentId}/users/${removedUserId}`;
+      const response = await fetch(balanceUrl, {
+        method: 'DELETE',
+        headers: authHeaders(idToken),
+      });
+      
+      if (response.ok) {
+        console.log('✅ Balances document deleted for removed member');
+      } else if (response.status === 404) {
+        console.log('ℹ️ No balances document found for removed member');
+      } else {
+        console.error('⚠️ Failed to delete balances document');
+      }
+      
+    } catch (error) {
+      console.error('⚠️ Error cleaning up balances document:', error);
+    }
+  }
+
+  /**
+   * Clean up shopping list references
+   */
+  private async cleanupShoppingListReferences(apartmentId: string, removedUserId: string): Promise<void> {
+    try {
+      const { idToken } = await requireSession();
+      
+      // Query shopping list items that reference the removed user
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: 'shoppingList' }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'apartment_id' },
+                    op: 'EQUAL',
+                    value: { stringValue: apartmentId }
+                  }
+                },
+                {
+                  compositeFilter: {
+                    op: 'OR',
+                    filters: [
+                      {
+                        fieldFilter: {
+                          field: { fieldPath: 'added_by_user_id' },
+                          op: 'EQUAL',
+                          value: { stringValue: removedUserId }
+                        }
+                      },
+                      {
+                        fieldFilter: {
+                          field: { fieldPath: 'purchased_by_user_id' },
+                          op: 'EQUAL',
+                          value: { stringValue: removedUserId }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      };
+      
+      const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(queryBody),
+      });
+      
+      if (!response.ok) {
+        console.log('ℹ️ No shopping list items found for removed member');
+        return;
+      }
+      
+      const data = await response.json();
+      const items = data.map((row: any) => row.document).filter(Boolean);
+      
+      // Update items to remove references to the removed user
+      for (const item of items) {
+        const itemId = item.name.split('/').pop();
+        const fields = item.fields || {};
+        
+        // Update added_by_user_id to show "Unknown" or remove
+        if (fields.added_by_user_id?.stringValue === removedUserId) {
+          const updateUrl = `${FIRESTORE_BASE_URL}/shoppingList/${itemId}?updateMask.fieldPaths=added_by_user_id`;
+          await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: authHeaders(idToken),
+            body: JSON.stringify({
+              fields: {
+                added_by_user_id: { stringValue: 'unknown' }
+              }
+            })
+          });
+        }
+        
+        // Update purchased_by_user_id to show "Unknown" or remove
+        if (fields.purchased_by_user_id?.stringValue === removedUserId) {
+          const updateUrl = `${FIRESTORE_BASE_URL}/shoppingList/${itemId}?updateMask.fieldPaths=purchased_by_user_id`;
+          await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: authHeaders(idToken),
+            body: JSON.stringify({
+              fields: {
+                purchased_by_user_id: { stringValue: 'unknown' }
+              }
+            })
+          });
+        }
+      }
+      
+      if (items.length > 0) {
+        console.log(`✅ Updated ${items.length} shopping list items for removed member`);
+      } else {
+        console.log('ℹ️ No shopping list items found for removed member');
+      }
+      
+    } catch (error) {
+      console.error('⚠️ Error cleaning up shopping list references:', error);
+    }
+  }
+
+  /**
    * Log member removal action for audit trail
    */
   private async logMemberRemovalAction(apartmentId: string, removedUserId: string, actorUserId: string): Promise<void> {
     try {
+      const { idToken } = await requireSession();
+      
       const actionData = {
-        apartment_id: apartmentId,
-        type: 'member_removed',
-        removed_user_id: removedUserId,
-        actor_uid: actorUserId,
-        created_at: new Date().toISOString(),
-        note: 'Member removed from apartment'
+        fields: {
+          apartment_id: { stringValue: apartmentId },
+          type: { stringValue: 'member_removed' },
+          removed_user_id: { stringValue: removedUserId },
+          actor_uid: { stringValue: actorUserId },
+          created_at: { timestampValue: new Date().toISOString() },
+          note: { stringValue: 'Member removed from apartment' }
+        }
       };
       
-      await this.createDocument(COLLECTIONS.ACTIONS, actionData);
-      console.log('✅ Member removal action logged');
+      const response = await fetch(`${FIRESTORE_BASE_URL}/actions`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(actionData)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('⚠️ Could not log member removal action:', response.status, errorText);
+      } else {
+        console.log('✅ Member removal action logged');
+      }
     } catch (error) {
-      console.error('❌ Error logging member removal action:', error);
-      // Don't throw here - this is just for audit, not critical for the operation
+      console.error('⚠️ Could not log member removal action:', error);
+      // Don't throw - this is just a log, not critical for the operation
     }
   }
 
