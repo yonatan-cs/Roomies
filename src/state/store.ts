@@ -1341,10 +1341,14 @@ export const useStore = create<AppState>()(
           });
 
           // 5) Verify user is properly authenticated - use same app
-          const { auth } = await import('../services/firebase-sdk');
+          const { auth, assertSameProject } = await import('../services/firebase-sdk');
           if (!auth.currentUser || auth.currentUser.uid !== currentUser.id) {
             throw new Error('AUTH_MISMATCH: User not properly authenticated');
           }
+          
+          // 6) Runtime project verification - this will catch the exact mismatch
+          await assertSameProject();
+          
           console.log('✅ [createDebtForSettlement] User authentication verified:', {
             auth_uid: auth.currentUser.uid,
             store_uid: currentUser.id,
