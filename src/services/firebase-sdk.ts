@@ -28,7 +28,7 @@ if (__DEV__) {
 if (__DEV__ && process.env.EXPO_PUBLIC_USE_EMULATOR === 'true') {
   try {
     // Only connect if not already connected
-    if (!db._delegate._databaseId.projectId.includes('demo-')) {
+    if (!firebaseConfig.projectId?.includes('demo-')) {
       connectFirestoreEmulator(db, 'localhost', 8080);
       connectAuthEmulator(auth, 'http://localhost:9099');
       console.log('🔧 Connected to Firebase emulators');
