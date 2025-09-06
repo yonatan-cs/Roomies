@@ -3245,6 +3245,8 @@ export class FirestoreService {
           user_id: f.user_id?.stringValue ?? null, // Current turn user
           queue: (f.rotation?.arrayValue?.values || f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
           current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
+          assigned_at: f.assigned_at?.timestampValue ?? null,
+          frequency_days: f.frequency_days?.integerValue ? Number(f.frequency_days.integerValue) : 7,
           last_completed_at: f.last_completed_at?.timestampValue ?? null,
           last_completed_by: f.last_completed_by?.stringValue ?? null,
         };
