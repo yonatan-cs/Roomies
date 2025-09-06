@@ -14,7 +14,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { firestoreService } from '../services/firestore-service';
-import { firestoreSDKService } from '../services/firestore-sdk-service';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -44,6 +43,7 @@ export default function GroupDebtsScreen() {
     getBalances, 
     getRawBalances,
     getSimplifiedBalances, 
+    createAndCloseDebtAtomic,
     initializeDebtSystem,
     cleanupDebtSystem,
     loadExpenses
@@ -132,47 +132,37 @@ export default function GroupDebtsScreen() {
   };
 
   const confirmSettlement = async () => {
+    const amount = parseFloat(settlementAmount);
+    if (!amount || amount <= 0 || amount > settlementOriginalAmount) {
+      Alert.alert('שגיאה', 'הכנס סכום תקין');
+      return;
+    }
+
     // Prevent double-clicking
     if (isSettling) {
       return;
     }
 
+    console.log('🔍 [GroupDebtsScreen] Starting debt settlement:', {
+      fromUser: settlementFromUser,
+      toUser: settlementToUser,
+      amount,
+      currentUser: currentUser?.id,
+      currentApartment: currentApartment?.id
+    });
+
     setIsSettling(true);
 
     try {
-      // Normalize input amount to cents
-      const raw = String(settlementAmount ?? '').trim();
-      const normalized = raw.replace(/[^\d.,-]/g, '').replace(',', '.');
-      const amount = Number.parseFloat(normalized);
-      
-      if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error('INVALID_AMOUNT_INPUT');
-      }
-      
-      const amountCents = Math.round(amount * 100);
-
-      console.log('🔍 [GroupDebtsScreen] Starting debt settlement:', {
-        fromUser: settlementFromUser,
-        toUser: settlementToUser,
-        rawAmount: settlementAmount,
-        normalizedAmount: normalized,
+      // Use the new atomically transactional debt settlement that creates debts, monthlyExpenses, and updates balances
+      const result = await createAndCloseDebtAtomic(
+        settlementFromUser,
+        settlementToUser,
         amount,
-        amountCents,
-        currentUser: currentUser?.id,
-        currentApartment: currentApartment?.id
-      });
-
-      // Use the new debt settlement function that properly closes debts and updates balances
-      await firestoreSDKService.closeDebtWithoutDebtId(
-        currentApartment?.id!,
-        {
-          payerUserId: settlementFromUser,
-          receiverUserId: settlementToUser,
-          amountCents: amountCents
-        }
+        `סגירת חוב`
       );
 
-      console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully');
+      console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully:', result);
 
       setShowSettlementModal(false);
       setSettlementAmount('');
@@ -180,17 +170,22 @@ export default function GroupDebtsScreen() {
       setSettlementToUser('');
       setSettlementOriginalAmount(0);
       
-      // Reload expenses and balances to reflect the debt settlement
-      await loadExpenses();
-      await getBalances();
-      
-      const creditorName = getUserName(settlementToUser);
-      const debtorName = getUserName(settlementFromUser);
-      
-      Alert.alert(
-        'הצלחה', 
-        `החוב נסגר בהצלחה!\n\n${creditorName} קיבל ${formatCurrency(amount)} מ-${debtorName}`
-      );
+      // Show success message only after server confirms success
+      if (result.success) {
+        // Reload expenses to reflect the hidden debt settlement
+        await loadExpenses();
+        
+        const creditorName = getUserName(settlementToUser);
+        const debtorName = getUserName(settlementFromUser);
+        const amount = parseFloat(settlementAmount);
+        
+        Alert.alert(
+          'הצלחה', 
+          `החוב נסגר בהצלחה!\n\n${creditorName} קיבל ${formatCurrency(amount)} מ-${debtorName}`
+        );
+      } else {
+        Alert.alert('שגיאה', 'החוב לא נסגר בהצלחה');
+      }
       
     } catch (error: any) {
       console.error('❌ [GroupDebtsScreen] Error settling debt:', error);
