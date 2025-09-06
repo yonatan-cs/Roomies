@@ -2792,20 +2792,24 @@ export class FirestoreService {
         console.log('🔒 [createAndCloseDebtAtomic] Found existing debt, closing it:', debtId);
         
         // Close the debt by setting amount to 0 and status to closed
+        // Use updateMask to only update allowed fields (path B in rules)
+        const maskFields = ['status', 'closed_at', 'closed_by', 'amount', 'amount_cents'];
+        const mask = maskFields
+          .map(f => `updateMask.fieldPaths=${encodeURIComponent(f)}`)
+          .join('&');
+        
         const debtUpdateData = {
           fields: {
             status: { stringValue: 'closed' },
             closed_at: { timestampValue: new Date().toISOString() },
             closed_by: { stringValue: uid },
             amount: { doubleValue: 0 },
-            amount_cents: { integerValue: '0' },
-            apartment_id: { stringValue: aptId }, // Keep same to satisfy rules
-            from_user_id: { stringValue: fromUserId }, // Keep same to satisfy rules  
-            to_user_id: { stringValue: toUserId } // Keep same to satisfy rules
+            amount_cents: { integerValue: '0' }
+            // Don't send apartment_id/from_user_id/to_user_id - rules check they don't change
           }
         };
         
-        const debtUpdateUrl = `${FIRESTORE_BASE_URL}/debts/${debtId}`;
+        const debtUpdateUrl = `${FIRESTORE_BASE_URL}/debts/${debtId}?${mask}`;
         const debtUpdateResponse = await fetch(debtUpdateUrl, {
           method: 'PATCH',
           headers: authHeaders(idToken),
