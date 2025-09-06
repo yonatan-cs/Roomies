@@ -133,7 +133,7 @@ export default function GroupDebtsScreen() {
 
   const confirmSettlement = async () => {
     const amount = parseFloat(settlementAmount);
-    if (!amount || amount <= 0 || amount > settlementOriginalAmount) {
+    if (!amount || amount <= 0 || amount > settlementOriginalAmount || isNaN(amount)) {
       Alert.alert('שגיאה', 'הכנס סכום תקין');
       return;
     }
@@ -147,6 +147,9 @@ export default function GroupDebtsScreen() {
       fromUser: settlementFromUser,
       toUser: settlementToUser,
       amount,
+      amountType: typeof amount,
+      settlementAmount,
+      settlementOriginalAmount,
       currentUser: currentUser?.id,
       currentApartment: currentApartment?.id
     });

@@ -391,11 +391,23 @@ export class FirestoreSDKService {
     apartmentId: string,
     { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
   ): Promise<void> {
+    // Validate inputs
+    if (!amount || amount <= 0 || isNaN(amount)) {
+      throw new Error(`Invalid amount: ${amount}`);
+    }
+    if (!payerUserId || !receiverUserId) {
+      throw new Error(`Invalid user IDs: payer=${payerUserId}, receiver=${receiverUserId}`);
+    }
+    if (!apartmentId) {
+      throw new Error(`Invalid apartment ID: ${apartmentId}`);
+    }
+
     console.log('🚀 Starting debt settlement without debtId:', {
       apartmentId,
       payerUserId,
       receiverUserId,
-      amount
+      amount,
+      amountType: typeof amount
     });
 
     try {
