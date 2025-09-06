@@ -1341,8 +1341,8 @@ export const useStore = create<AppState>()(
           });
 
           // Create debt using Firestore SDK
-          const { getFirestore, collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-          const db = getFirestore();
+          const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+          const { db } = await import('../services/firebase-sdk');
           
           const debtRef = await addDoc(collection(db, 'debts'), {
             apartment_id: currentApartment.id,
