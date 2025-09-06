@@ -342,7 +342,7 @@ export default function CleaningScreen() {
                     'font-semibold text-lg text-center', 
                     turnCompleted ? 'text-gray-600' : (getCompletionPercentage() === 100 ? 'text-white' : 'text-gray-500')
                   )}>
-                    {turnCompleted ? 'ניקית במחזור זה! ✅' : (getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות')}
+                    {turnCompleted ? 'השלמת את הניקיון! ✅' : (getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות')}
                   </Text>
                 </Pressable>
               </>
