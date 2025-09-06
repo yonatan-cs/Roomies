@@ -6,6 +6,22 @@
 import { FIRESTORE_BASE_URL, COLLECTIONS } from './firebase-config';
 import { firebaseAuth } from './firebase-auth';
 import { ChecklistItem } from '../types';
+import { 
+  getFirestore, 
+  doc, 
+  getDoc, 
+  runTransaction, 
+  serverTimestamp, 
+  collection, 
+  addDoc, 
+  writeBatch, 
+  query, 
+  where, 
+  getDocs 
+} from 'firebase/firestore';
+
+// Initialize Firestore instance
+const db = getFirestore();
 
 // --- Session helpers ---
 const authHeaders = (idToken: string) => ({
@@ -304,6 +320,13 @@ export class FirestoreService {
       FirestoreService.instance = new FirestoreService();
     }
     return FirestoreService.instance;
+  }
+
+  /**
+   * Run a Firestore transaction
+   */
+  private async runTransaction(updateFunction: (transaction: any) => Promise<void>): Promise<void> {
+    return runTransaction(db, updateFunction);
   }
 
   /**
@@ -2084,14 +2107,7 @@ export class FirestoreService {
     try {
       console.log(`🗑️ Removing member ${targetUserId} from apartment ${apartmentId} by ${actorUserId}`);
       
-      // First, recompute balances to ensure we have the latest state
-      console.log('🔄 Recomputing balances before member removal...');
-      await this.recomputeBalances(apartmentId);
-      
-      // Wait a moment for the balances to be updated
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Now check if the user can be removed (balance validation)
+      // First, check if the user can be removed (balance validation)
       const balanceData = await this.getUserBalanceForRemoval(targetUserId, apartmentId);
       
       if (!balanceData.canBeRemoved) {
@@ -2675,8 +2691,192 @@ export class FirestoreService {
 
 
   /**
+   * Close debt and refresh balances from client side using transactions
+   * This bypasses Cloud Functions and updates everything atomically from the client
+   */
+  async closeDebtAndRefreshBalances(
+    apartmentId: string,
+    debtId: string,
+    { payerUserId, receiverUserId, amount }: { payerUserId: string; receiverUserId: string; amount: number; }
+  ): Promise<void> {
+    const { uid, idToken } = await requireSession();
+    
+    if (!uid) throw new Error('UNAUTHENTICATED');
+
+    console.log('🔒 [closeDebtAndRefreshBalances] Starting debt closure and balance refresh:', {
+      apartmentId,
+      debtId,
+      payerUserId,
+      receiverUserId,
+      amount,
+      actorUid: uid
+    });
+
+    // 1) Close debt in transaction
+    await this.runTransaction(async (tx) => {
+      const debtRef = doc(db, 'debts', debtId);
+      const debtSnap = await tx.get(debtRef);
+      
+      if (!debtSnap.exists()) throw new Error('DEBT_NOT_FOUND');
+      const debt = debtSnap.data() as any;
+      if (debt.status !== 'open') throw new Error('ALREADY_CLOSED');
+      if (debt.apartment_id !== apartmentId) throw new Error('WRONG_APARTMENT');
+
+      // Update debt to closed
+      tx.update(debtRef, {
+        status: 'closed',
+        closed_at: serverTimestamp(),
+        closed_by: uid,
+      });
+
+      // Create settlement record
+      const settlementRef = doc(collection(db, 'debtSettlements'));
+      tx.set(settlementRef, {
+        apartment_id: apartmentId,
+        payer_user_id: payerUserId,
+        receiver_user_id: receiverUserId,
+        amount,
+        created_at: serverTimestamp(),
+      });
+
+      // Create action log
+      const actionRef = doc(collection(db, 'actions'));
+      tx.set(actionRef, {
+        apartment_id: apartmentId,
+        type: 'debt_closed',
+        actor_uid: uid,
+        created_at: serverTimestamp(),
+        debt_id: debtId,
+        amount,
+        payer_user_id: payerUserId,
+        receiver_user_id: receiverUserId,
+      });
+    });
+
+    // 2) Refresh balances (Batch)
+    await this.refreshBalancesFromOpenDebts(apartmentId);
+
+    console.log('✅ [closeDebtAndRefreshBalances] Debt closed and balances refreshed successfully');
+  }
+
+  /**
+   * Refresh balances from open debts using batch operations
+   */
+  private async refreshBalancesFromOpenDebts(apartmentId: string): Promise<void> {
+    const { idToken } = await requireSession();
+    
+    try {
+      // Get all open debts for this apartment
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: 'debts' }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'apartment_id' },
+                    op: 'EQUAL',
+                    value: { stringValue: apartmentId }
+                  }
+                },
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'status' },
+                    op: 'EQUAL',
+                    value: { stringValue: 'open' }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      };
+
+      const response = await fetch(`${FIRESTORE_BASE_URL}/debts:runQuery`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(queryBody),
+      });
+
+      if (!response.ok) {
+        throw new Error(`GET_OPEN_DEBTS_${response.status}`);
+      }
+
+      const openDebtsData = await response.json();
+      const openDebts = openDebtsData.map((row: any) => row.document).filter(Boolean);
+
+      // Get all apartment members to ensure we update balances for all users
+      const membersResponse = await fetch(`${FIRESTORE_BASE_URL}/apartmentMembers:runQuery`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify({
+          structuredQuery: {
+            from: [{ collectionId: 'apartmentMembers' }],
+            where: {
+              fieldFilter: {
+                field: { fieldPath: 'apartment_id' },
+                op: 'EQUAL',
+                value: { stringValue: apartmentId }
+              }
+            }
+          }
+        }),
+      });
+
+      if (!membersResponse.ok) {
+        throw new Error(`GET_APARTMENT_MEMBERS_${membersResponse.status}`);
+      }
+
+      const membersData = await membersResponse.json();
+      const members = membersData.map((row: any) => row.document).filter(Boolean);
+      const allUids = new Set<string>();
+      members.forEach((member: any) => {
+        const userId = member.fields?.user_id?.stringValue;
+        if (userId) allUids.add(userId);
+      });
+
+      // Calculate net balances from open debts
+      const net: Record<string, number> = {};
+      openDebts.forEach((debt: any) => {
+        const fromUserId = debt.fields?.from_user_id?.stringValue;
+        const toUserId = debt.fields?.to_user_id?.stringValue;
+        const amount = parseFloat(debt.fields?.amount?.doubleValue || debt.fields?.amount?.integerValue || '0');
+        
+        if (fromUserId && toUserId) {
+          net[fromUserId] = (net[fromUserId] || 0) - amount;
+          net[toUserId] = (net[toUserId] || 0) + amount;
+          allUids.add(fromUserId);
+          allUids.add(toUserId);
+        }
+      });
+
+      // Update balances for all users
+      const batch = writeBatch(db);
+      for (const uid of allUids) {
+        const value = Number((net[uid] || 0).toFixed(2));
+        const balanceRef = doc(db, `balances/${apartmentId}/users/${uid}`);
+        batch.set(balanceRef, {
+          net: value,
+          has_open_debts: value !== 0,
+          updated_at: serverTimestamp(),
+        }, { merge: true });
+      }
+      
+      await batch.commit();
+      
+      console.log('✅ [refreshBalancesFromOpenDebts] Balances updated successfully');
+      
+    } catch (error) {
+      console.error('❌ [refreshBalancesFromOpenDebts] Error refreshing balances:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Create a debt and then close it atomically using Cloud Function
-   * This uses the existing createAndCloseDebt Cloud Function that properly handles debts collection
+   * This uses the new approach with hidden expense settlement
    */
   async createAndCloseDebtAtomic(fromUserId: string, toUserId: string, amount: number, description?: string): Promise<{
     success: boolean;
@@ -2693,7 +2893,7 @@ export class FirestoreService {
         throw new Error('APARTMENT_NOT_FOUND');
       }
 
-      console.log('🔒 [createAndCloseDebtAtomic] Using Cloud Function createAndCloseDebt:', { 
+      console.log('🔒 [createAndCloseDebtAtomic] Using new hidden expense approach:', { 
         fromUserId, 
         toUserId, 
         amount, 
@@ -2702,28 +2902,99 @@ export class FirestoreService {
         actorUid: uid 
       });
 
-      // Use Firebase Functions SDK for proper callable function
-      const { getFunctions, httpsCallable } = await import('firebase/functions');
-      const app = (await import('./firebase-sdk')).default;
+      // Simply create a hidden expense to balance the debt
+      const monthKey = new Date().toISOString().substring(0, 7);
+      const expenseId = `exp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      const functions = getFunctions(app);
-      const createAndCloseDebt = httpsCallable(functions, 'createAndCloseDebt');
-      
-      const requestData = {
+      console.log('🔒 [createAndCloseDebtAtomic] Creating hidden expense:', {
         fromUserId,
         toUserId,
         amount,
-        description: description || 'סגירת חוב',
+        amountDoubled: amount * 2,
         apartmentId: aptId,
-        actorUid: uid
+        monthKey,
+        expenseId
+      });
+      
+      // Create the hidden expense directly via REST API
+      const expenseData = {
+        fields: {
+          apartment_id: { stringValue: aptId },
+          amount: { doubleValue: amount * 2 }, // Double the debt amount for settlement
+          title: { stringValue: `סגירת חוב - ${description || 'חוב'}` },
+          paid_by_user_id: { stringValue: fromUserId }, // The debtor pays (as you requested)
+          participants: { arrayValue: { values: [{ stringValue: fromUserId }, { stringValue: toUserId }] } },
+          category: { stringValue: 'debt_settlement' },
+          created_at: { timestampValue: new Date().toISOString() },
+          created_by: { stringValue: uid },
+          note: { stringValue: `HIDDEN_DEBT_SETTLEMENT_${fromUserId}_${toUserId}_${Date.now()}` } // Hidden marker
+        }
       };
 
-      console.log('🔒 [createAndCloseDebtAtomic] Calling Cloud Function via SDK:', requestData);
-
-      const result = await createAndCloseDebt(requestData);
-      console.log('✅ [createAndCloseDebtAtomic] Cloud Function success:', result.data);
+      const expenseUrl = `${FIRESTORE_BASE_URL}/expenses`;
       
-      return result.data;
+      console.log('🔒 [createAndCloseDebtAtomic] Making request to:', expenseUrl);
+      console.log('🔒 [createAndCloseDebtAtomic] Request data:', JSON.stringify(expenseData, null, 2));
+      
+      const expenseResponse = await fetch(expenseUrl, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(expenseData)
+      });
+
+      console.log('🔒 [createAndCloseDebtAtomic] Response status:', expenseResponse.status);
+      console.log('🔒 [createAndCloseDebtAtomic] Response headers:', Object.fromEntries(expenseResponse.headers.entries()));
+
+      if (!expenseResponse.ok) {
+        const errorText = await expenseResponse.text();
+        console.error('❌ [createAndCloseDebtAtomic] Error response:', errorText);
+        throw new Error(`Failed to create hidden expense: ${expenseResponse.status} - ${errorText}`);
+      }
+
+      // Now create a visible expense to show the debt settlement in the UI
+      const visibleExpenseId = `exp_visible_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const visibleExpenseData = {
+        fields: {
+          apartment_id: { stringValue: aptId },
+          amount: { doubleValue: 0 }, // Zero amount - just for display
+          title: { stringValue: `סגירת חוב` },
+          paid_by_user_id: { stringValue: fromUserId }, // The debtor
+          participants: { arrayValue: { values: [{ stringValue: fromUserId }, { stringValue: toUserId }] } },
+          category: { stringValue: 'debt_settlement' },
+          created_at: { timestampValue: new Date().toISOString() },
+          created_by: { stringValue: uid },
+          note: { stringValue: `DEBT_SETTLEMENT_MESSAGE_${amount}` } // Special marker for debt settlement message
+        }
+      };
+
+      const visibleExpenseResponse = await fetch(`${FIRESTORE_BASE_URL}/expenses`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(visibleExpenseData)
+      });
+
+      if (!visibleExpenseResponse.ok) {
+        const errorText = await visibleExpenseResponse.text();
+        console.error('❌ [createAndCloseDebtAtomic] Error creating visible expense:', errorText);
+        // Don't throw error here - the hidden expense was created successfully
+      }
+
+      const result = {
+        success: true,
+        debtId: `virtual_debt_${Date.now()}`,
+        expenseId: expenseId,
+        closedAt: new Date().toISOString()
+      };
+
+      console.log('✅ [createAndCloseDebtAtomic] Hidden expense created successfully:', result);
+      
+      return result as {
+        success: boolean;
+        debtId: string;
+        expenseId: string;
+        closedAt: string;
+        logId?: string;
+      };
 
     } catch (error: any) {
       console.error('❌ [createAndCloseDebtAtomic] Cloud Function failed:', error);
@@ -3051,29 +3322,6 @@ export class FirestoreService {
         hasOpenDebts: true,
         canBeRemoved: false
       };
-    }
-  }
-
-  /**
-   * Recompute balances by calling the Cloud Function
-   */
-  async recomputeBalances(apartmentId: string): Promise<void> {
-    try {
-      // Use Firebase Functions SDK for proper callable function
-      const { getFunctions, httpsCallable } = await import('firebase/functions');
-      const app = (await import('./firebase-sdk')).default;
-      
-      const functions = getFunctions(app);
-      const recomputeBalancesCallable = httpsCallable(functions, 'recomputeBalancesCallable');
-      
-      console.log('🔄 [recomputeBalances] Calling Cloud Function via SDK:', { apartmentId });
-
-      const result = await recomputeBalancesCallable({ apartmentId });
-      console.log('✅ [recomputeBalances] Cloud Function success:', result.data);
-      
-    } catch (error) {
-      console.error('❌ Error recomputing balances:', error);
-      throw error;
     }
   }
 
