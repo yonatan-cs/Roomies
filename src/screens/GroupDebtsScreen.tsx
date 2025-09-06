@@ -132,57 +132,43 @@ export default function GroupDebtsScreen() {
   };
 
   const confirmSettlement = async () => {
-    console.log('🔍 [confirmSettlement] Debug values:', {
-      settlementAmount,
-      settlementAmountType: typeof settlementAmount,
-      settlementOriginalAmount,
-      settlementOriginalAmountType: typeof settlementOriginalAmount
-    });
-
-    // Use original amount if settlement amount is empty or invalid
-    const amountToUse = settlementAmount && settlementAmount.trim() !== '' ? settlementAmount : settlementOriginalAmount.toString();
-    const amount = parseFloat(amountToUse);
-    
-    console.log('🔍 [confirmSettlement] Parsed amount:', {
-      settlementAmount,
-      amountToUse,
-      amount,
-      amountType: typeof amount,
-      isNaN: isNaN(amount),
-      isFinite: isFinite(amount)
-    });
-
-    if (isNaN(amount) || !isFinite(amount) || amount <= 0 || amount > settlementOriginalAmount) {
-      Alert.alert('שגיאה', `הכנס סכום תקין. נוכחי: ${settlementAmount}, נדרש: 0-${settlementOriginalAmount}`);
-      return;
-    }
-
     // Prevent double-clicking
     if (isSettling) {
       return;
     }
 
-    console.log('🔍 [GroupDebtsScreen] Starting debt settlement:', {
-      fromUser: settlementFromUser,
-      toUser: settlementToUser,
-      amount,
-      amountType: typeof amount,
-      settlementAmount,
-      settlementOriginalAmount,
-      currentUser: currentUser?.id,
-      currentApartment: currentApartment?.id
-    });
-
     setIsSettling(true);
 
     try {
+      // Normalize input amount to cents
+      const raw = String(settlementAmount ?? '').trim();
+      const normalized = raw.replace(/[^\d.,-]/g, '').replace(',', '.');
+      const amount = Number.parseFloat(normalized);
+      
+      if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error('INVALID_AMOUNT_INPUT');
+      }
+      
+      const amountCents = Math.round(amount * 100);
+
+      console.log('🔍 [GroupDebtsScreen] Starting debt settlement:', {
+        fromUser: settlementFromUser,
+        toUser: settlementToUser,
+        rawAmount: settlementAmount,
+        normalizedAmount: normalized,
+        amount,
+        amountCents,
+        currentUser: currentUser?.id,
+        currentApartment: currentApartment?.id
+      });
+
       // Use the new debt settlement function that properly closes debts and updates balances
       await firestoreSDKService.closeDebtWithoutDebtId(
         currentApartment?.id!,
         {
           payerUserId: settlementFromUser,
           receiverUserId: settlementToUser,
-          amount: amount
+          amountCents: amountCents
         }
       );
 
@@ -200,7 +186,6 @@ export default function GroupDebtsScreen() {
       
       const creditorName = getUserName(settlementToUser);
       const debtorName = getUserName(settlementFromUser);
-      const amount = parseFloat(settlementAmount);
       
       Alert.alert(
         'הצלחה', 
