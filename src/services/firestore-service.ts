@@ -2702,8 +2702,12 @@ export class FirestoreService {
         actorUid: uid 
       });
 
-      // Use the existing Cloud Function that properly creates and closes debts
-      const functionUrl = `https://us-central1-roomies-hub.cloudfunctions.net/createAndCloseDebt`;
+      // Use Firebase Functions SDK for proper callable function
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const app = (await import('./firebase-sdk')).default;
+      
+      const functions = getFunctions(app);
+      const createAndCloseDebt = httpsCallable(functions, 'createAndCloseDebt');
       
       const requestData = {
         fromUserId,
@@ -2714,30 +2718,12 @@ export class FirestoreService {
         actorUid: uid
       };
 
-      console.log('🔒 [createAndCloseDebtAtomic] Calling Cloud Function:', functionUrl);
-      console.log('🔒 [createAndCloseDebtAtomic] Request data:', requestData);
+      console.log('🔒 [createAndCloseDebtAtomic] Calling Cloud Function via SDK:', requestData);
 
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify(requestData)
-      });
-
-      console.log('🔒 [createAndCloseDebtAtomic] Response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ [createAndCloseDebtAtomic] Cloud Function error:', errorText);
-        throw new Error(`Cloud Function failed: ${response.status} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ [createAndCloseDebtAtomic] Cloud Function success:', result);
+      const result = await createAndCloseDebt(requestData);
+      console.log('✅ [createAndCloseDebtAtomic] Cloud Function success:', result.data);
       
-      return result;
+      return result.data;
 
     } catch (error: any) {
       console.error('❌ [createAndCloseDebtAtomic] Cloud Function failed:', error);
@@ -3072,28 +3058,18 @@ export class FirestoreService {
    * Recompute balances by calling the Cloud Function
    */
   async recomputeBalances(apartmentId: string): Promise<void> {
-    const { idToken } = await requireSession();
-    
     try {
-      const functionUrl = `https://us-central1-roomies-hub.cloudfunctions.net/recomputeBalancesCallable`;
+      // Use Firebase Functions SDK for proper callable function
+      const { getFunctions, httpsCallable } = await import('firebase/functions');
+      const app = (await import('./firebase-sdk')).default;
       
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ apartmentId })
-      });
+      const functions = getFunctions(app);
+      const recomputeBalancesCallable = httpsCallable(functions, 'recomputeBalancesCallable');
+      
+      console.log('🔄 [recomputeBalances] Calling Cloud Function via SDK:', { apartmentId });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ recomputeBalances failed:', response.status, errorText);
-        throw new Error(`Failed to recompute balances: ${response.status} - ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ recomputeBalances success:', result);
+      const result = await recomputeBalancesCallable({ apartmentId });
+      console.log('✅ [recomputeBalances] Cloud Function success:', result.data);
       
     } catch (error) {
       console.error('❌ Error recomputing balances:', error);
