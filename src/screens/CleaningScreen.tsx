@@ -210,6 +210,12 @@ export default function CleaningScreen() {
 
   const isOverdue = () => {
     if (!cleaningTask || !cleaningTask.dueDate) return false;
+    
+    // אם יש רק שותף אחד בדירה - אין איחור, הוא תמיד בתור
+    if (currentApartment?.members.length === 1) {
+      return false;
+    }
+    
     try {
       const dueDate = new Date(cleaningTask.dueDate);
       if (isNaN(dueDate.getTime())) return false;
@@ -389,6 +395,20 @@ export default function CleaningScreen() {
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <Text className="text-lg font-semibold text-gray-900 mb-4">התור הבא</Text>
           {(() => {
+            // אם יש רק שותף אחד בדירה - הוא תמיד בתור
+            if (currentApartment?.members.length === 1) {
+              return (
+                <View className="flex-row items-center py-3">
+                  <View className="bg-blue-100 w-10 h-10 rounded-full items-center justify-center">
+                    <Text className="text-blue-600 font-medium">1</Text>
+                  </View>
+                  <Text className="text-gray-900 text-base mr-3">{currentApartment.members[0].name}</Text>
+                  <Text className="text-blue-600 text-sm">(תמיד בתור)</Text>
+                </View>
+              );
+            }
+            
+            // אם יש מספר שותפים - הצג את התור הרגיל
             const currentIndex = cleaningTask.queue.indexOf(cleaningTask.currentTurn);
             return cleaningTask.queue.slice(1).map((_, i) => {
               const idx = (currentIndex + i + 1) % cleaningTask.queue.length;
