@@ -517,13 +517,22 @@ export default function ShoppingScreen() {
         animationType="fade"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <TouchableWithoutFeedback onPress={() => {
-          Keyboard.dismiss();
-          setShowAddModal(false);
-        }}>
-          <View className="flex-1 bg-black/50 justify-center items-center px-6">
-            <TouchableWithoutFeedback onPress={() => {}}>
-              <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+        <KeyboardAvoidingView 
+          style={{ flex: 1 }} 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableWithoutFeedback onPress={() => {
+            Keyboard.dismiss();
+            setShowAddModal(false);
+          }}>
+            <View className="flex-1 bg-black/50 justify-center items-center px-6">
+              <TouchableWithoutFeedback onPress={() => {}}>
+                <ScrollView 
+                  className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[80%]"
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ flexGrow: 1 }}
+                  showsVerticalScrollIndicator={false}
+                >
                 <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
                   הוסף פריט חדש
                 </Text>
@@ -646,10 +655,11 @@ export default function ShoppingScreen() {
                     </View>
                   </Pressable>
                 </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
+                </ScrollView>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Purchase Confirmation Modal */}
