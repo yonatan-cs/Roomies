@@ -144,7 +144,7 @@ export default function ShoppingScreen() {
         currentUser.id,
         price > 0 ? price : undefined,
         selectedParticipants,
-        undefined, // category - removed
+        undefined,
         purchaseNote.trim() || undefined,
         purchaseDate
       );
@@ -205,7 +205,7 @@ export default function ShoppingScreen() {
       items = items.filter(item => item.priority === selectedPriorityFilter);
     }
     items.sort((a, b) => {
-      const order = { high: 3, normal: 2, low: 1 } as any;
+      const order: any = { high: 3, normal: 2, low: 1 };
       const aP = a.priority || 'normal';
       const bP = b.priority || 'normal';
       return (order[bP] || 0) - (order[aP] || 0);
@@ -252,9 +252,7 @@ export default function ShoppingScreen() {
                     size={12}
                     color={PRIORITIES.find(p => p.key === item.priority)?.color}
                   />
-                  <Text
-                    className={cn('text-xs font-medium mr-1', PRIORITIES.find(p => p.key === item.priority)?.color)}
-                  >
+                  <Text className={cn('text-xs font-medium mr-1', PRIORITIES.find(p => p.key === item.priority)?.color)}>
                     {PRIORITIES.find(p => p.key === item.priority)?.label}
                   </Text>
                 </View>
@@ -343,7 +341,10 @@ export default function ShoppingScreen() {
           {PRIORITIES.map(priority => (
             <Pressable
               key={priority.key}
-              onPress={() => setSelectedPriorityFilter(priority.key as any)}
+              onPress={() => {
+                Keyboard.dismiss(); // ↓ הורד מקלדת בלחיצה על פילטר
+                setSelectedPriorityFilter(priority.key as any);
+              }}
               className={cn(
                 'px-4 py-2 rounded-lg border-2 flex-row items-center',
                 selectedPriorityFilter === priority.key ? 'bg-blue-500 border-blue-500' : 'bg-gray-50 border-gray-200'
@@ -431,14 +432,17 @@ export default function ShoppingScreen() {
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+          keyboardVerticalOffset={0} // עדין יותר ל-iOS
         >
           {/* overlay – press closes keyboard only */}
           <Pressable onPress={Keyboard.dismiss} className="flex-1 bg-black/50 justify-center items-center px-6">
             {/* stop propagation inside card */}
             <Pressable onPress={() => {}} className="w-full max-w-sm">
-              <View className="bg-white rounded-2xl p-6">
-                <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">הוסף פריט חדש</Text>
+              <View className="bg-white rounded-2xl p-6" style={{ maxHeight: '88%' }}>
+                {/* כותרת - לחיצה כאן גם מורידה מקלדת */}
+                <Pressable onPress={Keyboard.dismiss}>
+                  <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">הוסף פריט חדש</Text>
+                </Pressable>
 
                 {/* Item Name */}
                 <View className="mb-6">
@@ -451,6 +455,7 @@ export default function ShoppingScreen() {
                     textAlign="right"
                     autoFocus
                     returnKeyType="next"
+                    onSubmitEditing={() => Keyboard.dismiss()}
                     blurOnSubmit={false}
                   />
                 </View>
@@ -465,19 +470,23 @@ export default function ShoppingScreen() {
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="center"
                     keyboardType="numeric"
-                    returnKeyType="next"
-                    blurOnSubmit={false}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                    blurOnSubmit
                   />
                 </View>
 
-                {/* Priority */}
-                <View className="mb-6">
+                {/* Priority (לחיצה כאן מורידה מקלדת) */}
+                <Pressable onPress={Keyboard.dismiss} className="mb-6">
                   <Text className="text-gray-700 text-base mb-3">רמת דחיפות</Text>
                   <View className="flex-row space-x-2">
                     {PRIORITIES.map(priority => (
                       <Pressable
                         key={priority.key}
-                        onPress={() => setNewItemPriority(priority.key as any)}
+                        onPress={() => {
+                          Keyboard.dismiss();
+                          setNewItemPriority(priority.key as any);
+                        }}
                         className={cn(
                           'flex-1 py-3 px-2 rounded-xl border-2 items-center',
                           newItemPriority === priority.key ? 'bg-blue-100 border-blue-500' : 'bg-gray-50 border-gray-200'
@@ -499,7 +508,7 @@ export default function ShoppingScreen() {
                       </Pressable>
                     ))}
                   </View>
-                </View>
+                </Pressable>
 
                 {/* Notes */}
                 <View className="mb-6">
@@ -518,10 +527,16 @@ export default function ShoppingScreen() {
                   />
                 </View>
 
-                {/* Actions */}
+                {/* Spacer קטן ללחיצה שתוריד מקלדת */}
+                <Pressable onPress={Keyboard.dismiss}>
+                  <View className="h-2" />
+                </Pressable>
+
+                {/* Actions – תמיד מורידים מקלדת לפני פעולה */}
                 <View className="flex-row space-x-3">
                   <Pressable
                     onPress={() => {
+                      Keyboard.dismiss();
                       setShowAddModal(false);
                       setNewItemName('');
                       setNewItemQuantity('1');
@@ -535,7 +550,10 @@ export default function ShoppingScreen() {
                   </Pressable>
 
                   <Pressable
-                    onPress={handleAddItem}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      handleAddItem();
+                    }}
                     disabled={!newItemName.trim() || isAddingItem}
                     className={cn('flex-1 py-3 px-4 rounded-xl', !newItemName.trim() || isAddingItem ? 'bg-gray-400' : 'bg-blue-500')}
                   >
@@ -561,13 +579,15 @@ export default function ShoppingScreen() {
       {showPurchaseModal && (
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+          keyboardVerticalOffset={0}
           style={{ position: 'absolute', inset: 0 }}
         >
           <Pressable onPress={Keyboard.dismiss} className="flex-1 bg-black/50 justify-center items-center px-6">
             <Pressable onPress={() => {}} className="w-full max-w-sm">
-              <View className="bg-white rounded-2xl p-6">
-                <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">אישור קנייה</Text>
+              <View className="bg-white rounded-2xl p-6" style={{ maxHeight: '88%' }}>
+                <Pressable onPress={Keyboard.dismiss}>
+                  <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">אישור קנייה</Text>
+                </Pressable>
 
                 {/* Price */}
                 <View className="mb-6">
@@ -581,6 +601,7 @@ export default function ShoppingScreen() {
                       keyboardType="numeric"
                       textAlign="center"
                       returnKeyType="next"
+                      onSubmitEditing={() => Keyboard.dismiss()}
                       blurOnSubmit={false}
                     />
                     <Text className="text-gray-700 text-lg mr-3">₪</Text>
@@ -606,7 +627,7 @@ export default function ShoppingScreen() {
 
                 {/* Participants */}
                 {purchasePrice && parseFloat(purchasePrice) > 0 && (
-                  <View className="mb-4">
+                  <Pressable onPress={Keyboard.dismiss} className="mb-4">
                     <Text className="text-gray-700 text-base mb-3 text-center">מי משתתף ברכישה?</Text>
 
                     <View className={cn('space-y-2', (currentApartment?.members?.length || 0) > 5 && 'max-h-40')}>
@@ -615,6 +636,7 @@ export default function ShoppingScreen() {
                           <Pressable
                             key={member.id}
                             onPress={() => {
+                              Keyboard.dismiss();
                               setSelectedParticipants(prev =>
                                 prev.includes(member.id) ? prev.filter(id => id !== member.id) : [...prev, member.id]
                               );
@@ -641,17 +663,18 @@ export default function ShoppingScreen() {
                     </View>
 
                     <Text className="text-xs text-gray-500 text-center mt-2">ההוצאה תחולק שווה בשווה בין המשתתפים</Text>
-                  </View>
+                  </Pressable>
                 )}
 
                 <Text className="text-sm text-gray-500 text-center mb-4">
                   {purchasePrice && parseFloat(purchasePrice) > 0 ? 'ההוצאה תתווסף אוטומטית לתקציב' : 'אם תכניס מחיר, ההוצאה תתווסף אוטומטית לתקציב'}
                 </Text>
 
-                {/* Footer buttons – always visible */}
+                {/* Footer buttons */}
                 <View className="flex-row space-x-3">
                   <Pressable
                     onPress={() => {
+                      Keyboard.dismiss();
                       setShowPurchaseModal(false);
                       setSelectedItemId(null);
                       setPurchasePrice('');
@@ -665,7 +688,10 @@ export default function ShoppingScreen() {
                   </Pressable>
 
                   <Pressable
-                    onPress={handlePurchaseConfirm}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      handlePurchaseConfirm();
+                    }}
                     disabled={isPurchasingItem === selectedItemId}
                     className="flex-1 bg-green-500 py-3 px-4 rounded-xl"
                   >
