@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,11 @@ import {
   ScrollView,
   Alert,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
   Modal,
-  Keyboard
+  Keyboard,
+  Dimensions,
+  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
@@ -23,6 +24,55 @@ const PRIORITIES = [
   { key: 'normal', label: 'רגילה', color: '#3b82f6', bgColor: '#dbeafe', icon: 'remove' },
   { key: 'high', label: 'גבוהה', color: '#ef4444', bgColor: '#fee2e2', icon: 'arrow-up' }
 ];
+
+// ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
+function useKeyboardLift() {
+  const shift = useRef(new Animated.Value(0)).current;
+  const [cardH, setCardH] = useState(0);
+  const [cardY, setCardY] = useState(0);
+
+  useEffect(() => {
+    const winH = Dimensions.get('window').height;
+    const margin = 12; // מרווח קטן מתחת לכפתורים
+
+    const onShow = (e: any) => {
+      const kbH = e?.endCoordinates?.height ?? 0;
+      const cardBottom = cardY + cardH;
+      const overflow = cardBottom + kbH + margin - winH;
+      const needed = Math.max(0, overflow);
+      Animated.timing(shift, { toValue: needed, duration: 160, useNativeDriver: true }).start();
+    };
+    const onHide = () => {
+      Animated.timing(shift, { toValue: 0, duration: 160, useNativeDriver: true }).start();
+    };
+
+    const subShow = Platform.OS === 'ios'
+      ? Keyboard.addListener('keyboardWillShow', onShow)
+      : Keyboard.addListener('keyboardDidShow', onShow);
+    const subHide = Platform.OS === 'ios'
+      ? Keyboard.addListener('keyboardWillHide', onHide)
+      : Keyboard.addListener('keyboardDidHide', onHide);
+
+    return () => {
+      subShow?.remove?.();
+      subHide?.remove?.();
+    };
+  }, [cardH, cardY, shift]);
+
+  const onLayoutCard = (e: any) => {
+    const { height, y } = e.nativeEvent.layout;
+    setCardH(height);
+    setCardY(y);
+  };
+
+  // translateY למעלה (שלילי)
+  const animatedStyle = useMemo(
+    () => ({ transform: [{ translateY: Animated.multiply(shift, -1) as any }] }),
+    [shift]
+  );
+
+  return { animatedStyle, onLayoutCard };
+}
 
 export default function ShoppingScreen() {
   const [newItemName, setNewItemName] = useState('');
@@ -55,7 +105,6 @@ export default function ShoppingScreen() {
 
   const handleAddItem = async () => {
     if (!newItemName.trim() || !currentUser) return;
-
     setIsAddingItem(true);
     try {
       const quantity = parseInt(newItemQuantity) || 1;
@@ -126,7 +175,6 @@ export default function ShoppingScreen() {
 
   const handlePurchaseConfirm = async () => {
     if (!selectedItemId || !currentUser) return;
-
     const price = parseFloat(purchasePrice);
     if (purchasePrice.trim() && (!price || price <= 0)) {
       Alert.alert('שגיאה', 'אנא הכנס מחיר תקין');
@@ -315,6 +363,10 @@ export default function ShoppingScreen() {
     );
   }
 
+  // hooks להזזת המודאלים
+  const addLift = useKeyboardLift();
+  const purchaseLift = useKeyboardLift();
+
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
@@ -341,10 +393,7 @@ export default function ShoppingScreen() {
           {PRIORITIES.map(priority => (
             <Pressable
               key={priority.key}
-              onPress={() => {
-                Keyboard.dismiss(); // ↓ הורד מקלדת בלחיצה על פילטר
-                setSelectedPriorityFilter(priority.key as any);
-              }}
+              onPress={() => setSelectedPriorityFilter(priority.key as any)}
               className={cn(
                 'px-4 py-2 rounded-lg border-2 flex-row items-center',
                 selectedPriorityFilter === priority.key ? 'bg-blue-500 border-blue-500' : 'bg-gray-50 border-gray-200'
@@ -429,162 +478,149 @@ export default function ShoppingScreen() {
         animationType="fade"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-          keyboardVerticalOffset={0} // עדין יותר ל-iOS
-        >
-          {/* overlay – press closes keyboard only */}
-          <Pressable onPress={Keyboard.dismiss} className="flex-1 bg-black/50 justify-center items-center px-6">
-            {/* stop propagation inside card */}
-            <Pressable onPress={() => {}} className="w-full max-w-sm">
-              <View className="bg-white rounded-2xl p-6" style={{ maxHeight: '88%' }}>
-                {/* כותרת - לחיצה כאן גם מורידה מקלדת */}
-                <Pressable onPress={Keyboard.dismiss}>
-                  <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">הוסף פריט חדש</Text>
-                </Pressable>
+        {/* רקע – לחיצה סוגרת רק מקלדת */}
+        <Pressable onPress={Keyboard.dismiss} className="flex-1 bg-black/50 justify-center items-center px-6">
+          {/* כרטיס – נע על ציר Y לפי גובה המקלדת */}
+          <Animated.View
+            onLayout={addLift.onLayoutCard}
+            style={[{ width: '100%', maxWidth: 400 }, addLift.animatedStyle]}
+          >
+            <View className="bg-white rounded-2xl p-6">
+              <Pressable onPress={Keyboard.dismiss}>
+                <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">הוסף פריט חדש</Text>
+              </Pressable>
 
-                {/* Item Name */}
-                <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">שם הפריט *</Text>
-                  <TextInput
-                    value={newItemName}
-                    onChangeText={setNewItemName}
-                    placeholder="למשל: חלב, לחם, ביצים..."
-                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                    textAlign="right"
-                    autoFocus
-                    returnKeyType="next"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                    blurOnSubmit={false}
-                  />
-                </View>
+              {/* Item Name */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-2">שם הפריט *</Text>
+                <TextInput
+                  value={newItemName}
+                  onChangeText={setNewItemName}
+                  placeholder="למשל: חלב, לחם, ביצים..."
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  textAlign="right"
+                  autoFocus
+                  returnKeyType="next"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit={false}
+                />
+              </View>
 
-                {/* Quantity */}
-                <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">כמות</Text>
-                  <TextInput
-                    value={newItemQuantity}
-                    onChangeText={setNewItemQuantity}
-                    placeholder="1"
-                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                    textAlign="center"
-                    keyboardType="numeric"
-                    returnKeyType="done"
-                    onSubmitEditing={() => Keyboard.dismiss()}
-                    blurOnSubmit
-                  />
-                </View>
+              {/* Quantity */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-2">כמות</Text>
+                <TextInput
+                  value={newItemQuantity}
+                  onChangeText={setNewItemQuantity}
+                  placeholder="1"
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  textAlign="center"
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit
+                />
+              </View>
 
-                {/* Priority (לחיצה כאן מורידה מקלדת) */}
-                <Pressable onPress={Keyboard.dismiss} className="mb-6">
-                  <Text className="text-gray-700 text-base mb-3">רמת דחיפות</Text>
-                  <View className="flex-row space-x-2">
-                    {PRIORITIES.map(priority => (
-                      <Pressable
-                        key={priority.key}
-                        onPress={() => {
-                          Keyboard.dismiss();
-                          setNewItemPriority(priority.key as any);
-                        }}
+              {/* Priority */}
+              <Pressable onPress={Keyboard.dismiss} className="mb-6">
+                <Text className="text-gray-700 text-base mb-3">רמת דחיפות</Text>
+                <View className="flex-row space-x-2">
+                  {PRIORITIES.map((priority) => (
+                    <Pressable
+                      key={priority.key}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setNewItemPriority(priority.key as any);
+                      }}
+                      className={cn(
+                        'flex-1 py-3 px-2 rounded-xl border-2 items-center',
+                        newItemPriority === priority.key ? 'bg-blue-100 border-blue-500' : 'bg-gray-50 border-gray-200'
+                      )}
+                    >
+                      <Ionicons
+                        name={priority.icon as any}
+                        size={20}
+                        color={newItemPriority === priority.key ? priority.color : '#6b7280'}
+                      />
+                      <Text
                         className={cn(
-                          'flex-1 py-3 px-2 rounded-xl border-2 items-center',
-                          newItemPriority === priority.key ? 'bg-blue-100 border-blue-500' : 'bg-gray-50 border-gray-200'
+                          'text-sm font-medium mt-1 text-center',
+                          newItemPriority === priority.key ? priority.color : 'text-gray-700'
                         )}
                       >
-                        <Ionicons
-                          name={priority.icon as any}
-                          size={20}
-                          color={newItemPriority === priority.key ? priority.color : '#6b7280'}
-                        />
-                        <Text
-                          className={cn(
-                            'text-sm font-medium mt-1 text-center',
-                            newItemPriority === priority.key ? priority.color : 'text-gray-700'
-                          )}
-                        >
-                          {priority.label}
-                        </Text>
-                      </Pressable>
-                    ))}
+                        {priority.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </Pressable>
+
+              {/* Notes */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-2">הערות (אופציונלי)</Text>
+                <TextInput
+                  value={newItemNotes}
+                  onChangeText={setNewItemNotes}
+                  placeholder="פרטים נוספים, מותג מועדף..."
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  textAlign="right"
+                  multiline
+                  numberOfLines={3}
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+              </View>
+
+              {/* Actions */}
+              <View className="flex-row space-x-3">
+                <Pressable
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setShowAddModal(false);
+                    setNewItemName('');
+                    setNewItemQuantity('1');
+                    setNewItemPriority('normal');
+                    setNewItemNotes('');
+                  }}
+                  className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                  disabled={isAddingItem}
+                >
+                  <Text className="text-gray-700 font-medium text-center">ביטול</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    handleAddItem();
+                  }}
+                  disabled={!newItemName.trim() || isAddingItem}
+                  className={cn('flex-1 py-3 px-4 rounded-xl', !newItemName.trim() || isAddingItem ? 'bg-gray-400' : 'bg-blue-500')}
+                >
+                  <View className="flex-row items-center justify-center">
+                    {isAddingItem ? (
+                      <Ionicons name="hourglass" size={20} color="white" />
+                    ) : (
+                      <Ionicons name="add" size={20} color="white" />
+                    )}
+                    <Text className="text-white font-medium text-center mr-2">
+                      {isAddingItem ? 'מוסיף...' : 'הוסף'}
+                    </Text>
                   </View>
                 </Pressable>
-
-                {/* Notes */}
-                <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">הערות (אופציונלי)</Text>
-                  <TextInput
-                    value={newItemNotes}
-                    onChangeText={setNewItemNotes}
-                    placeholder="פרטים נוספים, מותג מועדף..."
-                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                    textAlign="right"
-                    multiline
-                    numberOfLines={3}
-                    returnKeyType="done"
-                    blurOnSubmit
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
-                </View>
-
-                {/* Spacer קטן ללחיצה שתוריד מקלדת */}
-                <Pressable onPress={Keyboard.dismiss}>
-                  <View className="h-2" />
-                </Pressable>
-
-                {/* Actions – תמיד מורידים מקלדת לפני פעולה */}
-                <View className="flex-row space-x-3">
-                  <Pressable
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      setShowAddModal(false);
-                      setNewItemName('');
-                      setNewItemQuantity('1');
-                      setNewItemPriority('normal');
-                      setNewItemNotes('');
-                    }}
-                    className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
-                    disabled={isAddingItem}
-                  >
-                    <Text className="text-gray-700 font-medium text-center">ביטול</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      handleAddItem();
-                    }}
-                    disabled={!newItemName.trim() || isAddingItem}
-                    className={cn('flex-1 py-3 px-4 rounded-xl', !newItemName.trim() || isAddingItem ? 'bg-gray-400' : 'bg-blue-500')}
-                  >
-                    <View className="flex-row items-center justify-center">
-                      {isAddingItem ? (
-                        <Ionicons name="hourglass" size={20} color="white" />
-                      ) : (
-                        <Ionicons name="add" size={20} color="white" />
-                      )}
-                      <Text className="text-white font-medium text-center mr-2">
-                        {isAddingItem ? 'מוסיף...' : 'הוסף'}
-                      </Text>
-                    </View>
-                  </Pressable>
-                </View>
               </View>
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
+            </View>
+          </Animated.View>
+        </Pressable>
       </Modal>
 
       {/* Purchase Confirmation Modal */}
       {showPurchaseModal && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
-          keyboardVerticalOffset={0}
-          style={{ position: 'absolute', inset: 0 }}
-        >
+        <View className="absolute inset-0">
           <Pressable onPress={Keyboard.dismiss} className="flex-1 bg-black/50 justify-center items-center px-6">
-            <Pressable onPress={() => {}} className="w-full max-w-sm">
-              <View className="bg-white rounded-2xl p-6" style={{ maxHeight: '88%' }}>
+            <Animated.View onLayout={purchaseLift.onLayoutCard} style={[{ width: '100%', maxWidth: 400 }, purchaseLift.animatedStyle]}>
+              <View className="bg-white rounded-2xl p-6">
                 <Pressable onPress={Keyboard.dismiss}>
                   <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">אישור קנייה</Text>
                 </Pressable>
@@ -601,7 +637,7 @@ export default function ShoppingScreen() {
                       keyboardType="numeric"
                       textAlign="center"
                       returnKeyType="next"
-                      onSubmitEditing={() => Keyboard.dismiss()}
+                      onSubmitEditing={Keyboard.dismiss}
                       blurOnSubmit={false}
                     />
                     <Text className="text-gray-700 text-lg mr-3">₪</Text>
@@ -627,9 +663,8 @@ export default function ShoppingScreen() {
 
                 {/* Participants */}
                 {purchasePrice && parseFloat(purchasePrice) > 0 && (
-                  <Pressable onPress={Keyboard.dismiss} className="mb-4">
+                  <View className="mb-4">
                     <Text className="text-gray-700 text-base mb-3 text-center">מי משתתף ברכישה?</Text>
-
                     <View className={cn('space-y-2', (currentApartment?.members?.length || 0) > 5 && 'max-h-40')}>
                       <ScrollView showsVerticalScrollIndicator={false}>
                         {currentApartment?.members.map(member => (
@@ -663,7 +698,7 @@ export default function ShoppingScreen() {
                     </View>
 
                     <Text className="text-xs text-gray-500 text-center mt-2">ההוצאה תחולק שווה בשווה בין המשתתפים</Text>
-                  </Pressable>
+                  </View>
                 )}
 
                 <Text className="text-sm text-gray-500 text-center mb-4">
@@ -706,9 +741,127 @@ export default function ShoppingScreen() {
                   </Pressable>
                 </View>
               </View>
-            </Pressable>
+            </Animated.View>
           </Pressable>
-        </KeyboardAvoidingView>
+        </View>
+      )}
+
+      {/* Item Details Modal */}
+      {showItemDetailsModal && selectedItemId && (
+        <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
+              פרטי הפריט
+            </Text>
+
+            {(() => {
+              const item = shoppingItems.find(i => i.id === selectedItemId);
+              if (!item) return null;
+
+              return (
+                <View className="space-y-5">
+                  <View className="bg-gray-50 p-4 rounded-xl">
+                    <Text className="text-gray-600 text-sm mb-2 text-center">שם הפריט</Text>
+                    <Text className="text-gray-900 font-semibold text-lg text-center">{item?.name || ''}</Text>
+                  </View>
+
+                  <View className="bg-blue-50 p-4 rounded-xl">
+                    <View className="flex-row items-center justify-center mb-2">
+                      <Ionicons name="person-add-outline" size={16} color="#3b82f6" />
+                      <Text className="text-blue-700 text-sm font-medium mr-2">נוסף על ידי</Text>
+                    </View>
+                    <Text className="text-blue-900 font-medium text-center">{getUserName(item?.addedBy || '')}</Text>
+                    <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item?.addedAt || new Date())}</Text>
+                  </View>
+
+                  {item?.priority && (
+                    <View className="bg-purple-50 p-4 rounded-xl">
+                      <View className="flex-row items-center justify-center mb-2">
+                        <Ionicons
+                          name={PRIORITIES.find(p => p.key === item.priority)?.icon as any}
+                          size={16}
+                          color={PRIORITIES.find(p => p.key === item.priority)?.color}
+                        />
+                        <Text className="text-purple-700 text-sm font-medium mr-2">דחיפות</Text>
+                      </View>
+                      <Text className="text-purple-900 font-medium text-center">
+                        {PRIORITIES.find(p => p.key === item.priority)?.label}
+                      </Text>
+                    </View>
+                  )}
+
+                  {item?.quantity && item.quantity > 1 && (
+                    <View className="bg-orange-50 p-4 rounded-xl">
+                      <View className="flex-row items-center justify-center mb-2">
+                        <Ionicons name="list-outline" size={16} color="#f97316" />
+                        <Text className="text-orange-700 text-sm font-medium mr-2">כמות</Text>
+                      </View>
+                      <Text className="text-orange-900 font-bold text-xl text-center">{item.quantity}</Text>
+                    </View>
+                  )}
+
+                  {item?.notes && item.notes.trim() && (
+                    <View className="bg-indigo-50 p-4 rounded-xl">
+                      <View className="flex-row items-center justify-center mb-2">
+                        <Ionicons name="chatbubble-outline" size={16} color="#6366f1" />
+                        <Text className="text-indigo-700 text-sm font-medium mr-2">הערות</Text>
+                      </View>
+                      <Text className="text-indigo-900 text-center">{item.notes}</Text>
+                    </View>
+                  )}
+
+                  {item?.purchased && (
+                    <>
+                      <View className="bg-green-50 p-4 rounded-xl">
+                        <View className="flex-row items-center justify-center mb-2">
+                          <Ionicons name="checkmark-circle-outline" size={16} color="#10b981" />
+                          <Text className="text-green-700 text-sm font-medium mr-2">נקנה על ידי</Text>
+                        </View>
+                        <Text className="text-green-900 font-medium text-center">{getUserName(item?.purchasedBy || '')}</Text>
+                        {item?.purchasedAt && (
+                          <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item.purchasedAt)}</Text>
+                        )}
+                      </View>
+
+                      {item?.purchasePrice && item.purchasePrice > 0 && (
+                        <View className="bg-yellow-50 p-4 rounded-xl">
+                          <View className="flex-row items-center justify-center mb-2">
+                            <Ionicons name="cash-outline" size={16} color="#eab308" />
+                            <Text className="text-yellow-700 text-sm font-medium mr-2">מחיר</Text>
+                          </View>
+                          <Text className="text-yellow-900 font-bold text-xl text-center">₪{item.purchasePrice}</Text>
+                        </View>
+                      )}
+                    </>
+                  )}
+
+                  <View className="flex-row space-x-3 mt-6">
+                    <Pressable
+                      onPress={() => {
+                        setShowItemDetailsModal(false);
+                        setSelectedItemId(null);
+                      }}
+                      className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                    >
+                      <Text className="text-gray-700 font-medium text-center">
+                        סגור
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => selectedItemId && handleRepurchase(selectedItemId)}
+                      className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
+                    >
+                      <Text className="text-white font-medium text-center">
+                        הוסף שוב לרשימה
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        </View>
       )}
     </Screen>
   );
