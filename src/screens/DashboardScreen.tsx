@@ -286,7 +286,21 @@ export default function DashboardScreen() {
     const monthsActive = firstExpense ? 
       Math.max(1, Math.ceil((Date.now() - new Date(firstExpense.date).getTime()) / (1000 * 60 * 60 * 24 * 30))) : 1;
 
-    const averagePerMember = totalExpenses / (currentApartment.members.length * monthsActive);
+    // Calculate average per member based on actual shares
+    // Each member's share = total expenses / number of participants in each expense
+    const memberShares = new Map<string, number>();
+    
+    filteredExpenses.forEach(expense => {
+      const sharePerPerson = expense.amount / expense.participants.length;
+      expense.participants.forEach(participantId => {
+        memberShares.set(participantId, (memberShares.get(participantId) || 0) + sharePerPerson);
+      });
+    });
+    
+    // Calculate average share across all current members
+    const totalShares = Array.from(memberShares.values()).reduce((sum, share) => sum + share, 0);
+    const averagePerMember = currentApartment.members.length > 0 ? 
+      totalShares / currentApartment.members.length : 0;
 
     return {
       totalExpenses,
