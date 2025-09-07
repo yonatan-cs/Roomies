@@ -58,6 +58,7 @@ export default function CleaningScreen() {
           frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
           last_completed_at: cleaningTask.last_completed_at || null,
           last_completed_by: cleaningTask.last_completed_by || null,
+          dueDate: cleaningTask.dueDate ? cleaningTask.dueDate.toISOString() : null,
         },
         checklistItems: checklistItems.map(item => ({
           completed: item.completed,
@@ -118,8 +119,7 @@ export default function CleaningScreen() {
       const { cycleEnd } = getCurrentCycle({
         assigned_at: cleaningTask.assigned_at || null,
         frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
-        last_completed_at: cleaningTask.last_completed_at || null,
-        last_completed_by: cleaningTask.last_completed_by || null,
+        dueDate: cleaningTask.dueDate ? cleaningTask.dueDate.toISOString() : null,
       });
       // Show success message with next turn date
       setErrorMessage(`מעולה, ניקית! התור יעבור לשותף הבא בתאריך ${cycleEnd.toLocaleDateString('he-IL')}`);
@@ -458,15 +458,15 @@ export default function CleaningScreen() {
         )}
 
         {/* Last Cleaning Info */}
-        {cleaningTask.lastCleaned && (
+        {cleaningTask.last_completed_at && (
           <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
             <Text className="text-lg font-semibold text-gray-900 mb-3">ניקיון אחרון</Text>
             <View className="flex-row items-center">
               <Ionicons name="checkmark-circle" size={20} color="#10b981" />
               <View className="mr-3">
-                <Text className="text-gray-600">{new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(cleaningTask.lastCleaned))}</Text>
-                {cleaningTask.lastCleanedBy && (
-                  <Text className="text-sm text-gray-500">על ידי {currentApartment.members.find((m) => m.id === cleaningTask.lastCleanedBy)?.name}</Text>
+                <Text className="text-gray-600">{new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(cleaningTask.last_completed_at))}</Text>
+                {cleaningTask.last_completed_by && (
+                  <Text className="text-sm text-gray-500">על ידי {currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name}</Text>
                 )}
               </View>
             </View>
@@ -474,10 +474,27 @@ export default function CleaningScreen() {
         )}
 
         {/* Cleaning History */}
-        {cleaningTask.history.length > 0 && (
+        {cleaningTask.last_completed_at && (
           <View className="bg-white rounded-2xl p-6 shadow-sm">
             <Text className="text-lg font-semibold text-gray-900 mb-4">היסטוריית ניקיונות</Text>
-            {cleaningTask.history.slice(-5).reverse().map((history) => {
+            {/* Show last cleaning from the new system */}
+            <View className="flex-row items-center py-2">
+              <Ionicons name="brush" size={16} color="#10b981" />
+              <View className="mr-3">
+                <Text className="text-gray-900">
+                  {cleaningTask.last_completed_by ? 
+                    currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name || 'משתמש לא ידוע' 
+                    : 'משתמש לא ידוע'
+                  }
+                </Text>
+                <Text className="text-sm text-gray-500">
+                  {new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(cleaningTask.last_completed_at))}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Show old history if available */}
+            {cleaningTask.history.length > 0 && cleaningTask.history.slice(-4).reverse().map((history) => {
               const user = currentApartment.members.find((m) => m.id === history.userId);
               return (
                 <View key={history.id} className="flex-row items-center py-2">

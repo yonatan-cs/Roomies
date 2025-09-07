@@ -48,6 +48,12 @@ export interface CleaningHistory {
   status: 'completed' | 'skipped';
 }
 
+export interface CleaningStats {
+  totalCleans: number;
+  perUser: { [userId: string]: number };
+  lastUpdated: Date | null;
+}
+
 export interface CleaningChecklist {
   id: string;
   name: string;

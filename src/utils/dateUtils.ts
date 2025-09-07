@@ -94,18 +94,35 @@ export interface ChecklistItem {
 /**
  * Calculate the current cleaning cycle based on assigned_at and frequency_days
  */
-export function getCurrentCycle(task: CleaningTask, now = new Date()) {
-  if (!task.assigned_at) {
-    // If no assigned_at, use current time as cycle start
-    const cycleStart = new Date(now);
-    const cycleEnd = new Date(cycleStart.getTime() + task.frequency_days * 24 * 60 * 60 * 1000);
-    return { cycleStart, cycleEnd };
+export function getCurrentCycle(task: {
+  assigned_at: string | null;
+  frequency_days: number;     // או intervalDays
+  dueDate?: string | null;
+}) {
+  const freq = task.frequency_days || 7;               // fallback לשבועי
+  const lenMs = freq * 24 * 60 * 60 * 1000;
+  const now = new Date();
+
+  // אם אין assigned_at – נתחיל מהיום (מונע NaN)
+  const baseStart = task.assigned_at ? new Date(task.assigned_at) : now;
+
+  // אם dueDate קיים והזמן עבר אותו, נגלגל מחזורים קדימה
+  if (task.dueDate) {
+    const due = new Date(task.dueDate);
+    if (!isNaN(due.getTime()) && now > due) {
+      // גלגול מדויק לפי מרחק מה־assigned_at
+      const diff = now.getTime() - baseStart.getTime();
+      const k = Math.floor(diff / lenMs); // כמה מחזורים עברו מאז ה־assigned_at
+      const cycleStart = new Date(baseStart.getTime() + k * lenMs);
+      const cycleEnd = new Date(cycleStart.getTime() + lenMs);
+      return { cycleStart, cycleEnd };
+    }
   }
 
-  const start = new Date(task.assigned_at);
-  const lenMs = task.frequency_days * 24 * 60 * 60 * 1000;
-  const cycles = Math.floor((now.getTime() - start.getTime()) / lenMs);
-  const cycleStart = new Date(start.getTime() + cycles * lenMs);
+  // מקרה רגיל: עכשיו בתוך המחזור שנקבע מה־assigned_at
+  const diff = Math.max(0, now.getTime() - baseStart.getTime());
+  const k = Math.floor(diff / lenMs);
+  const cycleStart = new Date(baseStart.getTime() + k * lenMs);
   const cycleEnd = new Date(cycleStart.getTime() + lenMs);
   return { cycleStart, cycleEnd };
 }
@@ -113,35 +130,59 @@ export function getCurrentCycle(task: CleaningTask, now = new Date()) {
 /**
  * Check if the current user has completed their turn in the current cycle
  */
+function inRange(ts: string | null | undefined, start: Date, end: Date) {
+  if (!ts) return false;
+  const d = new Date(ts);
+  return !isNaN(d.getTime()) && d >= start && d <= end;
+}
+
 export function isTurnCompletedForCurrentCycle({
   uid,
   task,
-  checklistItems
+  checklistItems,
 }: {
   uid: string;
-  task: CleaningTask;
-  checklistItems: ChecklistItem[];
-}) {
-  const { cycleStart, cycleEnd } = getCurrentCycle(task);
-  
-  // Helper function to check if a timestamp is within the current cycle
-  const inCycle = (timestamp?: string | null) => {
-    if (!timestamp) return false;
-    const date = new Date(timestamp);
-    return date >= cycleStart && date < cycleEnd;
+  task: {
+    assigned_at: string | null;
+    frequency_days: number;
+    last_completed_at?: string | null;
+    last_completed_by?: string | null;
+    dueDate?: string | null;
   };
+  checklistItems: Array<{
+    completed: boolean;
+    completed_by?: string | null;
+    completed_at?: string | null;
+  }>;
+}) {
+  const now = new Date();
 
-  // Check if all checklist items are completed by this user in the current cycle
-  const allItemsDone = checklistItems.length > 0 && checklistItems.every(
-    item => item.completed === true &&
-            item.completed_by === uid &&
-            inCycle(item.completed_at)
-  );
+  // אם עבר היעד ⇒ אנחנו במחזור חדש לוגית ⇒ לא הושלם עדיין (מותר לנקות שוב)
+  if (task.dueDate) {
+    const due = new Date(task.dueDate);
+    if (!isNaN(due.getTime()) && now > due) {
+      return false;
+    }
+  }
 
-  // Check if the task metadata indicates completion by this user in the current cycle
+  const { cycleStart, cycleEnd } = getCurrentCycle(task);
+
+  // סיום לפי הצ'קליסט בתוך המחזור הנוכחי
+  const allItemsDoneInCycle =
+    checklistItems.length > 0 &&
+    checklistItems.every(
+      (it) =>
+        it.completed === true &&
+        it.completed_by === uid &&
+        inRange(it.completed_at, cycleStart, cycleEnd)
+    );
+
+  if (allItemsDoneInCycle) return true;
+
+  // פְּרוֹקְסִי לפי מטא (אם נשמרת היסטוריה ברמת המשימה)
   const metaSaysDone =
     task.last_completed_by === uid &&
-    inCycle(task.last_completed_at);
+    inRange(task.last_completed_at ?? null, cycleStart, cycleEnd);
 
-  return allItemsDone || metaSaysDone;
+  return !!metaSaysDone;
 }
