@@ -3868,7 +3868,109 @@ export class FirestoreService {
     
     console.log('✅ Cleaning task updated successfully');
 
+    // Update cleaning statistics counters
+    await this.updateCleaningStats(uid);
+
     return await res.json();
+  }
+
+  /**
+   * Update cleaning statistics counters
+   */
+  async updateCleaningStats(userId: string): Promise<void> {
+    console.log('🔄 Updating cleaning stats for user:', userId);
+    const { aptId, idToken } = await getApartmentContext();
+    
+    try {
+      // First, get current stats to increment them
+      const currentStats = await this.getCleaningStats();
+      
+      const statsUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats`;
+      
+      const updateBody = {
+        fields: {
+          totalCleans: F.int((currentStats.totalCleans || 0) + 1),
+          perUser: F.map({
+            ...currentStats.perUser,
+            [userId]: (currentStats.perUser[userId] || 0) + 1,
+          }),
+          lastUpdated: F.ts(new Date()),
+        },
+      };
+
+      const fieldPaths = ['totalCleans', 'perUser', 'lastUpdated'];
+      const url = `${statsUrl}?` + 
+        fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+      
+      console.log('📊 Updating cleaning stats with URL:', url);
+      console.log('📋 Stats update body:', JSON.stringify(updateBody, null, 2));
+      
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: H(idToken),
+        body: JSON.stringify(updateBody),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('Firestore updateCleaningStats error:', res.status, text);
+        // Don't throw error here - stats update failure shouldn't break cleaning completion
+        console.warn('⚠️ Failed to update cleaning stats, but cleaning was completed successfully');
+      } else {
+        console.log('✅ Cleaning stats updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating cleaning stats:', error);
+      // Don't throw error here - stats update failure shouldn't break cleaning completion
+      console.warn('⚠️ Failed to update cleaning stats, but cleaning was completed successfully');
+    }
+  }
+
+  /**
+   * Get cleaning statistics
+   */
+  async getCleaningStats(): Promise<any> {
+    console.log('🔄 Getting cleaning stats...');
+    const { aptId, idToken } = await getApartmentContext();
+    
+    const url = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats`;
+    
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: H(idToken),
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.log('📊 No cleaning stats found, returning default values');
+        return {
+          totalCleans: 0,
+          perUser: {},
+          lastUpdated: null,
+        };
+      }
+      
+      const text = await res.text().catch(() => '');
+      console.error('Firestore getCleaningStats error:', res.status, text);
+      throw new Error(`GET_CLEANING_STATS_${res.status}: ${text}`);
+    }
+    
+    const data = await res.json();
+    console.log('✅ Cleaning stats retrieved successfully');
+    
+    // Convert Firestore format to our format
+    return {
+      totalCleans: data.fields?.totalCleans?.integerValue ? parseInt(data.fields.totalCleans.integerValue) : 0,
+      perUser: data.fields?.perUser?.mapValue?.fields ? 
+        Object.fromEntries(
+          Object.entries(data.fields.perUser.mapValue.fields).map(([key, value]: [string, any]) => [
+            key, 
+            value.integerValue ? parseInt(value.integerValue) : 0
+          ])
+        ) : {},
+      lastUpdated: data.fields?.lastUpdated?.timestampValue ? 
+        new Date(data.fields.lastUpdated.timestampValue) : null,
+    };
   }
 
   // ===== SHOPPING FUNCTIONS WITH APARTMENT CONTEXT =====

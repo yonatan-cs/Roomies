@@ -16,6 +16,7 @@ import {
   DebtSettlement,
   CleaningSettings,
   ChecklistItem,
+  CleaningStats,
 } from '../types';
 
 function startOfDay(d: Date) {
@@ -55,6 +56,7 @@ interface AppState {
   checklistItems: ChecklistItem[];
   isMyCleaningTurn: boolean;
   _loadingChecklist: boolean;
+  cleaningStats?: CleaningStats;
 
   // Expenses & Budget
   expenses: Expense[];
@@ -116,6 +118,7 @@ interface AppState {
     addChecklistItem: (title: string, order?: number) => Promise<void>;
     removeChecklistItem: (itemId: string) => Promise<void>;
     finishCleaningTurn: () => Promise<void>;
+    loadCleaningStats: () => Promise<void>;
     
     // Member management actions
     removeApartmentMember: (targetUserId: string) => Promise<void>;
@@ -699,6 +702,7 @@ export const useStore = create<AppState>()(
             frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
             last_completed_at: cleaningTask.last_completed_at || null,
             last_completed_by: cleaningTask.last_completed_by || null,
+            dueDate: cleaningTask.dueDate ? cleaningTask.dueDate.toISOString() : null,
           },
           checklistItems: checklistItems.map(item => ({
             completed: item.completed,
@@ -735,7 +739,22 @@ export const useStore = create<AppState>()(
         }
       },
 
-      
+      loadCleaningStats: async () => {
+        try {
+          const stats = await firestoreService.getCleaningStats();
+          set({ cleaningStats: stats });
+        } catch (error) {
+          console.error('Error loading cleaning stats:', error);
+          // Set default stats if loading fails
+          set({ 
+            cleaningStats: {
+              totalCleans: 0,
+              perUser: {},
+              lastUpdated: null,
+            }
+          });
+        }
+      },
 
       // Cleaning actions
       initializeCleaning: async () => {

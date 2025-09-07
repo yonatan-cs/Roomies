@@ -44,7 +44,9 @@ export default function DashboardScreen() {
     loadDebtSettlements,
     loadShoppingItems,
     loadCleaningTask,
-    loadCleaningChecklist
+    loadCleaningChecklist,
+    loadCleaningStats,
+    cleaningStats
   } = useStore();
 
   // Load all data from Firestore when component mounts
@@ -58,13 +60,14 @@ export default function DashboardScreen() {
           await refreshApartmentMembers();
         }
         
-        // Load expenses, debt settlements, shopping items, cleaning task, and checklist
+        // Load expenses, debt settlements, shopping items, cleaning task, checklist, and stats
         await Promise.all([
           loadExpenses(),
           loadDebtSettlements(),
           loadShoppingItems(),
           loadCleaningTask(),
           loadCleaningChecklist(),
+          loadCleaningStats(),
         ]);
         
         console.log('✅ Dashboard: All data loaded successfully');
@@ -138,7 +141,52 @@ export default function DashboardScreen() {
   const totalExpenses = expenses
     .filter(expense => !expense.isHiddenDebtSettlement)
     .reduce((sum, expense) => sum + expense.amount, 0);
-  const cleaningCount = cleaningTask?.history?.length || 0;
+  
+  // Calculate cleaning count using reliable statistics
+  const cleaningCount = useMemo(() => {
+    // Use real cleaning stats if available
+    if (cleaningStats) {
+      return cleaningStats.totalCleans || 0;
+    }
+    
+    // Fallback to old calculation if stats not loaded yet
+    if (!cleaningTask || !currentApartment) return 0;
+    
+    // If there's only one member, count based on last_completed_at
+    if (currentApartment.members.length === 1) {
+      return cleaningTask.last_completed_at ? 1 : 0;
+    }
+    
+    // For multiple members, estimate based on queue position and completion history
+    if (cleaningTask.last_completed_at && cleaningTask.queue && cleaningTask.queue.length > 0) {
+      const currentIndex = cleaningTask.current_index || 0;
+      const queueLength = cleaningTask.queue.length;
+      
+      // Calculate estimated cleanings based on queue rotations
+      // Each time the queue rotates, it means queue.length cleanings were completed
+      let estimatedCleanings = 0;
+      
+      // If we have a last_completed_at, we know at least one cleaning was done
+      if (cleaningTask.last_completed_at) {
+        estimatedCleanings = 1;
+        
+        // Add cleanings based on queue position
+        // If currentIndex > 0, it means the queue has rotated at least once
+        if (currentIndex > 0) {
+          // Each rotation means queue.length cleanings were completed
+          const fullRotations = Math.floor(currentIndex / queueLength);
+          const partialRotation = currentIndex % queueLength;
+          
+          estimatedCleanings += fullRotations * queueLength + partialRotation;
+        }
+      }
+      
+      return Math.max(estimatedCleanings, 0);
+    }
+    
+    return 0;
+  }, [cleaningStats, cleaningTask, currentApartment]);
+  
   const purchasedItemsCount = shoppingItems.filter(item => item.purchased).length;
 
   // Advanced Statistics for Highlights Modal
@@ -239,37 +287,85 @@ export default function DashboardScreen() {
       .sort(([,a], [,b]) => b - a)[0];
 
     // Cleaning King - who did the most cleanings (filter by time range and current members)
-    const cleaningByUser = cleaningTask?.history
-      ?.filter(entry => {
-        if (!entry.userId) return false;
-        
-        // Only include current members
-        if (!currentMemberIds.has(entry.userId)) return false;
-        
-        // Filter by time range if entry has completion date
-        if (entry.cleanedAt) {
-          const completionDate = new Date(entry.cleanedAt);
-          switch (timeRange) {
-            case '30days':
-              const thirtyDaysAgo = new Date();
-              thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-              return completionDate >= thirtyDaysAgo;
-            case 'month':
-              return completionDate.getMonth() === now.getMonth() && 
-                     completionDate.getFullYear() === now.getFullYear();
-            case 'year':
-              return completionDate.getFullYear() === now.getFullYear();
-            case 'all':
-            default:
-              return true;
+    const cleaningByUser = (() => {
+      const result: Record<string, number> = {};
+      
+      // Use real cleaning stats if available (for 'all' time range)
+      if (cleaningStats && timeRange === 'all') {
+        // Filter by current members only
+        Object.entries(cleaningStats.perUser || {}).forEach(([userId, count]) => {
+          if (currentMemberIds.has(userId)) {
+            result[userId] = count;
           }
+        });
+        return result;
+      }
+      
+      // Fallback to old calculation for specific time ranges
+      // Add cleaning counts from old history system if available
+      if (cleaningTask?.history) {
+        cleaningTask.history
+          .filter(entry => {
+            if (!entry.userId) return false;
+            
+            // Only include current members
+            if (!currentMemberIds.has(entry.userId)) return false;
+            
+            // Filter by time range if entry has completion date
+            if (entry.cleanedAt) {
+              const completionDate = new Date(entry.cleanedAt);
+              switch (timeRange) {
+                case '30days':
+                  const thirtyDaysAgo = new Date();
+                  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                  return completionDate >= thirtyDaysAgo;
+                case 'month':
+                  return completionDate.getMonth() === now.getMonth() && 
+                         completionDate.getFullYear() === now.getFullYear();
+                case 'year':
+                  return completionDate.getFullYear() === now.getFullYear();
+                case 'all':
+                default:
+                  return true;
+              }
+            }
+            return true; // If no completion date, include all
+          })
+          .forEach(entry => {
+            result[entry.userId!] = (result[entry.userId!] || 0) + 1;
+          });
+      }
+      
+      // Add last cleaning from new system if it matches time range
+      if (cleaningTask?.last_completed_at && cleaningTask?.last_completed_by) {
+        const completionDate = new Date(cleaningTask.last_completed_at);
+        let includeLastCleaning = false;
+        
+        switch (timeRange) {
+          case '30days':
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            includeLastCleaning = completionDate >= thirtyDaysAgo;
+            break;
+          case 'month':
+            includeLastCleaning = completionDate.getMonth() === now.getMonth() && 
+                                 completionDate.getFullYear() === now.getFullYear();
+            break;
+          case 'year':
+            includeLastCleaning = completionDate.getFullYear() === now.getFullYear();
+            break;
+          case 'all':
+          default:
+            includeLastCleaning = true;
         }
-        return true; // If no completion date, include all
-      })
-      .reduce((acc, entry) => {
-        acc[entry.userId!] = (acc[entry.userId!] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>) || {};
+        
+        if (includeLastCleaning && currentMemberIds.has(cleaningTask.last_completed_by)) {
+          result[cleaningTask.last_completed_by] = (result[cleaningTask.last_completed_by] || 0) + 1;
+        }
+      }
+      
+      return result;
+    })();
 
     const cleaningKing = Object.entries(cleaningByUser)
       .sort(([,a], [,b]) => b - a)[0];
