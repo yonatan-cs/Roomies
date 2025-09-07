@@ -119,6 +119,7 @@ interface AppState {
     removeChecklistItem: (itemId: string) => Promise<void>;
     finishCleaningTurn: () => Promise<void>;
     loadCleaningStats: () => Promise<void>;
+    backfillCleaningStats: () => Promise<void>;
     
     // Member management actions
     removeApartmentMember: (targetUserId: string) => Promise<void>;
@@ -728,10 +729,11 @@ export const useStore = create<AppState>()(
           await firestoreService.resetAllChecklistItems();
           // Then mark cleaning as completed (moves to next person)
           await firestoreService.markCleaningCompleted();
-          // Reload both task and checklist
+          // Reload task, checklist, and stats
           await Promise.all([
             get().loadCleaningTask(),
             get().loadCleaningChecklist(),
+            get().loadCleaningStats(),
           ]);
         } catch (error) {
           console.error('Error finishing cleaning turn:', error);
@@ -753,6 +755,16 @@ export const useStore = create<AppState>()(
               lastUpdated: null,
             }
           });
+        }
+      },
+
+      backfillCleaningStats: async () => {
+        try {
+          await firestoreService.backfillCleaningStats();
+          // Reload stats after backfill
+          await get().loadCleaningStats();
+        } catch (error) {
+          console.error('Error backfilling cleaning stats:', error);
         }
       },
 

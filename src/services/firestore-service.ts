@@ -3875,34 +3875,44 @@ export class FirestoreService {
   }
 
   /**
-   * Update cleaning statistics counters
+   * Update cleaning statistics counters using atomic increment
    */
   async updateCleaningStats(userId: string): Promise<void> {
     console.log('🔄 Updating cleaning stats for user:', userId);
     const { aptId, idToken } = await getApartmentContext();
     
     try {
-      // First, get current stats to increment them
-      const currentStats = await this.getCleaningStats();
-      
       const statsUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats`;
       
+      // Use atomic increment with updateTransforms
       const updateBody = {
         fields: {
-          totalCleans: F.int((currentStats.totalCleans || 0) + 1),
+          // Required fields for the update (values are ignored due to transforms)
+          totalCleans: F.int(0),
           perUser: F.map({
-            ...currentStats.perUser,
-            [userId]: (currentStats.perUser[userId] || 0) + 1,
+            [userId]: F.int(0)
           }),
           lastUpdated: F.ts(new Date()),
         },
+        updateTransforms: {
+          fieldTransforms: [
+            {
+              fieldPath: "totalCleans",
+              increment: F.int(1)
+            },
+            {
+              fieldPath: `perUser.${userId}`,
+              increment: F.int(1)
+            }
+          ]
+        }
       };
 
       const fieldPaths = ['totalCleans', 'perUser', 'lastUpdated'];
-      const url = `${statsUrl}?` + 
+      const url = `${statsUrl}?currentDocument.exists=true&` + 
         fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
       
-      console.log('📊 Updating cleaning stats with URL:', url);
+      console.log('📊 Updating cleaning stats with atomic increment:', url);
       console.log('📋 Stats update body:', JSON.stringify(updateBody, null, 2));
       
       const res = await fetch(url, {
@@ -3914,15 +3924,68 @@ export class FirestoreService {
       if (!res.ok) {
         const text = await res.text().catch(() => '');
         console.error('Firestore updateCleaningStats error:', res.status, text);
-        // Don't throw error here - stats update failure shouldn't break cleaning completion
-        console.warn('⚠️ Failed to update cleaning stats, but cleaning was completed successfully');
+        
+        // If document doesn't exist, try to create it first
+        if (res.status === 404) {
+          console.log('📊 Stats document doesn\'t exist, creating with initial values...');
+          await this.createInitialCleaningStats(userId);
+        } else {
+          // Don't throw error here - stats update failure shouldn't break cleaning completion
+          console.warn('⚠️ Failed to update cleaning stats, but cleaning was completed successfully');
+        }
       } else {
-        console.log('✅ Cleaning stats updated successfully');
+        console.log('✅ Cleaning stats updated successfully with atomic increment');
       }
     } catch (error) {
       console.error('Error updating cleaning stats:', error);
       // Don't throw error here - stats update failure shouldn't break cleaning completion
       console.warn('⚠️ Failed to update cleaning stats, but cleaning was completed successfully');
+    }
+  }
+
+  /**
+   * Create initial cleaning stats document
+   */
+  async createInitialCleaningStats(userId: string): Promise<void> {
+    console.log('🔄 Creating initial cleaning stats for user:', userId);
+    const { aptId, idToken } = await getApartmentContext();
+    
+    try {
+      const statsUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats`;
+      
+      const createBody = {
+        fields: {
+          totalCleans: F.int(1),
+          perUser: F.map({
+            [userId]: F.int(1)
+          }),
+          lastUpdated: F.ts(new Date()),
+        }
+      };
+
+      const fieldPaths = ['totalCleans', 'perUser', 'lastUpdated'];
+      const url = `${statsUrl}?` + 
+        fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+      
+      console.log('📊 Creating initial stats with URL:', url);
+      console.log('📋 Initial stats body:', JSON.stringify(createBody, null, 2));
+      
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: H(idToken),
+        body: JSON.stringify(createBody),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error('Firestore createInitialCleaningStats error:', res.status, text);
+        console.warn('⚠️ Failed to create initial cleaning stats');
+      } else {
+        console.log('✅ Initial cleaning stats created successfully');
+      }
+    } catch (error) {
+      console.error('Error creating initial cleaning stats:', error);
+      console.warn('⚠️ Failed to create initial cleaning stats');
     }
   }
 
@@ -3971,6 +4034,42 @@ export class FirestoreService {
       lastUpdated: data.fields?.lastUpdated?.timestampValue ? 
         new Date(data.fields.lastUpdated.timestampValue) : null,
     };
+  }
+
+  /**
+   * Backfill cleaning stats from existing last_completed_at data
+   * This is a one-time migration function
+   */
+  async backfillCleaningStats(): Promise<void> {
+    console.log('🔄 Backfilling cleaning stats from existing data...');
+    const { aptId, idToken } = await getApartmentContext();
+    
+    try {
+      // Get current cleaning task
+      const cleaningTask = await this.getCleaningTask();
+      if (!cleaningTask) {
+        console.log('📊 No cleaning task found, skipping backfill');
+        return;
+      }
+
+      // Check if stats already exist
+      const existingStats = await this.getCleaningStats();
+      if (existingStats.totalCleans > 0) {
+        console.log('📊 Cleaning stats already exist, skipping backfill');
+        return;
+      }
+
+      // If we have last_completed_at, initialize with 1 cleaning
+      if (cleaningTask.last_completed_at && cleaningTask.last_completed_by) {
+        console.log('📊 Initializing stats with existing cleaning data');
+        await this.createInitialCleaningStats(cleaningTask.last_completed_by);
+      } else {
+        console.log('📊 No existing cleaning data found, initializing with 0');
+        await this.createInitialCleaningStats('');
+      }
+    } catch (error) {
+      console.error('Error backfilling cleaning stats:', error);
+    }
   }
 
   // ===== SHOPPING FUNCTIONS WITH APARTMENT CONTEXT =====

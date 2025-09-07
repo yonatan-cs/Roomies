@@ -50,7 +50,7 @@ export default function CleaningScreen() {
 
   // Check if turn is completed for current cycle
   useEffect(() => {
-    if (currentUser && cleaningTask && checklistItems.length > 0) {
+    if (currentUser && cleaningTask && checklistItems.length > 0 && isMyCleaningTurn) {
       const isCompleted = isTurnCompletedForCurrentCycle({
         uid: currentUser.id,
         task: {
@@ -67,8 +67,11 @@ export default function CleaningScreen() {
         }))
       });
       setTurnCompleted(isCompleted);
+    } else {
+      // אם אין נתונים או זה לא התור שלי, אפס את turnCompleted
+      setTurnCompleted(false);
     }
-  }, [currentUser, cleaningTask, checklistItems]);
+  }, [currentUser, cleaningTask, checklistItems, isMyCleaningTurn]);
 
   // Load checklist data when screen comes into focus (for live updates)
   useFocusEffect(
@@ -436,7 +439,9 @@ export default function CleaningScreen() {
 
             {checklistItems.map((item) => {
               const isCompleted = item.completed;
-              const isDisabled = turnCompleted || (isCompleted && isMyTurn);
+              // אם זה לא התור שלי, הכפתורים צריכים להיות חסומים
+              // אם זה התור שלי, הכפתורים חסומים רק אם סיימתי את התור או אם המשימה כבר הושלמה
+              const isDisabled = !isMyTurn || turnCompleted || (isCompleted && isMyTurn);
               return (
                 <View key={item.id} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
                   <Pressable 

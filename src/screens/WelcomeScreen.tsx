@@ -13,15 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
-import LoginScreen from './LoginScreen';
-import RegisterScreen from './RegisterScreen';
-import ForgotPasswordScreen from './ForgotPasswordScreen';
+import AuthScreen from './AuthScreen';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 
 export default function WelcomeScreen() {
-  const [mode, setMode] = useState<'select' | 'auth' | 'login' | 'register' | 'forgot-password' | 'create' | 'join'>('select');
-  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot-password'>('login');
+  const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [apartmentName, setApartmentName] = useState('');
   const [userName, setUserName] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -92,12 +89,7 @@ export default function WelcomeScreen() {
     }
   };
 
-  const handleLogin = async (user: any) => {
-    setCurrentUser(user);
-    setMode('select');
-  };
-
-  const handleRegister = async (user: any) => {
+  const handleAuthSuccess = async (user: any) => {
     setCurrentUser(user);
     setMode('select');
   };
@@ -264,72 +256,15 @@ export default function WelcomeScreen() {
     );
   }
 
-  // Authentication screens
-  if (mode === 'login') {
-    return (
-      <LoginScreen
-        onLogin={handleLogin}
-        onSwitchToRegister={() => setMode('register')}
-        onSwitchToForgotPassword={() => setMode('forgot-password')}
-      />
-    );
-  }
-
-  if (mode === 'register') {
-    return (
-      <RegisterScreen
-        onRegister={handleRegister}
-        onSwitchToLogin={() => setMode('login')}
-      />
-    );
-  }
-
-  if (mode === 'forgot-password') {
-    return (
-      <ForgotPasswordScreen
-        onBack={() => setMode('login')}
-      />
-    );
-  }
 
   // Main selection screen
   if (mode === 'select') {
     const currentUser = useStore.getState().currentUser;
     
-    // If no user is authenticated, show auth options
+    // If no user is authenticated, show auth screen
     if (!currentUser) {
       return (
-        <View className="flex-1 bg-white px-6">
-          <View className="flex-1 justify-center">
-            <View className="items-center mb-12">
-              <Ionicons name="home" size={80} color="#007AFF" />
-              <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
-                דירת שותפים
-              </Text>
-              <Text className="text-lg text-gray-600 mt-2 text-center">
-                ניהול חכם לחיים משותפים
-              </Text>
-            </View>
-
-            <View className="space-y-4">
-              <Pressable
-                onPress={() => setMode('login')}
-                className="bg-blue-500 py-4 px-6 rounded-xl flex-row items-center justify-center"
-              >
-                <Ionicons name="log-in-outline" size={24} color="white" />
-                <Text className="text-white text-lg font-semibold mr-2">התחבר</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => setMode('register')}
-                className="bg-gray-100 py-4 px-6 rounded-xl flex-row items-center justify-center"
-              >
-                <Ionicons name="person-add-outline" size={24} color="#007AFF" />
-                <Text className="text-blue-500 text-lg font-semibold mr-2">הרשם</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
+        <AuthScreen onAuthSuccess={handleAuthSuccess} />
       );
     }
 

@@ -46,7 +46,8 @@ export default function DashboardScreen() {
     loadCleaningTask,
     loadCleaningChecklist,
     loadCleaningStats,
-    cleaningStats
+    cleaningStats,
+    backfillCleaningStats
   } = useStore();
 
   // Load all data from Firestore when component mounts
@@ -69,6 +70,9 @@ export default function DashboardScreen() {
           loadCleaningChecklist(),
           loadCleaningStats(),
         ]);
+
+        // Backfill cleaning stats if needed (one-time migration)
+        await backfillCleaningStats();
         
         console.log('✅ Dashboard: All data loaded successfully');
       } catch (error) {
@@ -885,19 +889,21 @@ export default function DashboardScreen() {
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
                   <Text className="text-sm text-gray-500 mb-2">ניקיונות שבוצעו</Text>
                   <Text className="text-2xl font-bold text-green-600 mb-1">
-                    {cleaningCount}
+                    {cleaningStats ? cleaningCount : '—'}
                   </Text>
-                  {highlightsStats.cleaningKing ? (
+                  {cleaningStats && highlightsStats.cleaningKing ? (
                     <>
                       <Text className="text-sm text-gray-600">
                         אלוף: {getUserName(highlightsStats.cleaningKing.userId)}
                       </Text>
                       <Text className="text-xs text-gray-400">
-                        מרסק את האבק מאז 2023 🧹
+                        {highlightsStats.cleaningKing.count} נקיונות • מרסק את האבק 🧹
                       </Text>
                     </>
-                  ) : (
+                  ) : cleaningStats ? (
                     <Text className="text-xs text-gray-400">אין אלוף עדיין</Text>
+                  ) : (
+                    <Text className="text-xs text-gray-400">טוען נתונים...</Text>
                   )}
                 </View>
                 
