@@ -519,7 +519,7 @@ export default function ShoppingScreen() {
       >
         <KeyboardAvoidingView 
           style={{ flex: 1 }} 
-          behavior={Platform.OS === 'ios' ? 'position' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
           <TouchableWithoutFeedback onPress={() => {
             Keyboard.dismiss();
@@ -527,7 +527,12 @@ export default function ShoppingScreen() {
           }}>
             <View className="flex-1 bg-black/50 justify-center items-center px-6">
               <TouchableWithoutFeedback onPress={() => {}}>
-                <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+                <ScrollView 
+                  className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[80%]"
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ flexGrow: 0 }}
+                  showsVerticalScrollIndicator={false}
+                >
                 <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
                   הוסף פריט חדש
                 </Text>
@@ -650,7 +655,7 @@ export default function ShoppingScreen() {
                     </View>
                   </Pressable>
                 </View>
-                </View>
+                </ScrollView>
               </TouchableWithoutFeedback>
             </View>
           </TouchableWithoutFeedback>
