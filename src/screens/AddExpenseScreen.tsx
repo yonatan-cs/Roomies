@@ -17,6 +17,9 @@ import { useStore } from '../state/store';
 import { ExpenseCategory } from '../types';
 import { cn } from '../utils/cn';
 import { getUserDisplayInfo } from '../utils/userDisplay';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
+import { NumericInput } from '../components/NumericInput';
 
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
@@ -29,7 +32,7 @@ export default function AddExpenseScreen() {
     currentApartment?.members.map(m => m.id) || []
   );
 
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     if (!title.trim()) {
       Alert.alert('שגיאה', 'אנא הכנס שם להוצאה');
       return;
@@ -51,7 +54,7 @@ export default function AddExpenseScreen() {
       return;
     }
 
-    addExpense({
+    await addExpense({
       title: title.trim(),
       amount: numAmount,
       paidBy: currentUser.id,
@@ -93,12 +96,7 @@ export default function AddExpenseScreen() {
     : 0;
 
   return (
-    <KeyboardAvoidingView 
-      className="flex-1 bg-white" 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView className="flex-1 px-6 py-6">
+    <Screen withPadding={true} keyboardVerticalOffset={0}>
           {/* Title */}
           <View className="mb-6">
             <Text className="text-gray-700 text-base mb-2 font-medium">
@@ -110,6 +108,8 @@ export default function AddExpenseScreen() {
               placeholder="למשל: קניות בסופר"
               className="border border-gray-300 rounded-xl px-4 py-3 text-base"
               textAlign="right"
+              returnKeyType="next"
+              blurOnSubmit={false}
             />
           </View>
 
@@ -119,12 +119,11 @@ export default function AddExpenseScreen() {
               סכום *
             </Text>
             <View className="flex-row items-center">
-              <TextInput
+              <NumericInput
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0"
                 className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
-                keyboardType="numeric"
                 textAlign="center"
               />
               <Text className="text-gray-700 text-lg mr-3">₪</Text>
@@ -194,18 +193,19 @@ export default function AddExpenseScreen() {
               textAlign="right"
               multiline
               numberOfLines={3}
+              returnKeyType="done"
+              blurOnSubmit={true}
+              onSubmitEditing={() => Keyboard.dismiss()}
             />
           </View>
 
           {/* Add Button */}
-          <Pressable
+          <AsyncButton
+            title="הוסף הוצאה"
             onPress={handleAddExpense}
-            className="bg-blue-500 py-4 px-6 rounded-xl mb-6"
-          >
-            <Text className="text-white text-lg font-semibold text-center">
-              הוסף הוצאה
-            </Text>
-          </Pressable>
+            loadingText="מוסיף הוצאה..."
+            className="mb-6"
+          />
 
           {/* Cancel Button */}
           <Pressable
@@ -216,8 +216,6 @@ export default function AddExpenseScreen() {
               ביטול
             </Text>
           </Pressable>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }

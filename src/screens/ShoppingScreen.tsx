@@ -16,6 +16,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
 
 
 // Priority levels with colors and labels
@@ -359,10 +361,7 @@ export default function ShoppingScreen() {
   }
 
   return (
-    <KeyboardAvoidingView 
-      className="flex-1 bg-gray-50" 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <Screen withPadding={false} keyboardVerticalOffset={0}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-gray-900 text-center mb-4">
           רשימת קניות
@@ -536,6 +535,8 @@ export default function ShoppingScreen() {
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="right"
                     autoFocus
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                 </View>
 
@@ -549,6 +550,8 @@ export default function ShoppingScreen() {
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="center"
                     keyboardType="numeric"
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                 </View>
 
@@ -594,6 +597,9 @@ export default function ShoppingScreen() {
                     textAlign="right"
                     multiline
                     numberOfLines={3}
+                    returnKeyType="done"
+                    blurOnSubmit={true}
+                    onSubmitEditing={() => Keyboard.dismiss()}
                   />
                 </View>
 
@@ -663,6 +669,8 @@ export default function ShoppingScreen() {
                     className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
                     keyboardType="numeric"
                     textAlign="center"
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                   <Text className="text-gray-700 text-lg mr-3">₪</Text>
                 </View>
@@ -681,6 +689,9 @@ export default function ShoppingScreen() {
                   textAlign="right"
                   multiline
                   numberOfLines={3}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               </View>
 
@@ -911,6 +922,6 @@ export default function ShoppingScreen() {
           </View>
         </View>
       )}
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }

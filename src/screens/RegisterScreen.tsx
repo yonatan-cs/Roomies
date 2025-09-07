@@ -15,6 +15,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
+import { NumericInput } from '../components/NumericInput';
 
 interface RegisterScreenProps {
   onRegister: (user: any) => void;
@@ -119,12 +122,7 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView className="flex-1 px-6">
+    <Screen withPadding={true} keyboardVerticalOffset={0}>
           <View className="pt-16 pb-8">
             {/* Header */}
             <View className="items-center mb-8">
@@ -150,6 +148,8 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
                   textAlign="right"
                   autoCapitalize="words"
                   editable={!loading}
+                  returnKeyType="next"
+                  blurOnSubmit={false}
                 />
               </View>
 
@@ -166,20 +166,20 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!loading}
+                  returnKeyType="next"
+                  blurOnSubmit={false}
                 />
               </View>
 
               {/* Phone Input */}
               <View>
                 <Text className="text-gray-700 text-base mb-2">טלפון</Text>
-                <TextInput
+                <NumericInput
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="054-1234567 (אופציונלי)"
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
-                  keyboardType="phone-pad"
-                  editable={!loading}
                 />
               </View>
 
@@ -197,6 +197,8 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!loading}
+                    returnKeyType="next"
+                    blurOnSubmit={false}
                   />
                   <Pressable
                     onPress={() => setShowPassword(!showPassword)}
@@ -226,6 +228,8 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!loading}
+                    returnKeyType="done"
+                    onSubmitEditing={handleRegister}
                   />
                   <Pressable
                     onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -250,21 +254,12 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
             )}
 
             {/* Register Button */}
-            <Pressable
+            <AsyncButton
+              title="צור חשבון"
               onPress={handleRegister}
-              className={`py-4 px-6 rounded-xl mt-6 ${
-                loading ? 'bg-gray-400' : 'bg-blue-500'
-              }`}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white text-lg font-semibold text-center">
-                  צור חשבון
-                </Text>
-              )}
-            </Pressable>
+              loadingText="יוצר חשבון..."
+              className="mt-6"
+            />
 
             {/* Login Link */}
             <View className="flex-row justify-center items-center mt-6">
@@ -282,8 +277,6 @@ export default function RegisterScreen({ onRegister, onSwitchToLogin }: Register
               * שדות חובה
             </Text>
           </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }

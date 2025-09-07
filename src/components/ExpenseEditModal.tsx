@@ -8,12 +8,16 @@ import {
   Alert,
   Modal,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { Expense } from '../types';
 import { cn } from '../utils/cn';
+import { AsyncButton } from './AsyncButton';
+import { NumericInput } from './NumericInput';
 
 type Props = {
   visible: boolean;
@@ -206,18 +210,26 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-white">
-        {/* Header */}
-        <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
-          <Pressable onPress={onClose} className="p-2">
-            <Ionicons name="close" size={24} color="#374151" />
-          </Pressable>
-          <Text className="text-lg font-semibold text-gray-900">עריכת הוצאה</Text>
-          <View className="w-8" />
-        </View>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View className="flex-1 bg-white">
+          {/* Header */}
+          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+            <Pressable onPress={onClose} className="p-2">
+              <Ionicons name="close" size={24} color="#374151" />
+            </Pressable>
+            <Text className="text-lg font-semibold text-gray-900">עריכת הוצאה</Text>
+            <View className="w-8" />
+          </View>
 
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView className="flex-1 px-6 py-6">
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <ScrollView 
+              className="flex-1 px-6 py-6"
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ flexGrow: 1 }}
+            >
             {/* Title */}
             <View className="mb-6">
               <Text className="text-gray-700 text-base mb-2 font-medium">
@@ -229,6 +241,8 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                 placeholder="לדוגמה: קניות בסופר"
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                 textAlign="right"
+                returnKeyType="next"
+                blurOnSubmit={false}
               />
             </View>
 
@@ -237,11 +251,10 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
               <Text className="text-gray-700 text-base mb-2 font-medium">
                 סכום (₪) *
               </Text>
-              <TextInput
+              <NumericInput
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0.00"
-                keyboardType="numeric"
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                 textAlign="right"
               />
@@ -315,6 +328,9 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                 textAlign="right"
                 multiline
                 numberOfLines={3}
+                returnKeyType="done"
+                blurOnSubmit={true}
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
             </View>
 
@@ -359,21 +375,13 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             )}
 
             {/* Update Button */}
-            <Pressable
+            <AsyncButton
+              title="עדכן הוצאה"
               onPress={handleUpdateExpense}
-              disabled={loading || showImpactPreview}
-              className={cn(
-                "py-4 px-6 rounded-xl mb-6",
-                loading || showImpactPreview ? "bg-gray-300" : "bg-blue-500"
-              )}
-            >
-              <Text className={cn(
-                "text-lg font-semibold text-center",
-                loading || showImpactPreview ? "text-gray-500" : "text-white"
-              )}>
-                {loading ? 'מעדכן...' : 'עדכן הוצאה'}
-              </Text>
-            </Pressable>
+              loadingText="מעדכן..."
+              disabled={showImpactPreview}
+              className="mb-6"
+            />
 
             {/* Cancel Button */}
             <Pressable
@@ -385,9 +393,10 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                 ביטול
               </Text>
             </Pressable>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </View>
+            </ScrollView>
+          </TouchableWithoutFeedback>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

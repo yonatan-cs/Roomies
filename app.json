@@ -11,7 +11,8 @@
       "supportsTablet": true
     },
     "android": {
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "plugins": [
       "expo-asset",
