@@ -517,15 +517,15 @@ export default function ShoppingScreen() {
         animationType="fade"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <KeyboardAvoidingView 
-          style={{ flex: 1 }} 
-          behavior={Platform.OS === 'ios' ? 'position' : 'height'}
-        >
-          <TouchableWithoutFeedback onPress={() => {
-            Keyboard.dismiss();
-            setShowAddModal(false);
-          }}>
-            <View className="flex-1 bg-black/50 justify-center items-center px-6">
+        <TouchableWithoutFeedback onPress={() => {
+          Keyboard.dismiss();
+          setShowAddModal(false);
+        }}>
+          <View className="flex-1 bg-black/50 justify-center items-center px-6">
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'position'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+            >
               <TouchableWithoutFeedback onPress={() => {}}>
                 <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
                 <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
@@ -652,9 +652,9 @@ export default function ShoppingScreen() {
                 </View>
                 </View>
               </TouchableWithoutFeedback>
-            </View>
-          </TouchableWithoutFeedback>
-        </KeyboardAvoidingView>
+            </KeyboardAvoidingView>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Purchase Confirmation Modal */}
