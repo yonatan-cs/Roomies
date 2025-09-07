@@ -529,7 +529,7 @@ export default function ShoppingScreen() {
               <TouchableWithoutFeedback onPress={() => {}}>
                 <View 
                   className="bg-white rounded-2xl p-6 w-full max-w-sm"
-                  style={{ maxHeight: '80%' }}
+                  style={{ flex: 1, maxHeight: '80%' }}
                 >
                 <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
                   הוסף פריט חדש
