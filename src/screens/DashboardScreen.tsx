@@ -160,6 +160,15 @@ export default function DashboardScreen() {
     const now = new Date();
     let filteredExpenses = expenses.filter(expense => !expense.isHiddenDebtSettlement);
     
+    // Filter out expenses from removed members (only include current apartment members)
+    const currentMemberIds = new Set(currentApartment.members.map(m => m.id));
+    filteredExpenses = filteredExpenses.filter(expense => {
+      // Keep expense if paid by current member
+      if (currentMemberIds.has(expense.paidBy)) return true;
+      // Keep expense if all participants are current members
+      return expense.participants.every(p => currentMemberIds.has(p));
+    });
+    
     switch (timeRange) {
       case '30days':
         const thirtyDaysAgo = new Date();
@@ -332,8 +341,15 @@ export default function DashboardScreen() {
 
   const getUserName = (userId: string) => {
     if (userId === currentUser?.id) return 'אתה';
+    
+    // Check if user is still a member of the apartment
     const member = currentApartment?.members.find(m => m.id === userId);
-    return getUserDisplayInfo(member).displayName;
+    if (member) {
+      return getUserDisplayInfo(member).displayName;
+    }
+    
+    // If user is not a member anymore, show "לא ידוע" instead of "אורח"
+    return 'לא ידוע';
   };
 
   const currentTurnUser = getCurrentTurnUser();

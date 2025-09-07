@@ -2153,6 +2153,9 @@ export class FirestoreService {
       // 3. Clean up shopping list references
       await this.cleanupShoppingListReferences(apartmentId, removedUserId);
       
+      // 4. Clean up expense references (convert UIDs to display names)
+      await this.cleanupExpenseReferences(apartmentId, removedUserId);
+      
       console.log('✅ Member cleanup completed');
       
     } catch (error) {
@@ -2359,6 +2362,135 @@ export class FirestoreService {
       
     } catch (error) {
       console.error('⚠️ Error cleaning up shopping list references:', error);
+    }
+  }
+
+  /**
+   * Clean up expense references by converting UIDs to display names
+   * This prevents "לא ידוע" from appearing in expense history
+   */
+  private async cleanupExpenseReferences(apartmentId: string, removedUserId: string): Promise<void> {
+    try {
+      const { idToken } = await requireSession();
+      
+      // Get the removed user's display name before cleanup
+      const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${removedUserId}`, {
+        method: 'GET',
+        headers: authHeaders(idToken),
+      });
+      
+      let displayName = 'משתמש שהוסר';
+      if (userResponse.ok) {
+        const userDoc = await userResponse.json();
+        const fields = userDoc.fields || {};
+        displayName = fields.display_name?.stringValue || 
+                     fields.full_name?.stringValue || 
+                     fields.name?.stringValue || 
+                     'משתמש שהוסר';
+      }
+      
+      console.log(`🔄 Converting expense references for removed user: ${displayName}`);
+      
+      // Query expenses that reference the removed user
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: 'expenses' }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'apartment_id' },
+                    op: 'EQUAL',
+                    value: { stringValue: apartmentId }
+                  }
+                },
+                {
+                  compositeFilter: {
+                    op: 'OR',
+                    filters: [
+                      {
+                        fieldFilter: {
+                          field: { fieldPath: 'paid_by_user_id' },
+                          op: 'EQUAL',
+                          value: { stringValue: removedUserId }
+                        }
+                      },
+                      {
+                        fieldFilter: {
+                          field: { fieldPath: 'created_by' },
+                          op: 'EQUAL',
+                          value: { stringValue: removedUserId }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      };
+      
+      const response = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+        method: 'POST',
+        headers: authHeaders(idToken),
+        body: JSON.stringify(queryBody),
+      });
+      
+      if (!response.ok) {
+        console.log('ℹ️ No expenses found for removed member');
+        return;
+      }
+      
+      const data = await response.json();
+      const expenses = data.map((row: any) => row.document).filter(Boolean);
+      
+      // Update expenses to use display name instead of UID
+      for (const expense of expenses) {
+        const expenseId = expense.name.split('/').pop();
+        const fields = expense.fields || {};
+        
+        // Update paid_by_user_id to display name
+        if (fields.paid_by_user_id?.stringValue === removedUserId) {
+          const updateUrl = `${FIRESTORE_BASE_URL}/expenses/${expenseId}?updateMask.fieldPaths=paid_by_user_id&updateMask.fieldPaths=paid_by_display_name`;
+          await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: authHeaders(idToken),
+            body: JSON.stringify({
+              fields: {
+                paid_by_user_id: { stringValue: displayName },
+                paid_by_display_name: { stringValue: displayName }
+              }
+            })
+          });
+        }
+        
+        // Update created_by to display name
+        if (fields.created_by?.stringValue === removedUserId) {
+          const updateUrl = `${FIRESTORE_BASE_URL}/expenses/${expenseId}?updateMask.fieldPaths=created_by&updateMask.fieldPaths=created_by_display_name`;
+          await fetch(updateUrl, {
+            method: 'PATCH',
+            headers: authHeaders(idToken),
+            body: JSON.stringify({
+              fields: {
+                created_by: { stringValue: displayName },
+                created_by_display_name: { stringValue: displayName }
+              }
+            })
+          });
+        }
+      }
+      
+      if (expenses.length > 0) {
+        console.log(`✅ Updated ${expenses.length} expenses for removed member: ${displayName}`);
+      } else {
+        console.log('ℹ️ No expenses found for removed member');
+      }
+      
+    } catch (error) {
+      console.error('⚠️ Error cleaning up expense references:', error);
     }
   }
 
