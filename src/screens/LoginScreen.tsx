@@ -15,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
 
 interface LoginScreenProps {
   onLogin: (user: any) => void;
@@ -92,12 +94,7 @@ export default function LoginScreen({
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView className="flex-1 px-6">
+    <Screen withPadding={true} keyboardVerticalOffset={0}>
           <View className="pt-20 pb-8">
             {/* Header */}
             <View className="items-center mb-12">
@@ -125,6 +122,8 @@ export default function LoginScreen({
                   autoCapitalize="none"
                   autoCorrect={false}
                   editable={!loading}
+                  returnKeyType="next"
+                  blurOnSubmit={false}
                 />
               </View>
 
@@ -142,6 +141,8 @@ export default function LoginScreen({
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!loading}
+                    returnKeyType="done"
+                    onSubmitEditing={handleLogin}
                   />
                   <Pressable
                     onPress={() => setShowPassword(!showPassword)}
@@ -175,21 +176,12 @@ export default function LoginScreen({
             )}
 
             {/* Login Button */}
-            <Pressable
+            <AsyncButton
+              title="התחבר"
               onPress={handleLogin}
-              className={`py-4 px-6 rounded-xl mt-8 ${
-                loading ? 'bg-gray-400' : 'bg-blue-500'
-              }`}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white text-lg font-semibold text-center">
-                  התחבר
-                </Text>
-              )}
-            </Pressable>
+              loadingText="מתחבר..."
+              className="mt-8"
+            />
 
             {/* Register Link */}
             <View className="flex-row justify-center items-center mt-6">
@@ -202,8 +194,6 @@ export default function LoginScreen({
               <Text className="text-gray-600 text-base mr-1">אין לך חשבון? </Text>
             </View>
           </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }

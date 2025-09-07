@@ -7,6 +7,8 @@ import { cn } from '../utils/cn';
 import { isTurnCompletedForCurrentCycle, getCurrentCycle } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
 import { User } from '../types';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
 
 const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -282,7 +284,7 @@ export default function CleaningScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <Screen withPadding={false} keyboardVerticalOffset={0}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-gray-900 text-center mb-2">סבב הניקיון</Text>
         <Text className="text-gray-600 text-center">{currentApartment.name}</Text>
@@ -498,6 +500,6 @@ export default function CleaningScreen() {
           onCancel={() => setErrorMessage(null)}
         />
       )}
-    </View>
+    </Screen>
   );
 }

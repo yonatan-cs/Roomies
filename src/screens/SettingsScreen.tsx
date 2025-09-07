@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
@@ -7,6 +7,8 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import ConfirmModal from '../components/ConfirmModal';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
 
 const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -182,13 +184,11 @@ User: ${currentUser?.name || 'Unknown'}
   }
 
   return (
-    <TouchableWithoutFeedback onPress={() => setShowMemberOptions(null)}>
-      <View className="flex-1 bg-gray-50">
-        <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-          <Text className="text-2xl font-bold text-gray-900 text-center">הגדרות</Text>
-        </View>
-
-      <ScrollView className="flex-1 px-6 py-6">
+    <Screen withPadding={false} keyboardVerticalOffset={0}>
+      <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
+        <Text className="text-2xl font-bold text-gray-900 text-center">הגדרות</Text>
+      </View>
+      <View className="flex-1 px-6 py-6">
         {/* Apartment Details */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <Text className="text-lg font-semibold text-gray-900 mb-4">פרטי הדירה</Text>
@@ -291,6 +291,8 @@ User: ${currentUser?.name || 'Unknown'}
                   className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 <View className="flex-row mr-3">
                   <Pressable onPress={handleSaveName} className={"p-2 rounded-lg ml-2 " + (newName.trim() ? 'bg-green-100' : 'bg-gray-100')}>
@@ -375,6 +377,7 @@ User: ${currentUser?.name || 'Unknown'}
                     onChangeText={setEditingChoreName}
                     className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-base"
                     textAlign="right"
+                    returnKeyType="done"
                     onSubmitEditing={() => {
                       if (editingChoreName.trim()) {
                         // TODO: Implement rename functionality for checklist items
@@ -383,6 +386,7 @@ User: ${currentUser?.name || 'Unknown'}
                       } else {
                         setEditingChoreId(null);
                       }
+                      Keyboard.dismiss();
                     }}
                   />
                 ) : (
@@ -458,6 +462,7 @@ User: ${currentUser?.name || 'Unknown'}
                 } finally {
                   setIsAddingChore(false);
                 }
+                Keyboard.dismiss();
               }}
               returnKeyType="done"
               editable={!isAddingChore}
@@ -607,6 +612,6 @@ User: ${currentUser?.name || 'Unknown'}
         }}
       />
       </View>
-    </TouchableWithoutFeedback>
+    </Screen>
   );
 }

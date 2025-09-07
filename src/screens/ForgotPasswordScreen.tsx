@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { firebaseAuth } from '../services/firebase-auth';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
 
 interface ForgotPasswordScreenProps {
   onBack: () => void;
@@ -68,12 +70,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
   };
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView className="flex-1 px-6">
+    <Screen withPadding={true} keyboardVerticalOffset={0}>
           <View className="pt-16 pb-8">
             {/* Back Button */}
             <Pressable 
@@ -109,6 +106,8 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!loading && !success}
+                returnKeyType="done"
+                onSubmitEditing={handleResetPassword}
               />
             </View>
 
@@ -132,21 +131,13 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
             )}
 
             {/* Reset Password Button */}
-            <Pressable
+            <AsyncButton
+              title={success ? 'נשלח בהצלחה' : 'שלח קישור לאיפוס'}
               onPress={handleResetPassword}
-              className={`py-4 px-6 rounded-xl mt-8 ${
-                loading || success ? 'bg-gray-400' : 'bg-blue-500'
-              }`}
-              disabled={loading || success}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white text-lg font-semibold text-center">
-                  {success ? 'נשלח בהצלחה' : 'שלח קישור לאיפוס'}
-                </Text>
-              )}
-            </Pressable>
+              loadingText="שולח..."
+              disabled={success}
+              className="mt-8"
+            />
 
             {/* Info Text */}
             <View className="mt-8 p-4 bg-blue-50 rounded-xl">
@@ -161,8 +152,6 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
               נתקלת בבעיה? צור קשר עם התמיכה הטכנית
             </Text>
           </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+    </Screen>
   );
 }

@@ -6,7 +6,8 @@ import {
   ScrollView,
   TextInput,
   Alert,
-  Switch
+  Switch,
+  Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -14,6 +15,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { firestoreService } from '../services/firestore-service';
+import { Screen } from '../components/Screen';
+import { AsyncButton } from '../components/AsyncButton';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -253,7 +256,7 @@ export default function GroupDebtsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <Screen withPadding={false} keyboardVerticalOffset={0}>
       {/* Header */}
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-4">
@@ -427,6 +430,8 @@ export default function GroupDebtsScreen() {
                 className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
                 keyboardType="numeric"
                 textAlign="center"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
               <Text className="text-gray-700 text-lg mr-3">₪</Text>
             </View>
@@ -463,6 +468,6 @@ export default function GroupDebtsScreen() {
           </View>
         </View>
       )}
-    </View>
+    </Screen>
   );
 }
