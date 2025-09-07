@@ -526,13 +526,10 @@ export default function ShoppingScreen() {
               behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
               style={{ width: '100%' }}
             >
-              <TouchableWithoutFeedback onPress={() => {}}>
-                <ScrollView 
-                  className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[80%]"
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ flexGrow: 0 }}
-                  showsVerticalScrollIndicator={false}
-                >
+              <View 
+                className="bg-white rounded-2xl p-6 w-full max-w-sm"
+                style={{ maxHeight: '80%' }}
+              >
                 <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
                   הוסף פריט חדש
                 </Text>
@@ -655,8 +652,7 @@ export default function ShoppingScreen() {
                     </View>
                   </Pressable>
                 </View>
-                </ScrollView>
-              </TouchableWithoutFeedback>
+              </View>
             </KeyboardAvoidingView>
           </View>
         </TouchableWithoutFeedback>
