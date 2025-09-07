@@ -18,31 +18,29 @@ export function Screen({
   keyboardVerticalOffset,
 }: Props) {
   const content = (
-    <View style={{ flex: 1 }} pointerEvents="box-none">
-      <Pressable
-        onPress={() => Keyboard.dismiss()}
-        style={{ flex: 1 }}
-        android_disableSound
-      >
-        {scroll ? (
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ 
-              padding: withPadding ? 16 : 0, 
-              flexGrow: 1 
-            }}
-            keyboardShouldPersistTaps="handled" // לחיצה מחוץ לאלמנטי הקלט תסגור מקלדת
-            showsVerticalScrollIndicator={false}
-          >
-            {children}
-          </ScrollView>
-        ) : (
-          <View style={{ flex: 1, padding: withPadding ? 16 : 0 }}>
-            {children}
-          </View>
-        )}
-      </Pressable>
-    </View>
+    <Pressable
+      onPress={() => Keyboard.dismiss()}
+      style={{ flex: 1 }}
+      android_disableSound
+    >
+      {scroll ? (
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ 
+            padding: withPadding ? 16 : 0, 
+            flexGrow: 1 
+          }}
+          keyboardShouldPersistTaps="handled" // לחיצה מחוץ לאלמנטי הקלט תסגור מקלדת
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={{ flex: 1, padding: withPadding ? 16 : 0 }}>
+          {children}
+        </View>
+      )}
+    </Pressable>
   );
 
   return (
