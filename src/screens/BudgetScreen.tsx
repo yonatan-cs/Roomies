@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   Alert,
   TouchableWithoutFeedback,
   Keyboard,
+  Animated,
+  Dimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -30,7 +33,54 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+// ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
+function useKeyboardLift() {
+  const shift = useRef(new Animated.Value(0)).current;
+  const [cardH, setCardH] = useState(0);
+  const [cardY, setCardY] = useState(0);
 
+  useEffect(() => {
+    const winH = Dimensions.get('window').height;
+    const margin = 12; // מרווח קטן מתחת לכפתורים
+
+    const onShow = (e: any) => {
+      const kbH = e?.endCoordinates?.height ?? 0;
+      const cardBottom = cardY + cardH;
+      const overflow = cardBottom + kbH + margin - winH;
+      const needed = Math.max(0, overflow);
+      Animated.timing(shift, { toValue: needed, duration: 160, useNativeDriver: true }).start();
+    };
+    const onHide = () => {
+      Animated.timing(shift, { toValue: 0, duration: 160, useNativeDriver: true }).start();
+    };
+
+    const subShow = Platform.OS === 'ios'
+      ? Keyboard.addListener('keyboardWillShow', onShow)
+      : Keyboard.addListener('keyboardDidShow', onShow);
+    const subHide = Platform.OS === 'ios'
+      ? Keyboard.addListener('keyboardWillHide', onHide)
+      : Keyboard.addListener('keyboardDidHide', onHide);
+
+    return () => {
+      subShow?.remove?.();
+      subHide?.remove?.();
+    };
+  }, [cardH, cardY, shift]);
+
+  const onLayoutCard = (e: any) => {
+    const { height, y } = e.nativeEvent.layout;
+    setCardH(height);
+    setCardY(y);
+  };
+
+  // translateY למעלה (שלילי)
+  const animatedStyle = useMemo(
+    () => ({ transform: [{ translateY: Animated.multiply(shift, -1) as any }] }),
+    [shift]
+  );
+
+  return { animatedStyle, onLayoutCard };
+}
 
 export default function BudgetScreen() {
   const navigation = useNavigation<NavigationProp>();
@@ -47,6 +97,9 @@ export default function BudgetScreen() {
   const [expenseDescription, setExpenseDescription] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
+  
+  // Keyboard lift hook for Add Expense modal
+  const addExpenseLift = useKeyboardLift();
   
   const { 
     expenses, 
@@ -476,7 +529,11 @@ export default function BudgetScreen() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View className="flex-1 bg-black/50 justify-center items-center px-6">
-            <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <Animated.View
+              onLayout={addExpenseLift.onLayoutCard}
+              style={[{ width: '100%', maxWidth: 400 }, addExpenseLift.animatedStyle]}
+            >
+              <View className="bg-white rounded-2xl p-6">
               <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
                 הוסף הוצאה חדשה
               </Text>
@@ -576,7 +633,8 @@ export default function BudgetScreen() {
                   disabled={isAddingExpense}
                 />
               </View>
-            </View>
+              </View>
+            </Animated.View>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
