@@ -517,7 +517,10 @@ export default function ShoppingScreen() {
         animationType="fade"
         onRequestClose={() => setShowAddModal(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setShowAddModal(false)}>
+        <TouchableWithoutFeedback onPress={() => {
+          Keyboard.dismiss();
+          setShowAddModal(false);
+        }}>
           <View className="flex-1 bg-black/50 justify-center items-center px-6">
             <TouchableWithoutFeedback onPress={() => {}}>
               <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
