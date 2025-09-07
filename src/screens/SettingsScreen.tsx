@@ -555,7 +555,6 @@ User: ${currentUser?.name || 'Unknown'}
           </Pressable>
           <Text className="text-xs text-gray-500 text-center mt-2">פעולה זו תסיר אותך מהדירה ותמחק את כל הנתונים המקומיים</Text>
         </View>
-      </ScrollView>
 
       <ConfirmModal
         visible={confirmLeaveVisible}
