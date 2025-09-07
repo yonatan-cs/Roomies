@@ -8,6 +8,11 @@ import {
   FlatList,
   Alert,
   Share,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +20,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
+import { AsyncButton } from '../components/AsyncButton';
+import { NumericInput } from '../components/NumericInput';
 
 type RootStackParamList = {
   Settings: undefined;
@@ -31,6 +38,14 @@ export default function DashboardScreen() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [showHighlightsModal, setShowHighlightsModal] = useState(false);
   const [timeRange, setTimeRange] = useState<'all' | 'year' | 'month' | '30days'>('all');
+  
+  // Add Expense Modal State
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [expenseTitle, setExpenseTitle] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
   const { 
     currentUser, 
     currentApartment, 
@@ -47,7 +62,8 @@ export default function DashboardScreen() {
     loadCleaningChecklist,
     loadCleaningStats,
     cleaningStats,
-    backfillCleaningStats
+    backfillCleaningStats,
+    addExpense
   } = useStore();
 
   // Load all data from Firestore when component mounts
@@ -476,6 +492,69 @@ export default function DashboardScreen() {
   const currentTurnUser = getCurrentTurnUser();
   const isMyTurn = currentUser && cleaningTask && cleaningTask.currentTurn === currentUser.id;
 
+  // Initialize participants when modal opens
+  useEffect(() => {
+    if (showAddExpenseModal && currentApartment) {
+      setSelectedParticipants(currentApartment.members.map(m => m.id));
+    }
+  }, [showAddExpenseModal, currentApartment]);
+
+  // Handle Add Expense
+  const handleAddExpense = async () => {
+    if (!expenseTitle.trim()) {
+      Alert.alert('שגיאה', 'אנא הכנס שם להוצאה');
+      return;
+    }
+
+    const numAmount = parseFloat(expenseAmount);
+    if (!numAmount || numAmount <= 0) {
+      Alert.alert('שגיאה', 'אנא הכנס סכום תקין');
+      return;
+    }
+
+    if (selectedParticipants.length === 0) {
+      Alert.alert('שגיאה', 'אנא בחר לפחות משתתף אחד');
+      return;
+    }
+
+    if (!currentUser) {
+      Alert.alert('שגיאה', 'משתמש לא מחובר');
+      return;
+    }
+
+    setIsAddingExpense(true);
+    try {
+      await addExpense({
+        title: expenseTitle.trim(),
+        amount: numAmount,
+        paidBy: currentUser.id,
+        participants: selectedParticipants,
+        category: 'other',
+        description: expenseDescription.trim() || undefined,
+      });
+
+      // Reset form and close modal
+      setExpenseTitle('');
+      setExpenseAmount('');
+      setExpenseDescription('');
+      setSelectedParticipants([]);
+      setShowAddExpenseModal(false);
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      Alert.alert('שגיאה', 'לא ניתן להוסיף את ההוצאה');
+    } finally {
+      setIsAddingExpense(false);
+    }
+  };
+
+  const toggleParticipant = (userId: string) => {
+    setSelectedParticipants(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
   // Share highlights function
   const shareHighlights = async () => {
     try {
@@ -564,7 +643,7 @@ export default function DashboardScreen() {
           </Pressable>
           
           <Pressable
-            onPress={() => navigation.navigate('AddExpense')}
+            onPress={() => setShowAddExpenseModal(true)}
             className="bg-green-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
             style={{
               shadowColor: '#10b981',
@@ -994,6 +1073,120 @@ export default function DashboardScreen() {
             </View>
           </ScrollView>
         </View>
+      </Modal>
+
+      {/* Add Expense Modal */}
+      <Modal
+        visible={showAddExpenseModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddExpenseModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View className="flex-1 bg-black/50 justify-center items-center px-6">
+            <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
+                הוסף הוצאה חדשה
+              </Text>
+
+              {/* Expense Title */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-2">שם ההוצאה *</Text>
+                <TextInput
+                  value={expenseTitle}
+                  onChangeText={setExpenseTitle}
+                  placeholder="למשל: קניות, חשבון חשמל..."
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  textAlign="right"
+                  autoFocus
+                  returnKeyType="next"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit={false}
+                />
+              </View>
+
+              {/* Amount */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-2">סכום *</Text>
+                <NumericInput
+                  value={expenseAmount}
+                  onChangeText={setExpenseAmount}
+                  placeholder="0"
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  textAlign="right"
+                  returnKeyType="next"
+                  onSubmitEditing={Keyboard.dismiss}
+                  blurOnSubmit={false}
+                />
+              </View>
+
+              {/* Participants */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-2">משתתפים *</Text>
+                <View className="flex-row flex-wrap">
+                  {currentApartment?.members.map((member) => (
+                    <Pressable
+                      key={member.id}
+                      onPress={() => toggleParticipant(member.id)}
+                      className={cn(
+                        "mr-2 mb-2 px-4 py-2 rounded-xl border-2",
+                        selectedParticipants.includes(member.id)
+                          ? "bg-blue-500 border-blue-500"
+                          : "bg-white border-gray-300"
+                      )}
+                    >
+                      <Text className={cn(
+                        "text-sm font-medium",
+                        selectedParticipants.includes(member.id)
+                          ? "text-white"
+                          : "text-gray-700"
+                      )}>
+                        {getUserDisplayInfo(member).displayName}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              {/* Description */}
+              <View className="mb-6">
+                <Text className="text-gray-700 text-base mb-2">תיאור (אופציונלי)</Text>
+                <TextInput
+                  value={expenseDescription}
+                  onChangeText={setExpenseDescription}
+                  placeholder="פרטים נוספים..."
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  textAlign="right"
+                  multiline
+                  numberOfLines={3}
+                  returnKeyType="done"
+                  blurOnSubmit={true}
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
+              </View>
+
+              {/* Action Buttons */}
+              <View className="flex-row space-x-3">
+                <Pressable
+                  onPress={() => setShowAddExpenseModal(false)}
+                  className="flex-1 bg-gray-100 py-3 px-4 rounded-xl"
+                >
+                  <Text className="text-gray-700 font-medium text-center">
+                    ביטול
+                  </Text>
+                </Pressable>
+                
+                <AsyncButton
+                  title="הוסף הוצאה"
+                  onPress={handleAddExpense}
+                  loadingText="מוסיף הוצאה..."
+                  className="flex-1"
+                  disabled={isAddingExpense}
+                />
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );
