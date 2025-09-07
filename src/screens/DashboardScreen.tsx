@@ -160,15 +160,6 @@ export default function DashboardScreen() {
     const now = new Date();
     let filteredExpenses = expenses.filter(expense => !expense.isHiddenDebtSettlement);
     
-    // Filter out expenses from removed members (only include current apartment members)
-    const currentMemberIds = new Set(currentApartment.members.map(m => m.id));
-    filteredExpenses = filteredExpenses.filter(expense => {
-      // Keep expense if paid by current member
-      if (currentMemberIds.has(expense.paidBy)) return true;
-      // Keep expense if all participants are current members
-      return expense.participants.every(p => currentMemberIds.has(p));
-    });
-    
     switch (timeRange) {
       case '30days':
         const thirtyDaysAgo = new Date();
@@ -199,19 +190,25 @@ export default function DashboardScreen() {
 
     const totalExpenses = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
-    // King of Expenses - who paid the most
-    const expensesByUser = filteredExpenses.reduce((acc, expense) => {
-      acc[expense.paidBy] = (acc[expense.paidBy] || 0) + expense.amount;
-      return acc;
-    }, {} as Record<string, number>);
+    // King of Expenses - who paid the most (only current members)
+    const currentMemberIds = new Set(currentApartment.members.map(m => m.id));
+    const expensesByUser = filteredExpenses
+      .filter(expense => currentMemberIds.has(expense.paidBy))
+      .reduce((acc, expense) => {
+        acc[expense.paidBy] = (acc[expense.paidBy] || 0) + expense.amount;
+        return acc;
+      }, {} as Record<string, number>);
 
     const kingOfExpenses = Object.entries(expensesByUser)
       .sort(([,a], [,b]) => b - a)[0];
 
-    // Shopping King - who bought the most items (filter by time range)
+    // Shopping King - who bought the most items (filter by time range and current members)
     const shoppingByUser = shoppingItems
       .filter(item => {
         if (!item.purchased || !item.purchasedBy) return false;
+        
+        // Only include current members
+        if (!currentMemberIds.has(item.purchasedBy)) return false;
         
         // Filter by time range if item has purchase date
         if (item.purchasedAt) {
@@ -241,10 +238,13 @@ export default function DashboardScreen() {
     const shoppingKing = Object.entries(shoppingByUser)
       .sort(([,a], [,b]) => b - a)[0];
 
-    // Cleaning King - who did the most cleanings (filter by time range)
+    // Cleaning King - who did the most cleanings (filter by time range and current members)
     const cleaningByUser = cleaningTask?.history
       ?.filter(entry => {
         if (!entry.userId) return false;
+        
+        // Only include current members
+        if (!currentMemberIds.has(entry.userId)) return false;
         
         // Filter by time range if entry has completion date
         if (entry.cleanedAt) {
@@ -754,7 +754,7 @@ export default function DashboardScreen() {
                         ({highlightsStats.kingOfExpenses.percentage.toFixed(1)}% מהסך)
                       </Text>
                       <Text className="text-xs text-gray-400 mt-1">
-                        תנו לו כתר… או העברה בנקאית; � �👑
+                        תנו לו כתר… או העברה בנקאית 👑
                       </Text>
                     </>
                   ) : (
@@ -827,7 +827,7 @@ export default function DashboardScreen() {
                 </View>
                 
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">ממוצע לחבר</Text>
+                  <Text className="text-sm text-gray-500 mb-2">ממוצע לשותף</Text>
                   <Text className="text-lg font-bold text-purple-600 mb-1">
                     {formatCurrency(highlightsStats.averagePerMember)}
                   </Text>
