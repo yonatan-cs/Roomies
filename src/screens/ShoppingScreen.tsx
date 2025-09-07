@@ -527,12 +527,7 @@ export default function ShoppingScreen() {
           }}>
             <View className="flex-1 bg-black/50 justify-center items-center px-6">
               <TouchableWithoutFeedback onPress={() => {}}>
-                <ScrollView 
-                  className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[80%]"
-                  keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={{ flexGrow: 0 }}
-                  showsVerticalScrollIndicator={false}
-                >
+                <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
                 <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
                   הוסף פריט חדש
                 </Text>
@@ -655,7 +650,7 @@ export default function ShoppingScreen() {
                     </View>
                   </Pressable>
                 </View>
-                </ScrollView>
+                </View>
               </TouchableWithoutFeedback>
             </View>
           </TouchableWithoutFeedback>
