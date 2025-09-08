@@ -69,6 +69,13 @@ const F = {
   int: (n: number) => ({ integerValue: String(Math.trunc(n)) }), // חייב מחרוזת!
   ts: (d: Date | string) => ({ timestampValue: (d instanceof Date ? d : new Date(d)).toISOString() }),
   arrStr: (a: string[]) => ({ arrayValue: { values: a.map(s => ({ stringValue: String(s) })) } }),
+  map: (obj: Record<string, any>) => ({ 
+    mapValue: { 
+      fields: Object.fromEntries(
+        Object.entries(obj).map(([key, value]) => [key, value])
+      ) 
+    } 
+  }),
 };
 
 function H(idToken: string) {
