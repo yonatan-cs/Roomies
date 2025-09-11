@@ -939,7 +939,19 @@ export const useStore = create<AppState>()(
         const ensure = (userId: string | undefined) => {
           if (!userId) return false;
           if (!balances[userId]) {
-            balances[userId] = { userId, owes: {}, owed: {}, netBalance: 0 };
+            balances[userId] = { 
+              userId, 
+              owes: {}, 
+              owed: {}, 
+              netBalance: 0 
+            };
+          }
+          // Ensure owes and owed are always objects
+          if (!balances[userId].owes) {
+            balances[userId].owes = {};
+          }
+          if (!balances[userId].owed) {
+            balances[userId].owed = {};
           }
           return true;
         };
@@ -1020,8 +1032,8 @@ export const useStore = create<AppState>()(
 
         // Calculate final net balances
         Object.values(balances).forEach((balance) => {
-          const totalOwed = Object.values(balance.owed).reduce((sum, amount) => sum + amount, 0);
-          const totalOwes = Object.values(balance.owes).reduce((sum, amount) => sum + amount, 0);
+          const totalOwed = Object.values(balance.owed || {}).reduce((sum, amount) => sum + amount, 0);
+          const totalOwes = Object.values(balance.owes || {}).reduce((sum, amount) => sum + amount, 0);
           balance.netBalance = Math.round((totalOwed - totalOwes) * 100) / 100;
         });
 
@@ -1037,7 +1049,19 @@ export const useStore = create<AppState>()(
         const ensure = (userId: string | undefined) => {
           if (!userId) return false;
           if (!balances[userId]) {
-            balances[userId] = { userId, owes: {}, owed: {}, netBalance: 0 };
+            balances[userId] = { 
+              userId, 
+              owes: {}, 
+              owed: {}, 
+              netBalance: 0 
+            };
+          }
+          // Ensure owes and owed are always objects
+          if (!balances[userId].owes) {
+            balances[userId].owes = {};
+          }
+          if (!balances[userId].owed) {
+            balances[userId].owed = {};
           }
           return true;
         };
@@ -1083,8 +1107,8 @@ export const useStore = create<AppState>()(
 
         // Calculate final net balances but DON'T net out the debts
         Object.values(balances).forEach((balance) => {
-          const totalOwed = Object.values(balance.owed).reduce((sum, amount) => sum + amount, 0);
-          const totalOwes = Object.values(balance.owes).reduce((sum, amount) => sum + amount, 0);
+          const totalOwed = Object.values(balance.owed || {}).reduce((sum, amount) => sum + amount, 0);
+          const totalOwes = Object.values(balance.owes || {}).reduce((sum, amount) => sum + amount, 0);
           balance.netBalance = Math.round((totalOwed - totalOwes) * 100) / 100;
         });
 
