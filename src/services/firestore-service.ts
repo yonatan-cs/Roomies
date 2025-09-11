@@ -3843,17 +3843,17 @@ export class FirestoreService {
     // Move to next person
     currentIndex = (currentIndex + 1) % queue.length;
 
+    const nextUserId = queue[currentIndex] || uid;
     const updateBody = {
       fields: {
-        user_id: F.str(queue[currentIndex] || uid), // מי התור הבא
-        assigned_at: F.ts(new Date()),
+        user_id: F.str(nextUserId), // מי התור הבא
+        assigned_at: F.ts(new Date()), // עוגן למחזור הבא (קריטי)
         last_completed_at: F.ts(new Date()), // Mark completion time
         last_completed_by: F.str(uid), // Who completed the cleaning
-        current_index: F.int(currentIndex), // Update the queue index
       },
     };
 
-    const fieldPaths = ['user_id', 'assigned_at', 'last_completed_at', 'last_completed_by', 'current_index'];
+    const fieldPaths = ['user_id', 'assigned_at', 'last_completed_at', 'last_completed_by'];
     const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?` + 
       fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
     

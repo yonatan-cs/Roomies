@@ -234,7 +234,7 @@ export default function DashboardScreen() {
     
     // For multiple members, estimate based on queue position and completion history
     if (cleaningTask.last_completed_at && cleaningTask.queue && cleaningTask.queue.length > 0) {
-      const currentIndex = cleaningTask.queue.findIndex(userId => userId === cleaningTask.currentTurn);
+      const currentIndex = cleaningTask.queue.findIndex(userId => userId === (cleaningTask as any).user_id);
       const queueLength = cleaningTask.queue.length;
       
       // Calculate estimated cleanings based on queue rotations
@@ -505,7 +505,7 @@ export default function DashboardScreen() {
   // Find current turn user
   const getCurrentTurnUser = () => {
     if (!cleaningTask || !currentApartment) return null;
-    return currentApartment.members.find(member => member.id === cleaningTask.currentTurn);
+    return currentApartment.members.find(member => member.id === (cleaningTask as any).user_id);
   };
 
   const formatCurrency = (amount: number) => {
@@ -545,7 +545,7 @@ export default function DashboardScreen() {
   };
 
   const currentTurnUser = getCurrentTurnUser();
-  const isMyTurn = currentUser && cleaningTask && cleaningTask.currentTurn === currentUser.id;
+  const isMyTurn = currentUser && cleaningTask && (cleaningTask as any).user_id === currentUser.id;
 
   // Initialize participants when modal opens
   useEffect(() => {

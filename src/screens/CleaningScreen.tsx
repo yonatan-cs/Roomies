@@ -19,6 +19,7 @@ export default function CleaningScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [turnCompleted, setTurnCompleted] = useState(false);
+  const [isFinishingTurn, setIsFinishingTurn] = useState(false);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
@@ -173,13 +174,23 @@ export default function CleaningScreen() {
   };
 
   const handleFinishTurn = async () => {
+    if (isFinishingTurn) return; // Prevent double-click
+    
+    setIsFinishingTurn(true);
     try {
       await finishCleaningTurn();
       setShowConfirmDone(false);
       setTurnCompleted(true); // Mark as completed locally
+      // Reload data to get fresh state
+      await Promise.all([
+        loadCleaningChecklist(),
+        checkOverdueTasks()
+      ]);
     } catch (error) {
       console.error('Error finishing turn:', error);
-      // Could show error message to user
+      setErrorMessage('שגיאה בסיום התור. נסה שוב.');
+    } finally {
+      setIsFinishingTurn(false);
     }
   };
 
@@ -212,7 +223,7 @@ export default function CleaningScreen() {
   };
 
   const isOverdue = () => {
-    if (!cleaningTask || !cleaningTask.dueDate) return false;
+    if (!cleaningTask) return false;
     
     // אם יש רק שותף אחד בדירה - אין איחור, הוא תמיד בתור
     if (currentApartment?.members.length === 1) {
@@ -220,9 +231,12 @@ export default function CleaningScreen() {
     }
     
     try {
-      const dueDate = new Date(cleaningTask.dueDate);
-      if (isNaN(dueDate.getTime())) return false;
-      return new Date() > dueDate;
+      // Calculate due date from assigned_at instead of using stale dueDate field
+      const { cycleEnd } = getCurrentCycle({
+        assigned_at: cleaningTask.assigned_at || null,
+        frequency_days: cleaningSettings.intervalDays,
+      });
+      return new Date() > cycleEnd;
     } catch (error) {
       return false;
     }
@@ -230,14 +244,14 @@ export default function CleaningScreen() {
 
   const getCurrentTurnUser = () => {
     if (!cleaningTask || !currentApartment) return null;
-    // Use the currentTurn field from the local type
-    const currentTurnUserId = cleaningTask.currentTurn;
+    // Use the user_id field (compatible with Firestore rules)
+    const currentTurnUserId = (cleaningTask as any).user_id;
     return currentApartment.members.find((member) => member.id === currentTurnUserId) || null;
   };
 
   const getNextInQueue = (): User[] => {
     if (!cleaningTask || !currentApartment) return [];
-    const currentTurnUserId = cleaningTask.currentTurn;
+    const currentTurnUserId = (cleaningTask as any).user_id;
     const currentIndex = cleaningTask.queue.indexOf(currentTurnUserId);
     const nextUsers: User[] = [];
     for (let i = 1; i < cleaningTask.queue.length; i++) {
@@ -320,20 +334,28 @@ export default function CleaningScreen() {
             </View>
 
             <Text className="text-xl font-semibold text-gray-900 mb-1">
-              {currentApartment.members.find((m) => m.id === cleaningTask.currentTurn)?.name || 'לא ידוע'}
+              {currentApartment.members.find((m) => m.id === (cleaningTask as any).user_id)?.name || 'לא ידוע'}
             </Text>
 
             {(() => {
-              const dow = cleaningSettings.preferredDayByUser[cleaningTask.currentTurn];
+              const dow = cleaningSettings.preferredDayByUser[(cleaningTask as any).user_id];
               if (dow === undefined) return null;
               return <Text className="text-sm text-gray-500 mb-1">מומלץ לנקות ביום {HEBREW_DAYS[dow]}</Text>;
             })()}
 
-            {cleaningTask.dueDate && (
-              <Text className={cn('text-sm mb-4', isOverdue() ? 'text-red-600' : 'text-gray-600')}>
-                עד {formatDueDate(cleaningTask.dueDate)}{isOverdue() && ' (באיחור)'}
-              </Text>
-            )}
+            {(() => {
+              // Calculate due date from assigned_at instead of using stale dueDate field
+              const { cycleEnd } = getCurrentCycle({
+                assigned_at: cleaningTask.assigned_at || null,
+                frequency_days: cleaningSettings.intervalDays,
+              });
+              const overdue = new Date() > cycleEnd;
+              return (
+                <Text className={cn('text-sm mb-4', overdue ? 'text-red-600' : 'text-gray-600')}>
+                  עד {formatDueDate(cycleEnd)}{overdue && ' (באיחור)'}
+                </Text>
+              );
+            })()}
 
             {isMyTurn && (
               <>
@@ -341,21 +363,16 @@ export default function CleaningScreen() {
                 <View className="w-full bg-gray-200 rounded-full h-2 mb-4">
                   <View className="bg-blue-500 h-2 rounded-full" style={{ width: `${getCompletionPercentage()}%` }} />
                 </View>
-                <Pressable 
-                  onPress={handleMarkCleaned} 
+                <AsyncButton
+                  title={turnCompleted ? 'השלמת את הניקיון! ✅' : (getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות')}
+                  onPress={handleMarkCleaned}
+                  disabled={turnCompleted || getCompletionPercentage() !== 100 || isFinishingTurn}
+                  loadingText="מעבד..."
                   className={cn(
                     'py-3 px-8 rounded-xl', 
                     turnCompleted ? 'bg-gray-400' : (getCompletionPercentage() === 100 ? 'bg-green-500' : 'bg-gray-300')
-                  )} 
-                  disabled={turnCompleted || getCompletionPercentage() !== 100}
-                >
-                  <Text className={cn(
-                    'font-semibold text-lg text-center', 
-                    turnCompleted ? 'text-gray-600' : (getCompletionPercentage() === 100 ? 'text-white' : 'text-gray-500')
-                  )}>
-                    {turnCompleted ? 'השלמת את הניקיון! ✅' : (getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות')}
-                  </Text>
-                </Pressable>
+                  )}
+                />
               </>
             )}
 
@@ -412,7 +429,7 @@ export default function CleaningScreen() {
             }
             
             // אם יש מספר שותפים - הצג את התור הרגיל
-            const currentIndex = cleaningTask.queue.indexOf(cleaningTask.currentTurn);
+            const currentIndex = cleaningTask.queue.indexOf((cleaningTask as any).user_id);
             return cleaningTask.queue.slice(1).map((_, i) => {
               const idx = (currentIndex + i + 1) % cleaningTask.queue.length;
               const userId = cleaningTask.queue[idx];
@@ -440,8 +457,8 @@ export default function CleaningScreen() {
             {checklistItems.map((item) => {
               const isCompleted = item.completed;
               // אם זה לא התור שלי, הכפתורים צריכים להיות חסומים
-              // אם זה התור שלי, הכפתורים חסומים רק אם סיימתי את התור או אם המשימה כבר הושלמה
-              const isDisabled = !isMyTurn || turnCompleted || (isCompleted && isMyTurn);
+              // אם זה התור שלי, הכפתורים חסומים רק אם סיימתי את התור
+              const isDisabled = !isMyTurn || turnCompleted;
               return (
                 <View key={item.id} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
                   <Pressable 
@@ -524,7 +541,7 @@ export default function CleaningScreen() {
         visible={showConfirmDone}
         title="אישור ניקיון"
         message="האם באמת השלמת את כל משימות הניקיון?"
-        confirmText="כן, סיימתי!"
+        confirmText={isFinishingTurn ? "מעבד..." : "כן, סיימתי!"}
         cancelText="ביטול"
         onConfirm={handleFinishTurn}
         onCancel={() => setShowConfirmDone(false)}

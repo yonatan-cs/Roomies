@@ -39,10 +39,10 @@ function computePeriodBounds(now: Date, anchorDow: number, intervalDays: number)
   return { periodStart, periodEnd };
 }
 
-// Helper function to get current turn user ID from either Firestore or local type
+// Helper function to get current turn user ID from Firestore
 function getCurrentTurnUserId(task: any): string | null {
-  // Firestore returns user_id, local type has currentTurn
-  return task?.user_id || task?.currentTurn || null;
+  // Use only user_id field (compatible with Firestore rules)
+  return task?.user_id || null;
 }
 
 interface AppState {
@@ -475,7 +475,7 @@ export const useStore = create<AppState>()(
             const cleaningTask: CleaningTask = {
               id: cleaningTaskData.id || uuidv4(),
               queue: cleaningTaskData.queue || [],
-              currentTurn: cleaningTaskData.user_id || cleaningTaskData.queue?.[0] || '',
+              user_id: cleaningTaskData.user_id || cleaningTaskData.queue?.[0] || '',
               dueDate,
               intervalDays,
               lastCleaned: cleaningTaskData.last_completed_at ? 
@@ -527,7 +527,11 @@ export const useStore = create<AppState>()(
           
           // Debug logging to help identify the issue
           const currentTurnUserId = getCurrentTurnUserId(task);
-          const isMyTurn = !!(task && currentUser && currentTurnUserId === currentUser.id);
+          const members = s.currentApartment?.members ?? [];
+          // Single user in apartment = always their turn
+          const isMyTurn = members.length === 1 ? 
+            !!(task && currentUser && members[0].id === currentUser.id) :
+            !!(task && currentUser && currentTurnUserId === currentUser.id);
           
           console.log('🔍 Turn check debug:', {
             taskExists: !!task,
