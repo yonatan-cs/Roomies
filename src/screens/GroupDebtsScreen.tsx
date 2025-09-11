@@ -258,7 +258,7 @@ export default function GroupDebtsScreen() {
   }
 
   return (
-    <Screen withPadding={false} keyboardVerticalOffset={0}>
+    <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       {/* Header */}
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-4">
@@ -295,7 +295,12 @@ export default function GroupDebtsScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-6 py-6">
+      <ScrollView 
+        className="flex-1 px-6 py-6"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
         {/* Group Balance Summary */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <Text className="text-lg font-semibold text-gray-900 mb-4">

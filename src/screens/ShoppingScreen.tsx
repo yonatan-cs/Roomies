@@ -368,7 +368,7 @@ export default function ShoppingScreen() {
   const purchaseLift = useKeyboardLift();
 
   return (
-    <Screen withPadding={false} keyboardVerticalOffset={0}>
+    <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-gray-900 text-center mb-4">רשימת קניות</Text>
         <Text className="text-gray-600 text-center">
@@ -418,7 +418,12 @@ export default function ShoppingScreen() {
         </Pressable>
       </View>
 
-      <ScrollView className="flex-1 px-6 py-6">
+      <ScrollView 
+        className="flex-1 px-6 py-6"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
         {/* Pending Items */}
         {pendingItems.length > 0 && (
           <View className="mb-6">

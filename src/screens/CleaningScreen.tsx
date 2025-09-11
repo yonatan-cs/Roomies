@@ -266,6 +266,11 @@ export default function CleaningScreen() {
   const nextUsers = getNextInQueue();
   const preferredDow = currentTurnUser ? cleaningSettings.preferredDayByUser[currentTurnUser.id] : undefined;
 
+  // Cycle key to force re-mount of checklist items when cycle changes
+  const cycleKey = cleaningTask?.assigned_at
+    ? new Date(cleaningTask.assigned_at).getTime()
+    : 0;
+
   const formatDate = (date: Date | string) => {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -307,7 +312,7 @@ export default function CleaningScreen() {
   }
 
   return (
-    <Screen withPadding={false} keyboardVerticalOffset={0}>
+    <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-gray-900 text-center mb-2">סבב הניקיון</Text>
         <Text className="text-gray-600 text-center">{currentApartment.name}</Text>
@@ -322,6 +327,9 @@ export default function CleaningScreen() {
 
       <ScrollView 
         className="flex-1 px-6 py-6"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -460,7 +468,7 @@ export default function CleaningScreen() {
               // אם זה התור שלי, הכפתורים חסומים רק אם סיימתי את התור
               const isDisabled = !isMyTurn || turnCompleted;
               return (
-                <View key={item.id} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
+                <View key={`${cycleKey}-${item.id}`} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
                   <Pressable 
                     onPress={() => !isDisabled && handleToggleTask(item.id, !isCompleted)} 
                     className={cn(
@@ -531,8 +539,6 @@ export default function CleaningScreen() {
           </View>
         )}
       </ScrollView>
-
-
 
       {/* Modals */}
       <ConfirmModal visible={showNotYourTurn} title="לא התור שלך" message="כרגע זה לא התור שלך לנקות" confirmText="הבנתי" cancelText="" onConfirm={() => setShowNotYourTurn(false)} onCancel={() => setShowNotYourTurn(false)} />
