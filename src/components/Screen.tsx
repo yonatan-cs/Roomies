@@ -18,11 +18,14 @@ export function Screen({
   keyboardVerticalOffset,
 }: Props) {
   const content = (
-    <Pressable
-      onPress={() => Keyboard.dismiss()}
-      style={{ flex: 1 }}
-      android_disableSound
-    >
+    <>
+      {/* שכבת "הקש לסגור מקלדת" שלא חוסמת ילדים */}
+      <Pressable
+        onPress={() => Keyboard.dismiss()}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}
+        pointerEvents="box-only" // חשוב: לא לחסום טאצ' לילדים
+        android_disableSound
+      />
       {scroll ? (
         <ScrollView
           style={{ flex: 1 }}
@@ -32,6 +35,7 @@ export function Screen({
           }}
           keyboardShouldPersistTaps="handled" // לחיצה מחוץ לאלמנטי הקלט תסגור מקלדת
           showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
         >
           {children}
         </ScrollView>
@@ -40,7 +44,7 @@ export function Screen({
           {children}
         </View>
       )}
-    </Pressable>
+    </>
   );
 
   return (

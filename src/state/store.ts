@@ -729,6 +729,16 @@ export const useStore = create<AppState>()(
         }
 
         try {
+          // Optimistic reset: immediately update UI before server calls
+          set((s) => ({
+            checklistItems: s.checklistItems.map(it => ({
+              ...it,
+              completed: false,
+              completed_by: null,
+              completed_at: null,
+            })),
+          }));
+
           // Reset all checklist items first
           await firestoreService.resetAllChecklistItems();
           // Then mark cleaning as completed (moves to next person)

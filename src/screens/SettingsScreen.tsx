@@ -184,11 +184,16 @@ User: ${currentUser?.name || 'Unknown'}
   }
 
   return (
-    <Screen withPadding={false} keyboardVerticalOffset={0}>
+    <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-gray-900 text-center">הגדרות</Text>
       </View>
-      <View className="flex-1 px-6 py-6">
+      <ScrollView 
+        className="flex-1 px-6 py-6"
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
         {/* Apartment Details */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <Text className="text-lg font-semibold text-gray-900 mb-4">פרטי הדירה</Text>
@@ -610,7 +615,7 @@ User: ${currentUser?.name || 'Unknown'}
           setMemberToRemove(null);
         }}
       />
-      </View>
+      </ScrollView>
     </Screen>
   );
 }
