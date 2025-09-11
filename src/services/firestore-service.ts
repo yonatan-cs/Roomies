@@ -3889,7 +3889,7 @@ export class FirestoreService {
     const { aptId, idToken } = await getApartmentContext();
     
     try {
-      const statsUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats`;
+      const statsUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats/global`;
       
       // Use atomic increment with updateTransforms
       const updateBody = {
@@ -3958,7 +3958,7 @@ export class FirestoreService {
     const { aptId, idToken } = await getApartmentContext();
     
     try {
-      const statsUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats`;
+      const statsUrl = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats/global`;
       
       const createBody = {
         fields: {
@@ -4003,7 +4003,7 @@ export class FirestoreService {
     console.log('🔄 Getting cleaning stats...');
     const { aptId, idToken } = await getApartmentContext();
     
-    const url = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats`;
+    const url = `${FIRESTORE_BASE_URL}/apartments/${aptId}/stats/global`;
     
     const res = await fetch(url, {
       method: 'GET',
