@@ -234,7 +234,7 @@ export default function DashboardScreen() {
     
     // For multiple members, estimate based on queue position and completion history
     if (cleaningTask.last_completed_at && cleaningTask.queue && cleaningTask.queue.length > 0) {
-      const currentIndex = cleaningTask.current_index || 0;
+      const currentIndex = cleaningTask.queue.findIndex(userId => userId === cleaningTask.currentTurn);
       const queueLength = cleaningTask.queue.length;
       
       // Calculate estimated cleanings based on queue rotations
