@@ -26,7 +26,7 @@ export interface CleaningSettings {
 
 export interface CleaningTask {
   id: string;
-  currentTurn: string; // user id
+  user_id: string; // user id (compatible with Firestore rules)
   queue: string[]; // array of user ids in rotation
   dueDate: Date;
   intervalDays: number;
@@ -39,6 +39,8 @@ export interface CleaningTask {
   frequency_days?: number;
   last_completed_at?: string | null; // ISO timestamp
   last_completed_by?: string | null;
+  // Legacy field for backward compatibility (deprecated)
+  currentTurn?: string;
 }
 
 export interface CleaningHistory {
