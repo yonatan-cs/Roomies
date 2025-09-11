@@ -843,7 +843,7 @@ export default function DashboardScreen() {
             החובות שלי
           </Text>
           
-          {myBalance && (
+          {myBalance && myBalance.owed && myBalance.owes && (
             <View>
               {/* Who owes me */}
               {Object.entries(myBalance.owed)
@@ -890,6 +890,18 @@ export default function DashboardScreen() {
                 </Text>
               </Pressable>
             </View>
+          )}
+
+          {myBalance && (!myBalance.owed || !myBalance.owes) && (
+            <Text className="text-gray-500 text-center py-4">
+              טוען נתוני חובות...
+            </Text>
+          )}
+
+          {!myBalance && (
+            <Text className="text-gray-500 text-center py-4">
+              אין נתוני חובות זמינים
+            </Text>
           )}
         </View>
 

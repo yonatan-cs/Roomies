@@ -231,15 +231,17 @@ export default function GroupDebtsScreen() {
     const debts: Array<{ fromUserId: string, toUserId: string, amount: number }> = [];
     
     balances.forEach(balance => {
-      Object.entries(balance.owes).forEach(([toUserId, amount]) => {
-        if (amount > 0.01) {
-          debts.push({
-            fromUserId: balance.userId,
-            toUserId,
-            amount
-          });
-        }
-      });
+      if (balance && balance.owes) {
+        Object.entries(balance.owes).forEach(([toUserId, amount]) => {
+          if (amount > 0.01) {
+            debts.push({
+              fromUserId: balance.userId,
+              toUserId,
+              amount
+            });
+          }
+        });
+      }
     });
     
     return debts.sort((a, b) => b.amount - a.amount);
