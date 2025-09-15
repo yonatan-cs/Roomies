@@ -16,12 +16,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { firebaseAuth } from '../services/firebase-auth';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
+import { useTranslation } from 'react-i18next';
 
 interface ForgotPasswordScreenProps {
   onBack: () => void;
 }
 
 export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,12 +33,12 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
     setError(null);
     
     if (!email.trim()) {
-      setError('אנא הכנס כתובת אימייל');
+      setError(t('forgot.emailPh'));
       return;
     }
 
     if (!isValidEmail(email)) {
-      setError('כתובת אימייל לא חוקית');
+      setError(t('auth.emailPlaceholder'));
       return;
     }
 
@@ -46,19 +48,10 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
       await firebaseAuth.resetPassword(email.trim());
       setSuccess(true);
       
-      Alert.alert(
-        'איפוס סיסמה נשלח',
-        'קישור לאיפוס הסיסמה נשלח לכתובת האימייל שלך. אנא בדוק את תיבת הדואר שלך.',
-        [
-          { 
-            text: 'בסדר', 
-            onPress: () => onBack() 
-          }
-        ]
-      );
+      Alert.alert(t('forgot.sentTitle'), t('forgot.sentBody'), [{ text: t('forgot.ok'), onPress: () => onBack() }]);
     } catch (error: any) {
       console.error('Reset password error:', error);
-      setError(error.message || 'שגיאה בשליחת איפוס סיסמה');
+      setError(error.message || t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -79,27 +72,23 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
               disabled={loading}
             >
               <Ionicons name="arrow-back" size={24} color="#007AFF" />
-              <Text className="text-blue-500 text-lg mr-2">חזור</Text>
+              <Text className="text-blue-500 text-lg mr-2">{t('forgot.back')}</Text>
             </Pressable>
 
             {/* Header */}
             <View className="items-center mb-12">
               <Ionicons name="key" size={80} color="#007AFF" />
-              <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
-                איפוס סיסמה
-              </Text>
-              <Text className="text-lg text-gray-600 mt-2 text-center">
-                הכנס את כתובת האימייל שלך ונשלח לך קישור לאיפוס הסיסמה
-              </Text>
+              <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">{t('forgot.title')}</Text>
+              <Text className="text-lg text-gray-600 mt-2 text-center">{t('forgot.subtitle')}</Text>
             </View>
 
             {/* Email Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">כתובת אימייל</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('forgot.email')}</Text>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="הכנס את כתובת האימייל שלך"
+                placeholder={t('forgot.emailPh')}
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                 textAlign="right"
                 keyboardType="email-address"
@@ -123,34 +112,27 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
               <View className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
                 <View className="flex-row items-center justify-center">
                   <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-                  <Text className="text-green-600 text-center mr-2">
-                    קישור נשלח בהצלחה!
-                  </Text>
+                  <Text className="text-green-600 text-center mr-2">{t('forgot.sentTitle')}</Text>
                 </View>
               </View>
             )}
 
             {/* Reset Password Button */}
             <AsyncButton
-              title={success ? 'נשלח בהצלחה' : 'שלח קישור לאיפוס'}
+              title={success ? t('forgot.sentTitle') : t('forgot.send')}
               onPress={handleResetPassword}
-              loadingText="שולח..."
+              loadingText={t('forgot.sending')}
               disabled={success}
               className="mt-8"
             />
 
             {/* Info Text */}
             <View className="mt-8 p-4 bg-blue-50 rounded-xl">
-              <Text className="text-blue-800 text-center text-sm leading-6">
-                לאחר שליחת הקישור, בדוק את תיבת הדואר שלך (כולל תיקיית הספאם). 
-                הקישור יהיה בתוקף למשך 60 דקות.
-              </Text>
+              <Text className="text-blue-800 text-center text-sm leading-6">{t('forgot.info')}</Text>
             </View>
 
             {/* Contact Support */}
-            <Text className="text-gray-500 text-center text-sm mt-6">
-              נתקלת בבעיה? צור קשר עם התמיכה הטכנית
-            </Text>
+            <Text className="text-gray-500 text-center text-sm mt-6">{t('forgot.support')}</Text>
           </View>
     </Screen>
   );

@@ -18,6 +18,7 @@ import { Expense } from '../types';
 import { cn } from '../utils/cn';
 import { AsyncButton } from './AsyncButton';
 import { NumericInput } from './NumericInput';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   visible: boolean;
@@ -27,6 +28,7 @@ type Props = {
 };
 
 export default function ExpenseEditModal({ visible, expense, onClose, onSuccess }: Props) {
+  const { t } = useTranslation();
   const { currentUser, currentApartment, updateExpense } = useStore();
 
   const [title, setTitle] = useState('');
@@ -47,23 +49,23 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
 
   const handleUpdateExpense = async () => {
     if (!title.trim()) {
-      Alert.alert('שגיאה', 'אנא הכנס שם להוצאה');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterTitle'));
       return;
     }
 
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) {
-      Alert.alert('שגיאה', 'אנא הכנס סכום תקין');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterValidAmount'));
       return;
     }
 
     if (selectedParticipants.length === 0) {
-      Alert.alert('שגיאה', 'אנא בחר לפחות משתתף אחד');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.selectParticipants'));
       return;
     }
 
     if (!currentUser || !expense) {
-      Alert.alert('שגיאה', 'משתמש לא מחובר');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.userNotLoggedIn'));
       return;
     }
 
@@ -80,11 +82,11 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
       
       if (changePercentage > 50) {
         Alert.alert(
-          'שינוי משמעותי',
-          `השינוי בסכום הוא ${changePercentage.toFixed(0)}%. האם אתה בטוח שברצונך להמשיך?`,
+          t('expenseEdit.significantChange'),
+          t('expenseEdit.changeMsg', { percent: changePercentage.toFixed(0) }),
           [
-            { text: 'ביטול', style: 'cancel' },
-            { text: 'המשך', onPress: () => performUpdate() }
+            { text: t('expenseEdit.cancel'), style: 'cancel' },
+            { text: t('expenseEdit.confirm'), onPress: () => performUpdate() }
           ]
         );
         return;
@@ -119,23 +121,23 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
       if (isPayer) {
         // The payer's change is the difference in total amount
         change = numAmount - originalAmount;
-        description = change > 0 ? `תשלם יותר ${Math.abs(change).toFixed(2)} ₪` : 
-                     change < 0 ? `תשלם פחות ${Math.abs(change).toFixed(2)} ₪` : 
-                     'אין שינוי';
+        description = change > 0 ? t('expenseEdit.willPayMore', { amount: Math.abs(change).toFixed(2) }) : 
+                     change < 0 ? t('expenseEdit.willPayLess', { amount: Math.abs(change).toFixed(2) }) : 
+                     t('expenseEdit.noChange');
       } else if (wasParticipant && isParticipant) {
         // Participant in both - change in their share
         change = newShare - originalShare;
-        description = change > 0 ? `ישלם יותר ${Math.abs(change).toFixed(2)} ₪` : 
-                     change < 0 ? `ישלם פחות ${Math.abs(change).toFixed(2)} ₪` : 
-                     'אין שינוי';
+        description = change > 0 ? t('expenseEdit.willPayMore', { amount: Math.abs(change).toFixed(2) }) : 
+                     change < 0 ? t('expenseEdit.willPayLess', { amount: Math.abs(change).toFixed(2) }) : 
+                     t('expenseEdit.noChange');
       } else if (!wasParticipant && isParticipant) {
         // New participant
         change = newShare;
-        description = `ישלם ${change.toFixed(2)} ₪ (חדש)`;
+        description = t('expenseEdit.willPayNew', { amount: change.toFixed(2) });
       } else if (wasParticipant && !isParticipant) {
         // No longer participant
         change = -originalShare;
-        description = `לא ישלם יותר (חסכון של ${Math.abs(change).toFixed(2)} ₪)`;
+        description = t('expenseEdit.willNotPay');
       }
       
       return {
@@ -164,14 +166,14 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
         description: description.trim() || undefined,
       });
 
-      Alert.alert('הצלחה', 'ההוצאה עודכנה בהצלחה', [
-        { text: 'אישור', onPress: () => {
+      Alert.alert(t('common.success'), t('expenseEdit.alerts.updated'), [
+        { text: t('common.ok'), onPress: () => {
           onSuccess();
           onClose();
         }}
       ]);
     } catch (error) {
-      Alert.alert('שגיאה', 'לא ניתן לעדכן את ההוצאה');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.updateFailed'));
       console.error('Error updating expense:', error);
     } finally {
       setLoading(false);
@@ -220,7 +222,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             <Pressable onPress={onClose} className="p-2">
               <Ionicons name="close" size={24} color="#374151" />
             </Pressable>
-            <Text className="text-lg font-semibold text-gray-900">עריכת הוצאה</Text>
+            <Text className="text-lg font-semibold text-gray-900">{t('expenseEdit.title')}</Text>
             <View className="w-8" />
           </View>
 
@@ -233,12 +235,12 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             {/* Title */}
             <View className="mb-6">
               <Text className="text-gray-700 text-base mb-2 font-medium">
-                שם ההוצאה *
+                {t('expenseEdit.expenseName')}
               </Text>
               <TextInput
                 value={title}
                 onChangeText={setTitle}
-                placeholder="לדוגמה: קניות בסופר"
+                placeholder={t('expenseEdit.examplePlaceholder')}
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                 textAlign="right"
                 returnKeyType="next"
@@ -249,7 +251,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             {/* Amount */}
             <View className="mb-6">
               <Text className="text-gray-700 text-base mb-2 font-medium">
-                סכום (₪) *
+                {t('expenseEdit.amount')}
               </Text>
               <NumericInput
                 value={amount}
@@ -260,7 +262,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
               />
               {selectedParticipants.length > 0 && amount && (
                 <Text className="text-sm text-gray-500 mt-2 text-right">
-                  {amountPerPerson.toFixed(2)}₪ לכל אחד
+                  {t('expenseEdit.perPerson', { amount: amountPerPerson.toFixed(2) })}
                 </Text>
               )}
             </View>
@@ -269,20 +271,20 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             <View className="mb-6">
               <View className="flex-row items-center justify-between mb-3">
                 <Text className="text-gray-700 text-base font-medium">
-                  משתתפים *
+                  {t('expenseEdit.participants')}
                 </Text>
                 <View className="flex-row">
                   <Pressable
                     onPress={selectAllParticipants}
                     className="bg-blue-100 py-1 px-3 rounded-lg mr-2"
                   >
-                    <Text className="text-blue-700 text-sm">בחר הכל</Text>
+                    <Text className="text-blue-700 text-sm">{t('expenseEdit.selectAll')}</Text>
                   </Pressable>
                   <Pressable
                     onPress={clearAllParticipants}
                     className="bg-gray-100 py-1 px-3 rounded-lg"
                   >
-                    <Text className="text-gray-700 text-sm">נקה הכל</Text>
+                    <Text className="text-gray-700 text-sm">{t('expenseEdit.clearAll')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -318,12 +320,12 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             {/* Description */}
             <View className="mb-6">
               <Text className="text-gray-700 text-base mb-2 font-medium">
-                תיאור (אופציונלי)
+                {t('expenseEdit.description')}
               </Text>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
-                placeholder="פרטים נוספים..."
+                placeholder={t('expenseEdit.additionalDetailsPlaceholder')}
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                 textAlign="right"
                 multiline
@@ -338,7 +340,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             {showImpactPreview && (
               <View className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
                 <Text className="text-yellow-800 text-base font-semibold mb-3">
-                  השפעת השינויים:
+                  {t('common.confirm')}
                 </Text>
                 {calculateImpact()?.map((impact, index) => (
                   <View key={index} className="flex-row items-center justify-between mb-2">
@@ -359,7 +361,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                     onPress={() => setShowImpactPreview(false)}
                     className="flex-1 bg-yellow-200 py-2 px-4 rounded-lg mr-2"
                   >
-                    <Text className="text-yellow-800 text-center font-medium">ביטול</Text>
+                    <Text className="text-yellow-800 text-center font-medium">{t('expenseEdit.cancel')}</Text>
                   </Pressable>
                   <Pressable
                     onPress={() => {
@@ -368,7 +370,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                     }}
                     className="flex-1 bg-green-500 py-2 px-4 rounded-lg"
                   >
-                    <Text className="text-white text-center font-medium">אשר שינויים</Text>
+                    <Text className="text-white text-center font-medium">{t('expenseEdit.confirm')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -376,9 +378,9 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
 
             {/* Update Button */}
             <AsyncButton
-              title="עדכן הוצאה"
+              title={t('expenseEdit.update')}
               onPress={handleUpdateExpense}
-              loadingText="מעדכן..."
+              loadingText={t('expenseEdit.updating')}
               disabled={showImpactPreview}
               className="mb-6"
             />
@@ -390,7 +392,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
               className="py-3"
             >
               <Text className="text-gray-500 text-center">
-                ביטול
+                {t('expenseEdit.cancel')}
               </Text>
             </Pressable>
             </ScrollView>

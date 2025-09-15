@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
+import { useTranslation } from 'react-i18next';
+import { useStore } from '../state/store';
 
 interface AuthScreenProps {
   onAuthSuccess: (user: any) => void;
@@ -27,6 +29,12 @@ interface AuthScreenProps {
 export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  // i18n
+  const { t } = useTranslation();
+  const appLanguage = useStore(s => s.appLanguage);
+  const setAppLanguage = useStore(s => s.setAppLanguage);
+  const isRTL = useMemo(() => appLanguage === 'he', [appLanguage]);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -50,12 +58,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     setLoginError(null);
     
     if (!loginEmail.trim() || !loginPassword.trim()) {
-      setLoginError('אנא מלא את כל השדות');
+      setLoginError(t('auth.errors.fillAllFields'));
       return;
     }
 
     if (!isValidEmail(loginEmail)) {
-      setLoginError('כתובת אימייל לא חוקית');
+      setLoginError(t('auth.errors.invalidEmail'));
       return;
     }
 
@@ -74,7 +82,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       
       if (!userData) {
         // User doesn't exist in Firestore, this shouldn't happen
-        throw new Error('נתוני המשתמש לא נמצאו');
+        throw new Error(t('auth.errors.userDataNotFound'));
       }
 
       // Get user's current apartment based on membership
@@ -93,7 +101,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       onAuthSuccess(user);
     } catch (error: any) {
       console.error('Login error:', error);
-      setLoginError(error.message || 'שגיאה בהתחברות');
+      setLoginError(error.message || t('auth.errors.loginFailed'));
     } finally {
       setLoginLoading(false);
     }
@@ -104,32 +112,32 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
     
     // Validation
     if (!registerEmail.trim() || !registerPassword.trim() || !confirmPassword.trim() || !fullName.trim()) {
-      setRegisterError('אנא מלא את כל השדות הנדרשים');
+      setRegisterError(t('auth.errors.fillAllFields'));
       return;
     }
 
     if (!isValidEmail(registerEmail)) {
-      setRegisterError('כתובת אימייל לא חוקית');
+      setRegisterError(t('auth.errors.invalidEmail'));
       return;
     }
 
     if (registerPassword.length < 6) {
-      setRegisterError('הסיסמה חייבת להכיל לפחות 6 תווים');
+      setRegisterError(t('auth.errors.invalidPasswordLength'));
       return;
     }
 
     if (registerPassword !== confirmPassword) {
-      setRegisterError('הסיסמאות אינן תואמות');
+      setRegisterError(t('auth.errors.passwordsMismatch'));
       return;
     }
 
     if (fullName.trim().length < 2) {
-      setRegisterError('השם חייב להכיל לפחות 2 תווים');
+      setRegisterError(t('auth.errors.fullNameTooShort'));
       return;
     }
 
     if (phone.trim() && !isValidPhone(phone)) {
-      setRegisterError('מספר טלפון לא חוקי');
+      setRegisterError(t('auth.errors.invalidPhone'));
       return;
     }
 
@@ -162,13 +170,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       };
 
       Alert.alert(
-        'הרשמה בוצעה בהצלחה!',
-        'החשבון שלך נוצר בהצלחה. כעת תוכל להתחיל להשתמש באפליקציה.',
-        [{ text: 'המשך', onPress: () => onAuthSuccess(user) }]
+        t('auth.errors.registerSuccessTitle'),
+        t('auth.errors.registerSuccessBody'),
+        [{ text: t('auth.errors.continue'), onPress: () => onAuthSuccess(user) }]
       );
     } catch (error: any) {
       console.error('Registration error:', error);
-      setRegisterError(error.message || 'שגיאה ברישום המשתמש');
+      setRegisterError(error.message || t('common.error'));
     } finally {
       setRegisterLoading(false);
     }
@@ -197,15 +205,21 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   return (
     <Screen withPadding={true} keyboardVerticalOffset={0}>
       <View className="pt-16 pb-8">
+        {/* Language toggle */}
+        <Pressable
+          onPress={() => setAppLanguage(appLanguage === 'he' ? 'en' : 'he')}
+          className="absolute p-2 bg-gray-100 rounded-full"
+          style={{ right: isRTL ? undefined : 16, left: isRTL ? 16 : undefined, top: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('settings.language')}
+        >
+          <Ionicons name="language" size={22} color="#111827" />
+        </Pressable>
         {/* Header */}
         <View className="items-center mb-8">
           <Ionicons name="home" size={80} color="#007AFF" />
-          <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
-            דירת שותפים
-          </Text>
-          <Text className="text-lg text-gray-600 mt-2 text-center">
-            ניהול חכם לחיים משותפים
-          </Text>
+          <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">{t('auth.title')}</Text>
+          <Text className="text-lg text-gray-600 mt-2 text-center">{t('auth.subtitle')}</Text>
         </View>
 
         {/* Tabs with subtle per-mode accent */}
@@ -214,9 +228,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             className={`flex-1 py-3 rounded-lg items-center ${tab === 'login' ? 'bg-white' : ''}`}
             onPress={() => setTab('login')}
           >
-            <Text className={`font-semibold ${tab === 'login' ? 'text-blue-600' : 'text-gray-600'}`}>
-              התחברות
-            </Text>
+            <Text className={`font-semibold ${tab === 'login' ? 'text-blue-600' : 'text-gray-600'}`}>{t('auth.loginTab')}</Text>
             {tab === 'login' && (
               <View className="h-0.5 bg-blue-600 w-10 mt-2 rounded-full" />
             )}
@@ -225,9 +237,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             className={`flex-1 py-3 rounded-lg items-center ${tab === 'register' ? 'bg-white' : ''}`}
             onPress={() => setTab('register')}
           >
-            <Text className={`font-semibold ${tab === 'register' ? 'text-green-600' : 'text-gray-600'}`}>
-              הרשמה
-            </Text>
+            <Text className={`font-semibold ${tab === 'register' ? 'text-green-600' : 'text-gray-600'}`}>{t('auth.registerTab')}</Text>
             {tab === 'register' && (
               <View className="h-0.5 bg-green-600 w-10 mt-2 rounded-full" />
             )}
@@ -239,13 +249,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           <View className="space-y-4">
             {/* Email Input (emphasized, calm) */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">אימייל</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('auth.email')}</Text>
               <TextInput
                 value={loginEmail}
                 onChangeText={setLoginEmail}
-                placeholder="הכנס את כתובת האימייל"
+                placeholder={t('auth.emailPlaceholder')}
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
-                textAlign="right"
+                textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -257,14 +267,14 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">סיסמה</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('auth.password')}</Text>
               <View className="relative">
                 <TextInput
                   value={loginPassword}
                   onChangeText={setLoginPassword}
-                  placeholder="הכנס את הסיסמה"
+                  placeholder={t('auth.passwordPlaceholder')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12 bg-white"
-                  textAlign="right"
+                  textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showLoginPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -292,7 +302,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
               className="self-end"
               disabled={loginLoading}
             >
-              <Text className="text-blue-600 text-base">שכחת סיסמה?</Text>
+              <Text className="text-blue-600 text-base">{t('auth.forgotPassword')}</Text>
             </Pressable>
 
             {/* Error Message */}
@@ -304,9 +314,9 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Login Button */}
             <AsyncButton
-              title="התחבר"
+              title={t('auth.login')}
               onPress={handleLogin}
-              loadingText="מתחבר..."
+              loadingText={t('auth.loginLoading')}
               className="mt-8"
             />
           </View>
@@ -317,13 +327,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           <View className="space-y-4">
             {/* Full Name Input (emphasized, calm) */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">שם מלא *</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('auth.fullName')}</Text>
               <TextInput
                 value={fullName}
                 onChangeText={setFullName}
-                placeholder="הכנס את שמך המלא"
+                placeholder={t('auth.fullNamePlaceholder')}
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
-                textAlign="right"
+                textAlign={isRTL ? 'right' : 'left'}
                 autoCapitalize="words"
                 editable={!registerLoading}
                 returnKeyType="next"
@@ -333,13 +343,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Email Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">אימייל *</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('auth.email')} *</Text>
               <TextInput
                 value={registerEmail}
                 onChangeText={setRegisterEmail}
-                placeholder="הכנס את כתובת האימייל"
+                placeholder={t('auth.emailPlaceholder')}
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
-                textAlign="right"
+                textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -351,26 +361,26 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Phone Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">טלפון</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('auth.phone')}</Text>
               <NumericInput
                 value={phone}
                 onChangeText={setPhone}
-                placeholder="054-1234567 (אופציונלי)"
+                placeholder={t('auth.phonePlaceholder')}
                 className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
-                textAlign="right"
+                textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
 
             {/* Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">סיסמה *</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('auth.password')} *</Text>
               <View className="relative">
                 <TextInput
                   value={registerPassword}
                   onChangeText={setRegisterPassword}
-                  placeholder="לפחות 6 תווים"
+                  placeholder={t('auth.passwordPlaceholder')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12 bg-white"
-                  textAlign="right"
+                  textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showRegisterPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -394,14 +404,14 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Confirm Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">אישור סיסמה *</Text>
+              <Text className="text-gray-700 text-base mb-2">{t('auth.confirmPassword')}</Text>
               <View className="relative">
                 <TextInput
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
-                  placeholder="הזן שוב את הסיסמה"
+                  placeholder={t('auth.confirmPasswordPlaceholder')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12 bg-white"
-                  textAlign="right"
+                  textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -432,17 +442,15 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Register Button */}
             <AsyncButton
-              title="צור חשבון"
+              title={t('auth.register')}
               onPress={handleRegister}
-              loadingText="יוצר חשבון..."
+              loadingText={t('auth.registerLoading')}
               variant="success"
               className="mt-6"
             />
 
             {/* Required Fields Note */}
-            <Text className="text-gray-500 text-sm text-center mt-4">
-              * שדות חובה
-            </Text>
+            <Text className="text-gray-500 text-sm text-center mt-4">{t('auth.requiredNote')}</Text>
           </View>
         )}
       </View>

@@ -3,6 +3,7 @@ import { View, Text, Pressable, Alert, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Expense } from '../types';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   item: Expense;
@@ -26,16 +27,17 @@ export default function ExpenseRow({
   currentUserId
 }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { t } = useTranslation();
 
   const confirmDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});
     Alert.alert(
-      'למחוק הוצאה?',
-      `האם למחוק את "${item.title}"?`,
+      t('expenseRow.deleteTitle'),
+      t('expenseRow.deleteMessage', { title: item.title }),
       [
-        { text: 'ביטול', style: 'cancel' },
+        { text: t('expenseRow.cancel'), style: 'cancel' },
         {
-          text: 'מחק',
+          text: t('expenseRow.delete'),
           style: 'destructive',
           onPress: async () => {
             setIsDeleting(true);
@@ -110,17 +112,17 @@ export default function ExpenseRow({
               styles.personalInfo,
               isPayer ? styles.payerText : styles.participantText
             ]}>
-              {isPayer ? `שילמת: ${formatCurrency(item.amount)}` : `החלק שלך: ${formatCurrency(personalShare)}`}
+              {isPayer ? t('expenseRow.youPaid', { amount: formatCurrency(item.amount) }) : t('expenseRow.participants', { count: item.participants.length, amount: formatCurrency(personalShare) })}
             </Text>
           )}
         </View>
         
         <View style={styles.amountContainer}>
           <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
-          <Text style={styles.payer}>שילם: {getUserName(item.paidBy)}</Text>
+          <Text style={styles.payer}>{t('expenseRow.paidBy', { name: getUserName(item.paidBy) })}</Text>
           {item.participants.length > 1 && (
             <Text style={styles.participants}>
-              {item.participants.length} משתתפים • {formatCurrency(personalShare)} לאחד
+              {t('expenseRow.participants', { count: item.participants.length, amount: formatCurrency(personalShare) })}
             </Text>
           )}
         </View>
@@ -131,15 +133,15 @@ export default function ExpenseRow({
         <Pressable 
           onPress={handleEdit} 
           style={styles.editButton} 
-          accessibilityLabel="ערוך הוצאה"
+          accessibilityLabel={t('expenseEdit.title')}
         >
           <Ionicons name="pencil-outline" size={12} color="#2563eb" />
-          <Text style={styles.editButtonText}>ערוך</Text>
+          <Text style={styles.editButtonText}>{t('expenseRow.edit')}</Text>
         </Pressable>
         <Pressable 
           onPress={confirmDelete} 
           style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]} 
-          accessibilityLabel="מחק הוצאה"
+          accessibilityLabel={t('expenseRow.delete')}
           disabled={isDeleting}
         >
           {isDeleting ? (
@@ -148,7 +150,7 @@ export default function ExpenseRow({
             <Ionicons name="trash-outline" size={12} color="#dc2626" />
           )}
           <Text style={[styles.deleteButtonText, isDeleting && styles.deleteButtonTextDisabled]}>
-            {isDeleting ? 'מוחק...' : 'מחק'}
+            {isDeleting ? t('expenseRow.deleting') : t('expenseRow.delete')}
           </Text>
         </Pressable>
       </View>

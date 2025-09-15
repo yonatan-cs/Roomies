@@ -15,11 +15,13 @@ import GroupDebtsScreen from '../screens/GroupDebtsScreen';
 
 import { useStore } from '../state/store';
 import { getApartmentContext } from '../services/firestore-service';
+import { useTranslation } from 'react-i18next';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function MainTabs() {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -50,33 +52,34 @@ function MainTabs() {
       <Tab.Screen 
         name="Dashboard" 
         component={DashboardScreen}
-        options={{ title: 'בית' }}
+        options={{ title: t('tabs.dashboard') }}
       />
       <Tab.Screen 
         name="Cleaning" 
         component={CleaningScreen}
-        options={{ title: 'ניקיון' }}
+        options={{ title: t('tabs.cleaning') }}
       />
       <Tab.Screen 
         name="Budget" 
         component={BudgetScreen}
-        options={{ title: 'מאזן' }}
+        options={{ title: t('tabs.budget') }}
       />
       <Tab.Screen 
         name="Shopping" 
         component={ShoppingScreen}
-        options={{ title: 'קניות' }}
+        options={{ title: t('tabs.shopping') }}
       />
       <Tab.Screen 
         name="Settings" 
         component={SettingsScreen}
-        options={{ title: 'הגדרות' }}
+        options={{ title: t('tabs.settings') }}
       />
     </Tab.Navigator>
   );
 }
 
 export default function AppNavigator() {
+  const { i18n, t } = useTranslation();
   const currentUser = useStore(state => state.currentUser);
   const currentApartment = useStore(state => state.currentApartment);
   const [isCheckingApartment, setIsCheckingApartment] = useState(true);
@@ -143,7 +146,7 @@ export default function AppNavigator() {
   });
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} key={i18n.language}>
       {showWelcome ? (
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
       ) : (
@@ -155,7 +158,7 @@ export default function AppNavigator() {
             options={{ 
               presentation: 'modal',
               headerShown: true,
-              title: 'הוספת הוצאה',
+              title: t('budget.addExpense'),
               headerTitleAlign: 'center'
             }}
           />
