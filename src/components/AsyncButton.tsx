@@ -1,7 +1,8 @@
 import React from 'react';
-import { Pressable, Text, ActivityIndicator, View } from 'react-native';
+import { Pressable, Text, ActivityIndicator } from 'react-native';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import { useTranslation } from 'react-i18next';
+import { impactMedium, warning } from '../utils/haptics';
 
 type Props = {
   title: string;
@@ -92,10 +93,23 @@ export function AsyncButton({
     }
   };
 
+  const handlePress = () => {
+    if (isDisabled) return;
+    
+    // Add haptic feedback based on button variant
+    if (variant === 'danger') {
+      warning();
+    } else {
+      impactMedium();
+    }
+    
+    run();
+  };
+
   return (
     <Pressable
       disabled={isDisabled}
-      onPress={() => run()}
+      onPress={handlePress}
       className={`${getVariantStyles()} ${getSizeStyles()} rounded-xl flex-row items-center justify-center gap-2 ${className}`}
       style={({ pressed }) => ({
         opacity: isDisabled ? 0.6 : pressed ? 0.8 : 1,
