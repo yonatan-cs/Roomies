@@ -10,6 +10,7 @@ import { User } from '../types';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { useTranslation } from 'react-i18next';
+import { impactLight, success } from '../utils/haptics';
 
 
 export default function CleaningScreen() {
@@ -152,8 +153,10 @@ export default function CleaningScreen() {
     try {
       if (completed) {
         await completeChecklistItem(taskId);
+        impactLight(); // Light haptic for completing a task
       } else {
         await uncompleteChecklistItem(taskId);
+        impactLight(); // Light haptic for uncompleting a task
       }
     } catch (error: any) {
       console.error('Error toggling task:', error);
@@ -180,6 +183,7 @@ export default function CleaningScreen() {
     setIsFinishingTurn(true);
     try {
       await finishCleaningTurn();
+      success(); // Success haptic for completing cleaning turn
       setShowConfirmDone(false);
       setTurnCompleted(true); // Mark as completed locally
       // Reload data to get fresh state

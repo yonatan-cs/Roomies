@@ -18,6 +18,7 @@ import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
+import { success, impactMedium } from '../utils/haptics';
 
 
 // ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
@@ -118,6 +119,7 @@ export default function ShoppingScreen() {
         quantity,
         newItemNotes.trim() || undefined
       );
+      success(); // Haptic feedback for successfully adding item
       setNewItemName('');
       setNewItemQuantity('1');
       setNewItemPriority('normal');
@@ -200,6 +202,7 @@ export default function ShoppingScreen() {
         purchaseDate
       );
 
+      impactMedium(); // Haptic feedback for marking item as purchased
       setShowPurchaseModal(false);
       setSelectedItemId(null);
       setPurchasePrice('');

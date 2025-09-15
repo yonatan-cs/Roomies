@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
@@ -9,13 +9,15 @@ import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
-import { AsyncButton } from '../components/AsyncButton';
+import { selection, impactMedium, success } from '../utils/haptics';
 
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
   const setAppLanguage = useStore(s => s.setAppLanguage);
+  const hapticsEnabled = useStore(s => s.hapticsEnabled);
+  const setHapticsEnabled = useStore(s => s.setHapticsEnabled);
   const {
     currentUser,
     currentApartment,
@@ -205,16 +207,44 @@ User: ${currentUser?.name || 'Unknown'}
           </View>
           <View className="flex-row">
             <Pressable
-              onPress={() => setAppLanguage('he')}
+              onPress={() => {
+                selection();
+                setAppLanguage('he');
+              }}
               className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-100'}`}
             >
               <Text className={appLanguage === 'he' ? 'text-white' : 'text-gray-700'}>{t('settings.hebrew')}</Text>
             </Pressable>
             <Pressable
-              onPress={() => setAppLanguage('en')}
+              onPress={() => {
+                selection();
+                setAppLanguage('en');
+              }}
               className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
             >
               <Text className={appLanguage === 'en' ? 'text-white' : 'text-gray-700'}>{t('settings.english')}</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Haptics Setting */}
+        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1">
+              <Text className="text-lg font-semibold text-gray-900">רטט</Text>
+              <Text className="text-sm text-gray-600 mt-1">רטט עדין בלחיצות על כפתורים חשובים</Text>
+            </View>
+            <Pressable
+              onPress={() => {
+                // Give haptic feedback before toggling (so user feels it if enabling)
+                if (!hapticsEnabled) {
+                  impactMedium();
+                }
+                setHapticsEnabled(!hapticsEnabled);
+              }}
+              className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
+            >
+              <View className={`w-5 h-5 rounded-full bg-white transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
             </Pressable>
           </View>
         </View>
@@ -481,6 +511,7 @@ User: ${currentUser?.name || 'Unknown'}
                 try {
                   await addChecklistItem(newChore.trim());
                   setNewChore('');
+                  success(); // Haptic feedback for successful task addition
                   setShowSuccessMessage(true);
                   setTimeout(() => setShowSuccessMessage(false), 3000);
                 } catch (error) {

@@ -54,6 +54,10 @@ interface AppState {
   appLanguage: 'he' | 'en';
   setAppLanguage: (lang: 'he' | 'en') => void;
 
+  // Haptics
+  hapticsEnabled: boolean;
+  setHapticsEnabled: (enabled: boolean) => void;
+
   // Cleaning (Firestore-based system only)
   cleaningTask?: CleaningTask;
   cleaningSettings: CleaningSettings;
@@ -150,10 +154,15 @@ export const useStore = create<AppState>()(
       // Language (default Hebrew to match current UI)
       appLanguage: 'he',
 
+      // Haptics (default enabled)
+      hapticsEnabled: true,
+
       // Checklist state (Firestore-based)
       checklistItems: [],
       // Language setter
       setAppLanguage: (lang) => set({ appLanguage: lang }),
+      // Haptics setter
+      setHapticsEnabled: (enabled) => set({ hapticsEnabled: enabled }),
       isMyCleaningTurn: false,
       _loadingChecklist: false,
 
@@ -1457,6 +1466,7 @@ export const useStore = create<AppState>()(
         currentUser: state.currentUser,
         currentApartment: state.currentApartment,
         appLanguage: state.appLanguage,
+        hapticsEnabled: state.hapticsEnabled,
         cleaningTask: state.cleaningTask,
         cleaningSettings: state.cleaningSettings,
         checklistItems: state.checklistItems,
