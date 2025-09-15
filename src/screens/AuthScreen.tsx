@@ -34,6 +34,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginEmailFocused, setLoginEmailFocused] = useState(false);
+  const [loginPasswordFocused, setLoginPasswordFocused] = useState(false);
 
   // Register form state
   const [registerEmail, setRegisterEmail] = useState('');
@@ -45,6 +47,11 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState<string | null>(null);
+  const [registerFullNameFocused, setRegisterFullNameFocused] = useState(false);
+  const [registerEmailFocused, setRegisterEmailFocused] = useState(false);
+  const [registerPhoneFocused, setRegisterPhoneFocused] = useState(false);
+  const [registerPasswordFocused, setRegisterPasswordFocused] = useState(false);
+  const [confirmPasswordFocused, setConfirmPasswordFocused] = useState(false);
 
   const handleLogin = async () => {
     setLoginError(null);
@@ -211,18 +218,24 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Tabs */}
         <View className="flex-row bg-gray-100 rounded-xl p-1 mb-8">
           <Pressable
-            className={`flex-1 py-3 rounded-lg items-center ${tab === 'login' ? 'bg-white' : ''}`}
+            className={`flex-1 py-3 rounded-lg items-center transition-all ${tab === 'login' ? 'bg-white shadow-sm' : ''}`}
             onPress={() => setTab('login')}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.8 : 1,
+            })}
           >
-            <Text className={`font-semibold ${tab === 'login' ? 'text-blue-600' : 'text-gray-600'}`}>
+            <Text className={`font-semibold transition-all ${tab === 'login' ? 'text-blue-600' : 'text-gray-600'}`}>
               התחברות
             </Text>
           </Pressable>
           <Pressable
-            className={`flex-1 py-3 rounded-lg items-center ${tab === 'register' ? 'bg-white' : ''}`}
+            className={`flex-1 py-3 rounded-lg items-center transition-all ${tab === 'register' ? 'bg-white shadow-sm' : ''}`}
             onPress={() => setTab('register')}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.8 : 1,
+            })}
           >
-            <Text className={`font-semibold ${tab === 'register' ? 'text-blue-600' : 'text-gray-600'}`}>
+            <Text className={`font-semibold transition-all ${tab === 'register' ? 'text-green-600' : 'text-gray-600'}`}>
               הרשמה
             </Text>
           </Pressable>
@@ -233,12 +246,22 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           <View className="space-y-4">
             {/* Email Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">אימייל</Text>
+              <Text className={`text-base mb-2 font-medium transition-all ${
+                loginEmailFocused ? 'text-blue-600' : 'text-gray-700'
+              }`}>אימייל</Text>
               <TextInput
                 value={loginEmail}
                 onChangeText={setLoginEmail}
+                onFocus={() => setLoginEmailFocused(true)}
+                onBlur={() => setLoginEmailFocused(false)}
                 placeholder="הכנס את כתובת האימייל"
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className={`rounded-xl px-4 py-3 text-base bg-white transition-all ${
+                  loginEmailFocused 
+                    ? 'border-2 border-blue-500 shadow-sm' 
+                    : loginEmail 
+                      ? 'border-2 border-gray-300' 
+                      : 'border border-gray-300'
+                }`}
                 textAlign="right"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -251,13 +274,23 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">סיסמה</Text>
+              <Text className={`text-base mb-2 font-medium transition-all ${
+                loginPasswordFocused ? 'text-blue-600' : 'text-gray-700'
+              }`}>סיסמה</Text>
               <View className="relative">
                 <TextInput
                   value={loginPassword}
                   onChangeText={setLoginPassword}
+                  onFocus={() => setLoginPasswordFocused(true)}
+                  onBlur={() => setLoginPasswordFocused(false)}
                   placeholder="הכנס את הסיסמה"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12"
+                  className={`rounded-xl px-4 py-3 text-base pr-12 bg-white transition-all ${
+                    loginPasswordFocused 
+                      ? 'border-2 border-blue-500 shadow-sm' 
+                      : loginPassword 
+                        ? 'border-2 border-gray-300' 
+                        : 'border border-gray-300'
+                  }`}
                   textAlign="right"
                   secureTextEntry={!showLoginPassword}
                   autoCapitalize="none"
@@ -270,11 +303,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   onPress={() => setShowLoginPassword(!showLoginPassword)}
                   className="absolute left-3 top-3"
                   disabled={loginLoading}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                 >
                   <Ionicons 
                     name={showLoginPassword ? "eye-off" : "eye"} 
                     size={24} 
-                    color="#666" 
+                    color={loginPasswordFocused ? "#3B82F6" : "#666"} 
                   />
                 </Pressable>
               </View>
@@ -301,7 +335,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
               title="התחבר"
               onPress={handleLogin}
               loadingText="מתחבר..."
-              className="mt-8"
+              variant="primary"
+              className="mt-8 shadow-sm"
             />
           </View>
         )}
@@ -311,12 +346,22 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           <View className="space-y-4">
             {/* Full Name Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">שם מלא *</Text>
+              <Text className={`text-base mb-2 font-medium transition-all ${
+                registerFullNameFocused ? 'text-green-600' : 'text-gray-700'
+              }`}>שם מלא *</Text>
               <TextInput
                 value={fullName}
                 onChangeText={setFullName}
+                onFocus={() => setRegisterFullNameFocused(true)}
+                onBlur={() => setRegisterFullNameFocused(false)}
                 placeholder="הכנס את שמך המלא"
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className={`rounded-xl px-4 py-3 text-base bg-white transition-all ${
+                  registerFullNameFocused 
+                    ? 'border-2 border-green-500 shadow-sm' 
+                    : fullName 
+                      ? 'border-2 border-gray-300' 
+                      : 'border border-gray-300'
+                }`}
                 textAlign="right"
                 autoCapitalize="words"
                 editable={!registerLoading}
@@ -327,12 +372,22 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Email Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">אימייל *</Text>
+              <Text className={`text-base mb-2 font-medium transition-all ${
+                registerEmailFocused ? 'text-green-600' : 'text-gray-700'
+              }`}>אימייל *</Text>
               <TextInput
                 value={registerEmail}
                 onChangeText={setRegisterEmail}
+                onFocus={() => setRegisterEmailFocused(true)}
+                onBlur={() => setRegisterEmailFocused(false)}
                 placeholder="הכנס את כתובת האימייל"
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className={`rounded-xl px-4 py-3 text-base bg-white transition-all ${
+                  registerEmailFocused 
+                    ? 'border-2 border-green-500 shadow-sm' 
+                    : registerEmail 
+                      ? 'border-2 border-gray-300' 
+                      : 'border border-gray-300'
+                }`}
                 textAlign="right"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -345,25 +400,45 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Phone Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">טלפון</Text>
+              <Text className={`text-base mb-2 font-medium transition-all ${
+                registerPhoneFocused ? 'text-green-600' : 'text-gray-700'
+              }`}>טלפון</Text>
               <NumericInput
                 value={phone}
                 onChangeText={setPhone}
+                onFocus={() => setRegisterPhoneFocused(true)}
+                onBlur={() => setRegisterPhoneFocused(false)}
                 placeholder="054-1234567 (אופציונלי)"
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className={`rounded-xl px-4 py-3 text-base bg-white transition-all ${
+                  registerPhoneFocused 
+                    ? 'border-2 border-green-500 shadow-sm' 
+                    : phone 
+                      ? 'border-2 border-gray-300' 
+                      : 'border border-gray-300'
+                }`}
                 textAlign="right"
               />
             </View>
 
             {/* Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">סיסמה *</Text>
+              <Text className={`text-base mb-2 font-medium transition-all ${
+                registerPasswordFocused ? 'text-green-600' : 'text-gray-700'
+              }`}>סיסמה *</Text>
               <View className="relative">
                 <TextInput
                   value={registerPassword}
                   onChangeText={setRegisterPassword}
+                  onFocus={() => setRegisterPasswordFocused(true)}
+                  onBlur={() => setRegisterPasswordFocused(false)}
                   placeholder="לפחות 6 תווים"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12"
+                  className={`rounded-xl px-4 py-3 text-base pr-12 bg-white transition-all ${
+                    registerPasswordFocused 
+                      ? 'border-2 border-green-500 shadow-sm' 
+                      : registerPassword 
+                        ? 'border-2 border-gray-300' 
+                        : 'border border-gray-300'
+                  }`}
                   textAlign="right"
                   secureTextEntry={!showRegisterPassword}
                   autoCapitalize="none"
@@ -376,11 +451,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   onPress={() => setShowRegisterPassword(!showRegisterPassword)}
                   className="absolute left-3 top-3"
                   disabled={registerLoading}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                 >
                   <Ionicons 
                     name={showRegisterPassword ? "eye-off" : "eye"} 
                     size={24} 
-                    color="#666" 
+                    color={registerPasswordFocused ? "#10B981" : "#666"} 
                   />
                 </Pressable>
               </View>
@@ -388,13 +464,23 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Confirm Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">אישור סיסמה *</Text>
+              <Text className={`text-base mb-2 font-medium transition-all ${
+                confirmPasswordFocused ? 'text-green-600' : 'text-gray-700'
+              }`}>אישור סיסמה *</Text>
               <View className="relative">
                 <TextInput
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
+                  onFocus={() => setConfirmPasswordFocused(true)}
+                  onBlur={() => setConfirmPasswordFocused(false)}
                   placeholder="הזן שוב את הסיסמה"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12"
+                  className={`rounded-xl px-4 py-3 text-base pr-12 bg-white transition-all ${
+                    confirmPasswordFocused 
+                      ? 'border-2 border-green-500 shadow-sm' 
+                      : confirmPassword 
+                        ? 'border-2 border-gray-300' 
+                        : 'border border-gray-300'
+                  }`}
                   textAlign="right"
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
@@ -407,11 +493,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute left-3 top-3"
                   disabled={registerLoading}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
                 >
                   <Ionicons 
                     name={showConfirmPassword ? "eye-off" : "eye"} 
                     size={24} 
-                    color="#666" 
+                    color={confirmPasswordFocused ? "#10B981" : "#666"} 
                   />
                 </Pressable>
               </View>
@@ -425,12 +512,25 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             )}
 
             {/* Register Button */}
-            <AsyncButton
-              title="צור חשבון"
-              onPress={handleRegister}
-              loadingText="יוצר חשבון..."
-              className="mt-6"
-            />
+            <View className="mt-6">
+              <Pressable
+                disabled={registerLoading}
+                onPress={handleRegister}
+                className={`py-4 px-6 rounded-xl flex-row items-center justify-center gap-2 shadow-sm transition-all ${
+                  registerLoading 
+                    ? 'bg-gray-300' 
+                    : 'bg-green-500 active:bg-green-600'
+                }`}
+                style={({ pressed }) => ({
+                  opacity: registerLoading ? 0.6 : pressed ? 0.8 : 1,
+                })}
+              >
+                {registerLoading && <ActivityIndicator size="small" color="white" />}
+                <Text className="text-white text-base font-semibold text-center">
+                  {registerLoading ? 'יוצר חשבון...' : 'צור חשבון'}
+                </Text>
+              </Pressable>
+            </View>
 
             {/* Required Fields Note */}
             <Text className="text-gray-500 text-sm text-center mt-4">
