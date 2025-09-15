@@ -6,7 +6,7 @@ type Props = {
   title: string;
   onPress: () => Promise<void>;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'success';
   size?: 'small' | 'medium' | 'large';
   loadingText?: string;
   className?: string;
@@ -42,6 +42,10 @@ export function AsyncButton({
         return isDisabled 
           ? 'bg-gray-300' 
           : 'bg-red-500 active:bg-red-600';
+      case 'success':
+        return isDisabled
+          ? 'bg-gray-300'
+          : 'bg-green-500 active:bg-green-600';
       default:
         return isDisabled ? 'bg-gray-300' : 'bg-blue-500';
     }
@@ -51,6 +55,7 @@ export function AsyncButton({
     switch (variant) {
       case 'primary':
       case 'danger':
+      case 'success':
         return 'text-white';
       case 'secondary':
         return isDisabled ? 'text-gray-400' : 'text-gray-700';
