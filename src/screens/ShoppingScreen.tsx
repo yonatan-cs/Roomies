@@ -17,13 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
+import { useTranslation } from 'react-i18next';
 
-// Priority levels with colors and labels
-const PRIORITIES = [
-  { key: 'low', label: 'נמוכה', color: '#10b981', bgColor: '#d1fae5', icon: 'arrow-down' },
-  { key: 'normal', label: 'רגילה', color: '#3b82f6', bgColor: '#dbeafe', icon: 'remove' },
-  { key: 'high', label: 'גבוהה', color: '#ef4444', bgColor: '#fee2e2', icon: 'arrow-up' }
-];
 
 // ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
 function useKeyboardLift() {
@@ -75,6 +70,7 @@ function useKeyboardLift() {
 }
 
 export default function ShoppingScreen() {
+  const { t } = useTranslation();
   const [newItemName, setNewItemName] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemQuantity, setNewItemQuantity] = useState('1');
@@ -84,6 +80,13 @@ export default function ShoppingScreen() {
   const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null);
   const [isPurchasingItem, setIsPurchasingItem] = useState<string | null>(null);
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<'all' | 'low' | 'normal' | 'high'>('all');
+
+  // Priority levels with colors and labels - now using i18n
+  const PRIORITIES = [
+    { key: 'low', label: t('shopping.priorities.low'), color: '#10b981', bgColor: '#d1fae5', icon: 'arrow-down' },
+    { key: 'normal', label: t('shopping.priorities.normal'), color: '#3b82f6', bgColor: '#dbeafe', icon: 'remove' },
+    { key: 'high', label: t('shopping.priorities.high'), color: '#ef4444', bgColor: '#fee2e2', icon: 'arrow-up' }
+  ];
 
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showItemDetailsModal, setShowItemDetailsModal] = useState(false);
@@ -122,7 +125,7 @@ export default function ShoppingScreen() {
       setShowAddModal(false);
     } catch (error) {
       console.error('Error adding shopping item:', error);
-      Alert.alert('שגיאה', 'לא ניתן להוסיף את הפריט');
+      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.cannotAdd'));
     } finally {
       setIsAddingItem(false);
     }
@@ -137,11 +140,11 @@ export default function ShoppingScreen() {
       setShowItemDetailsModal(true);
     } else {
       Alert.alert(
-        'מחיקת פריט',
-        'האם קנית את הפריט הזה?',
+        t('common.confirm'),
+        t('shopping.purchaseModal.title'),
         [
           {
-            text: 'לא, רק תמחק',
+            text: t('shopping.addModal.cancel'),
             onPress: async () => {
               if (isPurchasingItem === itemId) return;
               setIsRemovingItem(itemId);
@@ -149,7 +152,7 @@ export default function ShoppingScreen() {
                 await removeShoppingItem(itemId);
               } catch (error) {
                 console.error('Error removing item:', error);
-                Alert.alert('שגיאה', 'לא ניתן למחוק את הפריט');
+                Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.cannotRemove'));
               } finally {
                 setIsRemovingItem(null);
               }
@@ -157,7 +160,7 @@ export default function ShoppingScreen() {
             style: 'destructive'
           },
           {
-            text: 'כן, קניתי',
+            text: t('shopping.purchaseModal.confirm'),
             onPress: () => {
               if (isPurchasingItem === itemId) return;
               setSelectedItemId(itemId);
@@ -167,7 +170,7 @@ export default function ShoppingScreen() {
               setShowPurchaseModal(true);
             }
           },
-          { text: 'ביטול', style: 'cancel' }
+          { text: t('common.cancel'), style: 'cancel' }
         ]
       );
     }
@@ -177,11 +180,11 @@ export default function ShoppingScreen() {
     if (!selectedItemId || !currentUser) return;
     const price = parseFloat(purchasePrice);
     if (purchasePrice.trim() && (!price || price <= 0)) {
-      Alert.alert('שגיאה', 'אנא הכנס מחיר תקין');
+      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.invalidPrice'));
       return;
     }
     if (selectedParticipants.length === 0) {
-      Alert.alert('שגיאה', 'יש לבחור לפחות משתתף אחד');
+      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.needParticipants'));
       return;
     }
 
@@ -205,7 +208,7 @@ export default function ShoppingScreen() {
       setPurchaseDate(new Date());
     } catch (error) {
       console.error('Error marking item as purchased:', error);
-      Alert.alert('שגיאה', 'לא ניתן לסמן את הפריט כנרכש');
+      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.cannotMarkPurchased'));
     } finally {
       setIsPurchasingItem(null);
     }
@@ -214,7 +217,7 @@ export default function ShoppingScreen() {
   const formatDate = (date: Date | string) => {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
-      if (isNaN(dateObj.getTime())) return 'תאריך לא תקין';
+      if (isNaN(dateObj.getTime())) return t('common.invalidDate');
       return new Intl.DateTimeFormat('he-IL', {
         day: 'numeric',
         month: 'short',
@@ -222,13 +225,13 @@ export default function ShoppingScreen() {
         minute: '2-digit'
       }).format(dateObj);
     } catch {
-      return 'תאריך לא תקין';
+      return t('common.invalidDate');
     }
   };
 
   const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return 'אתה';
-    return currentApartment?.members.find(m => m.id === userId)?.name || 'לא ידוע';
+    if (userId === currentUser?.id) return t('common.you');
+    return currentApartment?.members.find(m => m.id === userId)?.name || t('common.unknown');
   };
 
   const handleRepurchase = async (itemId: string) => {
@@ -237,12 +240,12 @@ export default function ShoppingScreen() {
       await markItemForRepurchase(itemId);
       setShowItemDetailsModal(false);
       setSelectedItemId(null);
-      Alert.alert('הצלחה! 🛒', `הפריט "${item?.name}" נוסף שוב לרשימת הקניות`, [
-        { text: 'בסדר', style: 'default' }
+      Alert.alert(t('shopping.alerts.success'), t('shopping.alerts.repurchased', { name: item?.name || '' }), [
+        { text: t('common.ok'), style: 'default' }
       ]);
     } catch (error) {
       console.error('Error repurchasing item:', error);
-      Alert.alert('שגיאה', 'לא ניתן להוסיף את הפריט שוב');
+      Alert.alert(t('common.error'), t('shopping.alerts.cannotAdd'));
     }
   };
 
@@ -281,9 +284,7 @@ export default function ShoppingScreen() {
           </Text>
 
           <View className="flex-row items-center mt-1">
-            <Text className="text-sm text-gray-500">
-              נוסף על ידי {getUserName(item.addedBy)} • {formatDate(item.addedAt)}
-            </Text>
+            <Text className="text-sm text-gray-500">{t('shopping.addedByAt', { name: getUserName(item.addedBy), date: formatDate(item.addedAt) })}</Text>
           </View>
 
           {item.priority && (
@@ -312,7 +313,7 @@ export default function ShoppingScreen() {
             <View className="mt-2 flex-row items-center space-x-2">
               <View className="bg-orange-100 px-2 py-1 rounded-lg flex-row items-center">
                 <Ionicons name="list-outline" size={12} color="#f97316" />
-                <Text className="text-xs font-medium text-orange-700 mr-1">כמות: {item.quantity}</Text>
+                <Text className="text-xs font-medium text-orange-700 mr-1">{t('shopping.quantity', { qty: item.quantity })}</Text>
               </View>
             </View>
           )}
@@ -329,9 +330,7 @@ export default function ShoppingScreen() {
           {item.purchased && (
             <View className="flex-row items-center mt-2">
               <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-              <Text className="text-sm text-green-600 mr-2">
-                נקנה על ידי {getUserName(item.purchasedBy!)} {item.purchasePrice && ` • ₪${item.purchasePrice}`}
-              </Text>
+              <Text className="text-sm text-green-600 mr-2">{t('shopping.purchasedBy', { name: getUserName(item.purchasedBy!), price: item.purchasePrice ? ` • ${t('shopping.shekel')}${item.purchasePrice}` : '' })}</Text>
             </View>
           )}
         </Pressable>
@@ -358,7 +357,7 @@ export default function ShoppingScreen() {
   if (!currentUser || !currentApartment) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">טוען...</Text>
+        <Text className="text-gray-500">{t('common.loading')}</Text>
       </View>
     );
   }
@@ -370,9 +369,9 @@ export default function ShoppingScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 text-center mb-4">רשימת קניות</Text>
+        <Text className="text-2xl font-bold text-gray-900 text-center mb-4">{t('shopping.title')}</Text>
         <Text className="text-gray-600 text-center">
-          {pendingItems.length} פריטים לקנות
+          {t('shopping.itemsToBuy', { count: pendingItems.length })}
           {selectedPriorityFilter !== 'all' && (
             <Text className="text-blue-600 font-medium">{' '}• {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}</Text>
           )}
@@ -381,13 +380,13 @@ export default function ShoppingScreen() {
 
       {/* Priority Filter */}
       <View className="bg-white mx-6 mt-6 p-4 rounded-2xl shadow-sm">
-        <Text className="text-gray-700 text-base mb-3 text-center">סינון לפי דחיפות</Text>
+        <Text className="text-gray-700 text-base mb-3 text-center">{t('shopping.priorityFilter')}</Text>
         <View className="flex-row justify-center space-x-2">
           <Pressable
             onPress={() => setSelectedPriorityFilter('all')}
             className={cn('px-4 py-2 rounded-lg border-2', selectedPriorityFilter === 'all' ? 'bg-blue-500 border-blue-500' : 'bg-gray-50 border-gray-200')}
           >
-            <Text className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : 'text-gray-700')}>הכל</Text>
+            <Text className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : 'text-gray-700')}>{t('shopping.all')}</Text>
           </Pressable>
 
           {PRIORITIES.map(priority => (
@@ -413,7 +412,7 @@ export default function ShoppingScreen() {
         <Pressable onPress={() => setShowAddModal(true)} className="bg-blue-500 py-4 px-6 rounded-2xl shadow-sm">
           <View className="flex-row items-center justify-center">
             <Ionicons name="add-circle-outline" size={24} color="white" />
-            <Text className="text-white font-semibold text-lg mr-2">הוסף פריט חדש</Text>
+            <Text className="text-white font-semibold text-lg mr-2">{t('shopping.addNewItem')}</Text>
           </View>
         </Pressable>
       </View>
@@ -428,10 +427,10 @@ export default function ShoppingScreen() {
         {pendingItems.length > 0 && (
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-900 mb-4">
-              לקנות
+              {t('shopping.toBuy')}
               {selectedPriorityFilter !== 'all' && (
                 <Text className="text-blue-600 font-medium text-base">
-                  {' '}(דחיפות: {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label})
+                  {' '}({t('shopping.priorityLabel')}: {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label})
                 </Text>
               )}
             </Text>
@@ -443,12 +442,10 @@ export default function ShoppingScreen() {
         {shoppingItems.length > 0 && pendingItems.length === 0 && selectedPriorityFilter !== 'all' && (
           <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
             <Ionicons name="filter-outline" size={64} color="#6b7280" />
-            <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">אין פריטים עם דחיפות זו</Text>
-            <Text className="text-gray-600 text-center">
-              אין פריטים עם דחיפות "{PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}"
-            </Text>
+            <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">{t('shopping.noItemsWithPriority')}</Text>
+            <Text className="text-gray-600 text-center">{t('shopping.noItemsWithPriority')}</Text>
             <Pressable onPress={() => setSelectedPriorityFilter('all')} className="bg-blue-500 py-3 px-6 rounded-xl mt-4">
-              <Text className="text-white font-medium text-center">הצג את כל הפריטים</Text>
+              <Text className="text-white font-medium text-center">{t('shopping.showAll')}</Text>
             </Pressable>
           </View>
         )}
@@ -457,15 +454,15 @@ export default function ShoppingScreen() {
         {shoppingItems.length === 0 && (
           <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
             <Ionicons name="basket-outline" size={64} color="#6b7280" />
-            <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">הרשימה ריקה</Text>
-            <Text className="text-gray-600 text-center">הוסף פריטים לרשימת הקניות השיתופית</Text>
+            <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">{t('shopping.emptyTitle')}</Text>
+            <Text className="text-gray-600 text-center">{t('shopping.emptySubtitle')}</Text>
           </View>
         )}
 
         {/* Purchased Items */}
         {purchasedItems.length > 0 && (
           <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">נקנו</Text>
+            <Text className="text-lg font-semibold text-gray-900 mb-4">{t('shopping.purchased')}</Text>
             <FlatList
               data={purchasedItems.slice().reverse().slice(0, 10)}
               renderItem={renderShoppingItem}
@@ -492,16 +489,16 @@ export default function ShoppingScreen() {
           >
             <View className="bg-white rounded-2xl p-6">
               <Pressable onPress={Keyboard.dismiss}>
-                <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">הוסף פריט חדש</Text>
+                <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('shopping.addModal.title')}</Text>
               </Pressable>
 
               {/* Item Name */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">שם הפריט *</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('shopping.addModal.itemName')}</Text>
                 <TextInput
                   value={newItemName}
                   onChangeText={setNewItemName}
-                  placeholder="למשל: חלב, לחם, ביצים..."
+                  placeholder={t('shopping.addModal.itemNamePh')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   autoFocus
@@ -513,7 +510,7 @@ export default function ShoppingScreen() {
 
               {/* Quantity */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">כמות</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('shopping.addModal.quantity')}</Text>
                 <TextInput
                   value={newItemQuantity}
                   onChangeText={setNewItemQuantity}
@@ -529,7 +526,7 @@ export default function ShoppingScreen() {
 
               {/* Priority */}
               <Pressable onPress={Keyboard.dismiss} className="mb-6">
-                <Text className="text-gray-700 text-base mb-3">רמת דחיפות</Text>
+                <Text className="text-gray-700 text-base mb-3">{t('shopping.addModal.priority')}</Text>
                 <View className="flex-row space-x-2">
                   {PRIORITIES.map((priority) => (
                     <Pressable
@@ -563,11 +560,11 @@ export default function ShoppingScreen() {
 
               {/* Notes */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">הערות (אופציונלי)</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('shopping.addModal.notes')}</Text>
                 <TextInput
                   value={newItemNotes}
                   onChangeText={setNewItemNotes}
-                  placeholder="פרטים נוספים, מותג מועדף..."
+                  placeholder={t('shopping.addModal.notesPh')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   multiline
@@ -592,7 +589,7 @@ export default function ShoppingScreen() {
                   className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                   disabled={isAddingItem}
                 >
-                  <Text className="text-gray-700 font-medium text-center">ביטול</Text>
+                  <Text className="text-gray-700 font-medium text-center">{t('shopping.addModal.cancel')}</Text>
                 </Pressable>
 
                 <Pressable
@@ -604,13 +601,9 @@ export default function ShoppingScreen() {
                   className={cn('flex-1 py-3 px-4 rounded-xl', !newItemName.trim() || isAddingItem ? 'bg-gray-400' : 'bg-blue-500')}
                 >
                   <View className="flex-row items-center justify-center">
-                    {isAddingItem ? (
-                      <Ionicons name="hourglass" size={20} color="white" />
-                    ) : (
-                      <Ionicons name="add" size={20} color="white" />
-                    )}
+                    {isAddingItem ? (<Ionicons name="hourglass" size={20} color="white" />) : (<Ionicons name="add" size={20} color="white" />)}
                     <Text className="text-white font-medium text-center mr-2">
-                      {isAddingItem ? 'מוסיף...' : 'הוסף'}
+                      {isAddingItem ? t('shopping.addModal.adding') : t('shopping.addModal.add')}
                     </Text>
                   </View>
                 </Pressable>
@@ -627,12 +620,12 @@ export default function ShoppingScreen() {
             <Animated.View onLayout={purchaseLift.onLayoutCard} style={[{ width: '100%', maxWidth: 400 }, purchaseLift.animatedStyle]}>
               <View className="bg-white rounded-2xl p-6">
                 <Pressable onPress={Keyboard.dismiss}>
-                  <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">אישור קנייה</Text>
+                  <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">{t('shopping.purchaseModal.title')}</Text>
                 </Pressable>
 
                 {/* Price */}
                 <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">מחיר (אופציונלי)</Text>
+                  <Text className="text-gray-700 text-base mb-2">{t('shopping.purchaseModal.price')}</Text>
                   <View className="flex-row items-center">
                     <TextInput
                       value={purchasePrice}
@@ -645,17 +638,17 @@ export default function ShoppingScreen() {
                       onSubmitEditing={Keyboard.dismiss}
                       blurOnSubmit={false}
                     />
-                    <Text className="text-gray-700 text-lg mr-3">₪</Text>
+                    <Text className="text-gray-700 text-lg mr-3">{t('shopping.shekel')}</Text>
                   </View>
                 </View>
 
                 {/* Note */}
                 <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">הערה (אופציונלי)</Text>
+                  <Text className="text-gray-700 text-base mb-2">{t('shopping.purchaseModal.note')}</Text>
                   <TextInput
                     value={purchaseNote}
                     onChangeText={setPurchaseNote}
-                    placeholder="פרטים נוספים..."
+                    placeholder={t('shopping.additionalDetailsPlaceholder')}
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="right"
                     multiline
@@ -669,7 +662,7 @@ export default function ShoppingScreen() {
                 {/* Participants */}
                 {purchasePrice && parseFloat(purchasePrice) > 0 && (
                   <View className="mb-4">
-                    <Text className="text-gray-700 text-base mb-3 text-center">מי משתתף ברכישה?</Text>
+                    <Text className="text-gray-700 text-base mb-3 text-center">{t('shopping.purchaseModal.whoParticipates')}</Text>
                     <View className={cn('space-y-2', (currentApartment?.members?.length || 0) > 5 && 'max-h-40')}>
                       <ScrollView showsVerticalScrollIndicator={false}>
                         {currentApartment?.members.map(member => (
@@ -687,7 +680,7 @@ export default function ShoppingScreen() {
                             )}
                           >
                             <Text className={cn('font-medium', selectedParticipants.includes(member.id) ? 'text-blue-700' : 'text-gray-700')}>
-                              {member.name} {member.id === currentUser?.id && '(אתה)'}
+                              {member.name} {member.id === currentUser?.id && t('shopping.youLabel')}
                             </Text>
                             <View
                               className={cn(
@@ -702,13 +695,11 @@ export default function ShoppingScreen() {
                       </ScrollView>
                     </View>
 
-                    <Text className="text-xs text-gray-500 text-center mt-2">ההוצאה תחולק שווה בשווה בין המשתתפים</Text>
+                    <Text className="text-xs text-gray-500 text-center mt-2">{t('shopping.purchaseModal.splitNote')}</Text>
                   </View>
                 )}
 
-                <Text className="text-sm text-gray-500 text-center mb-4">
-                  {purchasePrice && parseFloat(purchasePrice) > 0 ? 'ההוצאה תתווסף אוטומטית לתקציב' : 'אם תכניס מחיר, ההוצאה תתווסף אוטומטית לתקציב'}
-                </Text>
+                <Text className="text-sm text-gray-500 text-center mb-4">{purchasePrice && parseFloat(purchasePrice) > 0 ? t('shopping.purchaseModal.budgetHintWithPrice') : t('shopping.purchaseModal.budgetHintNoPrice')}</Text>
 
                 {/* Footer buttons */}
                 <View className="flex-row space-x-3">
@@ -724,7 +715,7 @@ export default function ShoppingScreen() {
                     }}
                     className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                   >
-                    <Text className="text-gray-700 font-medium text-center">ביטול</Text>
+                    <Text className="text-gray-700 font-medium text-center">{t('shopping.purchaseModal.cancel')}</Text>
                   </Pressable>
 
                   <Pressable
@@ -738,10 +729,10 @@ export default function ShoppingScreen() {
                     {isPurchasingItem === selectedItemId ? (
                       <View className="flex-row items-center justify-center">
                         <Ionicons name="hourglass" size={20} color="white" />
-                        <Text className="text-white font-medium text-center mr-2">מוסיף...</Text>
+                        <Text className="text-white font-medium text-center mr-2">{t('shopping.purchaseModal.adding')}</Text>
                       </View>
                     ) : (
-                      <Text className="text-white font-medium text-center">אישור</Text>
+                      <Text className="text-white font-medium text-center">{t('shopping.purchaseModal.confirm')}</Text>
                     )}
                   </Pressable>
                 </View>
@@ -755,9 +746,7 @@ export default function ShoppingScreen() {
       {showItemDetailsModal && selectedItemId && (
         <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
           <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
-              פרטי הפריט
-            </Text>
+            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('shopping.detailsModal.title')}</Text>
 
             {(() => {
               const item = shoppingItems.find(i => i.id === selectedItemId);
@@ -766,14 +755,14 @@ export default function ShoppingScreen() {
               return (
                 <View className="space-y-5">
                   <View className="bg-gray-50 p-4 rounded-xl">
-                    <Text className="text-gray-600 text-sm mb-2 text-center">שם הפריט</Text>
+                    <Text className="text-gray-600 text-sm mb-2 text-center">{t('shopping.detailsModal.itemName')}</Text>
                     <Text className="text-gray-900 font-semibold text-lg text-center">{item?.name || ''}</Text>
                   </View>
 
                   <View className="bg-blue-50 p-4 rounded-xl">
                     <View className="flex-row items-center justify-center mb-2">
                       <Ionicons name="person-add-outline" size={16} color="#3b82f6" />
-                      <Text className="text-blue-700 text-sm font-medium mr-2">נוסף על ידי</Text>
+                      <Text className="text-blue-700 text-sm font-medium mr-2">{t('shopping.detailsModal.addedBy')}</Text>
                     </View>
                     <Text className="text-blue-900 font-medium text-center">{getUserName(item?.addedBy || '')}</Text>
                     <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item?.addedAt || new Date())}</Text>
@@ -787,7 +776,7 @@ export default function ShoppingScreen() {
                           size={16}
                           color={PRIORITIES.find(p => p.key === item.priority)?.color}
                         />
-                        <Text className="text-purple-700 text-sm font-medium mr-2">דחיפות</Text>
+                        <Text className="text-purple-700 text-sm font-medium mr-2">{t('shopping.detailsModal.priority')}</Text>
                       </View>
                       <Text className="text-purple-900 font-medium text-center">
                         {PRIORITIES.find(p => p.key === item.priority)?.label}
@@ -799,7 +788,7 @@ export default function ShoppingScreen() {
                     <View className="bg-orange-50 p-4 rounded-xl">
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="list-outline" size={16} color="#f97316" />
-                        <Text className="text-orange-700 text-sm font-medium mr-2">כמות</Text>
+                        <Text className="text-orange-700 text-sm font-medium mr-2">{t('shopping.detailsModal.quantity')}</Text>
                       </View>
                       <Text className="text-orange-900 font-bold text-xl text-center">{item.quantity}</Text>
                     </View>
@@ -809,7 +798,7 @@ export default function ShoppingScreen() {
                     <View className="bg-indigo-50 p-4 rounded-xl">
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="chatbubble-outline" size={16} color="#6366f1" />
-                        <Text className="text-indigo-700 text-sm font-medium mr-2">הערות</Text>
+                        <Text className="text-indigo-700 text-sm font-medium mr-2">{t('shopping.detailsModal.notes')}</Text>
                       </View>
                       <Text className="text-indigo-900 text-center">{item.notes}</Text>
                     </View>
@@ -820,7 +809,7 @@ export default function ShoppingScreen() {
                       <View className="bg-green-50 p-4 rounded-xl">
                         <View className="flex-row items-center justify-center mb-2">
                           <Ionicons name="checkmark-circle-outline" size={16} color="#10b981" />
-                          <Text className="text-green-700 text-sm font-medium mr-2">נקנה על ידי</Text>
+                          <Text className="text-green-700 text-sm font-medium mr-2">{t('shopping.purchasedByLabel')}</Text>
                         </View>
                         <Text className="text-green-900 font-medium text-center">{getUserName(item?.purchasedBy || '')}</Text>
                         {item?.purchasedAt && (
@@ -832,7 +821,7 @@ export default function ShoppingScreen() {
                         <View className="bg-yellow-50 p-4 rounded-xl">
                           <View className="flex-row items-center justify-center mb-2">
                             <Ionicons name="cash-outline" size={16} color="#eab308" />
-                            <Text className="text-yellow-700 text-sm font-medium mr-2">מחיר</Text>
+                            <Text className="text-yellow-700 text-sm font-medium mr-2">{t('shopping.priceLabel')}</Text>
                           </View>
                           <Text className="text-yellow-900 font-bold text-xl text-center">₪{item.purchasePrice}</Text>
                         </View>
@@ -848,18 +837,14 @@ export default function ShoppingScreen() {
                       }}
                       className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                     >
-                      <Text className="text-gray-700 font-medium text-center">
-                        סגור
-                      </Text>
+                      <Text className="text-gray-700 font-medium text-center">{t('shopping.detailsModal.close')}</Text>
                     </Pressable>
 
                     <Pressable
                       onPress={() => selectedItemId && handleRepurchase(selectedItemId)}
                       className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
                     >
-                      <Text className="text-white font-medium text-center">
-                        הוסף שוב לרשימה
-                      </Text>
+                      <Text className="text-white font-medium text-center">{t('shopping.detailsModal.repurchase')}</Text>
                     </Pressable>
                   </View>
                 </View>

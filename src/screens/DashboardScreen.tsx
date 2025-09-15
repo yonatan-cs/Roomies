@@ -24,6 +24,7 @@ import { cn } from '../utils/cn';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
+import { useTranslation } from 'react-i18next';
 
 type RootStackParamList = {
   Settings: undefined;
@@ -85,6 +86,7 @@ function useKeyboardLift() {
 }
 
 export default function DashboardScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [showHighlightsModal, setShowHighlightsModal] = useState(false);
@@ -520,19 +522,19 @@ export default function DashboardScreen() {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (isNaN(dateObj.getTime())) {
-        return 'תאריך לא תקין';
+        return t('common.invalidDate');
       }
       return new Intl.DateTimeFormat('he-IL', {
         day: 'numeric',
         month: 'short'
       }).format(dateObj);
     } catch (error) {
-      return 'תאריך לא תקין';
+      return t('common.invalidDate');
     }
   };
 
   const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return 'אתה';
+    if (userId === currentUser?.id) return t('common.you');
     
     // Check if user is still a member of the apartment
     const member = currentApartment?.members.find(m => m.id === userId);
@@ -541,7 +543,7 @@ export default function DashboardScreen() {
     }
     
     // If user is not a member anymore, show "לא ידוע" instead of "אורח"
-    return 'לא ידוע';
+    return t('common.unknown');
   };
 
   const currentTurnUser = getCurrentTurnUser();
@@ -557,23 +559,23 @@ export default function DashboardScreen() {
   // Handle Add Expense
   const handleAddExpense = async () => {
     if (!expenseTitle.trim()) {
-      Alert.alert('שגיאה', 'אנא הכנס שם להוצאה');
+      Alert.alert(t('common.error'), t('dashboard.alerts.enterExpenseName'));
       return;
     }
 
     const numAmount = parseFloat(expenseAmount);
     if (!numAmount || numAmount <= 0) {
-      Alert.alert('שגיאה', 'אנא הכנס סכום תקין');
+      Alert.alert(t('common.error'), t('dashboard.alerts.enterValidAmount'));
       return;
     }
 
     if (selectedParticipants.length === 0) {
-      Alert.alert('שגיאה', 'אנא בחר לפחות משתתף אחד');
+      Alert.alert(t('common.error'), t('dashboard.alerts.selectAtLeastOneParticipant'));
       return;
     }
 
     if (!currentUser) {
-      Alert.alert('שגיאה', 'משתמש לא מחובר');
+      Alert.alert(t('common.error'), t('dashboard.alerts.userNotLoggedIn'));
       return;
     }
 
@@ -596,7 +598,7 @@ export default function DashboardScreen() {
       setShowAddExpenseModal(false);
     } catch (error) {
       console.error('Error adding expense:', error);
-      Alert.alert('שגיאה', 'לא ניתן להוסיף את ההוצאה');
+      Alert.alert(t('common.error'), t('dashboard.alerts.cannotAddExpense'));
     } finally {
       setIsAddingExpense(false);
     }
@@ -613,9 +615,9 @@ export default function DashboardScreen() {
   // Share highlights function
   const shareHighlights = async () => {
     try {
-      const timeRangeText = timeRange === 'all' ? 'מאז תחילת השימוש' : 
-                           timeRange === 'year' ? 'השנה' :
-                           timeRange === 'month' ? 'החודש' : '30 הימים האחרונים';
+      const timeRangeText = timeRange === 'all' ? t('dashboard.allTime') : 
+                           timeRange === 'year' ? t('dashboard.thisYear') :
+                           timeRange === 'month' ? t('dashboard.thisMonth') : t('dashboard.last30Days');
 
       let shareText = `📊 סיכום פעילות הדירה - ${timeRangeText}\n\n`;
       
@@ -650,11 +652,11 @@ export default function DashboardScreen() {
 
       await Share.share({
         message: shareText,
-        title: 'סיכום פעילות הדירה',
+        title: t('dashboard.shareModalTitle'),
       });
     } catch (error) {
       console.error('Error sharing highlights:', error);
-      Alert.alert('שגיאה', 'לא ניתן לשתף כרגע. נסה שוב.');
+      Alert.alert(t('common.error'), t('dashboard.alerts.cannotShare'));
     }
   };
 
@@ -663,7 +665,7 @@ export default function DashboardScreen() {
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-2">
           <Text className="text-2xl font-bold text-gray-900">
-            שלום, {getDisplayName(currentUser)}!
+            {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
           </Text>
           <Pressable
             onPress={() => navigation.navigate('Settings')}
@@ -673,7 +675,7 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
         <Text className="text-gray-600">
-          {currentApartment?.name || 'דירת שותפים'}
+          {currentApartment?.name || t('dashboard.apartmentFallback')}
         </Text>
       </View>
 
@@ -693,7 +695,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="basket-outline" size={22} color="white" />
-              <Text className="text-white font-medium mr-2 text-base">קניות</Text>
+              <Text className="text-white font-medium mr-2 text-base">{t('dashboard.actionShopping')}</Text>
             </View>
           </Pressable>
           
@@ -710,7 +712,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="add-circle-outline" size={22} color="white" />
-              <Text className="text-white font-medium mr-2 text-base">הוסף הוצאה</Text>
+              <Text className="text-white font-medium mr-2 text-base">{t('dashboard.actionAddExpense')}</Text>
             </View>
           </Pressable>
         </View>
@@ -731,7 +733,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="wallet-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">היתרה שלי</Text>
+              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.cardMyBalance')}</Text>
             </View>
             <Text className={cn(
               "text-2xl font-bold",
@@ -740,7 +742,7 @@ export default function DashboardScreen() {
               {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
             </Text>
             <Text className="text-xs text-gray-500">
-              {(myBalance?.netBalance ?? 0) >= 0 ? 'מגיע לך' : 'אתה חייב'}
+              {(myBalance?.netBalance ?? 0) >= 0 ? t('dashboard.comesToYou') : t('dashboard.youOwe')}
             </Text>
           </Pressable>
 
@@ -758,16 +760,16 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="brush-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">תור ניקיון</Text>
+              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.cleaningTurn')}</Text>
             </View>
             <Text className="text-lg font-bold text-gray-900">
-              {currentTurnUser?.name || 'לא מוגדר'}
+              {currentTurnUser?.name || t('common.unknown')}
             </Text>
             <Text className={cn(
               "text-xs",
               isMyTurn ? "text-blue-600" : "text-gray-500"
             )}>
-              {isMyTurn ? 'התור שלך!' : 'התור שלו/שלה'}
+              {isMyTurn ? t('dashboard.yourTurn') : t('dashboard.theirTurn')}
             </Text>
           </Pressable>
 
@@ -785,7 +787,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="basket-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">לקנות</Text>
+              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.toBuy')}</Text>
             </View>
             <Text className="text-2xl font-bold text-gray-900">
               {pendingShoppingItems.length}
@@ -806,7 +808,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="people-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">שותפים</Text>
+              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.roommates')}</Text>
             </View>
             <Text className="text-2xl font-bold text-gray-900">
               {currentApartment?.members.length || 0}
@@ -840,7 +842,7 @@ export default function DashboardScreen() {
           }}
         >
           <Text className="text-lg font-semibold text-gray-900 mb-4">
-            החובות שלי
+            {t('dashboard.myDebts')}
           </Text>
           
           {myBalance && myBalance.owed && myBalance.owes && (
@@ -877,7 +879,7 @@ export default function DashboardScreen() {
 
               {Object.keys(myBalance.owed).length === 0 && Object.keys(myBalance.owes).length === 0 && (
                 <Text className="text-gray-500 text-center py-4">
-                  כל החובות מסולקים! 🎉
+                  {t('dashboard.allCleared')}
                 </Text>
               )}
 
@@ -886,7 +888,7 @@ export default function DashboardScreen() {
                 className="bg-blue-100 py-2 px-4 rounded-xl mt-3"
               >
                 <Text className="text-blue-700 text-center font-medium">
-                  הצג הכל
+                  {t('dashboard.showAll')}
                 </Text>
               </Pressable>
             </View>
@@ -894,13 +896,13 @@ export default function DashboardScreen() {
 
           {myBalance && (!myBalance.owed || !myBalance.owes) && (
             <Text className="text-gray-500 text-center py-4">
-              טוען נתוני חובות...
+              {t('dashboard.loadingDebts')}
             </Text>
           )}
 
           {!myBalance && (
             <Text className="text-gray-500 text-center py-4">
-              אין נתוני חובות זמינים
+              {t('dashboard.noDebtsData')}
             </Text>
           )}
         </View>
@@ -911,8 +913,8 @@ export default function DashboardScreen() {
           <Pressable
             onPress={() => setShowHighlightsModal(true)}
             className="bg-orange-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
-            accessibilityLabel="🔍 מבט מהיר"
-            accessibilityHint="מבט מהיר על הפעילות"
+            accessibilityLabel={`🔍 ${t('dashboard.quickLook')}`}
+            accessibilityHint={t('dashboard.quickLook')}
             style={{
               shadowColor: '#f97316',
               shadowOffset: { width: 0, height: 4 },
@@ -923,7 +925,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Text className="text-lg font-semibold text-white mr-2">
-                מבט מהיר
+                {t('dashboard.quickLook')}
               </Text>
               <Text className="text-xl">🔍</Text>
             </View>
@@ -950,7 +952,7 @@ export default function DashboardScreen() {
               </Pressable>
               
               <Text className="text-2xl font-bold text-gray-900">
-              כל מה שחשוב בקצרה
+              {t('dashboard.highlightsTitle')}
               </Text>
               
               <View className="w-10" />
@@ -960,13 +962,13 @@ export default function DashboardScreen() {
           <ScrollView className="flex-1 px-6 py-6">
             {/* Time Range Filter */}
             <View className="bg-white rounded-2xl p-4 mb-6 shadow-sm">
-              <Text className="text-sm text-gray-500 mb-3">טווח זמן</Text>
+              <Text className="text-sm text-gray-500 mb-3">{t('dashboard.timeRange')}</Text>
               <View className="flex-row space-x-2">
                 {[
-                  { key: 'all', label: 'כל הזמן' },
-                  { key: 'year', label: 'השנה' },
-                  { key: 'month', label: 'החודש' },
-                  { key: '30days', label: '30 יום' }
+                  { key: 'all', label: t('dashboard.allTime') },
+                  { key: 'year', label: t('dashboard.thisYear') },
+                  { key: 'month', label: t('dashboard.thisMonth') },
+                  { key: '30days', label: t('dashboard.last30Days') }
                 ].map((option) => (
                   <Pressable
                     key={option.key}
@@ -996,19 +998,19 @@ export default function DashboardScreen() {
               {/* Total Spent & King of Expenses */}
               <View className="flex-row space-x-4">
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">סך הוצאות</Text>
+                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.totalExpenses')}</Text>
                   <Text className="text-2xl font-bold text-blue-600 mb-1">
                     {formatCurrency(highlightsStats.totalExpenses)}
                   </Text>
                   <Text className="text-xs text-gray-400">
-                    ({timeRange === 'all' ? 'מאז תחילת השימוש' : 
-                      timeRange === 'year' ? 'השנה' :
-                      timeRange === 'month' ? 'החודש' : '30 הימים האחרונים'})
+                    ({timeRange === 'all' ? t('dashboard.allTime') : 
+                      timeRange === 'year' ? t('dashboard.thisYear') :
+                      timeRange === 'month' ? t('dashboard.thisMonth') : t('dashboard.last30Days')})
                   </Text>
                 </View>
                 
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">מלך ההוצאות</Text>
+                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.kingOfExpenses')}</Text>
                   {highlightsStats.kingOfExpenses ? (
                     <>
                       <Text className="text-lg font-bold text-yellow-600 mb-1">
@@ -1021,11 +1023,11 @@ export default function DashboardScreen() {
                         ({highlightsStats.kingOfExpenses.percentage.toFixed(1)}% מהסך)
                       </Text>
                       <Text className="text-xs text-gray-400 mt-1">
-                        תנו לו כתר… או העברה בנקאית 👑
+                        {t('dashboard.giveHimCrown')}
                       </Text>
                     </>
                   ) : (
-                    <Text className="text-gray-500">אין נתונים</Text>
+                    <Text className="text-gray-500">{t('dashboard.noData')}</Text>
                   )}
                 </View>
               </View>
@@ -1033,28 +1035,28 @@ export default function DashboardScreen() {
               {/* Cleanings Done & Shopping King */}
               <View className="flex-row space-x-4">
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">ניקיונות שבוצעו</Text>
+                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.cleaningsDone')}</Text>
                   <Text className="text-2xl font-bold text-green-600 mb-1">
                     {cleaningStats ? cleaningCount : '—'}
                   </Text>
                   {cleaningStats && highlightsStats.cleaningKing ? (
                     <>
                       <Text className="text-sm text-gray-600">
-                        אלוף: {getUserName(highlightsStats.cleaningKing.userId)}
+                        {t('dashboard.champion')}: {getUserName(highlightsStats.cleaningKing.userId)}
                       </Text>
                       <Text className="text-xs text-gray-400">
-                        {highlightsStats.cleaningKing.count} נקיונות • מרסק את האבק 🧹
+                        {highlightsStats.cleaningKing.count} {t('dashboard.dustCrusher')}
                       </Text>
                     </>
                   ) : cleaningStats ? (
-                    <Text className="text-xs text-gray-400">אין אלוף עדיין</Text>
+                    <Text className="text-xs text-gray-400">{t('dashboard.noChampion')}</Text>
                   ) : (
-                    <Text className="text-xs text-gray-400">טוען נתונים...</Text>
+                    <Text className="text-xs text-gray-400">{t('dashboard.loading')}</Text>
                   )}
                 </View>
                 
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">אלוף הקניות</Text>
+                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.shoppingChampion')}</Text>
                   {highlightsStats.shoppingKing ? (
                     <>
                       <Text className="text-lg font-bold text-orange-600 mb-1">
@@ -1064,11 +1066,11 @@ export default function DashboardScreen() {
                         {highlightsStats.shoppingKing.count} פריטים
                       </Text>
                       <Text className="text-xs text-gray-400">
-                        קונה כאילו אין מחר - יש מסיבה?! 🛒
+                        {t('dashboard.shopLikeNoTomorrow')}
                       </Text>
                     </>
                   ) : (
-                    <Text className="text-gray-500">אין נתונים</Text>
+                    <Text className="text-gray-500">{t('dashboard.noData')}</Text>
                   )}
                 </View>
               </View>
@@ -1077,9 +1079,9 @@ export default function DashboardScreen() {
               <View className="flex-row space-x-4">
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
                   <Text className="text-sm text-gray-500 mb-2">
-                    ההוצאה הכי גדולה {timeRange === '30days' ? '(30 יום)' : 
-                      timeRange === 'month' ? '(החודש)' :
-                      timeRange === 'year' ? '(השנה)' : '(כל הזמן)'}
+                    {t('dashboard.biggestExpense', { range: timeRange === '30days' ? '(30)' : 
+                      timeRange === 'month' ? `(${t('dashboard.thisMonth')})` :
+                      timeRange === 'year' ? `(${t('dashboard.thisYear')})` : `(${t('dashboard.allTime')})` })}
                   </Text>
                   {highlightsStats.biggestExpenseLast30Days ? (
                     <>
@@ -1091,16 +1093,16 @@ export default function DashboardScreen() {
                       </Text>
                     </>
                   ) : (
-                    <Text className="text-gray-500">אין הוצאות בחודש האחרון</Text>
+                    <Text className="text-gray-500">{t('dashboard.noExpensesLastMonth')}</Text>
                   )}
                 </View>
                 
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">ממוצע לשותף</Text>
+                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.avgPerMember')}</Text>
                   <Text className="text-lg font-bold text-purple-600 mb-1">
                     {formatCurrency(highlightsStats.averagePerMember)}
                   </Text>
-                  <Text className="text-xs text-gray-400">לחודש</Text>
+                  <Text className="text-xs text-gray-400">{t('dashboard.perMonth')}</Text>
                 </View>
               </View>
             </View>
@@ -1110,11 +1112,11 @@ export default function DashboardScreen() {
               <View className="bg-white rounded-2xl p-8 items-center shadow-sm mt-6">
                 <Ionicons name="stats-chart-outline" size={64} color="#6b7280" />
                 <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">
-                  אין נתונים עדיין
+                  {t('dashboard.noData')}
                 </Text>
-                <Text className="text-gray-600 text-center">
-                  תתחילו לקנות/לנקות כדי שנוכל לשפוט 😄
-                </Text>
+                  <Text className="text-gray-600 text-center">
+                    {t('dashboard.startShoppingCleaning')}
+                  </Text>
               </View>
             )}
 
@@ -1125,7 +1127,7 @@ export default function DashboardScreen() {
                 className="flex-1 bg-gray-100 py-4 px-6 rounded-xl"
               >
                 <Text className="text-gray-700 font-medium text-center">
-                  סגור
+                  {t('dashboard.close')}
                 </Text>
               </Pressable>
               
@@ -1134,7 +1136,7 @@ export default function DashboardScreen() {
                 className="flex-1 bg-blue-500 py-4 px-6 rounded-xl"
               >
                 <Text className="text-white font-medium text-center">
-                  שתף
+                  {t('dashboard.share')}
                 </Text>
               </Pressable>
             </View>
@@ -1157,16 +1159,16 @@ export default function DashboardScreen() {
             >
               <View className="bg-white rounded-2xl p-6">
               <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
-                הוסף הוצאה חדשה
+                {t('dashboard.actionAddExpense')}
               </Text>
 
               {/* Expense Title */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">שם ההוצאה *</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.expenseName')}</Text>
                 <TextInput
                   value={expenseTitle}
                   onChangeText={setExpenseTitle}
-                  placeholder="למשל: קניות, חשבון חשמל..."
+                  placeholder={t('budget.expenseNamePlaceholder')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   autoFocus
@@ -1178,7 +1180,7 @@ export default function DashboardScreen() {
 
               {/* Amount */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">סכום *</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.amount')}</Text>
                 <NumericInput
                   value={expenseAmount}
                   onChangeText={setExpenseAmount}
@@ -1193,7 +1195,7 @@ export default function DashboardScreen() {
 
               {/* Participants */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">משתתפים *</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.participants')}</Text>
                 <View className="flex-row flex-wrap">
                   {currentApartment?.members.map((member) => (
                     <Pressable
@@ -1221,11 +1223,11 @@ export default function DashboardScreen() {
 
               {/* Description */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">תיאור (אופציונלי)</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.description')}</Text>
                 <TextInput
                   value={expenseDescription}
                   onChangeText={setExpenseDescription}
-                  placeholder="פרטים נוספים..."
+                  placeholder={t('budget.additionalDetailsPlaceholder')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   multiline
@@ -1243,14 +1245,14 @@ export default function DashboardScreen() {
                   className="flex-1 bg-gray-100 py-3 px-4 rounded-xl"
                 >
                   <Text className="text-gray-700 font-medium text-center">
-                    ביטול
+                    {t('expenseEdit.cancel')}
                   </Text>
                 </Pressable>
                 
                 <AsyncButton
-                  title="הוסף הוצאה"
+                  title={t('dashboard.actionAddExpense')}
                   onPress={handleAddExpense}
-                  loadingText="מוסיף הוצאה..."
+                  loadingText={t('addExpense.adding')}
                   className="flex-1"
                   disabled={isAddingExpense}
                 />

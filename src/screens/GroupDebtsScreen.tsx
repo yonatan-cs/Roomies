@@ -16,6 +16,7 @@ import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
+import { useTranslation } from 'react-i18next';
 import { AsyncButton } from '../components/AsyncButton';
 
 type RootStackParamList = {
@@ -25,6 +26,7 @@ type RootStackParamList = {
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function GroupDebtsScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState('');
@@ -122,8 +124,8 @@ export default function GroupDebtsScreen() {
   };
 
   const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return 'אתה';
-    return currentApartment?.members.find(m => m.id === userId)?.name || 'לא ידוע';
+    if (userId === currentUser?.id) return t('common.you');
+    return currentApartment?.members.find(m => m.id === userId)?.name || t('cleaning.unknownUser');
   };
 
   const handleSettleDebt = (fromUserId: string, toUserId: string, amount: number) => {
@@ -137,7 +139,7 @@ export default function GroupDebtsScreen() {
   const confirmSettlement = async () => {
     const amount = parseFloat(settlementAmount);
     if (!amount || amount <= 0 || amount > settlementOriginalAmount) {
-      Alert.alert('שגיאה', 'הכנס סכום תקין');
+      Alert.alert(t('debts.alerts.error'), t('debts.alerts.invalidAmount'));
       return;
     }
 
@@ -182,12 +184,9 @@ export default function GroupDebtsScreen() {
         const debtorName = getUserName(settlementFromUser);
         const amount = parseFloat(settlementAmount);
         
-        Alert.alert(
-          'הצלחה', 
-          `החוב נסגר בהצלחה!\n\n${creditorName} קיבל ${formatCurrency(amount)} מ-${debtorName}`
-        );
+        Alert.alert(t('debts.alerts.success'), t('debts.alerts.debtClosed', { to: creditorName, amount: formatCurrency(amount), from: debtorName }));
       } else {
-        Alert.alert('שגיאה', 'החוב לא נסגר בהצלחה');
+        Alert.alert(t('debts.alerts.error'), t('debts.alerts.debtNotClosed'));
       }
       
     } catch (error: any) {
@@ -200,27 +199,27 @@ export default function GroupDebtsScreen() {
       });
       
       // Show specific error messages based on error type
-      let errorMessage = 'לא ניתן לסגור את החוב. נסה שוב.';
+      let errorMessage = t('debts.alerts.debtNotClosed');
       
       if (error instanceof Error) {
         if (error.message.includes('PERMISSION_DENIED') || error.message.includes('permission-denied')) {
-          errorMessage = 'אין לך הרשאה לבצע פעולה זה.';
+          errorMessage = t('debts.alerts.noPermission');
         } else if (error.message.includes('APARTMENT_NOT_FOUND')) {
-          errorMessage = 'לא נמצא דירה רלוונטית.';
+          errorMessage = t('debts.alerts.apartmentNotFound');
         } else if (error.message.includes('DEBT_NOT_FOUND')) {
-          errorMessage = 'החוב לא נמצא.';
+          errorMessage = t('debts.alerts.debtNotFound');
         } else if (error.message.includes('ALREADY_CLOSED')) {
-          errorMessage = 'החוב כבר סגור.';
+          errorMessage = t('debts.alerts.alreadyClosed');
         } else if (error.message.includes('AUTH_REQUIRED')) {
-          errorMessage = 'נדרשת התחברות מחדש.';
+          errorMessage = t('debts.alerts.authRequired');
         } else if (error.message.includes('INVALID_ARGUMENT')) {
-          errorMessage = 'נתונים לא תקינים.';
+          errorMessage = t('debts.alerts.invalidArgument');
         } else if (error.message.includes('CLOUD_FUNCTION_ERROR')) {
-          errorMessage = 'שגיאה בשרת. נסה שוב מאוחר יותר.';
+          errorMessage = t('debts.alerts.serverError');
         }
       }
       
-      Alert.alert('שגיאה', errorMessage);
+      Alert.alert(t('debts.alerts.error'), errorMessage);
     } finally {
       setIsSettling(false);
     }
@@ -252,7 +251,7 @@ export default function GroupDebtsScreen() {
   if (!currentUser || !currentApartment) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">טוען...</Text>
+        <Text className="text-gray-500">{t('common.loading')}</Text>
       </View>
     );
   }
@@ -270,7 +269,7 @@ export default function GroupDebtsScreen() {
           </Pressable>
           
           <Text className="text-2xl font-bold text-gray-900">
-            חובות קבוצתיים
+            {t('debts.title')}
           </Text>
           
           <View className="w-10" />
@@ -280,10 +279,10 @@ export default function GroupDebtsScreen() {
         <View className="flex-row items-center justify-between bg-gray-50 p-4 rounded-xl">
           <View>
             <Text className="text-gray-900 font-medium">
-              פישוט חובות
+              {t('debts.simplify')}
             </Text>
             <Text className="text-sm text-gray-600">
-              {useSimplified ? 'מציג מינימום העברות נדרש' : 'מציג כל החובות בנפרד'}
+              {useSimplified ? t('debts.simplifiedOn') : t('debts.simplifiedOff')}
             </Text>
           </View>
           <Switch
@@ -304,7 +303,7 @@ export default function GroupDebtsScreen() {
         {/* Group Balance Summary */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <Text className="text-lg font-semibold text-gray-900 mb-4">
-            סיכום מאזן קבוצתי
+            {t('debts.groupBalanceSummary')}
           </Text>
           
           {balances.map((balance) => {
@@ -317,7 +316,7 @@ export default function GroupDebtsScreen() {
                   "font-medium",
                   isCurrentUser ? "text-blue-700" : "text-gray-700"
                 )}>
-                  {user?.name} {isCurrentUser && '(אתה)'}
+                  {user?.name} {isCurrentUser && `(${t('common.you')})`}
                 </Text>
                 
                 <Text className={cn(
@@ -335,12 +334,12 @@ export default function GroupDebtsScreen() {
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-lg font-semibold text-gray-900">
-              חובות פעילים
+              {t('debts.activeDebts')}
             </Text>
             {useSimplified && (
               <View className="bg-blue-100 px-3 py-1 rounded-full">
                 <Text className="text-blue-700 text-sm font-medium">
-                  מפושט
+                  {t('debts.simplifiedBadge')}
                 </Text>
               </View>
             )}
@@ -350,10 +349,10 @@ export default function GroupDebtsScreen() {
             <View className="items-center py-8">
               <Ionicons name="checkmark-circle-outline" size={48} color="#10b981" />
               <Text className="text-green-600 font-medium text-lg mt-2">
-                אין חובות פתוחים! 🎉
+                {t('debts.noOpenDebtsTitle')}
               </Text>
               <Text className="text-gray-500 text-center mt-2">
-                כל החובות מסולקים
+                {t('debts.noOpenDebtsSubtitle')}
               </Text>
             </View>
           ) : (
@@ -364,7 +363,7 @@ export default function GroupDebtsScreen() {
                     {getUserName(debt.fromUserId)}
                   </Text>
                   <Text className="text-sm text-gray-500">
-                    {debt.fromUserId === currentUser?.id ? `אתה חייב ל${getUserName(debt.toUserId)}` : `חייב ל${getUserName(debt.toUserId)}`}
+                    {t('debts.youOweTo', { to: getUserName(debt.toUserId) })}
                   </Text>
                 </View>
                 
@@ -385,7 +384,7 @@ export default function GroupDebtsScreen() {
                       "text-sm font-medium",
                       isSettling ? "text-gray-500" : "text-red-700"
                     )}>
-                      {isSettling ? 'סוגר...' : 'סגור חוב'}
+                      {isSettling ? t('debts.modal.closing') : t('debts.closeDebt')}
                     </Text>
                   </Pressable>
                 </View>
@@ -400,13 +399,10 @@ export default function GroupDebtsScreen() {
             <Ionicons name="information-circle-outline" size={24} color="#3b82f6" />
             <View className="flex-1 mr-3">
               <Text className="text-blue-900 font-medium mb-2">
-                איך זה עובד?
+                {t('debts.howItWorks')}
               </Text>
               <Text className="text-blue-700 text-sm leading-relaxed">
-                {useSimplified 
-                  ? 'מצב "פישוט חובות" מציג את המינימום של העברות הנדרש לסגירת כל החובות. זה מפחית את מספר התשלומים הנדרשים.'
-                  : 'מצב רגיל מציג את כל החובות בנפרד, כפי שהם נוצרו מההוצאות השונות.'
-                }
+                {useSimplified ? t('debts.simplifiedExplain') : t('debts.regularExplain')}
               </Text>
             </View>
           </View>
@@ -418,17 +414,17 @@ export default function GroupDebtsScreen() {
         <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
           <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
             <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">
-              סגירת חוב
+              {t('debts.modal.title')}
             </Text>
             
             <Text className="text-gray-600 text-center mb-4">
-              אתה עומד לסגור חוב של {formatCurrency(settlementOriginalAmount)} ל-{getUserName(settlementToUser)}
+              {t('debts.modal.youAreAboutToClose', { amount: formatCurrency(settlementOriginalAmount), to: getUserName(settlementToUser) })}
             </Text>
             <Text className="text-gray-600 text-center mb-4">
-              {getUserName(settlementFromUser)} ← {getUserName(settlementToUser)}
+              {t('debts.modal.direction', { from: getUserName(settlementFromUser), to: getUserName(settlementToUser) })}
             </Text>
 
-            <Text className="text-gray-700 mb-2">סכום לסגירה:</Text>
+            <Text className="text-gray-700 mb-2">{t('debts.modal.amountToClose')}</Text>
             <View className="flex-row items-center mb-6">
               <TextInput
                 value={settlementAmount}
@@ -455,7 +451,7 @@ export default function GroupDebtsScreen() {
                 className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
               >
                 <Text className="text-gray-700 font-medium text-center">
-                  ביטול
+                  {t('debts.modal.cancel')}
                 </Text>
               </Pressable>
               
@@ -468,7 +464,7 @@ export default function GroupDebtsScreen() {
                 )}
               >
                 <Text className="text-white font-medium text-center">
-                  {isSettling ? 'סוגר...' : 'אישור סגירה'}
+                  {isSettling ? t('debts.modal.closing') : t('debts.modal.confirm')}
                 </Text>
               </Pressable>
             </View>

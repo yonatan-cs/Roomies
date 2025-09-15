@@ -20,8 +20,10 @@ import { getUserDisplayInfo } from '../utils/userDisplay';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
+import { useTranslation } from 'react-i18next';
 
 export default function AddExpenseScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation();
   const { currentUser, currentApartment, addExpense } = useStore();
 
@@ -34,23 +36,23 @@ export default function AddExpenseScreen() {
 
   const handleAddExpense = async () => {
     if (!title.trim()) {
-      Alert.alert('שגיאה', 'אנא הכנס שם להוצאה');
+      Alert.alert(t('common.error'), t('budget.addExpenseModal.expenseName'));
       return;
     }
 
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) {
-      Alert.alert('שגיאה', 'אנא הכנס סכום תקין');
+      Alert.alert(t('common.error'), t('budget.addExpenseModal.amount'));
       return;
     }
 
     if (selectedParticipants.length === 0) {
-      Alert.alert('שגיאה', 'אנא בחר לפחות משתתף אחד');
+      Alert.alert(t('common.error'), t('shopping.alerts.needParticipants'));
       return;
     }
 
     if (!currentUser) {
-      Alert.alert('שגיאה', 'משתמש לא מחובר');
+      Alert.alert(t('common.error'), t('auth.login'));
       return;
     }
 
@@ -86,7 +88,7 @@ export default function AddExpenseScreen() {
   if (!currentUser || !currentApartment) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">טוען...</Text>
+        <Text className="text-gray-500">{t('common.loading')}</Text>
       </View>
     );
   }
@@ -99,13 +101,11 @@ export default function AddExpenseScreen() {
     <Screen withPadding={true} keyboardVerticalOffset={0}>
           {/* Title */}
           <View className="mb-6">
-            <Text className="text-gray-700 text-base mb-2 font-medium">
-              שם ההוצאה *
-            </Text>
+            <Text className="text-gray-700 text-base mb-2 font-medium">{t('addExpense.expenseName')}</Text>
             <TextInput
               value={title}
               onChangeText={setTitle}
-              placeholder="למשל: קניות בסופר"
+              placeholder={t('addExpense.expenseNamePh')}
               className="border border-gray-300 rounded-xl px-4 py-3 text-base"
               textAlign="right"
               returnKeyType="next"
@@ -115,9 +115,7 @@ export default function AddExpenseScreen() {
 
           {/* Amount */}
           <View className="mb-6">
-            <Text className="text-gray-700 text-base mb-2 font-medium">
-              סכום *
-            </Text>
+            <Text className="text-gray-700 text-base mb-2 font-medium">{t('addExpense.amount')}</Text>
             <View className="flex-row items-center">
               <NumericInput
                 value={amount}
@@ -126,33 +124,29 @@ export default function AddExpenseScreen() {
                 className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
                 textAlign="center"
               />
-              <Text className="text-gray-700 text-lg mr-3">₪</Text>
+              <Text className="text-gray-700 text-lg mr-3">{t('shopping.shekel')}</Text>
             </View>
             {selectedParticipants.length > 0 && parseFloat(amount) > 0 && (
-              <Text className="text-sm text-gray-500 mt-2 text-center">
-                {amountPerPerson.toFixed(2)}₪ לכל אחד
-              </Text>
+              <Text className="text-sm text-gray-500 mt-2 text-center">{t('addExpense.perPerson', { amount: `${amountPerPerson.toFixed(2)}${t('shopping.shekel')}` })}</Text>
             )}
           </View>
 
           {/* Participants */}
           <View className="mb-6">
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-gray-700 text-base font-medium">
-                משתתפים *
-              </Text>
+              <Text className="text-gray-700 text-base font-medium">{t('addExpense.participants')}</Text>
               <View className="flex-row">
                 <Pressable
                   onPress={selectAllParticipants}
                   className="bg-blue-100 py-1 px-3 rounded-lg ml-2"
                 >
-                  <Text className="text-blue-700 text-sm">כולם</Text>
+                  <Text className="text-blue-700 text-sm">{t('addExpense.all')}</Text>
                 </Pressable>
                 <Pressable
                   onPress={clearAllParticipants}
                   className="bg-gray-100 py-1 px-3 rounded-lg"
                 >
-                  <Text className="text-gray-700 text-sm">ביטול</Text>
+                  <Text className="text-gray-700 text-sm">{t('addExpense.clear')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -174,7 +168,7 @@ export default function AddExpenseScreen() {
                   )}
                 </View>
                 <Text className="text-gray-900 flex-1">
-                  {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && '(אתה)'}
+                  {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && `(${t('common.you')})`}
                 </Text>
               </Pressable>
             ))}
@@ -182,13 +176,11 @@ export default function AddExpenseScreen() {
 
           {/* Description */}
           <View className="mb-8">
-            <Text className="text-gray-700 text-base mb-2 font-medium">
-              תיאור (אופציונלי)
-            </Text>
+            <Text className="text-gray-700 text-base mb-2 font-medium">{t('addExpense.description')}</Text>
             <TextInput
               value={description}
               onChangeText={setDescription}
-              placeholder="פרטים נוספים..."
+              placeholder={t('addExpense.descriptionPh')}
               className="border border-gray-300 rounded-xl px-4 py-3 text-base"
               textAlign="right"
               multiline
@@ -200,21 +192,14 @@ export default function AddExpenseScreen() {
           </View>
 
           {/* Add Button */}
-          <AsyncButton
-            title="הוסף הוצאה"
-            onPress={handleAddExpense}
-            loadingText="מוסיף הוצאה..."
-            className="mb-6"
-          />
+          <AsyncButton title={t('addExpense.add')} onPress={handleAddExpense} loadingText={t('addExpense.adding')} className="mb-6" />
 
           {/* Cancel Button */}
           <Pressable
             onPress={() => navigation.goBack()}
             className="py-3"
           >
-            <Text className="text-gray-500 text-center">
-              ביטול
-            </Text>
+            <Text className="text-gray-500 text-center">{t('addExpense.cancel')}</Text>
           </Pressable>
     </Screen>
   );

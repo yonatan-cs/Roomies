@@ -8,11 +8,14 @@ import ConfirmModal from '../components/ConfirmModal';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
+import { useTranslation } from 'react-i18next';
 import { AsyncButton } from '../components/AsyncButton';
 
-const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export default function SettingsScreen() {
+  const { t } = useTranslation();
+  const appLanguage = useStore(s => s.appLanguage);
+  const setAppLanguage = useStore(s => s.setAppLanguage);
   const {
     currentUser,
     currentApartment,
@@ -72,7 +75,7 @@ export default function SettingsScreen() {
       setEditingName(false);
     } catch (error: any) {
       console.error('Update name error:', error);
-      Alert.alert('שגיאה', 'לא ניתן לעדכן את השם');
+      Alert.alert(t('common.error'), t('settings.alerts.cannotUpdateName'));
     }
   };
 
@@ -92,7 +95,7 @@ export default function SettingsScreen() {
     try {
       await Share.share({
         message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
-        title: 'הצטרפות לדירת שותפים',
+        title: t('settings.joinApartmentTitle'),
       });
     } catch (error) {}
   };
@@ -103,7 +106,7 @@ export default function SettingsScreen() {
 
   const handleSendFeedback = () => {
     const to = 'yonatan.cs23@gmail.com';
-    const subject = encodeURIComponent('משוב -  Roomies');
+    const subject = encodeURIComponent(t('settings.emailSubject'));
     const body = encodeURIComponent(`תיאור הבעיה / ההצעה:
 
 
@@ -117,7 +120,7 @@ User: ${currentUser?.name || 'Unknown'}
     
     Linking.openURL(mailtoUrl).catch((err) => {
       console.error('Error opening mailto:', err);
-      Alert.alert('שגיאה', 'לא ניתן לפתוח את אפליקציית המייל');
+      Alert.alert(t('common.error'), t('settings.alerts.cannotOpenEmail'));
     });
   };
 
@@ -139,9 +142,9 @@ User: ${currentUser?.name || 'Unknown'}
       
       if (!canBeRemoved.canBeRemoved) {
         Alert.alert(
-          'לא ניתן להסיר שותף',
+          t('settings.alerts.cannotRemoveMember'),
           `אי אפשר להסיר את ${getUserDisplayInfo(member).displayName} כי ${canBeRemoved.reason}. סגרו חובות ואז נסו שוב.`,
-          [{ text: 'אישור' }]
+          [{ text: t('common.ok') }]
         );
         return;
       }
@@ -154,7 +157,7 @@ User: ${currentUser?.name || 'Unknown'}
       setConfirmRemoveVisible(true);
     } catch (error) {
       console.error('Error checking if member can be removed:', error);
-      Alert.alert('שגיאה', 'לא ניתן לבדוק אם ניתן להסיר את השותף');
+      Alert.alert(t('common.error'), t('settings.alerts.cannotCheckRemoval'));
     }
   };
 
@@ -164,10 +167,10 @@ User: ${currentUser?.name || 'Unknown'}
     setRemovingMemberId(memberToRemove.id);
     try {
       await removeApartmentMember(memberToRemove.id);
-      Alert.alert('הצלחה', `${memberToRemove.name} הוסר מהדירה בהצלחה`);
+      Alert.alert(t('common.success'), t('settings.alerts.memberRemovedSuccess', { name: memberToRemove.name }));
     } catch (error: any) {
       console.error('Error removing member:', error);
-      Alert.alert('שגיאה', error.message || 'לא ניתן להסיר את השותף');
+      Alert.alert(t('common.error'), error.message || t('settings.alerts.cannotRemoveMemberError'));
     } finally {
       setRemovingMemberId(null);
       setConfirmRemoveVisible(false);
@@ -178,7 +181,7 @@ User: ${currentUser?.name || 'Unknown'}
   if (!currentUser || !currentApartment) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">טוען...</Text>
+        <Text className="text-gray-500">{t('common.loading')}</Text>
       </View>
     );
   }
@@ -186,7 +189,7 @@ User: ${currentUser?.name || 'Unknown'}
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 text-center">הגדרות</Text>
+        <Text className="text-2xl font-bold text-gray-900 text-center">{t('settings.title')}</Text>
       </View>
       <ScrollView 
         className="flex-1 px-6 py-6"
@@ -194,17 +197,38 @@ User: ${currentUser?.name || 'Unknown'}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
       >
+        {/* Language Selection */}
+        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-semibold text-gray-900">{t('settings.language')}</Text>
+            <Ionicons name="language" size={20} color="#6b7280" />
+          </View>
+          <View className="flex-row">
+            <Pressable
+              onPress={() => setAppLanguage('he')}
+              className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-100'}`}
+            >
+              <Text className={appLanguage === 'he' ? 'text-white' : 'text-gray-700'}>{t('settings.hebrew')}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setAppLanguage('en')}
+              className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
+            >
+              <Text className={appLanguage === 'en' ? 'text-white' : 'text-gray-700'}>{t('settings.english')}</Text>
+            </Pressable>
+          </View>
+        </View>
         {/* Apartment Details */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">פרטי הדירה</Text>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.apartmentFallback')}</Text>
 
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm mb-1">שם הדירה</Text>
+            <Text className="text-gray-600 text-sm mb-1">{t('welcome.aptName')}</Text>
             <Text className="text-gray-900 text-lg font-medium">{currentApartment.name}</Text>
           </View>
 
           <View className="mb-1">
-            <Text className="text-gray-600 text-sm mb-1">קוד הצטרפות</Text>
+            <Text className="text-gray-600 text-sm mb-1">{t('welcome.aptCode')}</Text>
             <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
               <Text className="text-gray-900 text-lg font-mono font-bold">{currentApartment.invite_code}</Text>
               <View className="flex-row">
@@ -217,16 +241,16 @@ User: ${currentUser?.name || 'Unknown'}
               </View>
             </View>
           </View>
-          {copied && <Text className="text-xs text-green-600 mt-1">הקוד הועתק ללוח</Text>}
+          {copied && <Text className="text-xs text-green-600 mt-1">{t('common.success')}</Text>}
 
-          <Text className="text-xs text-gray-500 mt-2">שתף את הקוד עם שותפים חדשים כדי שיוכלו להצטרף לדירה</Text>
+          <Text className="text-xs text-gray-500 mt-2">{t('settings.feedbackTitle')}</Text>
         </View>
 
         {/* Roommates */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
             <Text className="text-lg font-semibold text-gray-900">
-              שותפים בדירה ({currentApartment.members.length})
+              {t('dashboard.roommates')} ({currentApartment.members.length})
             </Text>
             <Pressable 
               onPress={refreshApartmentMembers}
@@ -235,9 +259,7 @@ User: ${currentUser?.name || 'Unknown'}
               <Ionicons name="refresh" size={20} color="#007AFF" />
             </Pressable>
           </View>
-          <Text className="text-xs text-gray-500 mb-4">
-            לחיצה על 3 נקודות ליד שותף להסרה (רק אם המאזן שלו אפס)
-          </Text>
+          <Text className="text-xs text-gray-500 mb-4">{t('dashboard.showAll')}</Text>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
               <View className="flex-row items-center">
@@ -248,9 +270,9 @@ User: ${currentUser?.name || 'Unknown'}
                 </View>
                 <View className="mr-3 flex-1">
                   <Text className="text-gray-900 font-medium">
-                    {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && '(אתה)'}
+                    {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && `(${t('common.you')})`}
                   </Text>
-                  <Text className="text-gray-500 text-sm">{member.email || 'אין אימייל'}</Text>
+                  <Text className="text-gray-500 text-sm">{member.email || t('common.unknown')}</Text>
                 </View>
                 {removingMemberId === member.id ? (
                   <View className="ml-2">
@@ -272,7 +294,7 @@ User: ${currentUser?.name || 'Unknown'}
                           onPress={() => handleRemoveMemberPress(member)}
                           className="px-4 py-3 border-b border-gray-100"
                         >
-                          <Text className="text-red-600 font-medium">הסר שותף</Text>
+                          <Text className="text-red-600 font-medium">{t('settings.removeMember')}</Text>
                         </Pressable>
                       </View>
                     )}
@@ -285,9 +307,9 @@ User: ${currentUser?.name || 'Unknown'}
 
         {/* My Profile */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">הפרופיל שלי</Text>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.myProfile')}</Text>
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm mb-2">שם מלא</Text>
+            <Text className="text-gray-600 text-sm mb-2">{t('settings.fullName')}</Text>
             {editingName ? (
               <View className="flex-row items-center">
                 <TextInput
@@ -323,20 +345,20 @@ User: ${currentUser?.name || 'Unknown'}
           </View>
 
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm mb-1">אימייל</Text>
-            <Text className="text-gray-500">{currentUser.email || 'לא מוגדר'}</Text>
+            <Text className="text-gray-600 text-sm mb-1">{t('settings.email')}</Text>
+            <Text className="text-gray-500">{currentUser.email || t('settings.notDefined')}</Text>
           </View>
         </View>
 
         {/* Cleaning Schedule */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">סבב ניקיון</Text>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.cleaningSchedule')}</Text>
 
-          <Text className="text-gray-700 mb-2">תדירות</Text>
+          <Text className="text-gray-700 mb-2">{t('settings.frequency')}</Text>
           <View className="flex-row mb-4">
             {[7, 14, 30].map((days) => {
               const selected = cleaningSettings.intervalDays === days;
-              const label = days === 7 ? 'שבועי' : days === 14 ? 'דו שבועי' : 'חודשי';
+              const label = days === 7 ? t('settings.scheduleLabels.weekly') : days === 14 ? t('settings.scheduleLabels.biweekly') : t('settings.scheduleLabels.monthly');
               return (
                 <Pressable
                   key={days}
@@ -350,17 +372,17 @@ User: ${currentUser?.name || 'Unknown'}
             {/* Custom days input could be added later */}
           </View>
 
-          <Text className="text-gray-700 mb-2">יום התחלפות (ברירת מחדל ראשון)</Text>
+          <Text className="text-gray-700 mb-2">{t('settings.rotationDay')}</Text>
           <View className="flex-row flex-wrap">
-            {HEBREW_DAYS.map((d, idx) => {
-              const selected = cleaningSettings.anchorDow === idx;
+            {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
+              const selected = cleaningSettings.anchorDow === dayIndex;
               return (
                 <Pressable
-                  key={idx}
-                  onPress={() => setCleaningAnchorDow(idx)}
+                  key={dayIndex}
+                  onPress={() => setCleaningAnchorDow(dayIndex)}
                   className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <Text className={selected ? 'text-white' : 'text-gray-700'}>{d}</Text>
+                  <Text className={selected ? 'text-white' : 'text-gray-700'}>{t(`days.${dayIndex}`)}</Text>
                 </Pressable>
               );
             })}
@@ -369,7 +391,7 @@ User: ${currentUser?.name || 'Unknown'}
 
         {/* Cleaning Chores */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">משימות ניקיון ({checklistItems.length})</Text>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.cleaningTasks')} ({checklistItems.length})</Text>
           
 
           {checklistItems.map((item) => {
@@ -416,7 +438,7 @@ User: ${currentUser?.name || 'Unknown'}
                           await removeChecklistItem(item.id);
                         } catch (error) {
                           console.error('Error removing checklist item:', error);
-                          Alert.alert('שגיאה', 'לא ניתן למחוק את המשימה');
+                          Alert.alert(t('common.error'), t('settings.alerts.cannotDeleteTask'));
                         } finally {
                           setDeletingChoreId(null);
                         }
@@ -450,7 +472,7 @@ User: ${currentUser?.name || 'Unknown'}
             <TextInput
               value={newChore}
               onChangeText={setNewChore}
-              placeholder="הוסף משימה חדשה..."
+              placeholder={t('settings.addNewTaskPlaceholder')}
               className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
               textAlign="right"
               onSubmitEditing={async () => {
@@ -463,7 +485,7 @@ User: ${currentUser?.name || 'Unknown'}
                   setTimeout(() => setShowSuccessMessage(false), 3000);
                 } catch (error) {
                   console.error('Error adding checklist item:', error);
-                  Alert.alert('שגיאה', 'לא ניתן להוסיף את המשימה');
+                  Alert.alert(t('common.error'), t('settings.alerts.cannotAddTask'));
                 } finally {
                   setIsAddingChore(false);
                 }
@@ -483,7 +505,7 @@ User: ${currentUser?.name || 'Unknown'}
                   setTimeout(() => setShowSuccessMessage(false), 3000);
                 } catch (error) {
                   console.error('Error adding checklist item:', error);
-                  Alert.alert('שגיאה', 'לא ניתן להוסיף את המשימה');
+                  Alert.alert(t('common.error'), t('settings.alerts.cannotAddTask'));
                 } finally {
                   setIsAddingChore(false);
                 }
@@ -513,9 +535,9 @@ User: ${currentUser?.name || 'Unknown'}
 
         {/* Feedback Section */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">משוב ותמיכה</Text>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.feedbackTitle')}</Text>
           <Text className="text-gray-600 text-sm mb-4">
-            יש לך הצעה לשיפור? נתקלת בבעיה? נשמח לשמוע ממך!
+            {t('settings.feedbackDescription')}
           </Text>
           <Pressable 
             onPress={handleSendFeedback}
@@ -523,14 +545,14 @@ User: ${currentUser?.name || 'Unknown'}
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="mail-outline" size={20} color="white" className="ml-2" />
-              <Text className="text-white font-semibold text-center"> שלח משוב / דווח בעיה </Text>
+              <Text className="text-white font-semibold text-center"> {t('settings.feedbackCta')} </Text>
             </View>
           </Pressable>
         </View>
 
         {/* Danger Zone */}
         <View className="bg-white rounded-2xl p-6 shadow-sm border-2 border-red-100">
-          <Text className="text-lg font-semibold text-red-600 mb-4">אזור סכנה</Text>
+          <Text className="text-lg font-semibold text-red-600 mb-4">{t('settings.dangerZone')}</Text>
           
           <Pressable 
             onPress={async () => {
@@ -547,26 +569,26 @@ User: ${currentUser?.name || 'Unknown'}
                 });
               } catch (error) {
                 console.error('Sign out error:', error);
-                Alert.alert('שגיאה', 'לא ניתן להתנתק');
+                Alert.alert(t('common.error'), t('settings.alerts.cannotSignOut'));
               }
             }}
             className="bg-orange-500 py-3 px-6 rounded-xl mb-3"
           >
-            <Text className="text-white font-semibold text-center">התנתקות מהחשבון</Text>
+            <Text className="text-white font-semibold text-center">{t('settings.signOut')}</Text>
           </Pressable>
           
           <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
-            <Text className="text-white font-semibold text-center">עזיבת הדירה</Text>
+            <Text className="text-white font-semibold text-center">{t('settings.leaveApartment')}</Text>
           </Pressable>
-          <Text className="text-xs text-gray-500 text-center mt-2">פעולה זו תסיר אותך מהדירה ותמחק את כל הנתונים המקומיים</Text>
+          <Text className="text-xs text-gray-500 text-center mt-2">{t('settings.actionWillRemove')}</Text>
         </View>
 
       <ConfirmModal
         visible={confirmLeaveVisible}
-        title="עזיבת דירה"
-        message="האם אתה בטוח שברצונך לעזוב את הדירה? פעולה זו אינה ניתנת לביטול."
-        confirmText="כן, עזוב דירה"
-        cancelText="ביטול"
+        title={t('settings.leaveApartmentTitle')}
+        message={t('settings.leaveApartmentMessage')}
+        confirmText={t('settings.confirmLeaveText')}
+        cancelText={t('settings.cancelText')}
         onConfirm={async () => {
           try {
             if (currentUser && currentApartment) {
@@ -596,7 +618,7 @@ User: ${currentUser?.name || 'Unknown'}
             setConfirmLeaveVisible(false);
           } catch (error: any) {
             console.error('Leave apartment error:', error);
-            Alert.alert('שגיאה', 'לא ניתן לעזוב את הדירה');
+            Alert.alert(t('common.error'), t('settings.alerts.cannotLeaveApartment'));
             setConfirmLeaveVisible(false);
           }
         }}
@@ -605,10 +627,10 @@ User: ${currentUser?.name || 'Unknown'}
 
       <ConfirmModal
         visible={confirmRemoveVisible}
-        title="הסרת שותף"
-        message={`האם אתה בטוח שברצונך להסיר את ${memberToRemove?.name} מהדירה? פעולה זו אינה ניתנת לביטול.`}
-        confirmText="כן, הסר שותף"
-        cancelText="ביטול"
+        title={t('settings.removeMemberTitle')}
+        message={t('settings.confirmRemoveMember', { name: memberToRemove?.name || '' })}
+        confirmText={t('settings.confirmRemoveText')}
+        cancelText={t('settings.cancelText')}
         onConfirm={handleConfirmRemoveMember}
         onCancel={() => {
           setConfirmRemoveVisible(false);

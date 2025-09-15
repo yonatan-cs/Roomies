@@ -1,5 +1,6 @@
 import React from 'react';
 import { Platform, Keyboard, KeyboardAvoidingView, Pressable, View, ScrollView } from 'react-native';
+import { useStore } from '../state/store';
 
 // מסך בסיסי: מרחיק מהקצה, מרים מול מקלדת, ולחיצה בחוץ סוגרת מקלדת
 type Props = {
@@ -17,6 +18,8 @@ export function Screen({
   behavior = 'padding',
   keyboardVerticalOffset,
 }: Props) {
+  const appLanguage = useStore(s => s.appLanguage);
+  const isRTL = appLanguage === 'he';
   const content = (
     <>
       {/* שכבת "הקש לסגור מקלדת" שלא חוסמת ילדים */}
@@ -31,7 +34,8 @@ export function Screen({
           style={{ flex: 1 }}
           contentContainerStyle={{ 
             padding: withPadding ? 16 : 0, 
-            flexGrow: 1 
+            flexGrow: 1,
+            direction: (isRTL ? 'rtl' : 'ltr') as any,
           }}
           keyboardShouldPersistTaps="handled" // לחיצה מחוץ לאלמנטי הקלט תסגור מקלדת
           showsVerticalScrollIndicator={false}
@@ -40,7 +44,7 @@ export function Screen({
           {children}
         </ScrollView>
       ) : (
-        <View style={{ flex: 1, padding: withPadding ? 16 : 0 }}>
+        <View style={{ flex: 1, padding: withPadding ? 16 : 0, direction: (isRTL ? 'rtl' : 'ltr') as any }}>
           {children}
         </View>
       )}

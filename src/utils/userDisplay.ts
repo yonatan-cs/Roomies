@@ -12,7 +12,7 @@ export type UserLike = {
  * Priority order: display_name -> displayName -> full_name -> name -> email -> 'אורח'
  */
 export function getDisplayName(u?: UserLike | null): string {
-  return (u?.display_name ?? u?.displayName ?? u?.full_name ?? u?.name ?? u?.email ?? 'אורח').toString().trim();
+  return (u?.display_name ?? u?.displayName ?? u?.full_name ?? u?.name ?? u?.email ?? 'Guest').toString().trim();
 }
 
 /**
@@ -21,7 +21,7 @@ export function getDisplayName(u?: UserLike | null): string {
  */
 export function getInitial(name?: string): string {
   const s = (name ?? '').trim();
-  if (!s) return 'א';
+  if (!s) return 'G';
   
   const firstGrapheme = Array.from(s)[0]; // Safe for emoji and multi-code-point characters
   return firstGrapheme.toLocaleUpperCase('he-IL');

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, ActivityIndicator, View } from 'react-native';
 import { useAsyncAction } from '../hooks/useAsyncAction';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   title: string;
@@ -21,6 +22,7 @@ export function AsyncButton({
   loadingText,
   className = ''
 }: Props) {
+  const { t } = useTranslation();
   const { run, loading } = useAsyncAction(onPress, {
     spinnerDelayMs: 180,
     minSpinnerVisibleMs: 250,
@@ -101,7 +103,7 @@ export function AsyncButton({
     >
       {loading && <ActivityIndicator size="small" color={variant === 'secondary' ? '#6b7280' : 'white'} />}
       <Text className={`${getTextColor()} ${getTextSize()} font-semibold text-center`}>
-        {loading ? (loadingText || 'מעבד...') : title}
+        {loading ? (loadingText || t('common.loading')) : title}
       </Text>
     </Pressable>
   );

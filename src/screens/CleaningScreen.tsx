@@ -9,10 +9,11 @@ import ConfirmModal from '../components/ConfirmModal';
 import { User } from '../types';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
+import { useTranslation } from 'react-i18next';
 
-const HEBREW_DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 export default function CleaningScreen() {
+  const { t } = useTranslation();
   const [showNotYourTurn, setShowNotYourTurn] = useState(false);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [showConfirmDone, setShowConfirmDone] = useState(false);
@@ -126,7 +127,7 @@ export default function CleaningScreen() {
         dueDate: cleaningTask.dueDate ? cleaningTask.dueDate.toISOString() : null,
       });
       // Show success message with next turn date
-      setErrorMessage(`מעולה, ניקית! התור יעבור לשותף הבא בתאריך ${cycleEnd.toLocaleDateString('he-IL')}`);
+      setErrorMessage(t('cleaning.youCompleted') + ' ' + t('cleaning.untilDate', { date: cycleEnd.toLocaleDateString() }));
       return;
     }
 
@@ -158,14 +159,14 @@ export default function CleaningScreen() {
       console.error('Error toggling task:', error);
       
       // Show detailed error to help with debugging
-      let errorMessage = 'שגיאה בעדכון המשימה';
+      let errorMessage = t('common.error');
       if (error.message?.includes('CHECKLIST_UPDATE_FAILED')) {
         if (error.message.includes('403')) {
-          errorMessage = 'אין הרשאה לעדכן את המשימה. ודא שאתה חבר בדירה וזה התור שלך לנקות.';
+          errorMessage = t('cleaning.modals.incompleteMsg');
         } else if (error.message.includes('404')) {
-          errorMessage = 'המשימה לא נמצאה. נסה לרענן את המסך.';
+          errorMessage = t('common.error');
         } else {
-          errorMessage = `שגיאה בעדכון המשימה: ${error.message}`;
+          errorMessage = `${t('common.error')}: ${error.message}`;
         }
       }
       
@@ -188,7 +189,7 @@ export default function CleaningScreen() {
       ]);
     } catch (error) {
       console.error('Error finishing turn:', error);
-      setErrorMessage('שגיאה בסיום התור. נסה שוב.');
+      setErrorMessage(t('common.error'));
     } finally {
       setIsFinishingTurn(false);
     }
@@ -275,11 +276,11 @@ export default function CleaningScreen() {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (isNaN(dateObj.getTime())) {
-        return 'תאריך לא תקין';
+        return t('common.invalidDate');
       }
       return new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(dateObj);
     } catch (error) {
-      return 'תאריך לא תקין';
+      return t('common.invalidDate');
     }
   };
 
@@ -287,26 +288,26 @@ export default function CleaningScreen() {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (isNaN(dateObj.getTime())) {
-        return 'תאריך לא תקין';
+        return t('common.invalidDate');
       }
       return new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'short' }).format(dateObj);
     } catch (error) {
-      return 'תאריך לא תקין';
+      return t('common.invalidDate');
     }
   };
 
   // Helper function to display member name for live updates
   const displayMemberName = (uid: string): string => {
-    if (!currentApartment) return 'משתמש';
+    if (!currentApartment) return t('common.user');
     const member = currentApartment.members.find(m => m.id === uid);
-    return member?.name || 'משתמש';
+    return member?.name || t('common.user');
   };
 
   if (!currentApartment || !cleaningTask) {
     return (
       <View className="flex-1 bg-white justify-center items-center px-6">
         <Ionicons name="brush-outline" size={80} color="#6b7280" />
-        <Text className="text-xl text-gray-600 text-center mt-4">טוען נתוני ניקיון...</Text>
+        <Text className="text-xl text-gray-600 text-center mt-4">{t('cleaning.loading')}</Text>
       </View>
     );
   }
@@ -314,12 +315,12 @@ export default function CleaningScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 text-center mb-2">סבב הניקיון</Text>
+        <Text className="text-2xl font-bold text-gray-900 text-center mb-2">{t('cleaning.title')}</Text>
         <Text className="text-gray-600 text-center">{currentApartment.name}</Text>
         <View className="flex-row items-center justify-center mt-2">
           <View className="px-3 py-1 rounded-full bg-gray-100">
             <Text className="text-gray-700 text-sm">
-              {cleaningSettings.intervalDays === 7 ? 'שבועי' : `${cleaningSettings.intervalDays} ימים`} • מתחלף ביום {HEBREW_DAYS[cleaningSettings.anchorDow]}
+              {cleaningSettings.intervalDays === 7 ? t('cleaning.scheduleWeekly') : t('cleaning.scheduleDays', { count: cleaningSettings.intervalDays })} • {t('cleaning.rotatesOn', { day: t(`days.${cleaningSettings.anchorDow}`) })}
             </Text>
           </View>
         </View>
@@ -342,13 +343,13 @@ export default function CleaningScreen() {
             </View>
 
             <Text className="text-xl font-semibold text-gray-900 mb-1">
-              {currentApartment.members.find((m) => m.id === (cleaningTask as any).user_id)?.name || 'לא ידוע'}
+              {currentApartment.members.find((m) => m.id === (cleaningTask as any).user_id)?.name || t('cleaning.unknownUser')}
             </Text>
 
             {(() => {
               const dow = cleaningSettings.preferredDayByUser[(cleaningTask as any).user_id];
               if (dow === undefined) return null;
-              return <Text className="text-sm text-gray-500 mb-1">מומלץ לנקות ביום {HEBREW_DAYS[dow]}</Text>;
+              return <Text className="text-sm text-gray-500 mb-1">{t('cleaning.recommendedDay', { day: t(`days.${dow}`) })}</Text>;
             })()}
 
             {(() => {
@@ -360,22 +361,22 @@ export default function CleaningScreen() {
               const overdue = new Date() > cycleEnd;
               return (
                 <Text className={cn('text-sm mb-4', overdue ? 'text-red-600' : 'text-gray-600')}>
-                  עד {formatDueDate(cycleEnd)}{overdue && ' (באיחור)'}
+                  {t('cleaning.untilDate', { date: formatDueDate(cycleEnd) })}{overdue && t('cleaning.overdue')}
                 </Text>
               );
             })()}
 
             {isMyTurn && (
               <>
-                <Text className="text-sm text-gray-600 mb-2">התקדמות: {getCompletionPercentage()}%</Text>
+                <Text className="text-sm text-gray-600 mb-2">{t('cleaning.progress', { percent: getCompletionPercentage() })}</Text>
                 <View className="w-full bg-gray-200 rounded-full h-2 mb-4">
                   <View className="bg-blue-500 h-2 rounded-full" style={{ width: `${getCompletionPercentage()}%` }} />
                 </View>
                 <AsyncButton
-                  title={turnCompleted ? 'השלמת את הניקיון! ✅' : (getCompletionPercentage() === 100 ? 'סיימתי, העבר תור! ✨' : 'השלם כל המשימות')}
+                  title={turnCompleted ? t('cleaning.youCompleted') : (getCompletionPercentage() === 100 ? t('cleaning.finishTurnCta') : t('cleaning.completeAllTasks'))}
                   onPress={handleMarkCleaned}
                   disabled={turnCompleted || getCompletionPercentage() !== 100 || isFinishingTurn}
-                  loadingText="מעבד..."
+                  loadingText={t('cleaning.processing')}
                   className={cn(
                     'py-3 px-8 rounded-xl', 
                     turnCompleted ? 'bg-gray-400' : (getCompletionPercentage() === 100 ? 'bg-green-500' : 'bg-gray-300')
@@ -387,7 +388,7 @@ export default function CleaningScreen() {
             {/* Show live progress even when it's not my turn */}
             {!isMyTurn && checklistItems.length > 0 && (
               <View className="w-full mt-4">
-                <Text className="text-sm text-gray-600 mb-2 text-center">התקדמות נוכחית: {getCompletionPercentage()}%</Text>
+                <Text className="text-sm text-gray-600 mb-2 text-center">{t('cleaning.progressCurrent', { percent: getCompletionPercentage() })}</Text>
                 <View className="w-full bg-gray-200 rounded-full h-2">
                   <View className="bg-green-500 h-2 rounded-full" style={{ width: `${getCompletionPercentage()}%` }} />
                 </View>
@@ -399,7 +400,7 @@ export default function CleaningScreen() {
         {/* Live Progress Section - Show completed tasks by others */}
         {!isMyTurn && checklistItems.length > 0 && (
           <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">התקדמות בזמן אמת</Text>
+            <Text className="text-lg font-semibold text-gray-900 mb-4">{t('cleaning.liveProgress')}</Text>
             {checklistItems.map((item) => (
               <View key={item.id} className="flex-row items-center py-2">
                 <View className={cn('w-5 h-5 rounded border-2 items-center justify-center ml-3', 
@@ -421,7 +422,7 @@ export default function CleaningScreen() {
 
         {/* Queue */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">התור הבא</Text>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('cleaning.nextQueue')}</Text>
           {(() => {
             // אם יש רק שותף אחד בדירה - הוא תמיד בתור
             if (currentApartment?.members.length === 1) {
@@ -431,7 +432,7 @@ export default function CleaningScreen() {
                     <Text className="text-blue-600 font-medium">1</Text>
                   </View>
                   <Text className="text-gray-900 text-base mr-3">{currentApartment.members[0].name}</Text>
-                  <Text className="text-blue-600 text-sm">(תמיד בתור)</Text>
+                  <Text className="text-blue-600 text-sm">{t('cleaning.alwaysInTurn')}</Text>
                 </View>
               );
             }
@@ -459,7 +460,7 @@ export default function CleaningScreen() {
         {isMyTurn && (
           <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-semibold text-gray-900">רשימת משימות ניקיון</Text>
+              <Text className="text-lg font-semibold text-gray-900">{t('cleaning.tasksList')}</Text>
             </View>
 
             {checklistItems.map((item) => {
@@ -490,13 +491,13 @@ export default function CleaningScreen() {
         {/* Last Cleaning Info */}
         {cleaningTask.last_completed_at && (
           <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-3">ניקיון אחרון</Text>
+            <Text className="text-lg font-semibold text-gray-900 mb-3">{t('cleaning.lastCleaning')}</Text>
             <View className="flex-row items-center">
               <Ionicons name="checkmark-circle" size={20} color="#10b981" />
               <View className="mr-3">
-                <Text className="text-gray-600">{new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(cleaningTask.last_completed_at))}</Text>
+                <Text className="text-gray-600">{new Date(cleaningTask.last_completed_at).toLocaleString()}</Text>
                 {cleaningTask.last_completed_by && (
-                  <Text className="text-sm text-gray-500">על ידי {currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name}</Text>
+                  <Text className="text-sm text-gray-500">{t('cleaning.byUser', { name: currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name })}</Text>
                 )}
               </View>
             </View>
@@ -506,19 +507,14 @@ export default function CleaningScreen() {
         {/* Cleaning History */}
         {cleaningTask.last_completed_at && (
           <View className="bg-white rounded-2xl p-6 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">היסטוריית ניקיונות</Text>
+            <Text className="text-lg font-semibold text-gray-900 mb-4">{t('cleaning.history')}</Text>
             {/* Show last cleaning from the new system */}
             <View className="flex-row items-center py-2">
               <Ionicons name="brush" size={16} color="#10b981" />
               <View className="mr-3">
-                <Text className="text-gray-900">
-                  {cleaningTask.last_completed_by ? 
-                    currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name || 'משתמש לא ידוע' 
-                    : 'משתמש לא ידוע'
-                  }
-                </Text>
+                <Text className="text-gray-900">{cleaningTask.last_completed_by ? (currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name || t('cleaning.unknownUser')) : t('cleaning.unknownUser')}</Text>
                 <Text className="text-sm text-gray-500">
-                  {new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(cleaningTask.last_completed_at))}
+                  {new Date(cleaningTask.last_completed_at).toLocaleString()}
                 </Text>
               </View>
             </View>
@@ -530,8 +526,8 @@ export default function CleaningScreen() {
                 <View key={history.id} className="flex-row items-center py-2">
                   <Ionicons name="brush" size={16} color="#10b981" />
                   <View className="mr-3">
-                    <Text className="text-gray-900">{user?.name || 'משתמש לא ידוע'}</Text>
-                    <Text className="text-sm text-gray-500">{new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(history.cleanedAt))}</Text>
+                    <Text className="text-gray-900">{user?.name || t('cleaning.unknownUser')}</Text>
+                    <Text className="text-sm text-gray-500">{new Date(history.cleanedAt).toLocaleString()}</Text>
                   </View>
                 </View>
               );
@@ -541,14 +537,14 @@ export default function CleaningScreen() {
       </ScrollView>
 
       {/* Modals */}
-      <ConfirmModal visible={showNotYourTurn} title="לא התור שלך" message="כרגע זה לא התור שלך לנקות" confirmText="הבנתי" cancelText="" onConfirm={() => setShowNotYourTurn(false)} onCancel={() => setShowNotYourTurn(false)} />
-      <ConfirmModal visible={showIncomplete} title="משימות לא הושלמו" message="אנא השלם את כל המשימות לפני סיום הניקיון" confirmText="הבנתי" cancelText="" onConfirm={() => setShowIncomplete(false)} onCancel={() => setShowIncomplete(false)} />
+      <ConfirmModal visible={showNotYourTurn} title={t('cleaning.modals.notYourTurnTitle')} message={t('cleaning.modals.notYourTurnMsg')} confirmText={t('cleaning.modals.understood')} cancelText="" onConfirm={() => setShowNotYourTurn(false)} onCancel={() => setShowNotYourTurn(false)} />
+      <ConfirmModal visible={showIncomplete} title={t('cleaning.modals.incompleteTitle')} message={t('cleaning.modals.incompleteMsg')} confirmText={t('cleaning.modals.understood')} cancelText="" onConfirm={() => setShowIncomplete(false)} onCancel={() => setShowIncomplete(false)} />
       <ConfirmModal
         visible={showConfirmDone}
-        title="אישור ניקיון"
-        message="האם באמת השלמת את כל משימות הניקיון?"
-        confirmText={isFinishingTurn ? "מעבד..." : "כן, סיימתי!"}
-        cancelText="ביטול"
+        title={t('cleaning.modals.confirmTitle')}
+        message={t('cleaning.modals.confirmMsg')}
+        confirmText={isFinishingTurn ? t('cleaning.modals.processing') : t('cleaning.modals.confirmYes')}
+        cancelText={t('common.cancel')}
         onConfirm={handleFinishTurn}
         onCancel={() => setShowConfirmDone(false)}
       />
@@ -557,9 +553,9 @@ export default function CleaningScreen() {
       {errorMessage && (
         <ConfirmModal
           visible={!!errorMessage}
-          title="שגיאה"
+          title={t('cleaning.modals.errorTitle')}
           message={errorMessage}
-          confirmText="הבנתי"
+          confirmText={t('cleaning.modals.understood')}
           cancelText=""
           onConfirm={() => setErrorMessage(null)}
           onCancel={() => setErrorMessage(null)}

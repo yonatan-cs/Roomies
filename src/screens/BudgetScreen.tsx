@@ -25,6 +25,7 @@ import { Expense } from '../types';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
 import { getUserDisplayInfo } from '../utils/userDisplay';
+import { useTranslation } from 'react-i18next';
 
 type RootStackParamList = {
   AddExpense: undefined;
@@ -83,6 +84,7 @@ function useKeyboardLift() {
 }
 
 export default function BudgetScreen() {
+  const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -149,56 +151,55 @@ export default function BudgetScreen() {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (isNaN(dateObj.getTime())) {
-        return 'תאריך לא תקין';
+        return t('common.invalidDate');
       }
       return new Intl.DateTimeFormat('he-IL', {
         day: 'numeric',
         month: 'short'
       }).format(dateObj);
     } catch (error) {
-      return 'תאריך לא תקין';
+      return t('common.invalidDate');
     }
   };
 
   const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return 'אתה';
-    return currentApartment?.members.find(m => m.id === userId)?.name || 'לא ידוע';
+    if (userId === currentUser?.id) return t('common.you');
+    return currentApartment?.members.find(m => m.id === userId)?.name || t('common.unknown');
   };
 
   const getActualUserName = (userId: string) => {
     // Always return the actual name, not "אתה"
     return currentApartment?.members.find(m => m.id === userId)?.name || 
-           (userId === currentUser?.id ? (currentUser?.name || currentUser?.display_name || 'לא ידוע') : 'לא ידוע');
+           (userId === currentUser?.id ? (currentUser?.name || currentUser?.display_name || t('common.unknown')) : t('common.unknown'));
   };
 
   // Helper function to get month name in Hebrew
   const getMonthName = (month: number) => {
     const months = [
-      'ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
-      'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'
+      t('days.0'), t('days.1'), t('days.2'), t('days.3'), t('days.4'), t('days.5'), t('days.6')
     ];
     return months[month];
   };
 
   // Helper function to calculate net personal balance summary
   const getPersonalBalanceSummary = () => {
-    if (!myBalance) return { status: 'balanced', amount: 0, message: 'אין חובות פתוחים' };
+    if (!myBalance) return { status: 'balanced', amount: 0, message: t('budget.noOpenDebts') };
     
     if (Math.abs(myBalance.netBalance) < 0.01) {
-      return { status: 'balanced', amount: 0, message: 'אין חובות פתוחים' };
+      return { status: 'balanced', amount: 0, message: t('budget.noOpenDebts') };
     }
     
     if (myBalance.netBalance > 0) {
       return { 
         status: 'owed', 
         amount: myBalance.netBalance, 
-        message: `חייבים לך ${formatCurrency(myBalance.netBalance)}` 
+        message: t('budget.moneyYouAreOwed')
       };
     } else {
       return { 
         status: 'owes', 
         amount: Math.abs(myBalance.netBalance), 
-        message: `אתה חייב ${formatCurrency(Math.abs(myBalance.netBalance))}` 
+        message: t('budget.moneyYouOwe')
       };
     }
   };
@@ -242,23 +243,23 @@ export default function BudgetScreen() {
   // Handle Add Expense
   const handleAddExpense = async () => {
     if (!expenseTitle.trim()) {
-      Alert.alert('שגיאה', 'אנא הכנס שם להוצאה');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterTitle'));
       return;
     }
 
     const numAmount = parseFloat(expenseAmount);
     if (!numAmount || numAmount <= 0) {
-      Alert.alert('שגיאה', 'אנא הכנס סכום תקין');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterValidAmount'));
       return;
     }
 
     if (selectedParticipants.length === 0) {
-      Alert.alert('שגיאה', 'אנא בחר לפחות משתתף אחד');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.selectParticipants'));
       return;
     }
 
     if (!currentUser) {
-      Alert.alert('שגיאה', 'משתמש לא מחובר');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.userNotLoggedIn'));
       return;
     }
 
@@ -281,7 +282,7 @@ export default function BudgetScreen() {
       setShowAddExpenseModal(false);
     } catch (error) {
       console.error('Error adding expense:', error);
-      Alert.alert('שגיאה', 'לא ניתן להוסיף את ההוצאה');
+      Alert.alert(t('common.error'), t('expenseEdit.alerts.updateFailed'));
     } finally {
       setIsAddingExpense(false);
     }
@@ -313,7 +314,7 @@ export default function BudgetScreen() {
   if (!currentUser || !currentApartment) {
     return (
       <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">טוען...</Text>
+        <Text className="text-gray-500">{t('common.loading')}</Text>
       </View>
     );
   }
@@ -322,9 +323,7 @@ export default function BudgetScreen() {
     <View className="flex-1 bg-gray-50">
       <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-2xl font-bold text-gray-900">
-            מאזן והוצאות
-          </Text>
+          <Text className="text-2xl font-bold text-gray-900">{t('budget.title')}</Text>
           <Pressable
             onPress={() => setShowAddExpenseModal(true)}
             className="bg-blue-500 w-10 h-10 rounded-full items-center justify-center"
@@ -405,17 +404,13 @@ export default function BudgetScreen() {
         {/* Summary */}
         <View className="flex-row justify-between">
           <View>
-            <Text className="text-sm text-gray-600">
-              סה״כ הוצאות הדירה
-            </Text>
+            <Text className="text-sm text-gray-600">{t('budget.totalApartment')}</Text>
             <Text className="text-xl font-bold text-gray-900">
               {formatCurrency(totalApartmentExpenses)}
             </Text>
           </View>
           <View className="items-end">
-            <Text className="text-sm text-gray-600">
-              החלק שלך החודש
-            </Text>
+            <Text className="text-sm text-gray-600">{t('budget.yourShare')}</Text>
             <Text className="text-xl font-bold text-blue-600">
               {formatCurrency(monthlyData.personalTotal)}
             </Text>
@@ -427,9 +422,7 @@ export default function BudgetScreen() {
         {/* Personal Balance Summary */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-gray-900">
-              המצב שלי
-            </Text>
+            <Text className="text-lg font-semibold text-gray-900">{t('budget.myStatus')}</Text>
             
             <Pressable
               onPress={() => navigation.navigate('GroupDebts')}
@@ -437,7 +430,7 @@ export default function BudgetScreen() {
             >
               <Ionicons name="people-outline" size={16} color="#3b82f6" />
               <Text className="text-blue-700 text-sm font-medium mr-2">
-                הצגת כל החובות
+                {t('budget.showAllDebtsButton')}
               </Text>
             </Pressable>
           </View>
@@ -447,7 +440,7 @@ export default function BudgetScreen() {
               <>
                 <Ionicons name="checkmark-circle" size={48} color="#10b981" />
                 <Text className="text-xl font-bold text-green-600 mt-2 mb-1">
-                  כל החובות מסולקים! 🎉
+                  {t('budget.allClearedMessage')}
                 </Text>
                 <Text className="text-gray-600 text-center">
                   {personalSummary.message}
@@ -467,12 +460,12 @@ export default function BudgetScreen() {
                 
                 {personalSummary.status === 'owed' && (
                   <Text className="text-sm text-gray-500 mt-2 text-center">
-                    💰 כסף שמגיע לך מהשותפים
+                    {t('budget.moneyYouAreOwedMessage')}
                   </Text>
                 )}
                 {personalSummary.status === 'owes' && (
                   <Text className="text-sm text-gray-500 mt-2 text-center">
-                    💳 סכום שאתה חייב לשותפים
+                    {t('budget.moneyYouOweMessage')}
                   </Text>
                 )}
               </>
@@ -482,23 +475,17 @@ export default function BudgetScreen() {
 
         {/* Monthly Expenses */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
-            הוצאות {getMonthName(selectedMonth)}
-          </Text>
+          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('budget.monthlyExpenses', { month: getMonthName(selectedMonth) })}</Text>
           
           {monthlyData.expenses.length === 0 ? (
             <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
               <Ionicons name="calendar-outline" size={48} color="#6b7280" />
-              <Text className="text-gray-600 text-center mt-4 mb-4">
-                אין הוצאות ב{getMonthName(selectedMonth)}
-              </Text>
+              <Text className="text-gray-600 text-center mt-4 mb-4">{t('budget.noExpensesInMonth', { month: getMonthName(selectedMonth) })}</Text>
               <Pressable
                 onPress={() => setShowAddExpenseModal(true)}
                 className="bg-blue-500 py-2 px-6 rounded-xl"
               >
-                <Text className="text-white font-medium">
-                  הוסף הוצאה
-                </Text>
+                <Text className="text-white font-medium">{t('budget.addExpense')}</Text>
               </Pressable>
             </View>
           ) : (
@@ -535,16 +522,16 @@ export default function BudgetScreen() {
             >
               <View className="bg-white rounded-2xl p-6">
               <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
-                הוסף הוצאה חדשה
+                {t('budget.addExpenseModal.title')}
               </Text>
 
               {/* Expense Title */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">שם ההוצאה *</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.expenseName')}</Text>
                 <TextInput
                   value={expenseTitle}
                   onChangeText={setExpenseTitle}
-                  placeholder="למשל: קניות, חשבון חשמל..."
+                  placeholder={t('budget.expenseNamePlaceholder')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   autoFocus
@@ -556,7 +543,7 @@ export default function BudgetScreen() {
 
               {/* Amount */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">סכום *</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.amount')}</Text>
                 <NumericInput
                   value={expenseAmount}
                   onChangeText={setExpenseAmount}
@@ -571,7 +558,7 @@ export default function BudgetScreen() {
 
               {/* Participants */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">משתתפים *</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.participants')}</Text>
                 <View className="flex-row flex-wrap">
                   {currentApartment?.members.map((member) => (
                     <Pressable
@@ -599,11 +586,11 @@ export default function BudgetScreen() {
 
               {/* Description */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">תיאור (אופציונלי)</Text>
+                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.description')}</Text>
                 <TextInput
                   value={expenseDescription}
                   onChangeText={setExpenseDescription}
-                  placeholder="פרטים נוספים..."
+                  placeholder={t('budget.additionalDetailsPlaceholder')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   multiline
@@ -621,14 +608,14 @@ export default function BudgetScreen() {
                   className="flex-1 bg-gray-100 py-3 px-4 rounded-xl"
                 >
                   <Text className="text-gray-700 font-medium text-center">
-                    ביטול
+                    {t('common.cancel')}
                   </Text>
                 </Pressable>
                 
                 <AsyncButton
-                  title="הוסף הוצאה"
+                  title={t('budget.addExpenseButton')}
                   onPress={handleAddExpense}
-                  loadingText="מוסיף הוצאה..."
+                  loadingText={t('budget.addingExpenseButton')}
                   className="flex-1"
                   disabled={isAddingExpense}
                 />

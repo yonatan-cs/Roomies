@@ -2,7 +2,12 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { View } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
+import "./src/i18n";
+import { useEffect } from "react";
+import { useStore } from "./src/state/store";
+import i18n from "./src/i18n";
 
 /*
 IMPORTANT NOTICE: DO NOT REMOVE
@@ -26,13 +31,25 @@ const openai_api_key = Constants.expoConfig.extra.apikey;
 */
 
 export default function App() {
+  const appLanguage = useStore(s => s.appLanguage);
+
+  useEffect(() => {
+    if (i18n.language !== appLanguage) {
+      i18n.changeLanguage(appLanguage).catch(() => {});
+    }
+  }, [appLanguage]);
+
+  const writingDirection = appLanguage === 'he' ? 'rtl' : 'ltr';
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer>
-          <AppNavigator />
-          <StatusBar style="auto" />
-        </NavigationContainer>
+        <View style={{ flex: 1, direction: writingDirection as any }}>
+          <NavigationContainer>
+            <AppNavigator />
+            <StatusBar style="auto" />
+          </NavigationContainer>
+        </View>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

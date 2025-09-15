@@ -50,6 +50,10 @@ interface AppState {
   currentUser?: User;
   currentApartment?: Apartment;
 
+  // Language
+  appLanguage: 'he' | 'en';
+  setAppLanguage: (lang: 'he' | 'en') => void;
+
   // Cleaning (Firestore-based system only)
   cleaningTask?: CleaningTask;
   cleaningSettings: CleaningSettings;
@@ -143,8 +147,13 @@ export const useStore = create<AppState>()(
         preferredDayByUser: {},
       },
       
+      // Language (default Hebrew to match current UI)
+      appLanguage: 'he',
+
       // Checklist state (Firestore-based)
       checklistItems: [],
+      // Language setter
+      setAppLanguage: (lang) => set({ appLanguage: lang }),
       isMyCleaningTurn: false,
       _loadingChecklist: false,
 
@@ -796,6 +805,7 @@ export const useStore = create<AppState>()(
             set({ 
               cleaningTask: {
                 id: task.id,
+                user_id: task.user_id || apt.members[0]?.id || '',
                 currentTurn: task.user_id || apt.members[0]?.id,
                 queue: task.queue && task.queue.length > 0 ? task.queue : apt.members.map(m => m.id),
                 dueDate: new Date(), // TODO: Calculate proper due date
@@ -819,11 +829,13 @@ export const useStore = create<AppState>()(
         if (!apt || !state.cleaningTask) return;
         const newQueue = apt.members.map((m) => m.id);
         if (newQueue.length === 0) return;
-        const currentTurn = state.cleaningTask.currentTurn;
-        const nextTurn = newQueue.includes(currentTurn) ? currentTurn : newQueue[0];
+        const currentTurn = state.cleaningTask.user_id || state.cleaningTask.currentTurn || '';
+        const safeCurrent = currentTurn || '';
+        const nextTurn = newQueue.includes(safeCurrent) ? safeCurrent : newQueue[0];
         set({
           cleaningTask: {
             ...state.cleaningTask,
+            user_id: nextTurn,
             currentTurn: nextTurn,
             queue: newQueue,
           },
@@ -859,11 +871,13 @@ export const useStore = create<AppState>()(
           if (state.cleaningTask) {
             const newQueue = completeApartmentData.members.map((m: User) => m.id);
             if (newQueue.length > 0) {
-              const currentTurn = state.cleaningTask.currentTurn;
-              const nextTurn = newQueue.includes(currentTurn) ? currentTurn : newQueue[0];
+              const currentTurn = state.cleaningTask.user_id || state.cleaningTask.currentTurn || '';
+              const safeCurrent = currentTurn || '';
+              const nextTurn = newQueue.includes(safeCurrent) ? safeCurrent : newQueue[0];
               set({
                 cleaningTask: {
                   ...state.cleaningTask,
+                  user_id: nextTurn,
                   currentTurn: nextTurn,
                   queue: newQueue,
                 },
@@ -1442,6 +1456,7 @@ export const useStore = create<AppState>()(
       partialize: (state) => ({
         currentUser: state.currentUser,
         currentApartment: state.currentApartment,
+        appLanguage: state.appLanguage,
         cleaningTask: state.cleaningTask,
         cleaningSettings: state.cleaningSettings,
         checklistItems: state.checklistItems,

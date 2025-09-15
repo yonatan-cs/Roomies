@@ -16,8 +16,10 @@ import { useStore } from '../state/store';
 import AuthScreen from './AuthScreen';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
+import { useTranslation } from 'react-i18next';
 
 export default function WelcomeScreen() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [apartmentName, setApartmentName] = useState('');
   const [userName, setUserName] = useState('');
@@ -97,7 +99,7 @@ export default function WelcomeScreen() {
   const handleCreateApartment = async () => {
     setError(null);
     if (!apartmentName.trim()) {
-      setError('אנא הכנס שם דירה');
+      setError(t('welcome.errors.enterAptName'));
       return;
     }
 
@@ -149,7 +151,7 @@ export default function WelcomeScreen() {
     } catch (error: any) {
       console.error('Create apartment error:', error);
       console.error('Error stack:', error.stack);
-      setError(error.message || 'שגיאה ביצירת הדירה');
+      setError(error.message || t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -158,7 +160,7 @@ export default function WelcomeScreen() {
   const handleJoinApartment = async () => {
     setError(null);
     if (!joinCode.trim()) {
-      setError('אנא הכנס קוד דירה');
+      setError(t('welcome.errors.enterAptCode'));
       return;
     }
 
@@ -176,7 +178,7 @@ export default function WelcomeScreen() {
       });
       
       if (!currentUser) {
-        throw new Error('User not authenticated - Please sign in again');
+        throw new Error('NOT_AUTH');
       }
 
       // Step 2: Wait a moment for authentication to stabilize after login
@@ -220,24 +222,24 @@ export default function WelcomeScreen() {
       console.error('❌ Join apartment error:', error);
       
       // Provide more specific error messages
-      let errorMessage = 'שגיאה בהצטרפות לדירה';
+      let errorMessage = t('common.error');
       
-      if (error.message.includes('not authenticated') || error.message.includes('User needs to sign in')) {
-        errorMessage = 'נדרש להתחבר מחדש למערכת';
+      if (error.message.includes('NOT_AUTH')) {
+        errorMessage = t('welcome.errors.notAuthenticated');
       } else if (error.message.includes('Missing or insufficient permissions') || error.message.includes('PERMISSION_DENIED')) {
-        errorMessage = 'אין הרשאה לגשת למידע הדירה. יתכן שהמשתמש לא מחובר כראוי';
+        errorMessage = t('welcome.errors.noPermission');
       } else if (error.message.includes('קוד דירה לא נמצא')) {
-        errorMessage = error.message;
+        errorMessage = t('welcome.errors.codeNotFound');
       } else if (error.message.includes('Network') || error.message.includes('בדיקת חיבור נכשלה')) {
-        errorMessage = 'בעיית חיבור ל-Firebase. בדוק חיבור לאינטרנט';
+        errorMessage = t('welcome.errors.networkIssue');
       } else if (error.message.includes('Token expired')) {
-        errorMessage = 'תוקף ההתחברות פג. התחבר מחדש';
+        errorMessage = t('welcome.errors.tokenExpired');
       } else if (error.message.includes('PERMISSION_DENIED_INVITE_READ')) {
-        errorMessage = 'שגיאה בקריאת קוד ההזמנה. בדוק שהמשתמש מחובר כראוי';
+        errorMessage = t('welcome.errors.noPermission');
       } else if (error.message.includes('PERMISSION_DENIED_MEMBER_CREATE')) {
-        errorMessage = 'שגיאה ביצירת חברות בדירה. יתכן שהמסמך כבר קיים או שיש בעיית הרשאות';
+        errorMessage = t('welcome.errors.noPermission');
       } else if (error.message.includes('PERMISSION_DENIED_SET_CURRENT_APT')) {
-        errorMessage = 'שגיאה בעדכון פרטי המשתמש. בדוק שהמשתמש מחובר כראוי';
+        errorMessage = t('welcome.errors.noPermission');
       }
       
       setError(errorMessage);
@@ -251,7 +253,7 @@ export default function WelcomeScreen() {
     return (
       <View className="flex-1 bg-white justify-center items-center">
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text className="text-gray-600 mt-4">טוען...</Text>
+        <Text className="text-gray-600 mt-4">{t('welcome.loading')}</Text>
       </View>
     );
   }
@@ -275,10 +277,10 @@ export default function WelcomeScreen() {
           <View className="items-center mb-12">
             <Ionicons name="home" size={80} color="#007AFF" />
             <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
-              שלום {currentUser.name}!
+              {t('welcome.hello', { name: currentUser.name })}
             </Text>
             <Text className="text-lg text-gray-600 mt-2 text-center">
-              ניהול חכם לחיים משותפים
+              {t('welcome.subtitle')}
             </Text>
           </View>
 
@@ -288,7 +290,7 @@ export default function WelcomeScreen() {
               className="bg-blue-500 py-4 px-6 rounded-xl flex-row items-center justify-center"
             >
               <Ionicons name="add-circle-outline" size={24} color="white" />
-              <Text className="text-white text-lg font-semibold mr-2">יצירת דירה חדשה</Text>
+              <Text className="text-white text-lg font-semibold mr-2">{t('welcome.createApt')}</Text>
             </Pressable>
 
             <Pressable
@@ -296,7 +298,7 @@ export default function WelcomeScreen() {
               className="bg-gray-100 py-4 px-6 rounded-xl flex-row items-center justify-center"
             >
               <Ionicons name="people-outline" size={24} color="#007AFF" />
-              <Text className="text-blue-500 text-lg font-semibold mr-2">הצטרפות לדירה קיימת</Text>
+              <Text className="text-blue-500 text-lg font-semibold mr-2">{t('welcome.joinApt')}</Text>
             </Pressable>
 
             <Pressable
@@ -311,7 +313,7 @@ export default function WelcomeScreen() {
               className="bg-red-100 py-3 px-6 rounded-xl flex-row items-center justify-center mt-8"
             >
               <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              <Text className="text-red-500 text-base font-medium mr-2">התנתק</Text>
+              <Text className="text-red-500 text-base font-medium mr-2">{t('welcome.signOut')}</Text>
             </Pressable>
           </View>
         </View>
@@ -329,21 +331,21 @@ export default function WelcomeScreen() {
           <View className="pt-16 pb-8">
             <Pressable onPress={() => setMode('select')} className="flex-row items-center mb-6">
               <Ionicons name="arrow-back" size={24} color="#007AFF" />
-              <Text className="text-blue-500 text-lg mr-2">חזור</Text>
+              <Text className="text-blue-500 text-lg mr-2">{t('welcome.back')}</Text>
             </Pressable>
 
             <Text className="text-2xl font-bold text-gray-900 text-center mb-8">
-              {mode === 'create' ? 'יצירת דירה חדשה' : 'הצטרפות לדירה'}
+              {mode === 'create' ? t('welcome.createTitle') : t('welcome.joinTitle')}
             </Text>
 
             <View className="space-y-4">
               {mode === 'create' && (
                 <View>
-                  <Text className="text-gray-700 text-base mb-2">שם הדירה</Text>
+                  <Text className="text-gray-700 text-base mb-2">{t('welcome.aptName')}</Text>
                   <TextInput
                     value={apartmentName}
                     onChangeText={setApartmentName}
-                    placeholder="דירת השותפים שלנו"
+                    placeholder={t('welcome.aptNamePh')}
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="right"
                     editable={!loading}
@@ -353,11 +355,11 @@ export default function WelcomeScreen() {
 
               {mode === 'join' && (
                 <View>
-                  <Text className="text-gray-700 text-base mb-2">קוד דירה</Text>
+                  <Text className="text-gray-700 text-base mb-2">{t('welcome.aptCode')}</Text>
                   <TextInput
                     value={joinCode}
                     onChangeText={setJoinCode}
-                    placeholder="הכנס קוד דירה"
+                    placeholder={t('welcome.aptCodePh')}
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="center"
                     autoCapitalize="characters"
@@ -383,7 +385,7 @@ export default function WelcomeScreen() {
                 <ActivityIndicator color="white" />
               ) : (
                 <Text className="text-white text-lg font-semibold text-center">
-                  {mode === 'create' ? 'יצירת הדירה' : 'הצטרפות'}
+                  {mode === 'create' ? t('welcome.primaryCreate') : t('welcome.primaryJoin')}
                 </Text>
               )}
             </Pressable>
