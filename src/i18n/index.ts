@@ -29,7 +29,7 @@ export const resources = {
         6: 'Saturday'
       },
       auth: {
-        title: 'Roomies',
+        title: 'Welcome to Roomies',
         subtitle: 'Smart shared living',
         loginTab: 'Login',
         registerTab: 'Register',
@@ -480,7 +480,7 @@ export const resources = {
         6: 'שבת'
       },
       auth: {
-        title: 'דירת שותפים',
+        title: 'ברוכים הבאים לרומיז',
         subtitle: 'ניהול חכם לחיים משותפים',
         loginTab: 'התחברות',
         registerTab: 'הרשמה',
