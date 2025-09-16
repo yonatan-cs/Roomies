@@ -28,6 +28,20 @@ export const resources = {
         5: 'Friday',
         6: 'Saturday'
       },
+      months: {
+        0: 'January',
+        1: 'February',
+        2: 'March',
+        3: 'April',
+        4: 'May',
+        5: 'June',
+        6: 'July',
+        7: 'August',
+        8: 'September',
+        9: 'October',
+        10: 'November',
+        11: 'December'
+      },
       auth: {
         title: 'Welcome to Roomies',
         subtitle: 'Smart shared living',
@@ -480,6 +494,20 @@ export const resources = {
         4: 'חמישי',
         5: 'שישי',
         6: 'שבת'
+      },
+      months: {
+        0: 'ינואר',
+        1: 'פברואר',
+        2: 'מרץ',
+        3: 'אפריל',
+        4: 'מאי',
+        5: 'יוני',
+        6: 'יולי',
+        7: 'אוגוסט',
+        8: 'ספטמבר',
+        9: 'אוקטובר',
+        10: 'נובמבר',
+        11: 'דצמבר'
       },
       auth: {
         title: 'ברוכים הבאים לרומיז',

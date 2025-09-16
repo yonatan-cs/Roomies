@@ -1064,6 +1064,7 @@ export class FirestoreService {
   async createUser(userData: {
     email: string;
     full_name: string;
+    display_name?: string;
     phone?: string;
   }): Promise<any> {
     const user = await firebaseAuth.getCurrentUser();
@@ -1076,7 +1077,7 @@ export class FirestoreService {
     const cleanUserData = {
       email: userData.email,
       full_name: userData.full_name,
-      display_name: userData.full_name, // Add consistent field for display
+      display_name: userData.display_name || userData.full_name, // Use display_name if provided, otherwise use full_name
       ...(userData.phone && { phone: userData.phone })
     };
 
@@ -1085,7 +1086,19 @@ export class FirestoreService {
   }
 
   async getUser(userId: string): Promise<any | null> {
-    return this.getDocument(COLLECTIONS.USERS, userId);
+    const result = await this.getDocument(COLLECTIONS.USERS, userId);
+    if (!result) return null;
+    
+    // Ensure the result has the expected format
+    return {
+      id: result.id,
+      email: result.email,
+      full_name: result.full_name,
+      display_name: result.display_name,
+      displayName: result.displayName,
+      name: result.name,
+      phone: result.phone,
+    };
   }
 
   async updateUser(userId: string, userData: { full_name?: string; phone?: string; current_apartment_id?: string }): Promise<any> {
