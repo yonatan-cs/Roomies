@@ -208,12 +208,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Language toggle */}
         <Pressable
           onPress={() => setAppLanguage(appLanguage === 'he' ? 'en' : 'he')}
-          className="absolute p-2 bg-gray-100 rounded-full"
-          style={{ right: isRTL ? undefined : 16, left: isRTL ? 16 : undefined, top: 8 }}
+          className="absolute p-3 bg-gray-100 rounded-full shadow-sm"
+          style={{ right: 16, top: 50 }}
           accessibilityRole="button"
           accessibilityLabel={t('settings.language')}
         >
-          <Ionicons name="language" size={22} color="#111827" />
+          <Ionicons name="language" size={26} color="#111827" />
         </Pressable>
         {/* Header */}
         <View className="items-center mb-8">
