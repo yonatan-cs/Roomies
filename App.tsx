@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View } from "react-native";
+import { View, Text, TextInput } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
 import "./src/i18n";
 import { useEffect } from "react";
@@ -37,6 +37,23 @@ export default function App() {
     if (i18n.language !== appLanguage) {
       i18n.changeLanguage(appLanguage).catch(() => {});
     }
+  }, [appLanguage]);
+
+  // ברירת מחדל ליישור טקסטים לפי השפה (עברית → ימין), מבלי לפגוע ב־text-center מקומי
+  useEffect(() => {
+    const isRTL = appLanguage === 'he';
+
+    // הגדרת ברירת מחדל ל־Text
+    (Text as any).defaultProps = {
+      ...((Text as any).defaultProps || {}),
+      style: [{ textAlign: isRTL ? 'right' : 'left' }],
+    };
+
+    // הגדרת ברירת מחדל ל־TextInput
+    (TextInput as any).defaultProps = {
+      ...((TextInput as any).defaultProps || {}),
+      style: [{ textAlign: isRTL ? 'right' : 'left' }],
+    };
   }, [appLanguage]);
 
   const writingDirection = appLanguage === 'he' ? 'rtl' : 'ltr';

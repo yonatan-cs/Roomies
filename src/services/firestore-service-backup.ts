@@ -1988,13 +1988,35 @@ export class FirestoreService {
       console.log('📋 User profiles loaded:', userProfiles);
       
       // 4. Combine memberships with profiles
-      const membersWithProfiles = memberships.map(membership => ({
-        ...membership,
-        profile: userProfiles[membership.user_id] || { 
-          id: membership.user_id, 
-          full_name: 'אורח',
-          email: 'unknown@example.com'
+      const membersWithProfiles = await Promise.all(memberships.map(async membership => {
+        let profile = userProfiles[membership.user_id];
+        
+        // If profile not found, try to get it directly for current user
+        if (!profile) {
+          try {
+            // Try to get the user profile directly
+            const directProfile = await this.getUser(membership.user_id);
+            if (directProfile) {
+              profile = directProfile;
+            }
+          } catch (error) {
+            console.log('⚠️ Could not get direct profile for user:', membership.user_id);
+          }
         }
+        
+        // Final fallback
+        if (!profile) {
+          profile = {
+            id: membership.user_id, 
+            full_name: 'משתמש',
+            email: 'unknown@example.com'
+          };
+        }
+        
+        return {
+          ...membership,
+          profile
+        };
       }));
       
       console.log('✅ Members with profiles:', membersWithProfiles);
@@ -2046,13 +2068,13 @@ export class FirestoreService {
       const completeData = {
         ...apartment,
         members: membersWithProfiles.map(member => {
-          // For apartment members, use actual registered names, not "אורח"
+          // For apartment members, use actual registered names from the database
           const actualName = member.profile.display_name || 
                             member.profile.displayName || 
                             member.profile.full_name || 
                             member.profile.name || 
                             member.profile.email || 
-                            'לא ידוע';
+                            'משתמש';
           
           return {
             id: member.user_id,
