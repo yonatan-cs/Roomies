@@ -35,6 +35,7 @@ export function Screen({
           contentContainerStyle={{ 
             padding: withPadding ? 16 : 0, 
             flexGrow: 1,
+            alignItems: 'stretch',
             direction: (isRTL ? 'rtl' : 'ltr') as any,
           }}
           keyboardShouldPersistTaps="handled" // לחיצה מחוץ לאלמנטי הקלט תסגור מקלדת
@@ -44,7 +45,7 @@ export function Screen({
           {children}
         </ScrollView>
       ) : (
-        <View style={{ flex: 1, padding: withPadding ? 16 : 0, direction: (isRTL ? 'rtl' : 'ltr') as any }}>
+        <View style={{ flex: 1, padding: withPadding ? 16 : 0, alignItems: 'stretch', direction: (isRTL ? 'rtl' : 'ltr') as any }}>
           {children}
         </View>
       )}
