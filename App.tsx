@@ -56,12 +56,10 @@ export default function App() {
     };
   }, [appLanguage]);
 
-  const writingDirection = appLanguage === 'he' ? 'rtl' : 'ltr';
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <View style={{ flex: 1, direction: writingDirection as any }}>
+        <View style={{ flex: 1 }}>
           <NavigationContainer>
             <AppNavigator />
             <StatusBar style="auto" />
