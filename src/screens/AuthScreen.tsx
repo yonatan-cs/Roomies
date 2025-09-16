@@ -155,6 +155,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       const userData = {
         email: authUser.email,
         full_name: fullName.trim(),
+        display_name: fullName.trim(), // Add display_name field
         phone: phone.trim() || undefined,
       };
 

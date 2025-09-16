@@ -175,12 +175,9 @@ export default function BudgetScreen() {
            (userId === currentUser?.id ? (currentUser?.name || currentUser?.display_name || t('common.unknown')) : t('common.unknown'));
   };
 
-  // Helper function to get month name in Hebrew
+  // Helper function to get month name
   const getMonthName = (month: number) => {
-    const months = [
-      t('days.0'), t('days.1'), t('days.2'), t('days.3'), t('days.4'), t('days.5'), t('days.6')
-    ];
-    return months[month];
+    return t(`months.${month}`);
   };
 
   // Helper function to calculate net personal balance summary
@@ -347,7 +344,11 @@ export default function BudgetScreen() {
             }}
             className="w-8 h-8 rounded-full bg-white items-center justify-center"
           >
-            <Ionicons name="chevron-back" size={20} color="#6b7280" />
+            <Ionicons 
+              name={appLanguage === 'he' ? "chevron-forward" : "chevron-back"} 
+              size={20} 
+              color="#6b7280" 
+            />
           </Pressable>
           
           <Text className="text-lg font-semibold text-gray-900">
@@ -390,7 +391,7 @@ export default function BudgetScreen() {
             })()}
           >
             <Ionicons 
-              name="chevron-forward" 
+              name={appLanguage === 'he' ? "chevron-back" : "chevron-forward"} 
               size={20} 
               color={(() => {
                 const now = new Date();
@@ -431,7 +432,7 @@ export default function BudgetScreen() {
               className="bg-blue-100 py-2 px-4 rounded-lg flex-row items-center"
             >
               <Ionicons name="people-outline" size={16} color="#3b82f6" />
-              <Text className="text-blue-700 text-sm font-medium mr-2">
+              <Text className="text-blue-700 text-sm font-medium ml-2">
                 {t('budget.showAllDebtsButton')}
               </Text>
             </Pressable>
@@ -604,7 +605,7 @@ export default function BudgetScreen() {
               </View>
 
               {/* Action Buttons */}
-              <View className="flex-row space-x-3">
+              <View className="flex-row gap-3">
                 <Pressable
                   onPress={() => setShowAddExpenseModal(false)}
                   className="flex-1 bg-gray-100 py-3 px-4 rounded-xl"

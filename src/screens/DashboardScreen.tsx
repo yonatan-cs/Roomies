@@ -683,7 +683,7 @@ export default function DashboardScreen() {
 
       <ScrollView className="flex-1 px-6 py-6">
         {/* Quick Actions */}
-        <View className="flex-row justify-center space-x-4 mb-6">
+        <View className="flex-row justify-center gap-4 mb-6">
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
             className="bg-blue-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
@@ -697,7 +697,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="basket-outline" size={22} color="white" />
-              <Text className="text-white font-medium mr-2 text-base">{t('dashboard.actionShopping')}</Text>
+              <Text className="text-white font-medium ml-2 text-base">{t('dashboard.actionShopping')}</Text>
             </View>
           </Pressable>
           
@@ -714,7 +714,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="add-circle-outline" size={22} color="white" />
-              <Text className="text-white font-medium mr-2 text-base">{t('dashboard.actionAddExpense')}</Text>
+              <Text className="text-white font-medium ml-2 text-base">{t('dashboard.actionAddExpense')}</Text>
             </View>
           </Pressable>
         </View>
@@ -724,7 +724,7 @@ export default function DashboardScreen() {
           {/* My Balance */}
           <Pressable
             onPress={() => navigation.navigate('Budget')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 mr-2"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 ml-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -735,7 +735,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="wallet-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.cardMyBalance')}</Text>
+              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.cardMyBalance')}</Text>
             </View>
             <Text className={cn(
               "text-2xl font-bold",
@@ -762,7 +762,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="brush-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.cleaningTurn')}</Text>
+              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.cleaningTurn')}</Text>
             </View>
             <Text className="text-lg font-bold text-gray-900">
               {currentTurnUser?.name || t('common.unknown')}
@@ -778,7 +778,7 @@ export default function DashboardScreen() {
           {/* Shopping Items */}
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 mr-2"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 ml-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -789,7 +789,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="basket-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.toBuy')}</Text>
+              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.toBuy')}</Text>
             </View>
             <Text className="text-2xl font-bold text-gray-900">
               {pendingShoppingItems.length}
@@ -810,7 +810,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center mb-2">
               <Ionicons name="people-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm mr-2">{t('dashboard.roommates')}</Text>
+              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.roommates')}</Text>
             </View>
             <Text className="text-2xl font-bold text-gray-900">
               {currentApartment?.members.length || 0}
@@ -926,7 +926,7 @@ export default function DashboardScreen() {
             }}
           >
             <View className="flex-row items-center">
-              <Text className="text-lg font-semibold text-white mr-2">
+              <Text className="text-lg font-semibold text-white ml-2">
                 {t('dashboard.quickLook')}
               </Text>
               <Text className="text-xl">🔍</Text>
@@ -965,7 +965,7 @@ export default function DashboardScreen() {
             {/* Time Range Filter */}
             <View className="bg-white rounded-2xl p-4 mb-6 shadow-sm">
               <Text className="text-sm text-gray-500 mb-3">{t('dashboard.timeRange')}</Text>
-              <View className="flex-row space-x-2">
+              <View className="flex-row gap-2">
                 {[
                   { key: 'all', label: t('dashboard.allTime') },
                   { key: 'year', label: t('dashboard.thisYear') },
@@ -998,7 +998,7 @@ export default function DashboardScreen() {
             {/* Statistics Cards */}
             <View className="space-y-4">
               {/* Total Spent & King of Expenses */}
-              <View className="flex-row space-x-4">
+              <View className="flex-row gap-4">
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
                   <Text className="text-sm text-gray-500 mb-2">{t('dashboard.totalExpenses')}</Text>
                   <Text className="text-2xl font-bold text-blue-600 mb-1">
@@ -1035,7 +1035,7 @@ export default function DashboardScreen() {
               </View>
 
               {/* Cleanings Done & Shopping King */}
-              <View className="flex-row space-x-4">
+              <View className="flex-row gap-4">
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
                   <Text className="text-sm text-gray-500 mb-2">{t('dashboard.cleaningsDone')}</Text>
                   <Text className="text-2xl font-bold text-green-600 mb-1">
@@ -1078,7 +1078,7 @@ export default function DashboardScreen() {
               </View>
 
               {/* Biggest Expense & Average */}
-              <View className="flex-row space-x-4">
+              <View className="flex-row gap-4">
                 <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
                   <Text className="text-sm text-gray-500 mb-2">
                     {t('dashboard.biggestExpense', { range: timeRange === '30days' ? '(30)' : 
@@ -1123,7 +1123,7 @@ export default function DashboardScreen() {
             )}
 
             {/* Action Buttons */}
-            <View className="flex-row mt-8 space-x-4">
+            <View className="flex-row mt-8 gap-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
                 className="flex-1 bg-gray-100 py-4 px-6 rounded-xl"
@@ -1241,7 +1241,7 @@ export default function DashboardScreen() {
               </View>
 
               {/* Action Buttons */}
-              <View className="flex-row space-x-3">
+              <View className="flex-row gap-3">
                 <Pressable
                   onPress={() => setShowAddExpenseModal(false)}
                   className="flex-1 bg-gray-100 py-3 px-4 rounded-xl"
