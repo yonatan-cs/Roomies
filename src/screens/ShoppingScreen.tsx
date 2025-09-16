@@ -424,6 +424,7 @@ export default function ShoppingScreen() {
 
       <ScrollView 
         className="flex-1 px-6 py-6"
+        contentContainerStyle={{ alignItems: 'stretch' }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
