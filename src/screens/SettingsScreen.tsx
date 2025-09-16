@@ -231,8 +231,8 @@ User: ${currentUser?.name || 'Unknown'}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
-              <Text className="text-lg font-semibold text-gray-900">רטט</Text>
-              <Text className="text-sm text-gray-600 mt-1">רטט עדין בלחיצות על כפתורים חשובים</Text>
+              <Text className="text-lg font-semibold text-gray-900" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.haptics')}</Text>
+              <Text className="text-sm text-gray-600 mt-1" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.hapticsDescription')}</Text>
             </View>
             <Pressable
               onPress={() => {

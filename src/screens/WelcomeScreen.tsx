@@ -17,6 +17,8 @@ import AuthScreen from './AuthScreen';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { useTranslation } from 'react-i18next';
+import { Screen } from '../components/Screen';
+import { getDisplayName } from '../utils/userDisplay';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -272,12 +274,12 @@ export default function WelcomeScreen() {
 
     // User is authenticated, show apartment options
     return (
-      <View className="flex-1 bg-white px-6">
+      <Screen withPadding={true} scroll={false}>
         <View className="flex-1 justify-center">
           <View className="items-center mb-12">
             <Ionicons name="home" size={80} color="#007AFF" />
             <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
-              {t('welcome.hello', { name: currentUser.name })}
+              {t('welcome.hello', { name: getDisplayName(currentUser) })}
             </Text>
             <Text className="text-lg text-gray-600 mt-2 text-center">
               {t('welcome.subtitle')}
@@ -317,81 +319,74 @@ export default function WelcomeScreen() {
             </Pressable>
           </View>
         </View>
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-white"
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView className="flex-1 px-6">
-          <View className="pt-16 pb-8">
-            <Pressable onPress={() => setMode('select')} className="flex-row items-center mb-6">
-              <Ionicons name="arrow-back" size={24} color="#007AFF" />
-              <Text className="text-blue-500 text-lg mr-2">{t('welcome.back')}</Text>
-            </Pressable>
+    <Screen withPadding={true} keyboardVerticalOffset={0}>
+      <View className="pt-16 pb-8">
+        <Pressable onPress={() => setMode('select')} className="flex-row items-center mb-6">
+          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Text className="text-blue-500 text-lg mr-2">{t('welcome.back')}</Text>
+        </Pressable>
 
-            <Text className="text-2xl font-bold text-gray-900 text-center mb-8">
-              {mode === 'create' ? t('welcome.createTitle') : t('welcome.joinTitle')}
-            </Text>
+        <Text className="text-2xl font-bold text-gray-900 text-center mb-8">
+          {mode === 'create' ? t('welcome.createTitle') : t('welcome.joinTitle')}
+        </Text>
 
-            <View className="space-y-4">
-              {mode === 'create' && (
-                <View>
-                  <Text className="text-gray-700 text-base mb-2">{t('welcome.aptName')}</Text>
-                  <TextInput
-                    value={apartmentName}
-                    onChangeText={setApartmentName}
-                    placeholder={t('welcome.aptNamePh')}
-                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                    textAlign="right"
-                    editable={!loading}
-                  />
-                </View>
-              )}
-
-              {mode === 'join' && (
-                <View>
-                  <Text className="text-gray-700 text-base mb-2">{t('welcome.aptCode')}</Text>
-                  <TextInput
-                    value={joinCode}
-                    onChangeText={setJoinCode}
-                    placeholder={t('welcome.aptCodePh')}
-                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                    textAlign="center"
-                    autoCapitalize="characters"
-                    maxLength={6}
-                    editable={!loading}
-                  />
-                </View>
-              )}
+        <View className="space-y-4">
+          {mode === 'create' && (
+            <View>
+              <Text className="text-gray-700 text-base mb-2">{t('welcome.aptName')}</Text>
+              <TextInput
+                value={apartmentName}
+                onChangeText={setApartmentName}
+                placeholder={t('welcome.aptNamePh')}
+                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                textAlign="right"
+                editable={!loading}
+              />
             </View>
+          )}
 
-            {error && (
-              <Text className="text-red-600 text-center mt-4">{error}</Text>
-            )}
+          {mode === 'join' && (
+            <View>
+              <Text className="text-gray-700 text-base mb-2">{t('welcome.aptCode')}</Text>
+              <TextInput
+                value={joinCode}
+                onChangeText={setJoinCode}
+                placeholder={t('welcome.aptCodePh')}
+                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                textAlign="center"
+                autoCapitalize="characters"
+                maxLength={6}
+                editable={!loading}
+              />
+            </View>
+          )}
+        </View>
 
-            <Pressable
-              onPress={mode === 'create' ? handleCreateApartment : handleJoinApartment}
-              className={`py-4 px-6 rounded-xl mt-8 ${
-                loading ? 'bg-gray-400' : 'bg-blue-500'
-              }`}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text className="text-white text-lg font-semibold text-center">
-                  {mode === 'create' ? t('welcome.primaryCreate') : t('welcome.primaryJoin')}
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+        {error && (
+          <Text className="text-red-600 text-center mt-4">{error}</Text>
+        )}
+
+        <Pressable
+          onPress={mode === 'create' ? handleCreateApartment : handleJoinApartment}
+          className={`py-4 px-6 rounded-xl mt-8 ${
+            loading ? 'bg-gray-400' : 'bg-blue-500'
+          }`}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="white" />
+          ) : (
+            <Text className="text-white text-lg font-semibold text-center">
+              {mode === 'create' ? t('welcome.primaryCreate') : t('welcome.primaryJoin')}
+            </Text>
+          )}
+        </Pressable>
+      </View>
+    </Screen>
   );
 }

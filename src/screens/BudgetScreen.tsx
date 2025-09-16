@@ -85,6 +85,7 @@ function useKeyboardLift() {
 
 export default function BudgetScreen() {
   const { t } = useTranslation();
+  const appLanguage = useStore(s => s.appLanguage);
   const navigation = useNavigation<NavigationProp>();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -153,7 +154,8 @@ export default function BudgetScreen() {
       if (isNaN(dateObj.getTime())) {
         return t('common.invalidDate');
       }
-      return new Intl.DateTimeFormat('he-IL', {
+      const locale = appLanguage === 'he' ? 'he-IL' : 'en-US';
+      return new Intl.DateTimeFormat(locale, {
         day: 'numeric',
         month: 'short'
       }).format(dateObj);
