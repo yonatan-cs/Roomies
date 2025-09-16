@@ -146,7 +146,7 @@ export default function AppNavigator() {
   });
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }} key={i18n.language}>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       {showWelcome ? (
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
       ) : (
