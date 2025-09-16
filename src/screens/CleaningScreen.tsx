@@ -15,6 +15,7 @@ import { impactLight, success } from '../utils/haptics';
 
 export default function CleaningScreen() {
   const { t } = useTranslation();
+  const appLanguage = useStore(s => s.appLanguage);
   const [showNotYourTurn, setShowNotYourTurn] = useState(false);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [showConfirmDone, setShowConfirmDone] = useState(false);
@@ -282,7 +283,8 @@ export default function CleaningScreen() {
       if (isNaN(dateObj.getTime())) {
         return t('common.invalidDate');
       }
-      return new Intl.DateTimeFormat('he-IL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(dateObj);
+      const locale = appLanguage === 'he' ? 'he-IL' : 'en-US';
+      return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(dateObj);
     } catch (error) {
       return t('common.invalidDate');
     }
@@ -294,7 +296,8 @@ export default function CleaningScreen() {
       if (isNaN(dateObj.getTime())) {
         return t('common.invalidDate');
       }
-      return new Intl.DateTimeFormat('he-IL', { weekday: 'long', day: 'numeric', month: 'short' }).format(dateObj);
+      const locale = appLanguage === 'he' ? 'he-IL' : 'en-US';
+      return new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'short' }).format(dateObj);
     } catch (error) {
       return t('common.invalidDate');
     }

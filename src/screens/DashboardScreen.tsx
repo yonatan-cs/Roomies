@@ -87,6 +87,7 @@ function useKeyboardLift() {
 
 export default function DashboardScreen() {
   const { t } = useTranslation();
+  const appLanguage = useStore(s => s.appLanguage);
   const navigation = useNavigation<NavigationProp>();
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [showHighlightsModal, setShowHighlightsModal] = useState(false);
@@ -524,7 +525,8 @@ export default function DashboardScreen() {
       if (isNaN(dateObj.getTime())) {
         return t('common.invalidDate');
       }
-      return new Intl.DateTimeFormat('he-IL', {
+      const locale = appLanguage === 'he' ? 'he-IL' : 'en-US';
+      return new Intl.DateTimeFormat(locale, {
         day: 'numeric',
         month: 'short'
       }).format(dateObj);

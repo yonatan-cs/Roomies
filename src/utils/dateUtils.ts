@@ -1,57 +1,57 @@
-export const formatDate = (date: Date | string | undefined | null): string => {
-  if (!date) return 'תאריך לא זמין';
+export const formatDate = (date: Date | string | undefined | null, locale: string = 'he-IL'): string => {
+  if (!date) return locale === 'he-IL' ? 'תאריך לא זמין' : 'Date not available';
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(dateObj.getTime())) {
-      return 'תאריך לא תקין';
+      return locale === 'he-IL' ? 'תאריך לא תקין' : 'Invalid date';
     }
     
-    return new Intl.DateTimeFormat('he-IL', {
+    return new Intl.DateTimeFormat(locale, {
       day: 'numeric',
       month: 'short'
     }).format(dateObj);
   } catch (error) {
-    return 'תאריך לא תקין';
+    return locale === 'he-IL' ? 'תאריך לא תקין' : 'Invalid date';
   }
 };
 
-export const formatDateTime = (date: Date | string | undefined | null): string => {
-  if (!date) return 'תאריך לא זמין';
+export const formatDateTime = (date: Date | string | undefined | null, locale: string = 'he-IL'): string => {
+  if (!date) return locale === 'he-IL' ? 'תאריך לא זמין' : 'Date not available';
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(dateObj.getTime())) {
-      return 'תאריך לא תקין';
+      return locale === 'he-IL' ? 'תאריך לא תקין' : 'Invalid date';
     }
     
-    return new Intl.DateTimeFormat('he-IL', {
+    return new Intl.DateTimeFormat(locale, {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
       minute: '2-digit'
     }).format(dateObj);
   } catch (error) {
-    return 'תאריך לא תקין';
+    return locale === 'he-IL' ? 'תאריך לא תקין' : 'Invalid date';
   }
 };
 
-export const formatDueDate = (date: Date | string | undefined | null): string => {
-  if (!date) return 'תאריך לא זמין';
+export const formatDueDate = (date: Date | string | undefined | null, locale: string = 'he-IL'): string => {
+  if (!date) return locale === 'he-IL' ? 'תאריך לא זמין' : 'Date not available';
   
   try {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(dateObj.getTime())) {
-      return 'תאריך לא תקין';
+      return locale === 'he-IL' ? 'תאריך לא תקין' : 'Invalid date';
     }
     
-    return new Intl.DateTimeFormat('he-IL', {
+    return new Intl.DateTimeFormat(locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'short'
     }).format(dateObj);
   } catch (error) {
-    return 'תאריך לא תקין';
+    return locale === 'he-IL' ? 'תאריך לא תקין' : 'Invalid date';
   }
 };
 

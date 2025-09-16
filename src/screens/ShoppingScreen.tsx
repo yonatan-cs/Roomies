@@ -72,6 +72,7 @@ function useKeyboardLift() {
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
+  const appLanguage = useStore(s => s.appLanguage);
   const [newItemName, setNewItemName] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [newItemQuantity, setNewItemQuantity] = useState('1');
@@ -221,7 +222,8 @@ export default function ShoppingScreen() {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date;
       if (isNaN(dateObj.getTime())) return t('common.invalidDate');
-      return new Intl.DateTimeFormat('he-IL', {
+      const locale = appLanguage === 'he' ? 'he-IL' : 'en-US';
+      return new Intl.DateTimeFormat(locale, {
         day: 'numeric',
         month: 'short',
         hour: '2-digit',
