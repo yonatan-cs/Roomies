@@ -208,12 +208,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Language toggle */}
         <Pressable
           onPress={() => setAppLanguage(appLanguage === 'he' ? 'en' : 'he')}
-          className="absolute p-3 bg-gray-100 rounded-full shadow-sm"
-          style={{ right: 16, top: 50 }}
+          className="absolute p-2 bg-gray-100 rounded-full"
+          style={{ right: 16, top: 60 }}
           accessibilityRole="button"
           accessibilityLabel={t('settings.language')}
         >
-          <Ionicons name="language" size={26} color="#111827" />
+          <Ionicons name="language" size={22} color="#111827" />
         </Pressable>
         {/* Header */}
         <View className="items-center mb-8">
@@ -284,7 +284,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 />
                 <Pressable
                   onPress={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute left-3 top-3"
+                  className="absolute top-3"
+                  style={{ [isRTL ? 'left' : 'right']: 12 }}
                   disabled={loginLoading}
                 >
                   <Ionicons 
@@ -390,7 +391,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 />
                 <Pressable
                   onPress={() => setShowRegisterPassword(!showRegisterPassword)}
-                  className="absolute left-3 top-3"
+                  className="absolute top-3"
+                  style={{ [isRTL ? 'left' : 'right']: 12 }}
                   disabled={registerLoading}
                 >
                   <Ionicons 
@@ -421,7 +423,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 />
                 <Pressable
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute left-3 top-3"
+                  className="absolute top-3"
+                  style={{ [isRTL ? 'left' : 'right']: 12 }}
                   disabled={registerLoading}
                 >
                   <Ionicons 
