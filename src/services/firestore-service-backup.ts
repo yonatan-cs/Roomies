@@ -2046,19 +2046,19 @@ export class FirestoreService {
       const completeData = {
         ...apartment,
         members: membersWithProfiles.map(member => {
-          // Use the same priority order as getDisplayName utility
-          const displayName = member.profile.display_name || 
-                             member.profile.displayName || 
-                             member.profile.full_name || 
-                             member.profile.name || 
-                             member.profile.email || 
-                             'אורח';
+          // For apartment members, use actual registered names, not "אורח"
+          const actualName = member.profile.display_name || 
+                            member.profile.displayName || 
+                            member.profile.full_name || 
+                            member.profile.name || 
+                            member.profile.email || 
+                            'לא ידוע';
           
           return {
             id: member.user_id,
             email: member.profile.email || '',
-            name: displayName,
-            display_name: displayName, // Add for consistency
+            name: actualName,
+            display_name: actualName, // Add for consistency
             role: member.role,
             current_apartment_id: ensuredApartmentId,
           };

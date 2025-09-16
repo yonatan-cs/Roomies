@@ -420,7 +420,7 @@ export default function BudgetScreen() {
         </View>
       </View>
 
-      <ScrollView className="flex-1 px-6 py-6">
+      <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ alignItems: 'stretch' }}>
         {/* Personal Balance Summary */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
