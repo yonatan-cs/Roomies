@@ -6,8 +6,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getFirestore, connectFirestoreEmulator, setLogLevel } from 'firebase/firestore';
-import { initializeAuth, getReactNativePersistence, connectAuthEmulator } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeAuth, connectAuthEmulator } from 'firebase/auth';
 import { firebaseConfig } from './firebase-config';
 
 // Initialize Firebase app
@@ -16,10 +15,8 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore
 export const db = getFirestore(app);
 
-// Initialize Auth with AsyncStorage persistence for React Native
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+// Initialize Auth (persistence is handled automatically in React Native)
+export const auth = initializeAuth(app);
 
 // Enable debug logging for Firestore (helps debug Rules issues)
 if (__DEV__) {
@@ -38,6 +35,17 @@ if (__DEV__ && process.env.EXPO_PUBLIC_USE_EMULATOR === 'true') {
     }
   } catch (error) {
     console.log('⚠️ Emulator connection failed (probably already connected):', error);
+  }
+}
+
+// Helper function to assert same project
+export async function assertSameProject(): Promise<void> {
+  if (auth.currentUser) {
+    const token = await auth.currentUser.getIdToken();
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (payload.aud !== firebaseConfig.projectId) {
+      throw new Error(`Project mismatch: expected ${firebaseConfig.projectId}, got ${payload.aud}`);
+    }
   }
 }
 

@@ -160,10 +160,9 @@ function decodeJwt(token: string): { header: any; payload: any } | null {
   }
 }
 
-// Get user's current apartment ID from profile or fallback to latest membership
+// Get user's current apartment ID from profile (new model: users/{uid}.apartment.id)
 async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<string | null> {
   try {
-    // Step 1: Try from user profile
     const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${uid}`, {
       method: 'GET',
       headers: authHeaders(idToken),
@@ -171,67 +170,22 @@ async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<
     
     if (userResponse.status === 200) {
       const userDoc = await userResponse.json();
-      const apartmentId = userDoc.fields?.current_apartment_id?.stringValue;
+      const apartmentId = userDoc?.fields?.apartment?.mapValue?.fields?.id?.stringValue || null;
       console.log('🔍 getUserCurrentApartmentId - user profile response:', {
         status: userResponse.status,
         hasFields: !!userDoc.fields,
-        hasCurrentApartmentId: !!userDoc.fields?.current_apartment_id,
+        hasApartment: !!userDoc.fields?.apartment,
         apartmentIdValue: apartmentId,
         apartmentIdType: typeof apartmentId,
         apartmentIdLength: apartmentId?.length || 0
       });
-      
-      if (apartmentId) {
-        console.log('✅ Found apartment ID in user profile:', apartmentId);
-        return apartmentId;
-      }
+      return apartmentId || null;
     }
-    
-    // Step 2: Fallback - query user's memberships and get the latest one
-    const queryBody = {
-      structuredQuery: {
-        from: [{ collectionId: COLLECTIONS.APARTMENT_MEMBERS }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'user_id' },
-            op: 'EQUAL',
-            value: { stringValue: uid }
-          }
-        },
-        orderBy: [{ field: { fieldPath: 'joined_at' }, direction: 'DESCENDING' }],
-        limit: 1
-      }
-    };
-    
-    const queryResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify(queryBody),
-    });
-    
-    if (queryResponse.status === 200) {
-      const rows = await queryResponse.json();
-      const latestMembership = rows.find((row: any) => row.document)?.document;
-      if (latestMembership) {
-        const apartmentId = latestMembership.fields?.apartment_id?.stringValue;
-        if (apartmentId) {
-          console.log('✅ Found apartment ID from latest membership:', apartmentId);
-          
-          // Sync back to user profile
-          const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`;
-          await fetch(url, {
-            method: 'PATCH',
-            headers: authHeaders(idToken),
-            body: JSON.stringify({
-              fields: { current_apartment_id: { stringValue: apartmentId } }
-            }),
-          });
-          
-          return apartmentId;
-        }
-      }
+    if (userResponse.status === 404) {
+      console.log('📭 User document not found');
+      return null;
     }
-    
+    console.log('❌ Unexpected status when reading user profile:', userResponse.status);
     return null;
   } catch (error) {
     console.error('❌ Error getting user current apartment ID:', error);
@@ -265,13 +219,19 @@ export async function ensureCurrentApartmentIdMatches(aptId: string): Promise<vo
   const current = await getUserCurrentApartmentId(uid, idToken);
   if (current === aptId) return;
 
-  // PATCH: users/{uid}?updateMask.fieldPaths=current_apartment_id
-  const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`;
+  // PATCH nested field: users/{uid}.apartment.id
+  const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=apartment.id`;
   const body = {
     fields: {
-      current_apartment_id: { stringValue: aptId },
+      apartment: {
+        mapValue: {
+          fields: {
+            id: { stringValue: aptId },
+          },
+        },
+      },
     },
-  };
+  } as any;
   const res = await fetch(url, { method: 'PATCH', headers: H(idToken), body: JSON.stringify(body) });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -1175,9 +1135,29 @@ export class FirestoreService {
             console.error('❌ Invite read-back failed:', readBackError);
           }
           
-          // Create membership for the creator directly
-          console.log('👤 Creating membership for apartment creator...');
-          await this.createMembershipDirectly(apartment.id, currentUser.localId);
+          // Set creator as member of the apartment using transaction
+          console.log('👤 Setting creator as member of apartment...');
+          await this.runTransaction(async (transaction) => {
+            const userRef = doc(db, 'users', currentUser.localId);
+            const userDoc = await transaction.get(userRef);
+            
+            if (!userDoc.exists()) {
+              throw new Error('User document not found');
+            }
+            
+            const currentApartmentId = userDoc.data()?.apartment?.id;
+            if (currentApartmentId && currentApartmentId !== null) {
+              throw new Error('User is already a member of an apartment');
+            }
+            
+            // Update user's apartment: null -> apartmentId
+            transaction.update(userRef, {
+              'apartment.id': apartment.id,
+              'apartment.role': 'member'
+            });
+            
+            console.log('✅ Creator apartment set in transaction');
+          });
           console.log('✅ Creator membership created successfully');
           
           // Success! Return the apartment with creator already as member
@@ -1335,73 +1315,31 @@ export class FirestoreService {
         throw new Error('User can only add themselves to apartments');
       }
 
-      // Check if user is already a member of another apartment
-      const existingApartment = await this.getUserCurrentApartment(userId);
-      if (existingApartment && existingApartment.id !== apartmentId) {
-        throw new Error('User is already a member of another apartment');
-      }
-      
-      const memberId = `${apartmentId}_${userId}`;
-      
-      // Check if membership already exists
-      try {
-        const existingMembership = await this.getDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
-        if (existingMembership) {
-          console.log('✅ User is already a member of this apartment');
-          return existingMembership;
+      // Use transaction to ensure atomicity: null -> someId only
+      return await this.runTransaction(async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await transaction.get(userRef);
+        
+        if (!userDoc.exists()) {
+          throw new Error('User document not found');
         }
-      } catch (error) {
-        // Document doesn't exist, continue with creation
-      }
-      
-      const memberData = {
-        apartment_id: apartmentId,
-        user_id: userId,
-        role: 'member',
-        joined_at: new Date(),
-      };
-      
-      console.log('📝 Creating apartment membership record...');
-      console.log(`🆔 Member ID: ${memberId}`);
-      console.log(`📋 Member data:`, memberData);
-      
-      // Create the membership record
-      const membershipResult = await this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
-      console.log('✅ Membership record created');
-      
-      // Update user's current_apartment_id with a short retry in case rules check races the membership propagation
-      console.log('👤 Updating user profile with apartment ID...');
-      {
-        const maxUpdateAttempts = 5;
-        let attempt = 0;
-        let updated = false;
-        let lastError: any = null;
-        while (attempt < maxUpdateAttempts && !updated) {
-          try {
-            await this.updateUser(userId, { current_apartment_id: apartmentId });
-            updated = true;
-            console.log('✅ User profile updated');
-          } catch (e: any) {
-            lastError = e;
-            const message = String(e?.message || e || '');
-            // Only retry on permission errors that may be due to immediate consistency on rules exists()
-            if (message.includes('Missing or insufficient permissions')) {
-              attempt++;
-              console.warn(`⚠️ Update permission not ready (attempt ${attempt}/${maxUpdateAttempts}). Retrying shortly...`);
-              await new Promise(r => setTimeout(r, 150 * attempt));
-              continue;
-            }
-            // Non-retryable
-            throw e;
-          }
+        
+        const currentApartmentId = userDoc.data()?.apartment?.id;
+        if (currentApartmentId && currentApartmentId !== null) {
+          throw new Error('User is already a member of an apartment');
         }
-        if (!updated) {
-          console.error('❌ Failed to update user after retries:', lastError);
-          throw lastError;
-        }
-      }
-      
-      return membershipResult;
+        
+        // Update user's apartment: null -> apartmentId
+        transaction.update(userRef, {
+          'apartment.id': apartmentId,
+          'apartment.role': 'member'
+        });
+        
+        console.log('✅ User apartment updated in transaction');
+      });
+
+      // Return the apartment document as "join" result
+      return await this.getApartment(apartmentId);
     } catch (error) {
       console.error('❌ Join apartment error:', error);
       throw error;
@@ -1433,11 +1371,28 @@ export class FirestoreService {
       const invite = await this.getInviteDocument(inviteCode, idToken);
       console.log('📋 Found invite:', invite);
       
-      // 2. Create membership with proper document ID format
-      await this.createMembershipDocument(invite.apartmentId, currentUser.localId, idToken);
-      
-      // 3. Update user's current_apartment_id
-      await this.setCurrentApartment(currentUser.localId, invite.apartmentId, idToken);
+      // 2. Use transaction to join apartment: null -> someId only
+      await this.runTransaction(async (transaction) => {
+        const userRef = doc(db, 'users', currentUser.localId);
+        const userDoc = await transaction.get(userRef);
+        
+        if (!userDoc.exists()) {
+          throw new Error('User document not found');
+        }
+        
+        const currentApartmentId = userDoc.data()?.apartment?.id;
+        if (currentApartmentId && currentApartmentId !== null) {
+          throw new Error('User is already a member of an apartment');
+        }
+        
+        // Update user's apartment: null -> apartmentId
+        transaction.update(userRef, {
+          'apartment.id': invite.apartmentId,
+          'apartment.role': 'member'
+        });
+        
+        console.log('✅ User apartment updated in transaction');
+      });
       
       // 4. Get full apartment details
       const apartment = await this.getDocument(COLLECTIONS.APARTMENTS, invite.apartmentId);
@@ -1592,8 +1547,7 @@ export class FirestoreService {
   }
 
   /**
-   * Get apartment members from apartmentMembers collection
-   * Uses runQuery to find all members of a specific apartment
+   * Get apartment members via users collection (new model: users.apartment.id == apartmentId)
    */
   async getApartmentMembers(apartmentId: string): Promise<any[]> {
     try {
@@ -1610,25 +1564,16 @@ export class FirestoreService {
         throw new Error('No current user available');
       }
       
-      // Ensure current_apartment_id is set before querying
-      console.log('🔧 Ensuring current_apartment_id before query...');
-      const ensuredApartmentId = await this.ensureCurrentApartmentId(currentUser.localId, apartmentId);
-      
-      if (!ensuredApartmentId) {
-        throw new Error('Could not ensure current_apartment_id');
-      }
-      
-      console.log('✅ Using ensured apartment ID for query:', ensuredApartmentId);
-      
+      // Query users collection where users.apartment.id == apartmentId
       const url = `${FIRESTORE_BASE_URL}:runQuery`;
       const body = {
         structuredQuery: {
-          from: [{ collectionId: COLLECTIONS.APARTMENT_MEMBERS }],
+          from: [{ collectionId: COLLECTIONS.USERS }],
           where: {
             fieldFilter: {
-              field: { fieldPath: 'apartment_id' },
+              field: { fieldPath: 'apartment.id' },
               op: 'EQUAL',
-              value: { stringValue: ensuredApartmentId }
+              value: { stringValue: apartmentId }
             }
           }
         }
@@ -1660,12 +1605,13 @@ export class FirestoreService {
         .filter(Boolean)
         .map((doc: any) => {
           const fields = doc.fields || {};
+          const uid = doc.name.split('/').pop();
           return {
-            id: doc.name.split('/').pop(), // "<aptId>_<uid>"
-            apartment_id: fields.apartment_id?.stringValue as string,
-            user_id: fields.user_id?.stringValue as string,
-            role: fields.role?.stringValue as 'member' | 'admin' | string,
-            joined_at: fields.joined_at?.timestampValue || fields.created_at?.timestampValue || null,
+            id: uid,
+            apartment_id: apartmentId,
+            user_id: uid,
+            role: fields?.apartment?.mapValue?.fields?.role?.stringValue || 'member',
+            joined_at: null,
           };
         });
       
@@ -1891,86 +1837,13 @@ export class FirestoreService {
    * Get reliable apartment ID for the current user
    * First tries from user profile, then falls back to membership query
    */
+  // Deprecated in new model (kept for compatibility); now reads directly from users/{uid}.apartment.id
   async getReliableApartmentId(userId: string): Promise<string | null> {
     try {
-      console.log('🔍 Getting reliable apartment ID for user:', userId);
-      
       const idToken = await firebaseAuth.getCurrentIdToken();
-      if (!idToken) {
-        console.log('❌ No valid ID token available');
-        return null;
-      }
-      
-      // Step 1: Try from user profile
-      console.log('📋 Step 1: Checking user profile for current_apartment_id...');
-      const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${userId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (userResponse.status === 200) {
-        const userDoc = await userResponse.json();
-        const apartmentId = userDoc.fields?.current_apartment_id?.stringValue;
-        if (apartmentId) {
-          console.log('✅ Found apartment ID in user profile:', apartmentId);
-          return apartmentId;
-        }
-      }
-      
-      console.log('📭 No apartment ID in user profile, trying membership query...');
-      
-      // Step 2: Fallback - query user's memberships and get the latest one
-      const queryBody = {
-        structuredQuery: {
-          from: [{ collectionId: COLLECTIONS.APARTMENT_MEMBERS }],
-          where: {
-            fieldFilter: {
-              field: { fieldPath: 'user_id' },
-              op: 'EQUAL',
-              value: { stringValue: userId }
-            }
-          },
-          orderBy: [{ field: { fieldPath: 'joined_at' }, direction: 'DESCENDING' }],
-          limit: 1
-        }
-      };
-      
-      console.log('📋 Step 2: Querying user memberships...');
-      console.log('📝 Query body:', JSON.stringify(queryBody, null, 2));
-      
-      const queryResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${idToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(queryBody),
-      });
-      
-      console.log(`📊 Membership query response: ${queryResponse.status} (${queryResponse.statusText})`);
-      
-      if (queryResponse.status === 200) {
-        const rows = await queryResponse.json();
-        console.log('📋 Raw membership query results:', rows);
-        
-        const latestMembership = rows.find((row: any) => row.document)?.document;
-        if (latestMembership) {
-          const apartmentId = latestMembership.fields?.apartment_id?.stringValue;
-          if (apartmentId) {
-            console.log('✅ Found apartment ID from latest membership:', apartmentId);
-            return apartmentId;
-          }
-        }
-      }
-      
-      console.log('📭 No apartment ID found from any source');
-      return null;
-      
-    } catch (error) {
-      console.error('❌ Error getting reliable apartment ID:', error);
+      if (!idToken) return null;
+      return await getUserCurrentApartmentId(userId, idToken);
+    } catch {
       return null;
     }
   }
@@ -2051,8 +1924,8 @@ export class FirestoreService {
       const { uid, idToken } = await requireSession();
       console.log('🏠 Getting complete apartment data for user:', uid);
       
-      // 1. Get reliable apartment ID
-      const apartmentId = await this.getReliableApartmentId(uid);
+      // 1. Get apartment ID from user profile (new model)
+      const apartmentId = await getUserCurrentApartmentId(uid, idToken);
       if (!apartmentId) {
         console.log('📭 No apartment found for user');
         return null;
@@ -2060,22 +1933,15 @@ export class FirestoreService {
       
       console.log('✅ Found apartment ID:', apartmentId);
       
-      // 2. Ensure current_apartment_id is set before any queries
-      console.log('🔧 Ensuring current_apartment_id before getting apartment data...');
-      const ensuredApartmentId = await this.ensureCurrentApartmentId(uid, apartmentId);
-      
-      if (!ensuredApartmentId) {
-        console.log('❌ Could not ensure current_apartment_id');
-        return null;
-      }
-      
-      console.log('✅ Using ensured apartment ID:', ensuredApartmentId);
+      // 2. Ensure apartment.id is set correctly (idempotent)
+      console.log('🔧 Ensuring apartment.id before getting apartment data...');
+      await ensureCurrentApartmentIdMatches(apartmentId);
       
       // 3. Get apartment details
-      const apartment = await this.getApartment(ensuredApartmentId);
+      const apartment = await this.getApartment(apartmentId);
       
       // 4. Get members with profiles
-      const membersWithProfiles = await this.getApartmentMembersWithProfiles(ensuredApartmentId);
+      const membersWithProfiles = await this.getApartmentMembersWithProfiles(apartmentId);
       
       // 5. Combine everything
       const completeData = {
@@ -2095,7 +1961,7 @@ export class FirestoreService {
             name: actualName,
             display_name: actualName, // Add for consistency
             role: member.role,
-            current_apartment_id: ensuredApartmentId,
+            current_apartment_id: apartmentId,
           };
         })
       };
@@ -2112,18 +1978,28 @@ export class FirestoreService {
   async leaveApartment(apartmentId: string, userId: string): Promise<void> {
     try {
       console.log(`👋 User ${userId} leaving apartment ${apartmentId}`);
-      
-      const memberId = `${apartmentId}_${userId}`;
-      
-      // Remove membership record
-      console.log('🗑️ Removing apartment membership record...');
-      await this.deleteDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
-      console.log('✅ Membership record removed');
-      
-      // Clear user's current_apartment_id
-      console.log('👤 Clearing user profile apartment reference...');
-      await this.updateUser(userId, { current_apartment_id: undefined });
-      console.log('✅ User profile updated');
+      // Use transaction to ensure atomicity: someId -> null only
+      await this.runTransaction(async (transaction) => {
+        const userRef = doc(db, 'users', userId);
+        const userDoc = await transaction.get(userRef);
+        
+        if (!userDoc.exists()) {
+          throw new Error('User document not found');
+        }
+        
+        const currentApartmentId = userDoc.data()?.apartment?.id;
+        if (!currentApartmentId || currentApartmentId !== apartmentId) {
+          throw new Error('User is not a member of this apartment');
+        }
+        
+        // Update user's apartment: someId -> null
+        transaction.update(userRef, {
+          'apartment.id': null,
+          'apartment.role': null
+        });
+        
+        console.log('✅ User apartment cleared in transaction');
+      });
       
     } catch (error) {
       console.error('❌ Leave apartment error:', error);
@@ -2149,12 +2025,28 @@ export class FirestoreService {
         throw new Error(errorMessage);
       }
       
-      const memberId = `${apartmentId}_${targetUserId}`;
-      
-      // Remove membership record
-      console.log('🗑️ Removing apartment membership record...');
-      await this.deleteDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
-      console.log('✅ Membership record removed');
+      // Use transaction to clear users/{uid}.apartment: someId -> null
+      await this.runTransaction(async (transaction) => {
+        const userRef = doc(db, 'users', targetUserId);
+        const userDoc = await transaction.get(userRef);
+        
+        if (!userDoc.exists()) {
+          throw new Error('User document not found');
+        }
+        
+        const currentApartmentId = userDoc.data()?.apartment?.id;
+        if (!currentApartmentId || currentApartmentId !== apartmentId) {
+          throw new Error('User is not a member of this apartment');
+        }
+        
+        // Update user's apartment: someId -> null
+        transaction.update(userRef, {
+          'apartment.id': null,
+          'apartment.role': null
+        });
+        
+        console.log('✅ User apartment cleared in transaction');
+      });
       
       // Log the removal action for audit trail
       await this.logMemberRemovalAction(apartmentId, targetUserId, actorUserId);
@@ -2190,58 +2082,13 @@ export class FirestoreService {
   }
 
   // This function is replaced by the new getApartmentMembers that uses runQuery
-  // Keeping for backward compatibility but it's deprecated
-  async getApartmentMembersOld(apartmentId: string): Promise<any[]> {
-    return this.queryCollection(COLLECTIONS.APARTMENT_MEMBERS, 'apartment_id', 'EQUAL', apartmentId);
-  }
+  // Deprecated: getApartmentMembersOld removed - now using users collection query
 
   /**
    * Create membership directly without going through join flow
    * Used for apartment creator to become a member immediately
    */
-  async createMembershipDirectly(apartmentId: string, userId: string): Promise<any> {
-    try {
-      console.log(`🤝 Creating direct membership for user ${userId} in apartment ${apartmentId}`);
-      
-      const memberId = `${apartmentId}_${userId}`;
-      
-      // Check if membership already exists
-      try {
-        const existingMembership = await this.getDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
-        if (existingMembership) {
-          console.log('✅ User is already a member of this apartment');
-          return existingMembership;
-        }
-      } catch (error) {
-        // Document doesn't exist, continue with creation
-      }
-      
-      const memberData = {
-        apartment_id: apartmentId,
-        user_id: userId,
-        role: 'member',
-        joined_at: new Date(),
-      };
-      
-      console.log('📝 Creating apartment membership record...');
-      console.log(`🆔 Member ID: ${memberId}`);
-      console.log(`📋 Member data:`, memberData);
-      
-      // Create the membership record
-      const membershipResult = await this.createDocument(COLLECTIONS.APARTMENT_MEMBERS, memberData, memberId);
-      console.log('✅ Membership record created');
-      
-      // Update user's current_apartment_id
-      console.log('👤 Updating user profile with apartment ID...');
-      await this.updateUser(userId, { current_apartment_id: apartmentId });
-      console.log('✅ User profile updated');
-      
-      return membershipResult;
-    } catch (error) {
-      console.error('❌ Create membership directly error:', error);
-      throw error;
-    }
-  }
+  // Deprecated: createMembershipDirectly removed - now using transactions with users/{uid}.apartment
 
   /**
    * Get user's current apartment based on user profile
@@ -2258,18 +2105,17 @@ export class FirestoreService {
 
       console.log(`🔍 Looking for current apartment for user: ${userId}`);
       
-      // Get user's profile to find their current_apartment_id
+      // Get user's profile to find their apartment.id (new model)
       const userData = await this.getDocument(COLLECTIONS.USERS, userId);
-      
-      if (!userData || !userData.current_apartment_id) {
-        console.log('📋 User has no current apartment ID in profile');
+      const aptId = userData?.apartment?.id || null;
+      if (!aptId) {
+        console.log('📋 User has no apartment.id in profile');
         return null;
       }
-      
-      console.log(`🏠 User has apartment ID in profile: ${userData.current_apartment_id}`);
+      console.log(`🏠 User has apartment ID in profile: ${aptId}`);
       
       // Get the apartment details
-      return await this.getApartment(userData.current_apartment_id);
+      return await this.getApartment(aptId);
       
     } catch (error) {
       console.error('Get user current apartment error:', error);

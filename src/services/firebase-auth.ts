@@ -5,6 +5,7 @@
 
 import * as SecureStore from 'expo-secure-store';
 import { AUTH_ENDPOINTS } from './firebase-config';
+import { firestoreService } from './firestore-service';
 
 // Types for authentication responses
 export interface AuthUser {
@@ -52,6 +53,7 @@ const STORAGE_KEYS = {
   REFRESH_TOKEN: 'firebase_refresh_token',
   USER_ID: 'firebase_user_id',
   USER_EMAIL: 'firebase_user_email',
+  DISPLAY_NAME: 'firebase_display_name',
 };
 
 /**
@@ -147,7 +149,7 @@ export class FirebaseAuthService {
         throw this.handleAuthError(data);
       }
 
-      const authUser: AuthUser = {
+      let authUser: AuthUser = {
         localId: data.localId,
         email: data.email,
         displayName: data.displayName,
@@ -155,6 +157,20 @@ export class FirebaseAuthService {
         refreshToken: data.refreshToken,
         expiresIn: data.expiresIn,
       };
+
+      // If displayName is not available from Firebase Auth, try to get it from Firestore
+      if (!authUser.displayName) {
+        try {
+          const userData = await firestoreService.getUser(authUser.localId);
+          if (userData && (userData.display_name || userData.displayName || userData.full_name)) {
+            authUser.displayName = userData.display_name || userData.displayName || userData.full_name;
+            console.log('Retrieved displayName from Firestore:', authUser.displayName);
+          }
+        } catch (error) {
+          console.warn('Failed to get displayName from Firestore:', error);
+          // Continue without displayName
+        }
+      }
 
       // Store tokens securely
       await this.storeUserTokens(authUser);
@@ -288,6 +304,13 @@ export class FirebaseAuthService {
   }
 
   /**
+   * Get current user's display name
+   */
+  getCurrentUserDisplayName(): string | null {
+    return this.currentUser?.displayName || null;
+  }
+
+  /**
    * Check if user is authenticated
    */
   async isAuthenticated(): Promise<boolean> {
@@ -300,11 +323,12 @@ export class FirebaseAuthService {
    */
   async signOut(): Promise<void> {
     try {
-      // Clear stored tokens
+      // Clear stored tokens and user data
       await SecureStore.deleteItemAsync(STORAGE_KEYS.ID_TOKEN);
       await SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
       await SecureStore.deleteItemAsync(STORAGE_KEYS.USER_ID);
       await SecureStore.deleteItemAsync(STORAGE_KEYS.USER_EMAIL);
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.DISPLAY_NAME);
       
       this.currentUser = null;
     } catch (error) {
@@ -322,25 +346,47 @@ export class FirebaseAuthService {
       const idToken = await this.getCurrentIdToken();
       const userId = await SecureStore.getItemAsync(STORAGE_KEYS.USER_ID);
       const userEmail = await SecureStore.getItemAsync(STORAGE_KEYS.USER_EMAIL);
+      const displayName = await SecureStore.getItemAsync(STORAGE_KEYS.DISPLAY_NAME);
 
       console.log('Session restoration check:', {
         hasIdToken: !!idToken,
         hasUserId: !!userId,
-        hasUserEmail: !!userEmail
+        hasUserEmail: !!userEmail,
+        hasDisplayName: !!displayName
       });
 
       if (idToken && userId && userEmail) {
         const refreshToken = await SecureStore.getItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
         
+        let finalDisplayName = displayName;
+        
+        // If displayName is not stored in SecureStore, try to get it from Firestore
+        if (!finalDisplayName) {
+          try {
+            const userData = await firestoreService.getUser(userId);
+            if (userData && (userData.display_name || userData.displayName || userData.full_name)) {
+              finalDisplayName = userData.display_name || userData.displayName || userData.full_name;
+              console.log('Retrieved displayName from Firestore during session restore:', finalDisplayName);
+              // Store it for future use
+              if (finalDisplayName) {
+                await SecureStore.setItemAsync(STORAGE_KEYS.DISPLAY_NAME, finalDisplayName);
+              }
+            }
+          } catch (error) {
+            console.warn('Failed to get displayName from Firestore during session restore:', error);
+          }
+        }
+        
         this.currentUser = {
           localId: userId,
           email: userEmail,
+          displayName: finalDisplayName || undefined,
           idToken,
           refreshToken: refreshToken || '',
           expiresIn: '3600', // Default 1 hour
         };
 
-        console.log('User session restored successfully');
+        console.log('User session restored successfully with displayName:', finalDisplayName);
         return this.currentUser;
       }
 
@@ -378,6 +424,10 @@ export class FirebaseAuthService {
       // Update current user if available
       if (this.currentUser) {
         this.currentUser.displayName = profileData.displayName || this.currentUser.displayName;
+        // Also update the stored displayName
+        if (profileData.displayName) {
+          await SecureStore.setItemAsync(STORAGE_KEYS.DISPLAY_NAME, profileData.displayName);
+        }
       }
     } catch (error) {
       console.error('Update profile error:', error);
@@ -393,6 +443,13 @@ export class FirebaseAuthService {
     await SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, user.refreshToken);
     await SecureStore.setItemAsync(STORAGE_KEYS.USER_ID, user.localId);
     await SecureStore.setItemAsync(STORAGE_KEYS.USER_EMAIL, user.email);
+    // Store displayName if available
+    if (user.displayName) {
+      console.log('💾 Storing displayName in SecureStore:', user.displayName);
+      await SecureStore.setItemAsync(STORAGE_KEYS.DISPLAY_NAME, user.displayName);
+    } else {
+      console.log('⚠️ No displayName to store');
+    }
   }
 
   /**
@@ -440,3 +497,4 @@ export class FirebaseAuthService {
 
 // Export singleton instance
 export const firebaseAuth = FirebaseAuthService.getInstance();
+
