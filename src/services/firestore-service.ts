@@ -1329,8 +1329,8 @@ export class FirestoreService {
         console.log('✅ User apartment updated in transaction');
       });
       
-      // Return the apartment document as "join" result
-      return await this.getApartment(apartmentId);
+      // Return minimal apartment object with ID
+      return { id: apartmentId };
     } catch (error) {
       console.error('❌ Join apartment error:', error);
       throw error;
@@ -1385,11 +1385,9 @@ export class FirestoreService {
         console.log('✅ User apartment updated in transaction');
       });
       
-      // 4. Get full apartment details
-      const apartment = await this.getDocument(COLLECTIONS.APARTMENTS, invite.apartmentId);
-      
-      console.log('✅ Successfully joined apartment:', apartment);
-      return apartment;
+      // 4. Skip apartment read - return minimal object with ID
+      console.log('✅ Successfully joined apartment:', invite.apartmentId);
+      return { id: invite.apartmentId };
       
     } catch (error) {
       console.error('❌ Join apartment error:', error);
