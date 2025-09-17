@@ -604,6 +604,11 @@ export class FirestoreService {
    */
   async createDocument(collectionName: string, data: any, documentId?: string): Promise<any> {
     try {
+      // Block deprecated apartmentMembers collection
+      if (collectionName === 'apartmentMembers' || collectionName === COLLECTIONS.APARTMENT_MEMBERS) {
+        throw new Error('apartmentMembers is deprecated. Use users/{uid}.apartment instead.');
+      }
+      
       console.log(`📝 Creating document in collection: ${collectionName}`);
       console.log(`📋 Document data:`, data);
       console.log(`🆔 Document ID:`, documentId || 'auto-generated');
@@ -1446,105 +1451,9 @@ export class FirestoreService {
     throw new Error(`UNEXPECTED_${response.status}`);
   }
 
-  /**
-   * Create membership document with proper REST API call
-   */
-  private async createMembershipDocument(apartmentId: string, uid: string, idToken: string): Promise<void> {
-    const membershipId = `${apartmentId}_${uid}`; // MUST be underscore
-    const url = `${FIRESTORE_BASE_URL}/apartmentMembers?documentId=${encodeURIComponent(membershipId)}`;
-    
-    const body = {
-      fields: {
-        apartment_id: { stringValue: apartmentId },
-        user_id: { stringValue: uid },
-        role: { stringValue: 'member' }, // rules require 'member'
-        created_at: { timestampValue: new Date().toISOString() }
-      },
-    };
-    
-    console.log('🤝 Creating membership document:');
-    console.log('📋 URL:', url);
-    console.log('🆔 Membership ID:', membershipId);
-    console.log('👤 User ID:', uid);
-    console.log('🏠 Apartment ID:', apartmentId);
-    console.log('📝 Body:', JSON.stringify(body, null, 2));
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${idToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    
-    console.log(`📊 Membership creation response: ${response.status} (${response.statusText})`);
-    
-    if (response.status === 200) {
-      console.log('✅ Membership created successfully');
-      return;
-    }
-    
-    if (response.status === 409) {
-      console.log('✅ Membership already exists (idempotent)');
-      return;
-    }
-    
-    if (response.status === 403) {
-      console.error('❌ PERMISSION_DENIED_MEMBER_CREATE');
-      
-      // Get detailed error information
-      let errorData = {};
-      try {
-        errorData = await response.json();
-      } catch (e) {
-        console.error('❌ Could not parse error response');
-      }
-      
-      console.error('📋 Error response:', errorData);
-      throw new Error('PERMISSION_DENIED_MEMBER_CREATE');
-    }
-    
-    throw new Error(`UNEXPECTED_${response.status}`);
-  }
+  // Deprecated: createMembershipDocument removed - now using transactions with users/{uid}.apartment
 
-  /**
-   * Set user's current apartment ID
-   */
-  private async setCurrentApartment(uid: string, apartmentId: string, idToken: string): Promise<void> {
-    const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`;
-    const body = {
-      fields: {
-        current_apartment_id: { stringValue: apartmentId }
-      }
-    };
-    
-    console.log('👤 Setting current apartment for user:', uid);
-    console.log('📋 URL:', url);
-    console.log('📝 Body:', JSON.stringify(body, null, 2));
-    
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${idToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    
-    console.log(`📊 Set current apartment response: ${response.status} (${response.statusText})`);
-    
-    if (response.status === 200) {
-      console.log('✅ Current apartment set successfully');
-      return;
-    }
-    
-    if (response.status === 403) {
-      throw new Error('PERMISSION_DENIED_SET_CURRENT_APT');
-    }
-    
-    throw new Error(`UNEXPECTED_${response.status}`);
-  }
+  // Deprecated: setCurrentApartment removed - now using transactions with users/{uid}.apartment
 
   /**
    * Get apartment members via users collection (new model: users.apartment.id == apartmentId)
@@ -2607,10 +2516,14 @@ export class FirestoreService {
       uid: uid
     });
 
-    // 3) Verify membership exists
-    const membershipRef = doc(db, 'apartmentMembers', `${apartmentId}_${uid}`);
-    const membershipSnap = await getDoc(membershipRef);
-    if (!membershipSnap.exists()) {
+    // 3) Verify membership exists (new model: check users/{uid}.apartment.id)
+    const userRef = doc(db, 'users', uid);
+    const userSnap2 = await getDoc(userRef);
+    if (!userSnap2.exists()) {
+      throw new Error(`User ${uid} document not found`);
+    }
+    const userApartmentId = userSnap2.data()?.apartment?.id;
+    if (userApartmentId !== apartmentId) {
       throw new Error(`User ${uid} is not a member of apartment ${apartmentId}`);
     }
     console.log('✅ [closeDebtAndRefreshBalances] Membership verified');
@@ -2720,16 +2633,16 @@ export class FirestoreService {
       const openDebtsData = await response.json();
       const openDebts = openDebtsData.map((row: any) => row.document).filter(Boolean);
 
-      // Get all apartment members to ensure we update balances for all users
-      const membersResponse = await fetch(`${FIRESTORE_BASE_URL}/apartmentMembers:runQuery`, {
+      // Get all apartment members from users collection (new model)
+      const membersResponse = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
         method: 'POST',
         headers: authHeaders(idToken),
         body: JSON.stringify({
           structuredQuery: {
-            from: [{ collectionId: 'apartmentMembers' }],
+            from: [{ collectionId: 'users' }],
             where: {
               fieldFilter: {
-                field: { fieldPath: 'apartment_id' },
+                field: { fieldPath: 'apartment.id' },
                 op: 'EQUAL',
                 value: { stringValue: apartmentId }
               }
@@ -2746,7 +2659,7 @@ export class FirestoreService {
       const members = membersData.map((row: any) => row.document).filter(Boolean);
       const allUids = new Set<string>();
       members.forEach((member: any) => {
-        const userId = member.fields?.user_id?.stringValue;
+        const userId = member.name.split('/').pop(); // Extract UID from document name
         if (userId) allUids.add(userId);
       });
 
