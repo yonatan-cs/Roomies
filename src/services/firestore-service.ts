@@ -1320,11 +1320,8 @@ export class FirestoreService {
           throw new Error('User is already a member of an apartment');
         }
         
-        // Verify apartment exists for security rules (required for permission check)
-        const aptRef = doc(db, 'apartments', apartmentId);
-        await transaction.get(aptRef); // Only to satisfy security rules
-        
         // Update user's apartment: null -> apartmentId (only apartment field)
+        // Note: Security rules will check exists(/apartments/{id}) automatically
         transaction.set(userRef, { 
           apartment: { id: apartmentId } 
         }, { merge: true });
@@ -1379,11 +1376,8 @@ export class FirestoreService {
           throw new Error('User is already a member of an apartment');
         }
         
-        // Verify apartment exists for security rules (required for permission check)
-        const aptRef = doc(db, 'apartments', invite.apartmentId);
-        await transaction.get(aptRef); // Only to satisfy security rules
-        
         // Update user's apartment: null -> apartmentId (only apartment field)
+        // Note: Security rules will check exists(/apartments/{id}) automatically
         transaction.set(userRef, { 
           apartment: { id: invite.apartmentId } 
         }, { merge: true });
