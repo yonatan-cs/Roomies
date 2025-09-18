@@ -39,7 +39,8 @@ service cloud.firestore {
     // Email must remain immutable
     function emailUnchanged() {
       return (!('email' in resource.data)) ||
-             (('email' in request.resource.data) && request.resource.data.email == resource.data.email);
+             !('email' in request.resource.data) ||
+             request.resource.data.email == resource.data.email;
     }
 
     // ---------- Balance helpers (for informational checks) ----------

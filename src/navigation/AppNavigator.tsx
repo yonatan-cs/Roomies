@@ -103,15 +103,20 @@ export default function AppNavigator() {
           console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
           setHasApartment(true);
           
-          // Trigger initial data refresh
-          try {
-            await Promise.all([
-              useStore.getState().refreshApartmentMembers?.(),
-              useStore.getState().loadShoppingItems?.(),
-              useStore.getState().loadCleaningTask?.(),
-            ]);
-          } catch (refreshError) {
-            console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
+          // Only load data if we have a confirmed apartment ID
+          if (apartmentContext.aptId) {
+            // Trigger initial data refresh
+            try {
+              await Promise.all([
+                useStore.getState().refreshApartmentMembers?.(),
+                useStore.getState().loadShoppingItems?.(),
+                useStore.getState().loadCleaningTask?.(),
+              ]);
+            } catch (refreshError) {
+              console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
+            }
+          } else {
+            console.log('⚠️ AppNavigator: No apartment ID found, skipping data load');
           }
         } else {
           console.log('📭 AppNavigator: No current user');

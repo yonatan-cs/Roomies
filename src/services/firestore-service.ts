@@ -232,6 +232,66 @@ export async function getApartmentContextSlim(): Promise<{ uid: string; idToken:
 }
 
 // ✅ ודא שהכלל resource.data.apartment_id == currentUserApartmentId() יתקיים
+
+/**
+ * Wait for server to confirm user membership in apartment
+ * This ensures deterministic behavior by checking server state directly
+ */
+export async function waitForMembership(uid: string, aptId: string, timeoutMs = 5000, intervalMs = 150): Promise<void> {
+  const t0 = Date.now();
+  console.log(`⏳ Waiting for membership confirmation: user ${uid} -> apartment ${aptId}`);
+  
+  while (true) {
+    try {
+      // Get fresh token to ensure we're not using cached data
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      
+      // Read user document directly from server (bypasses cache)
+      if (!idToken) {
+        throw new Error('No valid ID token available');
+      }
+      
+      const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${uid}`, {
+        method: 'GET',
+        headers: authHeaders(idToken),
+      });
+      
+      if (userResponse.status === 200) {
+        const userDoc = await userResponse.json();
+        const serverAptId = userDoc.fields?.apartment?.mapValue?.fields?.id?.stringValue;
+        
+        console.log(`🔍 Membership check: server sees apartment ${serverAptId}, expecting ${aptId}`);
+        
+        if (serverAptId === aptId) {
+          console.log('✅ Membership confirmed on server');
+          return; // Ready!
+        }
+      } else {
+        console.log(`⚠️ Membership check failed with status: ${userResponse.status}`);
+      }
+      
+      // Check timeout
+      if (Date.now() - t0 > timeoutMs) {
+        throw new Error(`WAIT_MEMBERSHIP_TIMEOUT: Server did not confirm membership within ${timeoutMs}ms`);
+      }
+      
+      // Wait before next check
+      await new Promise(r => setTimeout(r, intervalMs));
+      
+    } catch (error) {
+      console.error('❌ Error during membership check:', error);
+      
+      // Check timeout even on error
+      if (Date.now() - t0 > timeoutMs) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`WAIT_MEMBERSHIP_TIMEOUT: ${errorMessage}`);
+      }
+      
+      // Wait before retry
+      await new Promise(r => setTimeout(r, intervalMs));
+    }
+  }
+}
 export async function ensureCurrentApartmentIdMatches(aptId: string): Promise<void> {
   const { uid, idToken } = await requireSession();
 
@@ -1452,7 +1512,11 @@ export class FirestoreService {
         console.log('✅ User apartment updated in transaction');
       });
       
-      // 4. Skip apartment read - return minimal object with ID
+      // 3. Wait for server to confirm membership before proceeding
+      console.log('⏳ Waiting for server to confirm membership...');
+      await waitForMembership(currentUser.localId, invite.apartmentId);
+      
+      // 4. Return minimal object with ID
       console.log('✅ Successfully joined apartment:', invite.apartmentId);
       return { id: invite.apartmentId };
       

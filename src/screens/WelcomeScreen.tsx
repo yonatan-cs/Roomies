@@ -192,17 +192,17 @@ export default function WelcomeScreen() {
       // Step 3: Use the new joinApartmentByInviteCode function
       const apartment = await firestoreService.joinApartmentByInviteCode(joinCode.trim().toUpperCase());
       
-      console.log(`🏠 Successfully joined apartment: ${apartment.name} (ID: ${apartment.id})`);
+      console.log(`🏠 Successfully joined apartment: ${apartment.id}`);
       
-      // Step 5: Update local state - current_apartment_id is managed through apartmentMembers
+      // Step 4: Update local state - current_apartment_id is managed through apartmentMembers
       const updatedUser = { ...currentUser, current_apartment_id: apartment.id };
       setCurrentUser(updatedUser);
       
       // Create apartment object for local state
       const localApartment = {
         id: apartment.id,
-        name: apartment.name,
-        invite_code: apartment.invite_code,
+        name: apartment.name || 'דירת שותפים', // Fallback name
+        invite_code: joinCode.trim().toUpperCase(),
         members: [updatedUser], // Will be loaded properly later
         createdAt: new Date(),
       };
@@ -215,9 +215,7 @@ export default function WelcomeScreen() {
       });
       useStore.setState({ currentApartment: localApartment });
       
-      // Give a moment for the AppNavigator to react to state changes
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+      // No need for sleep - waitForMembership already ensured server state is ready
       console.log('🎉 Apartment join process completed successfully!');
       
     } catch (error: any) {
