@@ -71,7 +71,6 @@ service cloud.firestore {
     //   apartment?: { id: string|null } // embedded apartment info (no role)
     // }
 
-
     match /users/{userId} {
       // Read: self בלי בדיקות נוספות; אחרים רק אם באותה דירה
       allow read: if isAuthenticated() && (

@@ -1266,10 +1266,9 @@ export class FirestoreService {
             }
             
             // Update user's apartment: null -> apartmentId
-            transaction.update(userRef, {
-              'apartment.id': apartment.id,
-              'apartment.role': 'member'
-            });
+            transaction.set(userRef, { 
+              apartment: { id: apartment.id } 
+            }, { merge: true });
             
             console.log('✅ Creator apartment set in transaction');
           });
@@ -1621,7 +1620,7 @@ export class FirestoreService {
             id: uid,
             apartment_id: apartmentId,
             user_id: uid,
-            role: fields?.apartment?.mapValue?.fields?.role?.stringValue || 'member',
+            role: 'member', // All users have member role in the new model
             joined_at: null,
           };
         });
@@ -1888,7 +1887,7 @@ export class FirestoreService {
           const membership = {
             user_id: userId,
             apartment_id: apartmentId,
-            role: fields.apartment?.mapValue?.fields?.role?.stringValue || 'member',
+            role: 'member', // All users have member role in the new model
           };
           
           return {
@@ -1991,10 +1990,9 @@ export class FirestoreService {
         }
         
         // Update user's apartment: someId -> null
-        transaction.update(userRef, {
-          'apartment.id': null,
-          'apartment.role': null
-        });
+        transaction.set(userRef, { 
+          apartment: { id: null } 
+        }, { merge: true });
         
         console.log('✅ User apartment cleared in transaction');
       });
@@ -2040,10 +2038,9 @@ export class FirestoreService {
         }
         
         // Update user's apartment: someId -> null
-        transaction.update(userRef, {
-          'apartment.id': null,
-          'apartment.role': null
-        });
+        transaction.set(userRef, { 
+          apartment: { id: null } 
+        }, { merge: true });
         
         console.log('✅ User apartment cleared in transaction');
       });
