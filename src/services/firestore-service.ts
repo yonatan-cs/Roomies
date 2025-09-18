@@ -918,6 +918,21 @@ export class FirestoreService {
   }
 
   /**
+   * Set the current user's apartment id using a single-field update (no SDK transaction)
+   * This avoids cross-write visibility issues in security rules when other writes
+   * occur in the same client-side batch/transaction.
+   */
+  private async setUserApartmentId(userId: string, apartmentId: string | null): Promise<void> {
+    // Update only the nested field apartment.id to satisfy the users rules
+    await this.updateDocument(
+      COLLECTIONS.USERS,
+      userId,
+      { apartment: { id: apartmentId } },
+      ['apartment.id']
+    );
+  }
+
+  /**
    * Delete a document
    */
   async deleteDocument(collectionName: string, documentId: string): Promise<void> {
@@ -1250,28 +1265,9 @@ export class FirestoreService {
             console.error('❌ Invite read-back failed:', readBackError);
           }
           
-          // Set creator as member of the apartment using transaction
-          console.log('👤 Setting creator as member of apartment...');
-          await runTransaction(db, async (transaction) => {
-            const userRef = doc(db, 'users', currentUser.localId);
-            const userDoc = await transaction.get(userRef);
-            
-            if (!userDoc.exists()) {
-              throw new Error('User document not found');
-            }
-            
-            const currentApartmentId = userDoc.data()?.apartment?.id;
-            if (currentApartmentId && currentApartmentId !== null) {
-              throw new Error('User is already a member of an apartment');
-            }
-            
-            // Update user's apartment: null -> apartmentId
-            transaction.set(userRef, { 
-              apartment: { id: apartment.id } 
-            }, { merge: true });
-            
-            console.log('✅ Creator apartment set in transaction');
-          });
+          // Set creator as member AFTER apartment+invite exist, in a separate call
+          console.log('👤 Setting creator as member of apartment (separate write)...');
+          await this.setUserApartmentId(currentUser.localId, apartment.id);
           console.log('✅ Creator membership created successfully');
           
           // Success! Return the apartment with creator already as member
@@ -1429,28 +1425,8 @@ export class FirestoreService {
         throw new Error('User can only add themselves to apartments');
       }
 
-      // Use transaction to ensure atomicity: null -> someId only
-      await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', userId);
-        const userDoc = await transaction.get(userRef);
-        
-        if (!userDoc.exists()) {
-          throw new Error('User document not found');
-        }
-        
-        const currentApartmentId = userDoc.data()?.apartment?.id;
-        if (currentApartmentId && currentApartmentId !== null) {
-          throw new Error('User is already a member of an apartment');
-        }
-        
-        // Update user's apartment: null -> apartmentId (only apartment field)
-        // Note: Security rules will check exists(/apartments/{id}) automatically
-        transaction.set(userRef, { 
-          apartment: { id: apartmentId } 
-        }, { merge: true });
-        
-        console.log('✅ User apartment updated in transaction');
-      });
+      // Perform a single-field update in a separate call
+      await this.setUserApartmentId(userId, apartmentId);
       
       // Return minimal apartment object with ID
       return { id: apartmentId };
@@ -1484,15 +1460,9 @@ export class FirestoreService {
       const invite = await this.getInviteDocument(inviteCode, idToken);
       console.log('📋 Found invite:', invite);
       
-      // 2. Simple transaction: just set apartment.id (security rules handle the rest)
-      await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, 'users', currentUser.localId);
-        transaction.set(userRef, { 
-          apartment: { id: invite.apartmentId } 
-        }, { merge: true });
-        
-        console.log('✅ User apartment updated in transaction');
-      });
+      // 2. Separate write: set apartment.id (no transaction batching)
+      await this.setUserApartmentId(currentUser.localId, invite.apartmentId);
+      console.log('✅ User apartment updated');
       
       // 3. Wait for server to confirm membership
       console.log('⏳ Waiting for server to confirm membership...');
