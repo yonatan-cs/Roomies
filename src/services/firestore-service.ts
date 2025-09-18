@@ -1320,11 +1320,10 @@ export class FirestoreService {
           throw new Error('User is already a member of an apartment');
         }
         
-        // Update user's apartment: null -> apartmentId
-        transaction.update(userRef, {
-          'apartment.id': apartmentId,
-          'apartment.role': 'member'
-        });
+        // Update user's apartment: null -> apartmentId (only apartment field)
+        transaction.set(userRef, { 
+          apartment: { id: apartmentId } 
+        }, { merge: true });
         
         console.log('✅ User apartment updated in transaction');
       });
@@ -1376,11 +1375,10 @@ export class FirestoreService {
           throw new Error('User is already a member of an apartment');
         }
         
-        // Update user's apartment: null -> apartmentId
-        transaction.update(userRef, {
-          'apartment.id': invite.apartmentId,
-          'apartment.role': 'member'
-        });
+        // Update user's apartment: null -> apartmentId (only apartment field)
+        transaction.set(userRef, { 
+          apartment: { id: invite.apartmentId } 
+        }, { merge: true });
         
         console.log('✅ User apartment updated in transaction');
       });
