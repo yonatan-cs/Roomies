@@ -1,0 +1,450 @@
+// Firestore Security Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helpers ----------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Return users/{uid}.apartment.id or null
+    function userApartmentId(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+             ('apartment' in get(/databases/$(database)/documents/users/$(uid)).data) &&
+             ('id' in get(/databases/$(database)/documents/users/$(uid)).data.apartment)
+        ? get(/databases/$(database)/documents/users/$(uid)).data.apartment.id
+        : null;
+    }
+
+    // Current user's apartment id (may be null)
+    function currentUserApartmentId() {
+      return isAuthenticated() ? userApartmentId(request.auth.uid) : null;
+    }
+
+    // Is given user a member of apartmentId?
+    function isInApartment(apartmentId, uid) {
+      return apartmentId != null && userApartmentId(uid) == apartmentId;
+    }
+
+    // Restrict UPDATEs to specific keys where relevant
+    function changedOnly(allowed) {
+      return request.resource.data.diff(resource.data).changedKeys().hasOnly(allowed);
+    }
+
+    // Email must remain immutable
+    function emailUnchanged() {
+      return (!('email' in resource.data)) ||
+             (('email' in request.resource.data) && request.resource.data.email == resource.data.email);
+    }
+
+    // ---------- Balance helpers (for informational checks) ----------
+    function balanceDocExists(apartmentId, userId) {
+      return exists(/databases/$(database)/documents/balances/$(apartmentId)/users/$(userId));
+    }
+    function userNetBalance(apartmentId, userId) {
+      return balanceDocExists(apartmentId, userId)
+        ? get(/databases/$(database)/documents/balances/$(apartmentId)/users/$(userId)).data.net
+        : 0;
+    }
+    function hasZeroNet(apartmentId, userId) {
+      let net = userNetBalance(apartmentId, userId);
+      return net >= -0.01 && net <= 0.01;
+    }
+    function noOpenDebts(apartmentId, userId) {
+      return !balanceDocExists(apartmentId, userId) ||
+             !('has_open_debts' in get(/databases/$(database)/documents/balances/$(apartmentId)/users/$(userId)).data) ||
+             get(/databases/$(database)/documents/balances/$(apartmentId)/users/$(userId)).data.has_open_debts == false;
+    }
+
+    // ---------- users ----------
+    // Shape (relevant to rules):
+    // users/{userId}: {
+    //   full_name: string,
+    //   phone?: string,
+    //   email: string (immutable, equals auth email),
+    //   apartment?: { id: string|null } // embedded apartment info (no role)
+    // }
+
+    // Join now (one-time): from null → valid apartment id
+    function isJoiningNow(userId) {
+      return isSelf(userId)
+        && ( !('apartment' in resource.data)
+             || !('id' in resource.data.apartment)
+             || resource.data.apartment.id == null )
+        && ('apartment' in request.resource.data)
+        && ('id' in request.resource.data.apartment)
+        && (request.resource.data.apartment.id is string)
+        && exists(/databases/$(database)/documents/apartments/$(request.resource.data.apartment.id));
+    }
+
+    // Leave now: from someId → null
+    function isLeavingNow() {
+      return ('apartment' in resource.data) && ('id' in resource.data.apartment)
+        && resource.data.apartment.id is string
+        && ('apartment' in request.resource.data) && ('id' in request.resource.data.apartment)
+        && request.resource.data.apartment.id == null;
+    }
+
+    match /users/{userId} {
+      // Read: self OR any user שנמצא באותה דירה כמוך
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId ||
+        (currentUserApartmentId() != null && isInApartment(currentUserApartmentId(), userId))
+      );
+
+      // Create: ע"י המשתמש עצמו; אימייל חייב להיות זהה ל-auth; apartment לא קיים/NULL בתחילה
+      allow create: if isSelf(userId)
+        && request.resource.data.email == request.auth.token.email
+        && (
+          !('apartment' in request.resource.data) ||
+          !('id' in request.resource.data.apartment) ||
+          request.resource.data.apartment.id == null
+        );
+
+      // Update (מכסה את כל המצבים הרצויים):
+      // 1) עריכת פרופיל (full_name, phone) בלבד
+      // 2) הצטרפות חד-פעמית null → id (apartment חייב להתקיים)
+      // 3) עזיבה someId → null
+      // אימייל נשאר קבוע תמיד
+      allow update: if isSelf(userId) && emailUnchanged() && (
+        // 1) עריכת פרופיל פשוטה
+        changedOnly(['full_name','phone']) ||
+
+        // 2) הצטרפות
+        (changedOnly(['full_name','phone','apartment']) && isJoiningNow(userId)) ||
+
+        // 3) עזיבה
+        (changedOnly(['full_name','phone','apartment']) && isLeavingNow()) ||
+
+        // 4) עדכון שדות פרופיל תוך שליחת apartment ללא שינוי (לא נספר ב-changedKeys)
+        (changedOnly(['full_name','phone']))
+      );
+    }
+
+    // ---------- apartments ----------
+    match /apartments/{apartmentId} {
+      allow read: if isAuthenticated() && isInApartment(apartmentId, request.auth.uid);
+
+      // Create: any authenticated user may create an apartment with 6-char invite_code
+      allow create: if isAuthenticated() &&
+        request.resource.data.invite_code is string &&
+        request.resource.data.invite_code.size() == 6;
+
+      // Update: any member of this apartment may update name/description
+      allow update: if isAuthenticated() && isInApartment(apartmentId, request.auth.uid) &&
+        changedOnly(['name','description']);
+
+      allow delete: if false;
+    }
+
+    // ---------- apartmentInvites ----------
+    match /apartmentInvites/{inviteCode} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.invite_code == inviteCode &&
+        request.resource.data.invite_code is string &&
+        request.resource.data.invite_code.size() == 6 &&
+        request.resource.data.apartment_id is string &&
+        request.resource.data.apartment_name is string;
+
+      allow update, delete: if false;
+    }
+
+    // ---------- expenses ----------
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() &&
+        resource.data.apartment_id == currentUserApartmentId();
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.paid_by_user_id == request.auth.uid &&
+        request.resource.data.apartment_id == currentUserApartmentId() &&
+        (!('visibleInUI' in request.resource.data) || request.resource.data.visibleInUI == true);
+
+      allow update: if isAuthenticated() &&
+        resource.data.apartment_id == currentUserApartmentId() &&
+        isInApartment(resource.data.apartment_id, request.auth.uid) &&
+        request.resource.data.paid_by_user_id == resource.data.paid_by_user_id &&
+        request.resource.data.apartment_id == resource.data.apartment_id &&
+        (!('visibleInUI' in request.resource.data) || request.resource.data.visibleInUI == resource.data.visibleInUI);
+
+      allow delete: if isAuthenticated() &&
+        resource.data.paid_by_user_id == request.auth.uid &&
+        resource.data.apartment_id == currentUserApartmentId();
+    }
+
+    // ---------- debtSettlements ----------
+    match /debtSettlements/{settlementId} {
+      allow read: if isAuthenticated() &&
+        resource.data.apartment_id == currentUserApartmentId();
+
+      allow create: if isAuthenticated() &&
+        (request.resource.data.payer_user_id == request.auth.uid || request.resource.data.receiver_user_id == request.auth.uid) &&
+        request.resource.data.apartment_id == currentUserApartmentId();
+
+      allow update, delete: if false;
+    }
+
+    // ---------- cleaningTasks ----------
+    match /cleaningTasks/{taskId} {
+      // Read if same apartment (by current) OR same apartment membership
+      allow read: if isAuthenticated() &&
+        (
+          resource.data.apartment_id == currentUserApartmentId() ||
+          isInApartment(resource.data.apartment_id, request.auth.uid)
+        );
+
+      // Create: member of the apartment; enforce id == apartment_id (single doc per apartment)
+      allow create: if isAuthenticated() &&
+        isInApartment(request.resource.data.apartment_id, request.auth.uid) &&
+        taskId == request.resource.data.apartment_id;
+
+      // Update: same logic; restrict fields
+      allow update: if isAuthenticated() &&
+        (
+          resource.data.apartment_id == currentUserApartmentId() ||
+          isInApartment(resource.data.apartment_id, request.auth.uid)
+        ) &&
+        (
+          resource.data.user_id == request.auth.uid ||
+          isInApartment(resource.data.apartment_id, request.auth.uid)
+        ) &&
+        changedOnly([
+          'user_id',
+          'rotation',
+          'assigned_at',
+          'frequency_days',
+          'apartment_id',
+          'last_completed_at',
+          'last_completed_by'
+        ]) &&
+        request.resource.data.apartment_id == resource.data.apartment_id &&
+        (
+          !('last_completed_at' in request.resource.data) ||
+          request.resource.data.last_completed_at is timestamp
+        ) &&
+        (
+          !('last_completed_by' in request.resource.data) ||
+          request.resource.data.last_completed_by == request.auth.uid
+        );
+
+      allow delete: if false;
+    }
+
+    // ---------- checklistItems (subcollection) ----------
+    match /cleaningTasks/{taskId}/checklistItems/{itemId} {
+      allow read: if isAuthenticated() &&
+        (
+          resource.data.apartment_id == currentUserApartmentId() ||
+          isInApartment(resource.data.apartment_id, request.auth.uid)
+        );
+
+      allow create: if isAuthenticated() &&
+        (
+          request.resource.data.apartment_id == currentUserApartmentId() ||
+          isInApartment(request.resource.data.apartment_id, request.auth.uid)
+        ) &&
+        isInApartment(request.resource.data.apartment_id, request.auth.uid);
+
+      allow update: if isAuthenticated() &&
+        (
+          resource.data.apartment_id == currentUserApartmentId() ||
+          isInApartment(resource.data.apartment_id, request.auth.uid)
+        ) &&
+        get(/databases/$(database)/documents/cleaningTasks/$(taskId)).data.user_id == request.auth.uid &&
+        changedOnly(['completed','completed_by','completed_at']) &&
+        (
+          (request.resource.data.completed == true &&
+           request.resource.data.completed_by == request.auth.uid &&
+           request.resource.data.completed_at is timestamp)
+          ||
+          (request.resource.data.completed == false &&
+           (!('completed_by' in request.resource.data) || request.resource.data.completed_by == null) &&
+           (!('completed_at' in request.resource.data) || request.resource.data.completed_at == null))
+        );
+
+      allow delete: if isAuthenticated() &&
+        (
+          resource.data.apartment_id == currentUserApartmentId() ||
+          isInApartment(resource.data.apartment_id, request.auth.uid)
+        ) &&
+        isInApartment(resource.data.apartment_id, request.auth.uid);
+    }
+
+    // ---------- checklistItems (collection GROUP) - READ ONLY ----------
+    match /{path=**}/checklistItems/{itemId} {
+      allow read: if isAuthenticated() &&
+        (
+          resource.data.apartment_id == currentUserApartmentId() ||
+          isInApartment(resource.data.apartment_id, request.auth.uid)
+        );
+      allow create, update, delete: if false;
+    }
+
+    // ---------- shoppingItems ----------
+    match /shoppingItems/{itemId} {
+      allow read: if isAuthenticated() &&
+        resource.data.apartment_id == currentUserApartmentId();
+
+      allow create: if isAuthenticated() &&
+        request.resource.data.added_by_user_id == request.auth.uid &&
+        request.resource.data.apartment_id == currentUserApartmentId()
+        && request.resource.data.name is string
+        && (!('quantity' in request.resource.data) || request.resource.data.quantity is number)
+        && (!('priority' in request.resource.data) ||
+            request.resource.data.priority in ['low','normal','high'] ||
+            request.resource.data.priority is int)
+        && (!('purchased' in request.resource.data) || request.resource.data.purchased == false)
+        && (!('purchased_by_user_id' in request.resource.data) || request.resource.data.purchased_by_user_id == null);
+
+      allow update: if isAuthenticated() &&
+        resource.data.apartment_id == currentUserApartmentId() && (
+          (
+            resource.data.purchased == false &&
+            changedOnly(['name','quantity','unit','notes','price','priority','name_lower','last_updated','order_index'])
+          )
+          ||
+          (
+            changedOnly(['purchased','purchased_by_user_id','purchased_at','price']) &&
+            request.resource.data.purchased == true &&
+            request.resource.data.purchased_by_user_id == request.auth.uid &&
+            request.resource.data.purchased_at is timestamp
+          )
+          ||
+          (
+            changedOnly(['purchased','purchased_by_user_id','purchased_at']) &&
+            request.resource.data.purchased == false &&
+            resource.data.purchased_by_user_id == request.auth.uid &&
+            (!('purchased_by_user_id' in request.resource.data) || request.resource.data.purchased_by_user_id == null) &&
+            (!('purchased_at' in request.resource.data) || request.resource.data.purchased_at == null)
+          )
+        );
+
+      allow delete: if isAuthenticated() &&
+        resource.data.added_by_user_id == request.auth.uid &&
+        resource.data.purchased == false &&
+        resource.data.apartment_id == currentUserApartmentId();
+    }
+
+    // ---------- debts ----------
+    match /debts/{debtId} {
+      allow read: if isAuthenticated()
+        && resource.data.apartment_id == currentUserApartmentId();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.apartment_id == currentUserApartmentId()
+        && isInApartment(request.resource.data.apartment_id, request.auth.uid)
+        && (request.resource.data.from_user_id is string)
+        && (request.resource.data.to_user_id is string)
+        && (
+             (request.resource.data.amount is number) ||
+             (request.resource.data.amount_cents is int)
+           )
+        && request.resource.data.status == 'open';
+
+      allow update: if isAuthenticated()
+        && resource.data.apartment_id == currentUserApartmentId()
+        && isInApartment(resource.data.apartment_id, request.auth.uid)
+        && resource.data.status == 'open'
+        && request.resource.data.status == 'closed'
+        && request.resource.data.apartment_id == resource.data.apartment_id
+        && request.resource.data.from_user_id == resource.data.from_user_id
+        && request.resource.data.to_user_id == resource.data.to_user_id
+        && (
+            ( changedOnly(['status','closed_at','closed_by']) )
+            ||
+            (
+              changedOnly(['status','closed_at','closed_by','amount','amount_cents']) &&
+              (!('amount' in request.resource.data) || request.resource.data.amount == 0) &&
+              (!('amount_cents' in request.resource.data) || request.resource.data.amount_cents == 0)
+            )
+           );
+
+      allow delete: if false;
+    }
+
+    // ---------- balances ----------
+    match /balances/{apartmentId}/users/{userId} {
+      allow read: if isAuthenticated()
+        && (
+          isInApartment(apartmentId, request.auth.uid) ||
+          currentUserApartmentId() == apartmentId
+        );
+
+      // זמני – עד שיעבור לשרת
+      allow write: if isAuthenticated();
+    }
+
+    // ---------- apartments stats (cleaning counters) ----------
+    // Structure: /apartments/{apartmentId}/stats/global
+    match /apartments/{apartmentId}/stats/{statsId} {
+      allow read: if isAuthenticated() &&
+        isInApartment(apartmentId, request.auth.uid);
+
+      allow create: if isAuthenticated() &&
+        isInApartment(apartmentId, request.auth.uid) &&
+        statsId == 'global';
+
+      // Atomic update: +1 to totalCleans and to perUser[uid]
+      allow update: if isAuthenticated()
+        && isInApartment(apartmentId, request.auth.uid)
+        && statsId == 'global'
+        && request.resource.data.keys().hasOnly(['totalCleans','perUser','lastUpdated'])
+        && (
+             (('totalCleans' in resource.data) && request.resource.data.totalCleans == resource.data.totalCleans + 1)
+             || (!('totalCleans' in resource.data) && request.resource.data.totalCleans == 1)
+           )
+        && (
+             (('perUser' in resource.data) && ('perUser' in request.resource.data)
+               && request.resource.data.perUser.keys().hasOnly(resource.data.perUser.keys().concat([request.auth.uid])))
+             || (!('perUser' in resource.data)
+               && ('perUser' in request.resource.data)
+               && request.resource.data.perUser.keys().hasOnly([request.auth.uid]))
+           )
+        && (
+             (('perUser' in resource.data) && (request.auth.uid in resource.data.perUser)
+               && ('perUser' in request.resource.data) && (request.auth.uid in request.resource.data.perUser)
+               && request.resource.data.perUser[request.auth.uid] == resource.data.perUser[request.auth.uid] + 1)
+             || ((!('perUser' in resource.data) || !(request.auth.uid in resource.data.perUser))
+               && ('perUser' in request.resource.data) && (request.auth.uid in request.resource.data.perUser)
+               && request.resource.data.perUser[request.auth.uid] == 1)
+           );
+
+      allow delete: if false;
+    }
+
+    // ---------- apartments audit_logs (server-only create) ----------
+    match /apartments/{apartmentId}/audit_logs/{logId} {
+      allow read: if isAuthenticated() && isInApartment(apartmentId, request.auth.uid);
+      allow create: if request.auth.token.admin == true;
+      allow update, delete: if false;
+    }
+
+    // ---------- actions (audit log) ----------
+    match /actions/{actionId} {
+      allow read: if isAuthenticated()
+        && resource.data.apartment_id == currentUserApartmentId();
+
+      allow create: if isAuthenticated()
+        && request.resource.data.apartment_id == currentUserApartmentId()
+        && request.resource.data.type in [
+             'debt_closed','debt_created','purchase','transfer',
+             'member_removed','member_left','member_invited','member_joined'
+           ]
+        && request.resource.data.actor_uid == request.auth.uid
+        && ('created_at' in request.resource.data);
+
+      allow update, delete: if false;
+    }
+
+    // ---------- default deny ----------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

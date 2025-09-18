@@ -159,7 +159,7 @@ function decodeJwt(token: string): { header: any; payload: any } | null {
 // Get user's current apartment ID from profile or fallback to latest membership
 async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<string | null> {
   try {
-    // Step 1: Try from user profile
+    // Step 1: Try from user profile - read from apartment.id instead of current_apartment_id
     const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${uid}`, {
       method: 'GET',
       headers: authHeaders(idToken),
@@ -167,11 +167,12 @@ async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<
     
     if (userResponse.status === 200) {
       const userDoc = await userResponse.json();
-      const apartmentId = userDoc.fields?.current_apartment_id?.stringValue;
+      const apartmentId = userDoc.fields?.apartment?.mapValue?.fields?.id?.stringValue;
       console.log('🔍 getUserCurrentApartmentId - user profile response:', {
         status: userResponse.status,
         hasFields: !!userDoc.fields,
-        hasCurrentApartmentId: !!userDoc.fields?.current_apartment_id,
+        hasApartment: !!userDoc.fields?.apartment,
+        hasApartmentId: !!userDoc.fields?.apartment?.mapValue?.fields?.id,
         apartmentIdValue: apartmentId,
         apartmentIdType: typeof apartmentId,
         apartmentIdLength: apartmentId?.length || 0
@@ -215,22 +216,21 @@ export async function getApartmentContextSlim(): Promise<{ uid: string; idToken:
 // ✅ ודא שהכלל resource.data.apartment_id == currentUserApartmentId() יתקיים
 export async function ensureCurrentApartmentIdMatches(aptId: string): Promise<void> {
   const { uid, idToken } = await requireSession();
-  const current = await getUserCurrentApartmentId(uid, idToken);
-  if (current === aptId) return;
 
-  // PATCH: users/{uid}?updateMask.fieldPaths=current_apartment_id
-  const url = `${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=current_apartment_id`;
-  const body = {
-    fields: {
-      current_apartment_id: { stringValue: aptId },
-    },
-  };
-  const res = await fetch(url, { method: 'PATCH', headers: H(idToken), body: JSON.stringify(body) });
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Firestore ensureCurrentApartmentIdMatches error:', res.status, text);
-      throw new Error(`ENSURE_APARTMENT_CONTEXT_FAILED_${res.status}: ${text}`);
-    }
+  // Read user document to verify apartment membership
+  const res = await fetch(`${FIRESTORE_BASE_URL}/users/${uid}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('USER_DOC_NOT_FOUND');
+
+  const doc = await res.json();
+  const current = doc?.fields?.apartment?.mapValue?.fields?.id?.stringValue ?? null;
+
+  if (current !== aptId) {
+    // Don't write anything - just report mismatch so caller knows to stop/refresh
+    throw new Error('APARTMENT_CONTEXT_MISMATCH');
+  }
 }
 
 // Firestore data types for REST API
@@ -1052,7 +1052,7 @@ export class FirestoreService {
     };
   }
 
-  async updateUser(userId: string, userData: { full_name?: string; phone?: string; current_apartment_id?: string }): Promise<any> {
+  async updateUser(userId: string, userData: { full_name?: string; phone?: string }): Promise<any> {
     return this.updateDocument(COLLECTIONS.USERS, userId, userData);
   }
 
@@ -1599,12 +1599,12 @@ export class FirestoreService {
   }
 
   /**
-   * Ensure current_apartment_id is set in user profile before queries
-   * This prevents 403 errors on apartment-related queries
+   * Get user's current apartment ID from apartment.id field
+   * This replaces the old current_apartment_id field approach
    */
   async ensureCurrentApartmentId(userId: string, fallbackApartmentId: string | null): Promise<string | null> {
     try {
-      console.log('🔧 Ensuring current_apartment_id for user:', userId);
+      console.log('🔧 Getting apartment ID for user from apartment.id field:', userId);
       
       const idToken = await firebaseAuth.getCurrentIdToken();
       if (!idToken) {
@@ -1624,117 +1624,39 @@ export class FirestoreService {
       
       if (userResponse.status === 200) {
         const userDoc = await userResponse.json();
-        const currentApartmentId = userDoc.fields?.current_apartment_id?.stringValue || null;
+        const currentApartmentId = userDoc.fields?.apartment?.mapValue?.fields?.id?.stringValue || null;
         
         console.log('📋 Current apartment ID in profile:', currentApartmentId);
         
-        // If current_apartment_id exists and matches fallback - perfect
-        if (currentApartmentId && currentApartmentId === fallbackApartmentId) {
-          console.log('✅ current_apartment_id is already set correctly');
+        // Return the apartment ID if it exists
+        if (currentApartmentId) {
+          console.log('✅ Found apartment ID in user profile');
           return currentApartmentId;
         }
         
-        // If missing or different, and we have a fallback - update it
-        if (fallbackApartmentId) {
-          console.log('🔄 Updating current_apartment_id to:', fallbackApartmentId);
-          
-          const updateResponse = await fetch(
-            `${FIRESTORE_BASE_URL}/users/${userId}?updateMask.fieldPaths=current_apartment_id`,
-            {
-              method: 'PATCH',
-              headers: {
-                'Authorization': `Bearer ${idToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                fields: {
-                  current_apartment_id: { stringValue: fallbackApartmentId }
-                }
-              })
-            }
-          );
-          
-          console.log(`📊 Update response: ${updateResponse.status} (${updateResponse.statusText})`);
-          
-          if (updateResponse.status === 200) {
-            console.log('✅ Successfully updated current_apartment_id');
-            return fallbackApartmentId;
-          } else {
-            console.log('❌ Failed to update current_apartment_id');
-            try {
-              const errorData = await updateResponse.json();
-              console.log('📋 Error details:', JSON.stringify(errorData, null, 2));
-            } catch (e) {
-              console.log('❌ Could not parse error response');
-            }
-          }
-        }
-        
-        // Return current value if exists, otherwise null
-        return currentApartmentId;
+        // If no apartment ID found, return null (user not in any apartment)
+        console.log('📭 User is not in any apartment');
+        return null;
       }
       
-      // If user document doesn't exist and we have fallback - create user and set apartment
-      if (userResponse.status === 404 && fallbackApartmentId) {
-        console.log('📭 User document not found, creating with apartment ID...');
-        
-        // Create user document first
-        const createResponse = await fetch(`${FIRESTORE_BASE_URL}/users?documentId=${userId}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fields: {
-              email: { stringValue: '' },
-              full_name: { stringValue: '' },
-              phone: { stringValue: '' }
-            }
-          })
-        });
-        
-        console.log(`📊 Create user response: ${createResponse.status} (${createResponse.statusText})`);
-        
-        if (createResponse.status === 200) {
-          // Now update with apartment ID
-          const updateResponse = await fetch(
-            `${FIRESTORE_BASE_URL}/users/${userId}?updateMask.fieldPaths=current_apartment_id`,
-            {
-              method: 'PATCH',
-              headers: {
-                'Authorization': `Bearer ${idToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                fields: {
-                  current_apartment_id: { stringValue: fallbackApartmentId }
-                }
-              })
-            }
-          );
-          
-          console.log(`📊 Update apartment response: ${updateResponse.status} (${updateResponse.statusText})`);
-          
-          if (updateResponse.status === 200) {
-            console.log('✅ Successfully created user and set apartment ID');
-            return fallbackApartmentId;
-          }
-        }
+      // If user document doesn't exist, return null
+      if (userResponse.status === 404) {
+        console.log('📭 User document not found');
+        return null;
       }
       
-      console.log('📭 Could not ensure current_apartment_id');
+      console.log('📭 Could not get apartment ID from user profile');
       return null;
       
     } catch (error) {
-      console.error('❌ Error ensuring current apartment ID:', error);
+      console.error('❌ Error getting apartment ID:', error);
       return null;
     }
   }
 
   /**
    * Get reliable apartment ID for the current user
-   * First tries from user profile, then falls back to membership query
+   * First tries from user profile apartment.id field
    */
   async getReliableApartmentId(userId: string): Promise<string | null> {
     try {
@@ -1747,7 +1669,7 @@ export class FirestoreService {
       }
       
       // Step 1: Try from user profile
-      console.log('📋 Step 1: Checking user profile for current_apartment_id...');
+      console.log('📋 Step 1: Checking user profile for apartment.id...');
       const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${userId}`, {
         method: 'GET',
         headers: {
@@ -1758,7 +1680,7 @@ export class FirestoreService {
       
       if (userResponse.status === 200) {
         const userDoc = await userResponse.json();
-        const apartmentId = userDoc.fields?.current_apartment_id?.stringValue;
+        const apartmentId = userDoc.fields?.apartment?.mapValue?.fields?.id?.stringValue;
         if (apartmentId) {
           console.log('✅ Found apartment ID in user profile:', apartmentId);
           return apartmentId;
@@ -1782,54 +1704,88 @@ export class FirestoreService {
     try {
       console.log('👥 Getting apartment members with profiles for:', apartmentId);
       
-      // 1. Get all memberships
-      const memberships = await this.getApartmentMembers(apartmentId);
-      console.log('📋 Found memberships:', memberships);
-      
-      if (!memberships.length) {
-        console.log('📭 No members found for apartment');
-        return [];
+      // Use direct query instead of batchGet to avoid permission issues
+      // Query users collection where users.apartment.id == apartmentId with full profiles
+      const idToken = await firebaseAuth.getCurrentIdToken();
+      if (!idToken) {
+        throw new Error('No valid ID token available');
       }
       
-      // 2. Extract unique user IDs
-      const uids = Array.from(new Set(memberships.map(m => m.user_id).filter(Boolean)));
-      console.log('👤 Unique user IDs:', uids);
-      
-      // 3. Get user profiles
-      const userProfiles = await this.getUsersByIds(uids);
-      console.log('📋 User profiles loaded:', userProfiles);
-      
-      // 4. Combine memberships with profiles
-      const membersWithProfiles = await Promise.all(memberships.map(async membership => {
-        let profile = userProfiles[membership.user_id];
-        
-        // If profile not found, try to get it directly for current user
-        if (!profile) {
-          try {
-            // Try to get the user profile directly
-            const directProfile = await this.getUser(membership.user_id);
-            if (directProfile) {
-              profile = directProfile;
+      const url = `${FIRESTORE_BASE_URL}:runQuery`;
+      const body = {
+        structuredQuery: {
+          from: [{ collectionId: COLLECTIONS.USERS }],
+          where: {
+            fieldFilter: {
+              field: { fieldPath: 'apartment.id' },
+              op: 'EQUAL',
+              value: { stringValue: apartmentId }
             }
-          } catch (error) {
-            console.log('⚠️ Could not get direct profile for user:', membership.user_id);
+          },
+          select: {
+            fields: [
+              { fieldPath: 'full_name' },
+              { fieldPath: 'display_name' },
+              { fieldPath: 'email' },
+              { fieldPath: 'phone' },
+              { fieldPath: 'apartment' }
+            ]
           }
         }
-        
-        // Final fallback
-        if (!profile) {
-          profile = {
-            id: membership.user_id, 
-            full_name: 'משתמש',
-            email: 'unknown@example.com'
+      };
+      
+      console.log('📋 Query URL:', url);
+      console.log('📝 Query body:', JSON.stringify(body, null, 2));
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      
+      console.log(`📊 Members with profiles query response: ${response.status} (${response.statusText})`);
+      
+      if (response.status !== 200) {
+        throw new Error(`USERS_QUERY_${response.status}`);
+      }
+      
+      const rows = await response.json();
+      console.log('📋 Raw query results:', rows);
+      
+      const membersWithProfiles = rows
+        .filter((row: any) => row.document)
+        .map((row: any) => {
+          const doc = row.document;
+          const fields = doc.fields || {};
+          
+          // Extract user ID from document name
+          const nameParts = doc.name.split('/');
+          const userId = nameParts[nameParts.length - 1];
+          
+          // Build profile object
+          const profile = {
+            id: userId,
+            full_name: fields.full_name?.stringValue || '',
+            display_name: fields.display_name?.stringValue || '',
+            email: fields.email?.stringValue || '',
+            phone: fields.phone?.stringValue || '',
           };
-        }
-        
-        return {
-          ...membership,
-          profile
-        };
-      }));
+          
+          // Build membership object
+          const membership = {
+            user_id: userId,
+            apartment_id: apartmentId,
+            role: fields.apartment?.mapValue?.fields?.role?.stringValue || 'member',
+          };
+          
+          return {
+            ...membership,
+            profile
+          };
+        });
       
       console.log('✅ Members with profiles:', membersWithProfiles);
       return membersWithProfiles;
@@ -1859,24 +1815,14 @@ export class FirestoreService {
       
       console.log('✅ Found apartment ID:', apartmentId);
       
-      // 2. Ensure current_apartment_id is set before any queries
-      console.log('🔧 Ensuring current_apartment_id before getting apartment data...');
-      const ensuredApartmentId = await this.ensureCurrentApartmentId(uid, apartmentId);
+      // 2. Get apartment details
+      console.log('🏠 Getting apartment details for:', apartmentId);
+      const apartment = await this.getApartment(apartmentId);
       
-      if (!ensuredApartmentId) {
-        console.log('❌ Could not ensure current_apartment_id');
-        return null;
-      }
+      // 3. Get members with profiles
+      const membersWithProfiles = await this.getApartmentMembersWithProfiles(apartmentId);
       
-      console.log('✅ Using ensured apartment ID:', ensuredApartmentId);
-      
-      // 3. Get apartment details
-      const apartment = await this.getApartment(ensuredApartmentId);
-      
-      // 4. Get members with profiles
-      const membersWithProfiles = await this.getApartmentMembersWithProfiles(ensuredApartmentId);
-      
-      // 5. Combine everything
+      // 4. Combine everything
       const completeData = {
         ...apartment,
         members: membersWithProfiles.map(member => {
@@ -1894,7 +1840,7 @@ export class FirestoreService {
             name: actualName,
             display_name: actualName, // Add for consistency
             role: member.role,
-            current_apartment_id: ensuredApartmentId,
+            apartment_id: apartmentId,
           };
           
           console.log(`👥 Member data for ${member.user_id}:`, {
@@ -2420,18 +2366,18 @@ export class FirestoreService {
 
       console.log(`🔍 Looking for current apartment for user: ${userId}`);
       
-      // Get user's profile to find their current_apartment_id
+      // Get user's profile to find their apartment.id
       const userData = await this.getDocument(COLLECTIONS.USERS, userId);
       
-      if (!userData || !userData.current_apartment_id) {
-        console.log('📋 User has no current apartment ID in profile');
+      if (!userData || !userData.apartment?.id) {
+        console.log('📋 User has no apartment ID in profile');
         return null;
       }
       
-      console.log(`🏠 User has apartment ID in profile: ${userData.current_apartment_id}`);
+      console.log(`🏠 User has apartment ID in profile: ${userData.apartment.id}`);
       
       // Get the apartment details
-      return await this.getApartment(userData.current_apartment_id);
+      return await this.getApartment(userData.apartment.id);
       
     } catch (error) {
       console.error('Get user current apartment error:', error);
