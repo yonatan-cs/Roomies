@@ -73,63 +73,68 @@ service cloud.firestore {
 
 
     match /users/{userId} {
-      // קריאה: עצמי בלי בדיקות נוספות; אחרים רק אם באותה דירה
+      // Read: self בלי בדיקות נוספות; אחרים רק אם באותה דירה
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
-        (request.auth.uid != userId && currentUserApartmentId() != null &&
+        (request.auth.uid != userId &&
+         currentUserApartmentId() != null &&
          isInApartment(currentUserApartmentId(), userId))
       );
 
-      // יצירה כבעבר (אימייל חייב להיות זהה ל-auth)
+      // Create: עצמי, אימייל חייב להיות זהה ל-auth, בלי דירה בתחילה
       allow create: if isAuthenticated()
         && request.auth.uid == userId
         && request.resource.data.email == request.auth.token.email
-        && (!('apartment' in request.resource.data) ||
-            !('id' in request.resource.data.apartment) ||
-            request.resource.data.apartment.id == null);
+        && (
+          !('apartment' in request.resource.data) ||
+          !('id' in request.resource.data.apartment) ||
+          request.resource.data.apartment.id == null
+        );
 
-      // עזרים
+      // אימייל לא משתנה בעדכון רגיל (לא מחייבים לשלוח email בכל עדכון)
       function emailUnchanged() {
         return (!('email' in resource.data)) ||
                !('email' in request.resource.data) ||
                request.resource.data.email == resource.data.email;
       }
-      
-      // Join פשוט: null/"" -> someId קיים
-      function isJoiningNowSimple(userId) {
+
+      // הצטרפות: null/"" → someId קיים
+      function canJoinNow(userId) {
         return request.auth != null
           && request.auth.uid == userId
+          // המצב הישן = לא חבר
           && (
                !('apartment' in resource.data) ||
                !('id' in resource.data.apartment) ||
                resource.data.apartment.id == null ||
                resource.data.apartment.id == ''
              )
+          // המצב החדש = יש id מחרוזת
           && ('apartment' in request.resource.data)
           && ('id' in request.resource.data.apartment)
           && (request.resource.data.apartment.id is string)
+          // הדירה חייבת להתקיים (בדיקת קיום ב-rules לא דורשת allow read)
           && exists(/databases/$(database)/documents/apartments/$(request.resource.data.apartment.id));
       }
-      
-      // Leave: someId -> null
-      function isLeavingNow() {
+
+      // עזיבה: someId → null
+      function canLeaveNow() {
         return ('apartment' in resource.data) && ('id' in resource.data.apartment)
           && resource.data.apartment.id is string
           && ('apartment' in request.resource.data) && ('id' in request.resource.data.apartment)
           && request.resource.data.apartment.id == null;
       }
 
-      // עדכון: פרופיל פשוט או Join/Leave. לא דורשים שום דבר מעבר לקיום הדירה.
-      allow update: if isAuthenticated() && request.auth.uid == userId && emailUnchanged() && (
-        // פרופיל
-        request.resource.data.diff(resource.data).changedKeys().hasOnly(['full_name','phone'])
+      // עדכון:
+      //  - פרופיל (full_name/phone) — עם emailUnchanged
+      //  - או הצטרפות/עזיבה — לא תלויות ב-changedOnly ולא רגישות ל-updateMask
+      allow update: if isAuthenticated() && request.auth.uid == userId && (
+        ( emailUnchanged() &&
+          request.resource.data.diff(resource.data).changedKeys().hasOnly(['full_name','phone']) )
         ||
-        // Join/Leave
-        (request.resource.data.diff(resource.data).changedKeys().hasOnly(['full_name','phone','apartment'])
-          && (isJoiningNowSimple(userId) || isLeavingNow()))
+        canJoinNow(userId)
         ||
-        // העברת full_name/phone ללא שינוי ממשי ב-apartment
-        (request.resource.data.diff(resource.data).changedKeys().hasOnly(['full_name','phone']))
+        canLeaveNow()
       );
     }
 
