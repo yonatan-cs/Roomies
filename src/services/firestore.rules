@@ -71,59 +71,65 @@ service cloud.firestore {
     //   apartment?: { id: string|null } // embedded apartment info (no role)
     // }
 
-    // Join now (one-time): from null → valid apartment id
-    function isJoiningNow(userId) {
-      return isSelf(userId)
-        && ( !('apartment' in resource.data)
-             || !('id' in resource.data.apartment)
-             || resource.data.apartment.id == null )
-        && ('apartment' in request.resource.data)
-        && ('id' in request.resource.data.apartment)
-        && (request.resource.data.apartment.id is string)
-        && exists(/databases/$(database)/documents/apartments/$(request.resource.data.apartment.id));
-    }
-
-    // Leave now: from someId → null
-    function isLeavingNow() {
-      return ('apartment' in resource.data) && ('id' in resource.data.apartment)
-        && resource.data.apartment.id is string
-        && ('apartment' in request.resource.data) && ('id' in request.resource.data.apartment)
-        && request.resource.data.apartment.id == null;
-    }
 
     match /users/{userId} {
-      // Read: self OR any user שנמצא באותה דירה כמוך
+      // קריאה: עצמי בלי בדיקות נוספות; אחרים רק אם באותה דירה
       allow read: if isAuthenticated() && (
         request.auth.uid == userId ||
-        (currentUserApartmentId() != null && isInApartment(currentUserApartmentId(), userId))
+        (request.auth.uid != userId && currentUserApartmentId() != null &&
+         isInApartment(currentUserApartmentId(), userId))
       );
 
-      // Create: ע"י המשתמש עצמו; אימייל חייב להיות זהה ל-auth; apartment לא קיים/NULL בתחילה
-      allow create: if isSelf(userId)
+      // יצירה כבעבר (אימייל חייב להיות זהה ל-auth)
+      allow create: if isAuthenticated()
+        && request.auth.uid == userId
         && request.resource.data.email == request.auth.token.email
-        && (
-          !('apartment' in request.resource.data) ||
-          !('id' in request.resource.data.apartment) ||
-          request.resource.data.apartment.id == null
-        );
+        && (!('apartment' in request.resource.data) ||
+            !('id' in request.resource.data.apartment) ||
+            request.resource.data.apartment.id == null);
 
-      // Update (מכסה את כל המצבים הרצויים):
-      // 1) עריכת פרופיל (full_name, phone) בלבד
-      // 2) הצטרפות חד-פעמית null → id (apartment חייב להתקיים)
-      // 3) עזיבה someId → null
-      // אימייל נשאר קבוע תמיד
-      allow update: if isSelf(userId) && emailUnchanged() && (
-        // 1) עריכת פרופיל פשוטה
-        changedOnly(['full_name','phone']) ||
+      // עזרים
+      function emailUnchanged() {
+        return (!('email' in resource.data)) ||
+               !('email' in request.resource.data) ||
+               request.resource.data.email == resource.data.email;
+      }
+      
+      // Join פשוט: null/"" -> someId קיים
+      function isJoiningNowSimple(userId) {
+        return request.auth != null
+          && request.auth.uid == userId
+          && (
+               !('apartment' in resource.data) ||
+               !('id' in resource.data.apartment) ||
+               resource.data.apartment.id == null ||
+               resource.data.apartment.id == ''
+             )
+          && ('apartment' in request.resource.data)
+          && ('id' in request.resource.data.apartment)
+          && (request.resource.data.apartment.id is string)
+          && exists(/databases/$(database)/documents/apartments/$(request.resource.data.apartment.id));
+      }
+      
+      // Leave: someId -> null
+      function isLeavingNow() {
+        return ('apartment' in resource.data) && ('id' in resource.data.apartment)
+          && resource.data.apartment.id is string
+          && ('apartment' in request.resource.data) && ('id' in request.resource.data.apartment)
+          && request.resource.data.apartment.id == null;
+      }
 
-        // 2) הצטרפות
-        (changedOnly(['full_name','phone','apartment']) && isJoiningNow(userId)) ||
-
-        // 3) עזיבה
-        (changedOnly(['full_name','phone','apartment']) && isLeavingNow()) ||
-
-        // 4) עדכון שדות פרופיל תוך שליחת apartment ללא שינוי (לא נספר ב-changedKeys)
-        (changedOnly(['full_name','phone']))
+      // עדכון: פרופיל פשוט או Join/Leave. לא דורשים שום דבר מעבר לקיום הדירה.
+      allow update: if isAuthenticated() && request.auth.uid == userId && emailUnchanged() && (
+        // פרופיל
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['full_name','phone'])
+        ||
+        // Join/Leave
+        (request.resource.data.diff(resource.data).changedKeys().hasOnly(['full_name','phone','apartment'])
+          && (isJoiningNowSimple(userId) || isLeavingNow()))
+        ||
+        // העברת full_name/phone ללא שינוי ממשי ב-apartment
+        (request.resource.data.diff(resource.data).changedKeys().hasOnly(['full_name','phone']))
       );
     }
 

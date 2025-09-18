@@ -1462,49 +1462,32 @@ export class FirestoreService {
   }
 
   /**
-   * Join apartment using invite code - Works with Spark Plan (free)
-   * Fixed implementation with proper REST API calls
+   * Join apartment using invite code - Simple and clean approach
    */
   async joinApartmentByInviteCode(inviteCode: string): Promise<any> {
     try {
       console.log('🔗 Joining apartment with code:', inviteCode);
       
-      // Refresh token before first protected write
-      await refreshTokenIfNeeded();
-      
-      // Get current user and token
+      // Get current user
       const currentUser = await firebaseAuth.getCurrentUser();
       if (!currentUser) {
         throw new Error('User not authenticated');
       }
       
+      console.log('👤 Current user ID:', currentUser.localId);
+      
+      // 1. Get invite document to validate code and get apartment ID
       const idToken = await firebaseAuth.getCurrentIdToken();
       if (!idToken) {
         throw new Error('No valid ID token available');
       }
       
-      console.log('👤 Current user ID:', currentUser.localId);
-      
-      // 1. Get invite document
       const invite = await this.getInviteDocument(inviteCode, idToken);
       console.log('📋 Found invite:', invite);
       
-      // 2. Use transaction to join apartment: null -> someId only
+      // 2. Simple transaction: just set apartment.id (security rules handle the rest)
       await runTransaction(db, async (transaction) => {
         const userRef = doc(db, 'users', currentUser.localId);
-        const userDoc = await transaction.get(userRef);
-        
-        if (!userDoc.exists()) {
-          throw new Error('User document not found');
-        }
-        
-        const currentApartmentId = userDoc.data()?.apartment?.id;
-        if (currentApartmentId && currentApartmentId !== null) {
-          throw new Error('User is already a member of an apartment');
-        }
-        
-        // Update user's apartment: null -> apartmentId (only apartment field)
-        // Note: Security rules will check exists(/apartments/{id}) automatically
         transaction.set(userRef, { 
           apartment: { id: invite.apartmentId } 
         }, { merge: true });
@@ -1512,13 +1495,17 @@ export class FirestoreService {
         console.log('✅ User apartment updated in transaction');
       });
       
-      // 3. Wait for server to confirm membership before proceeding
+      // 3. Wait for server to confirm membership
       console.log('⏳ Waiting for server to confirm membership...');
       await waitForMembership(currentUser.localId, invite.apartmentId);
       
-      // 4. Return minimal object with ID
+      // 4. Return apartment info
       console.log('✅ Successfully joined apartment:', invite.apartmentId);
-      return { id: invite.apartmentId };
+      return { 
+        id: invite.apartmentId,
+        name: invite.apartmentName,
+        invite_code: invite.inviteCode
+      };
       
     } catch (error) {
       console.error('❌ Join apartment error:', error);
