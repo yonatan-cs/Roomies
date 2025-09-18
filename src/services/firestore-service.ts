@@ -127,6 +127,24 @@ export async function requireSession(): Promise<{ uid: string; idToken: string }
   }
 }
 
+/**
+ * Refresh ID token before first protected write after sign-in
+ * This prevents edge cases of stale tokens during initial writes
+ */
+export async function refreshTokenIfNeeded(): Promise<void> {
+  try {
+    const user = await firebaseAuth.getCurrentUser();
+    if (user) {
+      // Get fresh token (this will use cached token if recent)
+      await firebaseAuth.getCurrentIdToken();
+      console.log('🔄 Token refreshed for first protected write');
+    }
+  } catch (error) {
+    console.warn('⚠️ Token refresh failed:', error);
+    // Don't throw - this is optional optimization
+  }
+}
+
 // Safe base64 decoder that works in both browser and Node.js environments
 function safeBase64Decode(b64: string): string {
   try {
@@ -1057,6 +1075,52 @@ export class FirestoreService {
   }
 
   /**
+   * Safe update user profile - only allows fields permitted by security rules
+   * Ensures only full_name and phone can be updated (email and apartment are protected)
+   */
+  async updateUserProfile(userId: string, patch: { full_name?: string; phone?: string }): Promise<any> {
+    const { idToken } = await requireSession();
+    
+    // Build payload with only allowed fields
+    const payload: any = {};
+    if (typeof patch.full_name === "string") {
+      payload.full_name = patch.full_name;
+    }
+    if (typeof patch.phone === "string") {
+      payload.phone = patch.phone;
+    }
+    
+    // Ensure we have at least one field to update
+    if (Object.keys(payload).length === 0) {
+      throw new Error('No valid fields to update');
+    }
+    
+    console.log('🔒 Safe profile update with only allowed fields:', payload);
+    
+    // Use updateMask to be explicit about what we're updating
+    const updateMaskFields = Object.keys(payload);
+    const url = `${FIRESTORE_BASE_URL}/users/${userId}?${updateMaskFields.map(field => `updateMask.fieldPaths=${field}`).join('&')}`;
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: { 
+        Authorization: `Bearer ${idToken}`, 
+        'Content-Type': 'application/json' 
+      },
+      body: JSON.stringify({
+        fields: this.toFirestoreFormat(payload)
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`UPDATE_PROFILE_${response.status}: ${errorText}`);
+    }
+    
+    return await response.json();
+  }
+
+  /**
    * Apartment management - Works with Spark Plan (free)
    */
   async createApartment(apartmentData: {
@@ -1344,6 +1408,9 @@ export class FirestoreService {
   async joinApartmentByInviteCode(inviteCode: string): Promise<any> {
     try {
       console.log('🔗 Joining apartment with code:', inviteCode);
+      
+      // Refresh token before first protected write
+      await refreshTokenIfNeeded();
       
       // Get current user and token
       const currentUser = await firebaseAuth.getCurrentUser();
@@ -1721,16 +1788,8 @@ export class FirestoreService {
               op: 'EQUAL',
               value: { stringValue: apartmentId }
             }
-          },
-          select: {
-            fields: [
-              { fieldPath: 'full_name' },
-              { fieldPath: 'display_name' },
-              { fieldPath: 'email' },
-              { fieldPath: 'phone' },
-              { fieldPath: 'apartment' }
-            ]
           }
+          // No select clause - get all fields to match SDK behavior
         }
       };
       
@@ -1765,7 +1824,7 @@ export class FirestoreService {
           const nameParts = doc.name.split('/');
           const userId = nameParts[nameParts.length - 1];
           
-          // Build profile object
+          // Build profile object (convert from Firestore format)
           const profile = {
             id: userId,
             full_name: fields.full_name?.stringValue || '',
