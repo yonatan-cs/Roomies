@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Pl
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import ConfirmModal from '../components/ConfirmModal';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
@@ -84,7 +84,7 @@ export default function SettingsScreen() {
   const handleCopyCode = async () => {
     if (!currentApartment?.invite_code) return;
     try {
-      Clipboard.setString(currentApartment.invite_code);
+      await Clipboard.setStringAsync(currentApartment.invite_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (error) {
