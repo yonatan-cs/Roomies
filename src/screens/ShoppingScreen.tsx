@@ -19,6 +19,7 @@ import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
 import { success, impactMedium } from '../utils/haptics';
+import { getDisplayName } from '../utils/userDisplay';
 
 
 // ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
@@ -236,7 +237,8 @@ export default function ShoppingScreen() {
 
   const getUserName = (userId: string) => {
     if (userId === currentUser?.id) return t('common.you');
-    return currentApartment?.members.find(m => m.id === userId)?.name || t('common.unknown');
+    const member = currentApartment?.members.find(m => m.id === userId);
+    return getDisplayName(member) || t('common.unknown');
   };
 
   const handleRepurchase = async (itemId: string) => {

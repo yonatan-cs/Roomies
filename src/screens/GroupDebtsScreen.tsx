@@ -18,6 +18,7 @@ import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
 import { AsyncButton } from '../components/AsyncButton';
+import { getDisplayName } from '../utils/userDisplay';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -125,7 +126,8 @@ export default function GroupDebtsScreen() {
 
   const getUserName = (userId: string) => {
     if (userId === currentUser?.id) return t('common.you');
-    return currentApartment?.members.find(m => m.id === userId)?.name || t('cleaning.unknownUser');
+    const member = currentApartment?.members.find(m => m.id === userId);
+    return getDisplayName(member) || t('cleaning.unknownUser');
   };
 
   const handleSettleDebt = (fromUserId: string, toUserId: string, amount: number) => {
@@ -316,7 +318,7 @@ export default function GroupDebtsScreen() {
                   "font-medium",
                   isCurrentUser ? "text-blue-700" : "text-gray-700"
                 )}>
-                  {user?.name} {isCurrentUser && `(${t('common.you')})`}
+                  {getDisplayName(user)} {isCurrentUser && `(${t('common.you')})`}
                 </Text>
                 
                 <Text className={cn(
