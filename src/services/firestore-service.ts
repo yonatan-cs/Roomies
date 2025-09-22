@@ -1822,53 +1822,16 @@ export class FirestoreService {
         return currentApartmentId;
       }
       
-      // If user document doesn't exist and we have fallback - create user and set apartment
+      // If user document doesn't exist and we have fallback - this shouldn't happen during normal login
+      // The user should already exist in Firestore from registration
       if (userResponse.status === 404 && fallbackApartmentId) {
-        console.log('📭 User document not found, creating with apartment ID...');
+        console.log('⚠️ User document not found in Firestore - this indicates a data inconsistency');
+        console.log('⚠️ User should already exist from registration. Not creating new user to avoid data loss.');
         
-        // Create user document first
-        const createResponse = await fetch(`${FIRESTORE_BASE_URL}/users?documentId=${userId}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${idToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            fields: {
-              email: { stringValue: '' },
-              full_name: { stringValue: '' },
-              phone: { stringValue: '' }
-            }
-          })
-        });
-        
-        console.log(`📊 Create user response: ${createResponse.status} (${createResponse.statusText})`);
-        
-        if (createResponse.status === 200) {
-          // Now update with apartment ID
-          const updateResponse = await fetch(
-            `${FIRESTORE_BASE_URL}/users/${userId}?updateMask.fieldPaths=current_apartment_id`,
-            {
-              method: 'PATCH',
-              headers: {
-                'Authorization': `Bearer ${idToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                fields: {
-                  current_apartment_id: { stringValue: fallbackApartmentId }
-                }
-              })
-            }
-          );
-          
-          console.log(`📊 Update apartment response: ${updateResponse.status} (${updateResponse.statusText})`);
-          
-          if (updateResponse.status === 200) {
-            console.log('✅ Successfully created user and set apartment ID');
-            return fallbackApartmentId;
-          }
-        }
+        // Instead of creating a new user with empty fields, we should return null
+        // and let the calling code handle this error appropriately
+        console.log('❌ Cannot ensure current_apartment_id for non-existent user');
+        return null;
       }
       
       console.log('📭 Could not ensure current_apartment_id');
