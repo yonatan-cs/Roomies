@@ -168,7 +168,7 @@ export default function AddExpenseScreen() {
                   )}
                 </View>
                 <Text className="text-gray-900 flex-1">
-                  {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && `(${t('common.you')})`}
+                  {getDisplayName(member)} {member.id === currentUser.id && `(${t('common.you')})`}
                 </Text>
               </Pressable>
             ))}

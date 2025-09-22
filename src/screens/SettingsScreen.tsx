@@ -145,7 +145,7 @@ User: ${currentUser?.name || 'Unknown'}
       if (!canBeRemoved.canBeRemoved) {
         Alert.alert(
           t('settings.alerts.cannotRemoveMember'),
-          `אי אפשר להסיר את ${getUserDisplayInfo(member).displayName} כי ${canBeRemoved.reason}. סגרו חובות ואז נסו שוב.`,
+          `אי אפשר להסיר את ${getDisplayName(member)} כי ${canBeRemoved.reason}. סגרו חובות ואז נסו שוב.`,
           [{ text: t('common.ok') }]
         );
         return;
@@ -154,7 +154,7 @@ User: ${currentUser?.name || 'Unknown'}
       // Show confirmation dialog
       setMemberToRemove({
         id: member.id,
-        name: getUserDisplayInfo(member).displayName
+        name: getDisplayName(member)
       });
       setConfirmRemoveVisible(true);
     } catch (error) {
@@ -301,7 +301,7 @@ User: ${currentUser?.name || 'Unknown'}
                 </View>
                 <View className="mr-3 flex-1">
                   <Text className="text-gray-900 font-medium">
-                    {getUserDisplayInfo(member).displayName} {member.id === currentUser.id && `(${t('common.you')})`}
+                    {getDisplayName(member)} {member.id === currentUser.id && `(${t('common.you')})`}
                   </Text>
                   <Text className="text-gray-500 text-sm">{member.email || t('common.unknown')}</Text>
                 </View>
