@@ -11,6 +11,7 @@ import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { useTranslation } from 'react-i18next';
 import { impactLight, success } from '../utils/haptics';
+import { getDisplayName } from '../utils/userDisplay';
 
 
 export default function CleaningScreen() {
@@ -307,7 +308,7 @@ export default function CleaningScreen() {
   const displayMemberName = (uid: string): string => {
     if (!currentApartment) return t('common.user');
     const member = currentApartment.members.find(m => m.id === uid);
-    return member?.name || t('common.user');
+    return getDisplayName(member) || t('common.user');
   };
 
   if (!currentApartment || !cleaningTask) {
@@ -351,7 +352,7 @@ export default function CleaningScreen() {
             </View>
 
             <Text className="text-xl font-semibold text-gray-900 mb-1">
-              {currentApartment.members.find((m) => m.id === (cleaningTask as any).user_id)?.name || t('cleaning.unknownUser')}
+              {getDisplayName(currentApartment.members.find((m) => m.id === (cleaningTask as any).user_id)) || t('cleaning.unknownUser')}
             </Text>
 
             {(() => {
@@ -439,7 +440,7 @@ export default function CleaningScreen() {
                   <View className="bg-blue-100 w-10 h-10 rounded-full items-center justify-center">
                     <Text className="text-blue-600 font-medium">1</Text>
                   </View>
-                  <Text className="text-gray-900 text-base mr-3">{currentApartment.members[0].name}</Text>
+                  <Text className="text-gray-900 text-base mr-3">{getDisplayName(currentApartment.members[0])}</Text>
                   <Text className="text-blue-600 text-sm">{t('cleaning.alwaysInTurn')}</Text>
                 </View>
               );
@@ -457,7 +458,7 @@ export default function CleaningScreen() {
                   <View className="bg-gray-100 w-10 h-10 rounded-full items-center justify-center">
                     <Text className="text-gray-600 font-medium">{i + 2}</Text>
                   </View>
-                  <Text className="text-gray-900 text-base mr-3">{user.name}</Text>
+                  <Text className="text-gray-900 text-base mr-3">{getDisplayName(user)}</Text>
                 </View>
               );
             });
@@ -505,7 +506,7 @@ export default function CleaningScreen() {
               <View className="mr-3">
                 <Text className="text-gray-600">{new Date(cleaningTask.last_completed_at).toLocaleString()}</Text>
                 {cleaningTask.last_completed_by && (
-                  <Text className="text-sm text-gray-500">{t('cleaning.byUser', { name: currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name })}</Text>
+                  <Text className="text-sm text-gray-500">{t('cleaning.byUser', { name: getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) })}</Text>
                 )}
               </View>
             </View>
@@ -520,7 +521,7 @@ export default function CleaningScreen() {
             <View className="flex-row items-center py-2">
               <Ionicons name="brush" size={16} color="#10b981" />
               <View className="mr-3">
-                <Text className="text-gray-900">{cleaningTask.last_completed_by ? (currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)?.name || t('cleaning.unknownUser')) : t('cleaning.unknownUser')}</Text>
+                <Text className="text-gray-900">{cleaningTask.last_completed_by ? (getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) || t('cleaning.unknownUser')) : t('cleaning.unknownUser')}</Text>
                 <Text className="text-sm text-gray-500">
                   {new Date(cleaningTask.last_completed_at).toLocaleString()}
                 </Text>
@@ -534,7 +535,7 @@ export default function CleaningScreen() {
                 <View key={history.id} className="flex-row items-center py-2">
                   <Ionicons name="brush" size={16} color="#10b981" />
                   <View className="mr-3">
-                    <Text className="text-gray-900">{user?.name || t('cleaning.unknownUser')}</Text>
+                    <Text className="text-gray-900">{getDisplayName(user) || t('cleaning.unknownUser')}</Text>
                     <Text className="text-sm text-gray-500">{new Date(history.cleanedAt).toLocaleString()}</Text>
                   </View>
                 </View>

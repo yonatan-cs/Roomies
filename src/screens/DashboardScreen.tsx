@@ -724,7 +724,7 @@ export default function DashboardScreen() {
           {/* My Balance */}
           <Pressable
             onPress={() => navigation.navigate('Budget')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -751,7 +751,7 @@ export default function DashboardScreen() {
           {/* Cleaning Turn */}
           <Pressable
             onPress={() => navigation.navigate('Cleaning')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -765,7 +765,7 @@ export default function DashboardScreen() {
               <Text className="text-gray-600 text-sm ml-2">{t('dashboard.cleaningTurn')}</Text>
             </View>
             <Text className="text-lg font-bold text-gray-900">
-              {currentTurnUser?.name || t('common.unknown')}
+              {getDisplayName(currentTurnUser) || t('common.unknown')}
             </Text>
             <Text className={cn(
               "text-xs",
@@ -778,7 +778,7 @@ export default function DashboardScreen() {
           {/* Shopping Items */}
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -799,7 +799,7 @@ export default function DashboardScreen() {
           {/* Roommates */}
           <Pressable
             onPress={() => navigation.navigate('Settings')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },

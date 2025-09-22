@@ -166,13 +166,15 @@ export default function BudgetScreen() {
 
   const getUserName = (userId: string) => {
     if (userId === currentUser?.id) return t('common.you');
-    return currentApartment?.members.find(m => m.id === userId)?.name || t('common.unknown');
+    const member = currentApartment?.members.find(m => m.id === userId);
+    return getDisplayName(member) || t('common.unknown');
   };
 
   const getActualUserName = (userId: string) => {
     // Always return the actual name, not "אתה"
-    return currentApartment?.members.find(m => m.id === userId)?.name || 
-           (userId === currentUser?.id ? (currentUser?.name || currentUser?.display_name || t('common.unknown')) : t('common.unknown'));
+    const member = currentApartment?.members.find(m => m.id === userId);
+    return getDisplayName(member) || 
+           (userId === currentUser?.id ? getDisplayName(currentUser) : t('common.unknown'));
   };
 
   // Helper function to get month name
