@@ -345,7 +345,7 @@ export default function BudgetScreen() {
             className="w-8 h-8 rounded-full bg-white items-center justify-center"
           >
             <Ionicons 
-              name={appLanguage === 'he' ? "chevron-forward" : "chevron-back"} 
+              name="chevron-back" 
               size={20} 
               color="#6b7280" 
             />
@@ -391,7 +391,7 @@ export default function BudgetScreen() {
             })()}
           >
             <Ionicons 
-              name={appLanguage === 'he' ? "chevron-back" : "chevron-forward"} 
+              name="chevron-forward" 
               size={20} 
               color={(() => {
                 const now = new Date();
@@ -580,7 +580,7 @@ export default function BudgetScreen() {
                           ? "text-white"
                           : "text-gray-700"
                       )}>
-                        {getUserDisplayInfo(member).displayName}
+                        {getDisplayName(member)}
                       </Text>
                     </Pressable>
                   ))}

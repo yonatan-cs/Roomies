@@ -541,7 +541,7 @@ export default function DashboardScreen() {
     // Check if user is still a member of the apartment
     const member = currentApartment?.members.find(m => m.id === userId);
     if (member) {
-      return getUserDisplayInfo(member).displayName;
+      return getDisplayName(member);
     }
     
     // If user is not a member anymore, show "לא ידוע" instead of "אורח"
@@ -724,7 +724,7 @@ export default function DashboardScreen() {
           {/* My Balance */}
           <Pressable
             onPress={() => navigation.navigate('Budget')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -751,7 +751,7 @@ export default function DashboardScreen() {
           {/* Cleaning Turn */}
           <Pressable
             onPress={() => navigation.navigate('Cleaning')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -778,7 +778,7 @@ export default function DashboardScreen() {
           {/* Shopping Items */}
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -1216,7 +1216,7 @@ export default function DashboardScreen() {
                           ? "text-white"
                           : "text-gray-700"
                       )}>
-                        {getUserDisplayInfo(member).displayName}
+                        {getDisplayName(member)}
                       </Text>
                     </Pressable>
                   ))}
