@@ -215,6 +215,12 @@ export const resources = {
           confirm: 'Confirm',
           adding: 'Adding...'
         },
+        deleteModal: {
+          title: 'Did you purchase this item?',
+          noJustDelete: 'No, just delete',
+          yesPurchased: 'Yes, I purchased it',
+          cancel: 'Cancel'
+        },
         detailsModal: {
           title: 'Item details',
           itemName: 'Item name',
@@ -681,6 +687,12 @@ export const resources = {
           cancel: 'ביטול',
           confirm: 'אישור',
           adding: 'מוסיף...'
+        },
+        deleteModal: {
+          title: 'האם קנית את הפריט?',
+          noJustDelete: 'לא, רק תמחק',
+          yesPurchased: 'כן, קניתי',
+          cancel: 'ביטול'
         },
         detailsModal: {
           title: 'פרטי הפריט',
