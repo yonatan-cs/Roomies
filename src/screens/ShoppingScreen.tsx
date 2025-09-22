@@ -143,13 +143,13 @@ export default function ShoppingScreen() {
       setShowItemDetailsModal(true);
     } else {
       Alert.alert(
-        t('common.confirm'),
-        t('shopping.purchaseModal.title'),
+        t('shopping.deleteModal.title'),
+        '',
         [
           {
-            text: t('shopping.addModal.cancel'),
+            text: t('shopping.deleteModal.noJustDelete'),
             onPress: async () => {
-              if (isPurchasingItem === itemId) return;
+              if (isRemovingItem === itemId) return;
               setIsRemovingItem(itemId);
               try {
                 await removeShoppingItem(itemId);
@@ -163,7 +163,7 @@ export default function ShoppingScreen() {
             style: 'destructive'
           },
           {
-            text: t('shopping.purchaseModal.confirm'),
+            text: t('shopping.deleteModal.yesPurchased'),
             onPress: () => {
               if (isPurchasingItem === itemId) return;
               setSelectedItemId(itemId);
@@ -173,7 +173,7 @@ export default function ShoppingScreen() {
               setShowPurchaseModal(true);
             }
           },
-          { text: t('common.cancel'), style: 'cancel' }
+          { text: t('shopping.deleteModal.cancel'), style: 'cancel' }
         ]
       );
     }

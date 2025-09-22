@@ -720,11 +720,11 @@ export default function DashboardScreen() {
         </View>
 
         {/* Quick Stats Cards */}
-        <View className="flex-row flex-wrap mb-6">
+        <View className="flex-row flex-wrap mb-6 gap-3">
           {/* My Balance */}
           <Pressable
             onPress={() => navigation.navigate('Budget')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 ml-2"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -751,7 +751,7 @@ export default function DashboardScreen() {
           {/* Cleaning Turn */}
           <Pressable
             onPress={() => navigation.navigate('Cleaning')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -778,7 +778,7 @@ export default function DashboardScreen() {
           {/* Shopping Items */}
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3 ml-2"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -799,7 +799,7 @@ export default function DashboardScreen() {
           {/* Roommates */}
           <Pressable
             onPress={() => navigation.navigate('Settings')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-3"
+            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-4"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
