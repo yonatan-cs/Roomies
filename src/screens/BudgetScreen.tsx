@@ -24,7 +24,7 @@ import ExpenseEditModal from '../components/ExpenseEditModal';
 import { Expense } from '../types';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
-import { getUserDisplayInfo } from '../utils/userDisplay';
+import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { useTranslation } from 'react-i18next';
 
 type RootStackParamList = {
