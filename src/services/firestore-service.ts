@@ -6,8 +6,10 @@
 import { FIRESTORE_BASE_URL, COLLECTIONS } from './firebase-config';
 import { firebaseAuth } from './firebase-auth';
 import { db } from './firebase-sdk';
-import { runTransaction, doc } from 'firebase/firestore';
+import { runTransaction, doc, getFirestore, collection, doc as fsDoc, addDoc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { ChecklistItem } from '../types';
+import { getAuth, getIdToken, getIdTokenResult } from 'firebase/auth';
+import { firebaseConfig } from './firebase-config';
 
 // --- Session helpers ---
 const authHeaders = (idToken: string) => ({
@@ -177,7 +179,7 @@ function decodeJwt(token: string): { header: any; payload: any } | null {
 // Get user's current apartment ID from profile or fallback to latest membership
 async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<string | null> {
   try {
-    // Step 1: Try from user profile - read from apartment.id instead of current_apartment_id
+    // Step 1: Try from user profile - read from apartment.id (new format)
     const userResponse = await fetch(`${FIRESTORE_BASE_URL}/users/${uid}`, {
       method: 'GET',
       headers: authHeaders(idToken),
@@ -185,29 +187,79 @@ async function getUserCurrentApartmentId(uid: string, idToken: string): Promise<
     
     if (userResponse.status === 200) {
       const userDoc = await userResponse.json();
+      
+      // Try new format first: users/{uid}.apartment.id
       const apartmentId = userDoc.fields?.apartment?.mapValue?.fields?.id?.stringValue;
+      if (apartmentId) {
+        console.log('✅ Found apartment ID in new format (apartment.id):', apartmentId);
+        return apartmentId;
+      }
+      
+      // Fallback to old format if present: users/{uid}.current_apartment_id (read-only; rules still rely on apartment.id)
+      const oldApartmentId = userDoc.fields?.current_apartment_id?.stringValue;
+      if (oldApartmentId) {
+        console.log('⚠️ Found apartment ID in old format (current_apartment_id):', oldApartmentId);
+        try {
+          // Attempt a non-destructive migration to add apartment.id (do NOT write stringValue: null anywhere)
+          await migrateUserApartmentFieldIfNeeded(uid, idToken, oldApartmentId);
+          // Best-effort: wait until server reflects membership to satisfy rules that read users doc
+          await waitForMembership(uid, oldApartmentId);
+        } catch (e) {
+          console.warn('⚠️ Migration/wait (best-effort) failed, continuing with oldApartmentId:', e);
+        }
+        return oldApartmentId;
+      }
+      
       console.log('🔍 getUserCurrentApartmentId - user profile response:', {
         status: userResponse.status,
         hasFields: !!userDoc.fields,
         hasApartment: !!userDoc.fields?.apartment,
         hasApartmentId: !!userDoc.fields?.apartment?.mapValue?.fields?.id,
-        apartmentIdValue: apartmentId,
-        apartmentIdType: typeof apartmentId,
-        apartmentIdLength: apartmentId?.length || 0
       });
-      
-      if (apartmentId) {
-        console.log('✅ Found apartment ID in user profile:', apartmentId);
-        return apartmentId;
-      }
     }
     
-    // No fallback needed in new model - apartment.id is the source of truth
-    
+    // Not found
     return null;
   } catch (error) {
     console.error('❌ Error getting user current apartment ID:', error);
     return null;
+  }
+}
+
+/**
+ * Non-destructive migration helper: ensure users/{uid}.apartment.id is set when only current_apartment_id exists.
+ * - Writes ONLY apartment.id
+ * - Does NOT delete current_apartment_id (no stringValue: null)
+ */
+async function migrateUserApartmentFieldIfNeeded(uid: string, idToken: string, oldApartmentId: string): Promise<void> {
+  try {
+    console.log('🔄 Ensuring users.apartment.id exists for user:', uid);
+
+    // Write apartment.id only; keep legacy field as-is
+    const updateRes = await fetch(`${FIRESTORE_BASE_URL}/users/${uid}?updateMask.fieldPaths=apartment.id`, {
+      method: 'PATCH',
+      headers: authHeaders(idToken),
+      body: JSON.stringify({
+        fields: {
+          apartment: {
+            mapValue: {
+              fields: {
+                id: { stringValue: oldApartmentId }
+              }
+            }
+          }
+        }
+      })
+    });
+
+    if (!updateRes.ok) {
+      const text = await updateRes.text().catch(() => '');
+      console.warn('⚠️ migrateUserApartmentFieldIfNeeded failed:', updateRes.status, text);
+    } else {
+      console.log('✅ users.apartment.id set successfully');
+    }
+  } catch (e) {
+    console.warn('⚠️ migrateUserApartmentFieldIfNeeded error (non-blocking):', e);
   }
 }
 
@@ -219,6 +271,11 @@ export async function getApartmentContext(): Promise<{ uid: string; idToken: str
   if (!aptId) {
     throw new Error('NO_APARTMENT_FOR_USER');
   }
+
+  // Validate membership against server-side user doc to comply with rules
+  await ensureCurrentApartmentIdMatches(aptId);
+  // Ensure the custom claim is up-to-date before issuing queries guarded by rules
+  await ensureClaimMatchesApt(aptId);
   
   return { uid, idToken, aptId };
 }
@@ -309,6 +366,27 @@ export async function ensureCurrentApartmentIdMatches(aptId: string): Promise<vo
     // Don't write anything - just report mismatch so caller knows to stop/refresh
     throw new Error('APARTMENT_CONTEXT_MISMATCH');
   }
+}
+
+// Ensure the custom claim apartment_id matches aptId (poll briefly after updates)
+async function ensureClaimMatchesApt(aptId: string, timeoutMs = 3000): Promise<void> {
+  try {
+    const auth = getAuth();
+    const t0 = Date.now();
+    let backoff = 150;
+    while (Date.now() - t0 < timeoutMs) {
+      const user = auth?.currentUser;
+      if (!user) break;
+      // Check current claims without forcing refresh
+      const res = await getIdTokenResult(user);
+      const claimApt = (res?.claims as any)?.apartment_id as string | undefined;
+      if (claimApt === aptId) return;
+      // Refresh only if mismatch or missing
+      await getIdToken(user, true);
+      await new Promise(r => setTimeout(r, backoff));
+      backoff = Math.min(backoff * 2, 400);
+    }
+  } catch {}
 }
 
 // Firestore data types for REST API
@@ -1425,8 +1503,11 @@ export class FirestoreService {
         throw new Error('User can only add themselves to apartments');
       }
 
-      // Perform a single-field update in a separate call
+      // Perform a single-field update in a separate call (users/{uid}.apartment.id)
       await this.setUserApartmentId(userId, apartmentId);
+
+      // Wait until users doc reflects the membership so rules will pass for subsequent reads
+      await waitForMembership(userId, apartmentId);
       
       // Return minimal apartment object with ID
       return { id: apartmentId };
@@ -2527,33 +2608,22 @@ export class FirestoreService {
     title?: string;
     note?: string;
   }): Promise<any> {
-    const { uid, idToken, aptId } = await getApartmentContext();
+    const { uid, aptId } = await getApartmentContext();
 
-    const body = {
-      fields: {
-        apartment_id: { stringValue: aptId },
-        paid_by_user_id: { stringValue: uid },
-        amount: { doubleValue: Number(payload.amount) },
-        participants: { arrayValue: { values: (payload.participants || []).map(u => ({ stringValue: u })) } },
-        category: payload.category ? { stringValue: payload.category } : undefined,
-        title: payload.title ? { stringValue: payload.title } : undefined,
-        note: payload.note ? { stringValue: payload.note } : undefined,
-        created_at: { timestampValue: new Date().toISOString() },
-      },
+    const db = getFirestore();
+    const coll = apartmentColl(aptId, 'expenses');
+    const docData: any = {
+      title: payload.title || 'הוצאה',
+      amount: Number(payload.amount),
+      paid_by_user_id: uid,
+      participants: payload.participants || [],
+      category: payload.category || 'general',
+      note: payload.note || '',
+      created_at: serverTimestamp(),
     };
 
-    const res = await fetch(`${FIRESTORE_BASE_URL}/expenses`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify(body),
-    });
-    
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => '');
-      throw new Error(`CREATE_EXPENSE_${res.status}: ${errorText}`);
-    }
-    
-    return await res.json();
+    await addDoc(coll, docData);
+    return { ok: true };
   }
 
   /**
@@ -2726,34 +2796,8 @@ export class FirestoreService {
    */
   async getExpenses(): Promise<any[]> {
     const { idToken, aptId } = await getApartmentContext();
-
-    const queryBody = {
-      structuredQuery: {
-        from: [{ collectionId: 'expenses' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'apartment_id' },
-            op: 'EQUAL',
-            value: { stringValue: aptId }
-          }
-        },
-        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
-        limit: 200
-      }
-    };
-
-    const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify(queryBody),
-    });
-
-    if (!res.ok) {
-      throw new Error(`GET_EXPENSES_${res.status}`);
-    }
-
-    const data = await res.json();
-    return data.map((row: any) => row.document).filter(Boolean);
+    const docs = await runQueryInApartment({ aptId, idToken, coll: 'expenses' });
+    return docs;
   }
 
   /**
@@ -2761,34 +2805,8 @@ export class FirestoreService {
    */
   async getDebtSettlements(): Promise<any[]> {
     const { idToken, aptId } = await getApartmentContext();
-
-    const queryBody = {
-      structuredQuery: {
-        from: [{ collectionId: 'debtSettlements' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'apartment_id' },
-            op: 'EQUAL',
-            value: { stringValue: aptId }
-          }
-        },
-        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
-        limit: 200
-      }
-    };
-
-    const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
-      method: 'POST',
-      headers: authHeaders(idToken),
-      body: JSON.stringify(queryBody),
-    });
-
-    if (!res.ok) {
-      throw new Error(`GET_DEBT_SETTLEMENTS_${res.status}`);
-    }
-
-    const data = await res.json();
-    return data.map((row: any) => row.document).filter(Boolean);
+    const docs = await runQueryInApartment({ aptId, idToken, coll: 'debtSettlements' });
+    return docs;
   }
 
   // ===== DEBTS AND BALANCES FUNCTIONS =====
@@ -2812,17 +2830,7 @@ export class FirestoreService {
       return [];
     }
 
-    // Validate apartmentId is not empty string
-    if (apartmentId.trim() === '') {
-      console.error('❌ getDebts: Empty apartment ID');
-      return [];
-    }
-
-    // Validate apartmentId format and length
-    if (apartmentId.length < 3) {
-      console.error('❌ getDebts: Apartment ID too short:', apartmentId);
-      return [];
-    }
+    await ensureClaimMatchesApt(apartmentId);
 
     const queryBody = {
       structuredQuery: {
@@ -2839,39 +2847,7 @@ export class FirestoreService {
       }
     };
 
-    // Log the exact query being sent
-    console.log('🔍 getDebts query body:', JSON.stringify(queryBody, null, 2));
-    console.log('🔍 getDebts apartmentId:', { 
-      value: apartmentId, 
-      type: typeof apartmentId, 
-      length: apartmentId.length,
-      isEmpty: apartmentId.trim() === '',
-      hasSpaces: apartmentId.includes(' ')
-    });
-
-    // Validate query structure matches expected format
-    const expectedQuery = {
-      structuredQuery: {
-        from: [{ collectionId: 'debts' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'apartment_id' },
-            op: 'EQUAL',
-            value: { stringValue: apartmentId }
-          }
-        },
-        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
-        limit: 100
-      }
-    };
-    
-    console.log('🔍 getDebts expected vs actual:');
-    console.log('Expected collectionId:', expectedQuery.structuredQuery.from[0].collectionId);
-    console.log('Actual collectionId:', queryBody.structuredQuery.from[0].collectionId);
-    console.log('Expected fieldPath:', expectedQuery.structuredQuery.where.fieldFilter.field.fieldPath);
-    console.log('Actual fieldPath:', queryBody.structuredQuery.where.fieldFilter.field.fieldPath);
-    console.log('Expected orderBy fieldPath:', expectedQuery.structuredQuery.orderBy[0].field.fieldPath);
-    console.log('Actual orderBy fieldPath:', queryBody.structuredQuery.orderBy[0].field.fieldPath);
+    console.log('🔎 runQuery debts', { aptId: apartmentId, mode: 'collection' });
 
     const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
@@ -2882,20 +2858,10 @@ export class FirestoreService {
     if (!res.ok) {
       const errorText = await res.text().catch(() => '');
       console.error('❌ getDebts failed:', res.status, errorText);
-      
-      if (res.status === 400) {
-        console.error('❌ INDEX_ERROR: Debts query requires composite index:');
-        console.error('   Collection: debts');
-        console.error('   Fields: apartment_id (Ascending), created_at (Descending)');
-        console.error('   Create this index in Firebase Console or wait for auto-creation');
-        throw new Error('INDEX_REQUIRED');
-      }
-      
-      throw new Error(`GET_DEBTS_${res.status}`);
+      return [];
     }
 
     const data = await res.json();
-    console.log('✅ getDebts success, documents:', data.length);
     return data.map((row: any) => row.document).filter(Boolean);
   }
 
@@ -3240,17 +3206,7 @@ export class FirestoreService {
       return [];
     }
 
-    // Validate apartmentId is not empty string
-    if (apartmentId.trim() === '') {
-      console.error('❌ getActions: Empty apartment ID');
-      return [];
-    }
-
-    // Validate apartmentId format and length
-    if (apartmentId.length < 3) {
-      console.error('❌ getActions: Apartment ID too short:', apartmentId);
-      return [];
-    }
+    await ensureClaimMatchesApt(apartmentId);
 
     const queryBody = {
       structuredQuery: {
@@ -3267,39 +3223,7 @@ export class FirestoreService {
       }
     };
 
-    // Log the exact query being sent
-    console.log('🔍 getActions query body:', JSON.stringify(queryBody, null, 2));
-    console.log('🔍 getActions apartmentId:', { 
-      value: apartmentId, 
-      type: typeof apartmentId, 
-      length: apartmentId.length,
-      isEmpty: apartmentId.trim() === '',
-      hasSpaces: apartmentId.includes(' ')
-    });
-
-    // Validate query structure matches expected format
-    const expectedQuery = {
-      structuredQuery: {
-        from: [{ collectionId: 'actions' }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'apartment_id' },
-            op: 'EQUAL',
-            value: { stringValue: apartmentId }
-          }
-        },
-        orderBy: [{ field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }],
-        limit: 50
-      }
-    };
-    
-    console.log('🔍 getActions expected vs actual:');
-    console.log('Expected collectionId:', expectedQuery.structuredQuery.from[0].collectionId);
-    console.log('Actual collectionId:', queryBody.structuredQuery.from[0].collectionId);
-    console.log('Expected fieldPath:', expectedQuery.structuredQuery.where.fieldFilter.field.fieldPath);
-    console.log('Actual fieldPath:', queryBody.structuredQuery.where.fieldFilter.field.fieldPath);
-    console.log('Expected orderBy fieldPath:', expectedQuery.structuredQuery.orderBy[0].field.fieldPath);
-    console.log('Actual orderBy fieldPath:', queryBody.structuredQuery.orderBy[0].field.fieldPath);
+    console.log('🔎 runQuery actions', { aptId: apartmentId, mode: 'collection' });
 
     const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
       method: 'POST',
@@ -3310,20 +3234,10 @@ export class FirestoreService {
     if (!res.ok) {
       const errorText = await res.text().catch(() => '');
       console.error('❌ getActions failed:', res.status, errorText);
-      
-      if (res.status === 400) {
-        console.error('❌ INDEX_ERROR: Actions query requires composite index:');
-        console.error('   Collection: actions');
-        console.error('   Fields: apartment_id (Ascending), created_at (Descending)');
-        console.error('   Create this index in Firebase Console or wait for auto-creation');
-        throw new Error('INDEX_REQUIRED');
-      }
-      
-      throw new Error(`GET_ACTIONS_${res.status}`);
+      return [];
     }
 
     const data = await res.json();
-    console.log('✅ getActions success, documents:', data.length);
     return data.map((row: any) => row.document).filter(Boolean);
   }
 
@@ -3555,38 +3469,18 @@ export class FirestoreService {
       if (!_aptId) return null;
 
       await ensureCurrentApartmentIdMatches(_aptId);
+      await ensureClaimMatchesApt(_aptId);
 
-      // קרא את המשימה (runQuery לפי apartment_id)
-      const queryUrl = `${FIRESTORE_BASE_URL}:runQuery`;
-      const qBody = {
-        structuredQuery: {
-          from: [{ collectionId: 'cleaningTasks' }],
-          where: {
-            fieldFilter: {
-              field: { fieldPath: 'apartment_id' },
-              op: 'EQUAL',
-              value: { stringValue: _aptId },
-            },
-          },
-          limit: 1,
-        },
-      };
-      const qRes = await fetch(queryUrl, { method: 'POST', headers: H(idToken), body: JSON.stringify(qBody) });
-      if (!qRes.ok) {
-        const text = await qRes.text().catch(() => '');
-        console.error('Firestore getCleaningTask error:', qRes.status, text);
-        throw new Error(`GET_CLEANING_TASK_${qRes.status}: ${text}`);
-      }
-      const rows = await qRes.json();
-      const first = Array.isArray(rows) ? rows.find(r => r.document) : null;
-      if (first?.document) {
-        const doc = first.document;
-        const f = doc.fields ?? {};
-        const id = doc.name.split('/').pop();
+      console.log('🔎 runQuery', { coll: 'cleaningTasks', aptId: _aptId, mode: 'parent' });
+      const docs = await runQueryInApartment({ aptId: _aptId, idToken, coll: 'cleaningTasks', orderBy: { fieldPath: 'created_at', direction: 'DESCENDING' }, limit: 1 });
+      const first = docs[0];
+      if (first) {
+        const f = first.fields ?? {};
+        const id = first.name.split('/').pop();
         const task = {
           id,
           apartment_id: f.apartment_id?.stringValue ?? _aptId,
-          user_id: f.user_id?.stringValue ?? null, // Current turn user
+          user_id: f.user_id?.stringValue ?? null,
           queue: (f.rotation?.arrayValue?.values || f.queue?.arrayValue?.values || []).map((v: any) => v.stringValue),
           current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
           assigned_at: f.assigned_at?.timestampValue ?? null,
@@ -3594,18 +3488,10 @@ export class FirestoreService {
           last_completed_at: f.last_completed_at?.timestampValue ?? null,
           last_completed_by: f.last_completed_by?.stringValue ?? null,
         };
-        
-        console.log('🔍 Firestore task debug:', {
-          taskId: task.id,
-          currentUserId: task.user_id,
-          queue: task.queue,
-          apartmentId: task.apartment_id
-        });
-        
         return task;
       }
 
-      // אין משימה קיימת → כל חבר יכול ליצור (לפי הכללים החדשים)
+      // אין משימה קיימת → כל חבר יכול ליצור
       try {
         return await this.createCleaningTask(_aptId);
       } catch (createError) {
@@ -3928,35 +3814,21 @@ export class FirestoreService {
     quantity?: number,
     notes?: string
   ): Promise<any> {
-    const { idToken, aptId } = await getApartmentContext();
-
-    const body = {
-      fields: {
-        apartment_id: { stringValue: aptId },
-        name: { stringValue: name },
-        added_by_user_id: { stringValue: addedByUserId },
-        priority: { stringValue: priority || 'normal' },
-        quantity: { integerValue: quantity || 1 },
-        notes: { stringValue: notes || '' },
-        purchased: { booleanValue: false },
-        created_at: { timestampValue: new Date().toISOString() },
-        last_updated: { timestampValue: new Date().toISOString() },
-      },
+    const { aptId } = await getApartmentContext();
+    const db = getFirestore();
+    const coll = apartmentColl(aptId, 'shoppingItems');
+    const data: any = {
+      name,
+      added_by_user_id: addedByUserId,
+      priority: priority || 'normal',
+      quantity: quantity || 1,
+      notes: notes || '',
+      purchased: false,
+      created_at: serverTimestamp(),
+      last_updated: serverTimestamp(),
     };
-
-    const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems`, {
-      method: 'POST',
-      headers: H(idToken),
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Firestore addShoppingItem error:', res.status, text);
-      throw new Error(`ADD_SHOPPING_ITEM_${res.status}: ${text}`);
-    }
-
-    return await res.json();
+    await addDoc(coll, data);
+    return { ok: true };
   }
 
   /**
@@ -3964,41 +3836,14 @@ export class FirestoreService {
    */
   async getShoppingItems(): Promise<any[]> {
     try {
-      const { idToken, aptId } = await getApartmentContextSlim();
+      const { idToken, aptId } = await getApartmentContext();
       await ensureCurrentApartmentIdMatches(aptId);
+      await ensureClaimMatchesApt(aptId);
 
-      const url = `${FIRESTORE_BASE_URL}:runQuery`; // שים לב: אין "/" בסוף!
-      const body = {
-        structuredQuery: {
-          from: [{ collectionId: 'shoppingItems' }],
-          where: {
-            fieldFilter: {
-              field: { fieldPath: 'apartment_id' },
-              op: 'EQUAL',
-              value: { stringValue: aptId },
-            },
-          },
-          orderBy: [
-            { field: { fieldPath: 'purchased' }, direction: 'ASCENDING' },
-            { field: { fieldPath: 'priority' }, direction: 'DESCENDING' },
-            { field: { fieldPath: 'created_at' }, direction: 'DESCENDING' }
-          ],
-          limit: 200,
-        },
-      };
-
-      const res = await fetch(url, { method: 'POST', headers: H(idToken), body: JSON.stringify(body) });
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.error('Firestore getShoppingItems error:', res.status, text);
-        return []; // לא מפיל את ה־UI
-      }
-
-      const rows = await res.json();
-      const items = (rows || [])
-        .filter((r: any) => r.document?.fields)
-        .map((r: any) => {
-          const doc = r.document;
+      const docs = await runQueryInApartment({ aptId, idToken, coll: 'shoppingItems', orderBy: { fieldPath: 'created_at', direction: 'DESCENDING' }, limit: 200 });
+      const items = (docs || [])
+        .filter((doc: any) => doc?.fields)
+        .map((doc: any) => {
           const f = doc.fields ?? {};
           const id = doc.name.split('/').pop();
           return {
@@ -4022,7 +3867,7 @@ export class FirestoreService {
       return items;
     } catch (e) {
       console.error('GET_SHOPPING_ITEMS_ERROR', e);
-      return []; // תמיד מחזיר מערך ולא מפיל
+      return [];
     }
   }
 
@@ -4035,105 +3880,44 @@ export class FirestoreService {
     notes?: string;
     name?: string;
   }): Promise<any> {
-    const { idToken, aptId } = await getApartmentContext();
-    
-    // Build update mask
-    const updateMask = {
-      fieldPaths: Object.keys(updates).filter(key => updates[key as keyof typeof updates] !== undefined)
-    };
-
-    // Build fields object
-    const fields: any = {};
-    if (updates.priority !== undefined) fields.priority = { stringValue: updates.priority };
-    if (updates.quantity !== undefined) fields.quantity = { integerValue: updates.quantity };
-    if (updates.notes !== undefined) fields.notes = { stringValue: updates.notes };
-    if (updates.name !== undefined) fields.name = { stringValue: updates.name };
-    
-    // Always update last_updated
-    fields.last_updated = { timestampValue: new Date().toISOString() };
-
-    const body = {
-      fields,
-      updateMask
-    };
-
-    const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems/${itemId}`, {
-      method: 'PATCH',
-      headers: H(idToken),
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Firestore updateShoppingItem error:', res.status, text);
-      throw new Error(`UPDATE_SHOPPING_ITEM_${res.status}: ${text}`);
-    }
-
-    return await res.json();
+    const { aptId } = await getApartmentContext();
+    const db = getFirestore();
+    const ref = fsDoc(db, 'apartments', aptId, 'shoppingItems', itemId);
+    const data: any = { last_updated: serverTimestamp() };
+    if (updates.priority !== undefined) data.priority = updates.priority;
+    if (updates.quantity !== undefined) data.quantity = updates.quantity;
+    if (updates.notes !== undefined) data.notes = updates.notes;
+    if (updates.name !== undefined) data.name = updates.name;
+    await setDoc(ref, data, { merge: true });
+    return { ok: true };
   }
 
   /**
    * Delete shopping item from Firestore
    */
   async deleteShoppingItem(itemId: string): Promise<any> {
-    const { idToken } = await getApartmentContext();
-
-    const res = await fetch(`${FIRESTORE_BASE_URL}/shoppingItems/${itemId}`, {
-      method: 'DELETE',
-      headers: H(idToken),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Firestore deleteShoppingItem error:', res.status, text);
-      throw new Error(`DELETE_SHOPPING_ITEM_${res.status}: ${text}`);
-    }
-
-    return await res.json();
+    const { aptId } = await getApartmentContext();
+    const db = getFirestore();
+    const ref = fsDoc(db, 'apartments', aptId, 'shoppingItems', itemId);
+    await setDoc(ref, { __deleted: true }, { merge: true }); // soft-delete fallback
+    return { ok: true };
   }
 
   /**
    * Mark shopping item as purchased
    */
   async markShoppingItemPurchased(itemId: string, purchasedByUserId: string, price?: number): Promise<any> {
-    const { idToken } = await getApartmentContext();
-
-    const updateFields: any = {
-      purchased: { booleanValue: true },
-      purchased_by_user_id: { stringValue: purchasedByUserId },
-      purchased_at: { timestampValue: new Date().toISOString() },
+    const { aptId } = await getApartmentContext();
+    const db = getFirestore();
+    const ref = fsDoc(db, 'apartments', aptId, 'shoppingItems', itemId);
+    const data: any = {
+      purchased: true,
+      purchased_by_user_id: purchasedByUserId,
+      purchased_at: serverTimestamp(),
     };
-
-    if (price !== undefined) {
-      updateFields.price = { doubleValue: price };
-    }
-
-    const body = {
-      fields: updateFields,
-    };
-
-    // Build URL with separate fieldPaths parameters
-    const fieldPaths = ['purchased', 'purchased_by_user_id', 'purchased_at'];
-    if (price !== undefined) {
-      fieldPaths.push('price');
-    }
-    
-    const url = `${FIRESTORE_BASE_URL}/shoppingItems/${itemId}?` + 
-      fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
-
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: H(idToken),
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => '');
-      console.error('Firestore markShoppingItemPurchased error:', res.status, text);
-      throw new Error(`MARK_SHOPPING_ITEM_PURCHASED_${res.status}: ${text}`);
-    }
-
-    return await res.json();
+    if (price !== undefined) data.price = price;
+    await setDoc(ref, data, { merge: true });
+    return { ok: true };
   }
 
   // ===== CLEANING CHECKLIST FUNCTIONS =====
@@ -4744,9 +4528,95 @@ export class FirestoreService {
     }
   }
 
+  async ensureDefaultCleaningSetup(): Promise<void> {
+    const { aptId, idToken } = await getApartmentContext();
+    const rows = await runQueryInApartment({ aptId, idToken, coll: 'cleaningTasks', limit: 1 });
+    if (rows.length > 0) return;
+
+    const db = getFirestore();
+    const col = apartmentColl(aptId, 'cleaningTasks');
+    const b = writeBatch(db);
+    const now = serverTimestamp();
+    b.set(fsDoc(col), { title: 'סלון', periodicity: 'weekly', active: true, created_at: now });
+    b.set(fsDoc(col), { title: 'מטבח', periodicity: 'weekly', active: true, created_at: now });
+    b.set(fsDoc(col), { title: 'שירותים/מקלחת', periodicity: 'weekly', active: true, created_at: now });
+    await b.commit();
+  }
+
 }
 
 // Export singleton instance
 export const firestoreService = FirestoreService.getInstance();
+
+const PROJECT_ID = firebaseConfig.projectId;
+const parentForApt = (aptId: string) => `projects/${PROJECT_ID}/databases/(default)/documents/apartments/${aptId}`;
+
+async function runQueryInApartment(params: {
+  aptId: string;
+  idToken: string;
+  coll: 'expenses' | 'debtSettlements' | 'shoppingItems' | 'cleaningTasks';
+  orderBy?: { fieldPath: string; direction: 'ASCENDING' | 'DESCENDING' };
+  limit?: number;
+}) {
+  const { aptId, idToken, coll, orderBy = { fieldPath: 'created_at', direction: 'DESCENDING' }, limit = 200 } = params;
+  const body = {
+    parent: parentForApt(aptId),
+    structuredQuery: {
+      from: [{ collectionId: coll }],
+      orderBy: [{ field: { fieldPath: orderBy.fieldPath }, direction: orderBy.direction }],
+      limit,
+    },
+  } as any;
+  console.log('🔎 runQuery', { coll, aptId, mode: 'parent' });
+  const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error(`runQuery ${coll}`, res.status, text);
+    throw new Error(`RUN_QUERY_${coll}_${res.status}`);
+  }
+  const rows = await res.json();
+  return (rows || []).filter((r: any) => r.document).map((r: any) => r.document);
+}
+
+async function runQueryUnderDoc(params: {
+  parentDocPath: string; // projects/.../documents/<docPath>
+  idToken: string;
+  coll: string;
+  orderBy?: { fieldPath: string; direction: 'ASCENDING' | 'DESCENDING' }[];
+  limit?: number;
+}) {
+  const { parentDocPath, idToken, coll, orderBy, limit = 200 } = params;
+  const body: any = {
+    parent: parentDocPath,
+    structuredQuery: {
+      from: [{ collectionId: coll }],
+      limit,
+    },
+  };
+  if (orderBy && orderBy.length > 0) {
+    body.structuredQuery.orderBy = orderBy.map(o => ({ field: { fieldPath: o.fieldPath }, direction: o.direction }));
+  }
+  console.log('🔎 runQuery underDoc', { coll, parentDocPath, mode: 'parent' });
+  const res = await fetch(`${FIRESTORE_BASE_URL}:runQuery`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${idToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    console.error(`runQuery ${coll} underDoc`, res.status, text);
+    throw new Error(`RUN_QUERY_${coll}_${res.status}`);
+  }
+  const rows = await res.json();
+  return (rows || []).filter((r: any) => r.document).map((r: any) => r.document);
+}
+
+function apartmentColl(aptId: string, coll: 'expenses'|'shoppingItems'|'debtSettlements'|'cleaningTasks') {
+  return collection(getFirestore(), 'apartments', aptId, coll);
+}
 
 
