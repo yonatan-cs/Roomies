@@ -1089,7 +1089,9 @@ export class FirestoreService {
   }
 
   async updateUser(userId: string, userData: { full_name?: string; phone?: string; current_apartment_id?: string }): Promise<any> {
-    return this.updateDocument(COLLECTIONS.USERS, userId, userData);
+    // Only update the fields that are provided, don't replace the entire document
+    const updateMaskFields = Object.keys(userData).filter(key => userData[key as keyof typeof userData] !== undefined);
+    return this.updateDocument(COLLECTIONS.USERS, userId, userData, updateMaskFields);
   }
 
   /**
