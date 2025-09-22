@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useStore } from '../state/store';
 import { ExpenseCategory } from '../types';
 import { cn } from '../utils/cn';
-import { getUserDisplayInfo } from '../utils/userDisplay';
+import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
