@@ -5,6 +5,7 @@ import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import Clipboard from '@react-native-clipboard/clipboard';
 import ConfirmModal from '../components/ConfirmModal';
+import AppSettingsSection from '../components/AppSettingsSection';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
@@ -15,7 +16,6 @@ import { selection, impactMedium, success } from '../utils/haptics';
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
-  const setAppLanguage = useStore(s => s.setAppLanguage);
   const hapticsEnabled = useStore(s => s.hapticsEnabled);
   const setHapticsEnabled = useStore(s => s.setHapticsEnabled);
   const {
@@ -200,33 +200,8 @@ User: ${currentUser?.name || 'Unknown'}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
       >
-        {/* Language Selection */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <View className="flex-row items-center justify-between mb-3">
-            <Text className="text-lg font-semibold text-gray-900">{t('settings.language')}</Text>
-            <Ionicons name="language" size={20} color="#6b7280" />
-          </View>
-          <View className="flex-row">
-            <Pressable
-              onPress={() => {
-                selection();
-                setAppLanguage('he');
-              }}
-              className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-100'}`}
-            >
-              <Text className={appLanguage === 'he' ? 'text-white' : 'text-gray-700'}>{t('settings.hebrew')}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                selection();
-                setAppLanguage('en');
-              }}
-              className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
-            >
-              <Text className={appLanguage === 'en' ? 'text-white' : 'text-gray-700'}>{t('settings.english')}</Text>
-            </Pressable>
-          </View>
-        </View>
+        {/* App Settings Section */}
+        <AppSettingsSection />
 
         {/* Haptics Setting */}
         <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">

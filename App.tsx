@@ -4,6 +4,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, Text, TextInput } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
+import { ThemeProvider } from "./src/theme/ThemeProvider";
 import "./src/i18n";
 import { useEffect } from "react";
 import { useStore } from "./src/state/store";
@@ -59,12 +60,14 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <View style={{ flex: 1 }}>
-          <NavigationContainer>
-            <AppNavigator />
-            <StatusBar style="auto" />
-          </NavigationContainer>
-        </View>
+        <ThemeProvider>
+          <View style={{ flex: 1 }}>
+            <NavigationContainer>
+              <AppNavigator />
+              <StatusBar style="auto" />
+            </NavigationContainer>
+          </View>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { firestoreService } from '../services/firestore-service';
 import { firestoreSDKService } from '../services/firestore-sdk-service';
+import { ThemeSetting, DEFAULT_THEME_SETTING } from '../theme/theme-settings';
 import {
   User,
   Apartment,
@@ -53,6 +54,10 @@ interface AppState {
   // Language
   appLanguage: 'he' | 'en';
   setAppLanguage: (lang: 'he' | 'en') => void;
+
+  // Theme
+  themeSetting: ThemeSetting;
+  setThemeSetting: (setting: ThemeSetting) => void;
 
   // Haptics
   hapticsEnabled: boolean;
@@ -154,6 +159,9 @@ export const useStore = create<AppState>()(
       // Language (default Hebrew to match current UI)
       appLanguage: 'he',
 
+      // Theme (default system)
+      themeSetting: DEFAULT_THEME_SETTING,
+
       // Haptics (default enabled)
       hapticsEnabled: true,
 
@@ -161,6 +169,8 @@ export const useStore = create<AppState>()(
       checklistItems: [],
       // Language setter
       setAppLanguage: (lang) => set({ appLanguage: lang }),
+      // Theme setter
+      setThemeSetting: (setting) => set({ themeSetting: setting }),
       // Haptics setter
       setHapticsEnabled: (enabled) => set({ hapticsEnabled: enabled }),
       isMyCleaningTurn: false,
@@ -1466,6 +1476,7 @@ export const useStore = create<AppState>()(
         currentUser: state.currentUser,
         currentApartment: state.currentApartment,
         appLanguage: state.appLanguage,
+        themeSetting: state.themeSetting,
         hapticsEnabled: state.hapticsEnabled,
         cleaningTask: state.cleaningTask,
         cleaningSettings: state.cleaningSettings,
