@@ -82,6 +82,7 @@ export default function ShoppingScreen() {
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isRemovingItem, setIsRemovingItem] = useState<string | null>(null);
   const [isPurchasingItem, setIsPurchasingItem] = useState<string | null>(null);
+  const [isRepurchasingItem, setIsRepurchasingItem] = useState<string | null>(null);
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<'all' | 'low' | 'normal' | 'high'>('all');
 
   // Priority levels with colors and labels - now using i18n
@@ -182,11 +183,19 @@ export default function ShoppingScreen() {
 
   const handlePurchaseConfirm = async () => {
     if (!selectedItemId || !currentUser) return;
+    
+    // Price is now mandatory - check if it's provided and valid
+    if (!purchasePrice.trim()) {
+      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.priceRequired'));
+      return;
+    }
+    
     const price = parseFloat(purchasePrice);
-    if (purchasePrice.trim() && (!price || price <= 0)) {
+    if (!price || price <= 0) {
       Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.invalidPrice'));
       return;
     }
+    
     if (selectedParticipants.length === 0) {
       Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.needParticipants'));
       return;
@@ -197,7 +206,7 @@ export default function ShoppingScreen() {
       await markItemPurchased(
         selectedItemId,
         currentUser.id,
-        price > 0 ? price : undefined,
+        price, // Price is now mandatory
         selectedParticipants,
         undefined,
         purchaseNote.trim() || undefined,
@@ -242,6 +251,9 @@ export default function ShoppingScreen() {
   };
 
   const handleRepurchase = async (itemId: string) => {
+    if (isRepurchasingItem === itemId) return; // Prevent double-click
+    
+    setIsRepurchasingItem(itemId);
     try {
       const item = shoppingItems.find(i => i.id === itemId);
       await markItemForRepurchase(itemId);
@@ -253,6 +265,8 @@ export default function ShoppingScreen() {
     } catch (error) {
       console.error('Error repurchasing item:', error);
       Alert.alert(t('common.error'), t('shopping.alerts.cannotAdd'));
+    } finally {
+      setIsRepurchasingItem(null);
     }
   };
 
@@ -633,12 +647,14 @@ export default function ShoppingScreen() {
 
                 {/* Price */}
                 <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">{t('shopping.purchaseModal.price')}</Text>
+                  <Text className="text-gray-700 text-base mb-2">
+                    {t('shopping.purchaseModal.price')} <Text className="text-red-500">*</Text>
+                  </Text>
                   <View className="flex-row items-center">
                     <TextInput
                       value={purchasePrice}
                       onChangeText={setPurchasePrice}
-                      placeholder="0"
+                      placeholder={t('shopping.purchaseModal.pricePlaceholder')}
                       className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
                       keyboardType="numeric"
                       textAlign="center"
@@ -668,7 +684,7 @@ export default function ShoppingScreen() {
                 </View>
 
                 {/* Participants */}
-                {purchasePrice && parseFloat(purchasePrice) > 0 && (
+                {purchasePrice.trim() && (
                   <View className="mb-4">
                     <Text className="text-gray-700 text-base mb-3 text-center">{t('shopping.purchaseModal.whoParticipates')}</Text>
                     <View className={cn('space-y-2', (currentApartment?.members?.length || 0) > 5 && 'max-h-40')}>
@@ -707,7 +723,7 @@ export default function ShoppingScreen() {
                   </View>
                 )}
 
-                <Text className="text-sm text-gray-500 text-center mb-4">{purchasePrice && parseFloat(purchasePrice) > 0 ? t('shopping.purchaseModal.budgetHintWithPrice') : t('shopping.purchaseModal.budgetHintNoPrice')}</Text>
+                <Text className="text-sm text-gray-500 text-center mb-4">{t('shopping.purchaseModal.budgetHintWithPrice')}</Text>
 
                 {/* Footer buttons */}
                 <View className="flex-row space-x-3">
@@ -850,9 +866,17 @@ export default function ShoppingScreen() {
 
                     <Pressable
                       onPress={() => selectedItemId && handleRepurchase(selectedItemId)}
+                      disabled={isRepurchasingItem === selectedItemId}
                       className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
                     >
-                      <Text className="text-white font-medium text-center">{t('shopping.detailsModal.repurchase')}</Text>
+                      {isRepurchasingItem === selectedItemId ? (
+                        <View className="flex-row items-center justify-center">
+                          <Ionicons name="hourglass" size={20} color="white" />
+                          <Text className="text-white font-medium text-center mr-2">{t('shopping.detailsModal.adding')}</Text>
+                        </View>
+                      ) : (
+                        <Text className="text-white font-medium text-center">{t('shopping.detailsModal.repurchase')}</Text>
+                      )}
                     </Pressable>
                   </View>
                 </View>
