@@ -205,7 +205,8 @@ export const resources = {
         },
         purchaseModal: {
           title: 'Purchase confirmation',
-          price: 'Price (optional)',
+          price: 'Price',
+          pricePlaceholder: 'Enter amount',
           note: 'Note (optional)',
           whoParticipates: 'Who participates in the purchase?',
           splitNote: 'The expense will be split equally among participants',
@@ -229,12 +230,14 @@ export const resources = {
           quantity: 'Quantity',
           notes: 'Notes',
           close: 'Close',
-          repurchase: 'Add again to list'
+          repurchase: 'Add again to list',
+          adding: 'Adding...'
         },
         alerts: {
           error: 'Error',
           cannotAdd: 'Cannot add item',
           cannotRemove: 'Cannot remove item',
+          priceRequired: 'Price is required',
           invalidPrice: 'Please enter a valid price',
           needParticipants: 'Select at least one participant',
           cannotMarkPurchased: 'Cannot mark item as purchased',
@@ -678,7 +681,8 @@ export const resources = {
         },
         purchaseModal: {
           title: 'אישור קנייה',
-          price: 'מחיר (אופציונלי)',
+          price: 'מחיר',
+          pricePlaceholder: 'הכנס סכום',
           note: 'הערה (אופציונלי)',
           whoParticipates: 'מי משתתף ברכישה?',
           splitNote: 'ההוצאה תחולק שווה בשווה בין המשתתפים',
@@ -702,12 +706,14 @@ export const resources = {
           quantity: 'כמות',
           notes: 'הערות',
           close: 'סגור',
-          repurchase: 'הוסף שוב לרשימה'
+          repurchase: 'הוסף שוב לרשימה',
+          adding: 'מוסיף...'
         },
         alerts: {
           error: 'שגיאה',
           cannotAdd: 'לא ניתן להוסיף את הפריט',
           cannotRemove: 'לא ניתן למחוק את הפריט',
+          priceRequired: 'יש להזין מחיר',
           invalidPrice: 'אנא הכנס מחיר תקין',
           needParticipants: 'יש לבחור לפחות משתתף אחד',
           cannotMarkPurchased: 'לא ניתן לסמן את הפריט כנרכש',
