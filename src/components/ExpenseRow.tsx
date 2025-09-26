@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, Alert, StyleSheet } from 'react-native';
+import { useThemedStyles } from '../theme/useThemedStyles';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedCard } from '../theme/components/ThemedCard';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Expense } from '../types';
@@ -28,6 +31,11 @@ export default function ExpenseRow({
 }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const { t } = useTranslation();
+  const themed = useThemedStyles(tk => ({
+    row: { backgroundColor: tk.colors.card },
+    title: { color: tk.colors.text.primary },
+    textSecondary: { color: tk.colors.text.secondary },
+  }));
 
   const confirmDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(()=>{});
@@ -99,31 +107,31 @@ export default function ExpenseRow({
   }
 
   return (
-    <View style={styles.row}>
+    <ThemedCard style={styles.row}>
       <View style={styles.content}>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.date}>{formatDate(item.date)}</Text>
+          <ThemedText style={[styles.title]}>{item.title}</ThemedText>
+          <ThemedText style={[styles.date]}>{formatDate(item.date)}</ThemedText>
           {item.description && (
-            <Text style={styles.description}>{item.description}</Text>
+            <ThemedText style={styles.description}>{item.description}</ThemedText>
           )}
           {isParticipant && (
-            <Text style={[
+            <ThemedText style={[
               styles.personalInfo,
               isPayer ? styles.payerText : styles.participantText
             ]}>
               {isPayer ? t('expenseRow.youPaid', { amount: formatCurrency(item.amount) }) : t('expenseRow.participants', { count: item.participants.length, amount: formatCurrency(personalShare) })}
-            </Text>
+            </ThemedText>
           )}
         </View>
         
         <View style={styles.amountContainer}>
-          <Text style={styles.amount}>{formatCurrency(item.amount)}</Text>
-          <Text style={styles.payer}>{t('expenseRow.paidBy', { name: getUserName(item.paidBy) })}</Text>
+          <ThemedText style={styles.amount}>{formatCurrency(item.amount)}</ThemedText>
+          <ThemedText style={styles.payer}>{t('expenseRow.paidBy', { name: getUserName(item.paidBy) })}</ThemedText>
           {item.participants.length > 1 && (
-            <Text style={styles.participants}>
+            <ThemedText style={styles.participants}>
               {t('expenseRow.participants', { count: item.participants.length, amount: formatCurrency(personalShare) })}
-            </Text>
+            </ThemedText>
           )}
         </View>
       </View>
@@ -154,13 +162,13 @@ export default function ExpenseRow({
           </Text>
         </Pressable>
       </View>
-    </View>
+    </ThemedCard>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    backgroundColor: 'white',
+    backgroundColor: 'transparent',
     marginBottom: 8,
     borderRadius: 12,
     shadowColor: '#000',

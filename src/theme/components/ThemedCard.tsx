@@ -11,8 +11,7 @@ export function ThemedCard({ style, ...rest }: ViewProps) {
       StyleSheet.create({
         card: {
           backgroundColor: theme.colors.card,
-          borderColor: theme.colors.border.primary,
-          borderWidth: StyleSheet.hairlineWidth,
+          // No default border to preserve pixel-identical light mode.
         } as ViewStyle,
       }),
     [theme]
@@ -27,9 +26,7 @@ export function ThemedCard({ style, ...rest }: ViewProps) {
     <View
       style={[
         !hasBg && base.card,
-        // If caller provided background but not border, still apply border defaults
-        hasBg && !hasBorderColor && { borderColor: theme.colors.border.primary },
-        hasBg && !hasBorderWidth && { borderWidth: StyleSheet.hairlineWidth },
+        // Do not add borders by default to avoid light-mode changes
         style,
       ]}
       {...rest}

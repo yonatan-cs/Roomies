@@ -11,6 +11,9 @@ import {
   TouchableWithoutFeedback,
   ActivityIndicator
 } from 'react-native';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import AuthScreen from './AuthScreen';
@@ -22,6 +25,10 @@ import { getDisplayName } from '../utils/userDisplay';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
+  const styles = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+  }));
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [apartmentName, setApartmentName] = useState('');
   const [userName, setUserName] = useState('');
@@ -253,9 +260,9 @@ export default function WelcomeScreen() {
   // Show loading spinner while initializing
   if (initializing) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
+      <View className="flex-1 justify-center items-center" style={styles.surfaceBg}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text className="text-gray-600 mt-4">{t('welcome.loading')}</Text>
+        <ThemedText style={[styles.textSecondary, { marginTop: 16 }]}>{t('welcome.loading')}</ThemedText>
       </View>
     );
   }
@@ -278,12 +285,12 @@ export default function WelcomeScreen() {
         <View className="flex-1 justify-center">
           <View className="items-center mb-12">
             <Ionicons name="home" size={80} color="#007AFF" />
-            <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">
+            <ThemedText className="text-3xl font-bold mt-4 text-center">
               {t('welcome.hello', { name: getDisplayName(currentUser) })}
-            </Text>
-            <Text className="text-lg text-gray-600 mt-2 text-center">
+            </ThemedText>
+            <ThemedText className="text-lg mt-2 text-center" style={styles.textSecondary}>
               {t('welcome.subtitle')}
-            </Text>
+            </ThemedText>
           </View>
 
           <View className="space-y-4">
@@ -297,7 +304,8 @@ export default function WelcomeScreen() {
 
             <Pressable
               onPress={() => setMode('join')}
-              className="bg-gray-100 py-4 px-6 rounded-xl flex-row items-center justify-center"
+              className="py-4 px-6 rounded-xl flex-row items-center justify-center"
+              style={styles.surfaceBg}
             >
               <Ionicons name="people-outline" size={24} color="#007AFF" />
               <Text className="text-blue-500 text-lg font-semibold mr-2">{t('welcome.joinApt')}</Text>
@@ -331,14 +339,14 @@ export default function WelcomeScreen() {
           <Text className="text-blue-500 text-lg mr-2">{t('welcome.back')}</Text>
         </Pressable>
 
-        <Text className="text-2xl font-bold text-gray-900 text-center mb-8">
+        <ThemedText className="text-2xl font-bold text-center mb-8">
           {mode === 'create' ? t('welcome.createTitle') : t('welcome.joinTitle')}
-        </Text>
+        </ThemedText>
 
         <View className="space-y-4">
           {mode === 'create' && (
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('welcome.aptName')}</Text>
+              <ThemedText className="text-base mb-2" style={styles.textSecondary}>{t('welcome.aptName')}</ThemedText>
               <TextInput
                 value={apartmentName}
                 onChangeText={setApartmentName}
@@ -352,7 +360,7 @@ export default function WelcomeScreen() {
 
           {mode === 'join' && (
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('welcome.aptCode')}</Text>
+              <ThemedText className="text-base mb-2" style={styles.textSecondary}>{t('welcome.aptCode')}</ThemedText>
               <TextInput
                 value={joinCode}
                 onChangeText={setJoinCode}

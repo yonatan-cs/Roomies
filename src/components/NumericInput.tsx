@@ -1,5 +1,6 @@
 import React from 'react';
 import { TextInput, Platform, InputAccessoryView, Button, View } from 'react-native';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { Keyboard } from 'react-native';
 
 type Props = {
@@ -20,6 +21,12 @@ export function NumericInput({
   ...props 
 }: Props) {
   const accessoryId = 'numericDoneBar';
+  const themed = useThemedStyles(tk => ({
+    accessory: {
+      backgroundColor: tk.colors.surface,
+      borderTopColor: tk.colors.border.primary,
+    },
+  }));
 
   if (Platform.OS === 'ios') {
     return (
@@ -40,9 +47,8 @@ export function NumericInput({
             justifyContent: 'flex-end', 
             paddingHorizontal: 16,
             paddingVertical: 8,
-            backgroundColor: '#f8f9fa',
             borderTopWidth: 1,
-            borderTopColor: '#e9ecef'
+            ...themed.accessory,
           }}>
             <Button 
               title="Done" 

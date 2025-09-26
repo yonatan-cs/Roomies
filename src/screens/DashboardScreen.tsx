@@ -18,6 +18,10 @@ import {
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedView } from '../theme/components/ThemedView';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
@@ -86,6 +90,10 @@ function useKeyboardLift() {
 }
 
 export default function DashboardScreen() {
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+  }));
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
   const navigation = useNavigation<NavigationProp>();
@@ -683,7 +691,7 @@ export default function DashboardScreen() {
 
       <ScrollView className="flex-1 px-6 py-6">
         {/* Quick Actions */}
-        <View className="flex-row justify-center gap-4 mb-6">
+      <View className="flex-row justify-center gap-4 mb-6">
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
             className="bg-blue-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
@@ -724,7 +732,7 @@ export default function DashboardScreen() {
           {/* My Balance */}
           <Pressable
             onPress={() => navigation.navigate('Budget')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
+            className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -733,25 +741,27 @@ export default function DashboardScreen() {
               elevation: 3,
             }}
           >
+            <ThemedCard className="p-4 rounded-2xl shadow-lg">
             <View className="flex-row items-center mb-2">
               <Ionicons name="wallet-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.cardMyBalance')}</Text>
+              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cardMyBalance')}</ThemedText>
             </View>
-            <Text className={cn(
+            <ThemedText className={cn(
               "text-2xl font-bold",
               (myBalance?.netBalance ?? 0) >= 0 ? "text-green-600" : "text-red-600"
             )}>
               {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
-            </Text>
-            <Text className="text-xs text-gray-500">
+            </ThemedText>
+            <ThemedText className="text-xs" style={themed.textSecondary}>
               {(myBalance?.netBalance ?? 0) >= 0 ? t('dashboard.comesToYou') : t('dashboard.youOwe')}
-            </Text>
+            </ThemedText>
+            </ThemedCard>
           </Pressable>
 
           {/* Cleaning Turn */}
           <Pressable
             onPress={() => navigation.navigate('Cleaning')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
+            className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -760,25 +770,27 @@ export default function DashboardScreen() {
               elevation: 3,
             }}
           >
+            <ThemedCard className="p-4 rounded-2xl shadow-lg">
             <View className="flex-row items-center mb-2">
               <Ionicons name="brush-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.cleaningTurn')}</Text>
+              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cleaningTurn')}</ThemedText>
             </View>
-            <Text className="text-lg font-bold text-gray-900">
+            <ThemedText className="text-lg font-bold">
               {getDisplayName(currentTurnUser) || t('common.unknown')}
-            </Text>
-            <Text className={cn(
+            </ThemedText>
+            <ThemedText className={cn(
               "text-xs",
               isMyTurn ? "text-blue-600" : "text-gray-500"
             )}>
               {isMyTurn ? t('dashboard.yourTurn') : t('dashboard.theirTurn')}
-            </Text>
+            </ThemedText>
+            </ThemedCard>
           </Pressable>
 
           {/* Shopping Items */}
           <Pressable
             onPress={() => navigation.navigate('Shopping')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
+            className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -787,19 +799,21 @@ export default function DashboardScreen() {
               elevation: 3,
             }}
           >
+            <ThemedCard className="p-4 rounded-2xl shadow-lg">
             <View className="flex-row items-center mb-2">
               <Ionicons name="basket-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.toBuy')}</Text>
+              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.toBuy')}</ThemedText>
             </View>
-            <Text className="text-2xl font-bold text-gray-900">
+            <ThemedText className="text-2xl font-bold">
               {pendingShoppingItems.length}
-            </Text>
+            </ThemedText>
+            </ThemedCard>
           </Pressable>
 
           {/* Roommates */}
           <Pressable
             onPress={() => navigation.navigate('Settings')}
-            className="bg-white p-4 rounded-2xl shadow-lg w-[48%] mb-2"
+            className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
@@ -808,13 +822,14 @@ export default function DashboardScreen() {
               elevation: 3,
             }}
           >
+            <ThemedCard className="p-4 rounded-2xl shadow-lg">
             <View className="flex-row items-center mb-2">
               <Ionicons name="people-outline" size={20} color="#6b7280" />
-              <Text className="text-gray-600 text-sm ml-2">{t('dashboard.roommates')}</Text>
+              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.roommates')}</ThemedText>
             </View>
-            <Text className="text-2xl font-bold text-gray-900">
+            <ThemedText className="text-2xl font-bold">
               {currentApartment?.members.length || 0}
-            </Text>
+            </ThemedText>
             <View className="flex-row mt-1">
               {currentApartment?.members.slice(0, 3).map((member, index) => (
                 <View 
@@ -830,11 +845,12 @@ export default function DashboardScreen() {
                 </View>
               ))}
             </View>
+            </ThemedCard>
           </Pressable>
         </View>
 
         {/* My Debts */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-lg"
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-lg"
           style={{
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
@@ -843,9 +859,9 @@ export default function DashboardScreen() {
             elevation: 3,
           }}
         >
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
+          <ThemedText className="text-lg font-semibold mb-4">
             {t('dashboard.myDebts')}
-          </Text>
+          </ThemedText>
           
           {myBalance && myBalance.owed && myBalance.owes && (
             <View>
@@ -855,9 +871,9 @@ export default function DashboardScreen() {
                 .slice(0, 3)
                 .map(([userId, amount]) => (
                 <View key={`owed-${userId}`} className="flex-row justify-between items-center py-2">
-                  <Text className="text-gray-700">
+                  <ThemedText style={themed.textSecondary}>
                     {getUserName(userId)} חייב לך
-                  </Text>
+                  </ThemedText>
                   <Text className="text-green-600 font-medium">
                     {formatCurrency(amount)}
                   </Text>
@@ -870,9 +886,9 @@ export default function DashboardScreen() {
                 .slice(0, 3)
                 .map(([userId, amount]) => (
                 <View key={`owes-${userId}`} className="flex-row justify-between items-center py-2">
-                  <Text className="text-gray-700">
+                  <ThemedText style={themed.textSecondary}>
                     אתה חייב ל{getUserName(userId)}
-                  </Text>
+                  </ThemedText>
                   <Text className="text-red-600 font-medium">
                     {formatCurrency(amount)}
                   </Text>
@@ -880,9 +896,9 @@ export default function DashboardScreen() {
               ))}
 
               {Object.keys(myBalance.owed).length === 0 && Object.keys(myBalance.owes).length === 0 && (
-                <Text className="text-gray-500 text-center py-4">
+                <ThemedText className="text-center py-4" style={themed.textSecondary}>
                   {t('dashboard.allCleared')}
-                </Text>
+                </ThemedText>
               )}
 
               <Pressable
@@ -897,17 +913,17 @@ export default function DashboardScreen() {
           )}
 
           {myBalance && (!myBalance.owed || !myBalance.owes) && (
-            <Text className="text-gray-500 text-center py-4">
+            <ThemedText className="text-center py-4" style={themed.textSecondary}>
               {t('dashboard.loadingDebts')}
-            </Text>
+            </ThemedText>
           )}
 
           {!myBalance && (
-            <Text className="text-gray-500 text-center py-4">
+            <ThemedText className="text-center py-4" style={themed.textSecondary}>
               {t('dashboard.noDebtsData')}
-            </Text>
+            </ThemedText>
           )}
-        </View>
+        </ThemedCard>
 
 
         {/* Quick Look Button */}
@@ -942,9 +958,9 @@ export default function DashboardScreen() {
         presentationStyle="pageSheet"
         onRequestClose={() => setShowHighlightsModal(false)}
       >
-        <View className="flex-1 bg-gray-50">
+        <ThemedView className="flex-1" style={themed.surfaceBg}>
           {/* Header */}
-          <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
+          <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
@@ -953,18 +969,18 @@ export default function DashboardScreen() {
                 <Ionicons name="arrow-forward" size={24} color="#374151" />
               </Pressable>
               
-              <Text className="text-2xl font-bold text-gray-900">
+              <ThemedText className="text-2xl font-bold">
               {t('dashboard.highlightsTitle')}
-              </Text>
+              </ThemedText>
               
               <View className="w-10" />
             </View>
-          </View>
+          </ThemedCard>
 
           <ScrollView className="flex-1 px-6 py-6">
             {/* Time Range Filter */}
-            <View className="bg-white rounded-2xl p-4 mb-6 shadow-sm">
-              <Text className="text-sm text-gray-500 mb-3">{t('dashboard.timeRange')}</Text>
+            <ThemedCard className="rounded-2xl p-4 mb-6 shadow-sm">
+              <ThemedText className="text-sm mb-3" style={themed.textSecondary}>{t('dashboard.timeRange')}</ThemedText>
               <View className="flex-row gap-2">
                 {[
                   { key: 'all', label: t('dashboard.allTime') },
@@ -1141,9 +1157,9 @@ export default function DashboardScreen() {
                   {t('dashboard.share')}
                 </Text>
               </Pressable>
-            </View>
+            </ThemedCard>
           </ScrollView>
-        </View>
+        </ThemedView>
       </Modal>
 
       {/* Add Expense Modal */}

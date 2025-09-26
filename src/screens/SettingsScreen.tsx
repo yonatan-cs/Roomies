@@ -182,7 +182,7 @@ User: ${currentUser?.name || 'Unknown'}
 
   if (!currentUser || !currentApartment) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
+      <View className="flex-1 justify-center items-center">
         <Text className="text-gray-500">{t('common.loading')}</Text>
       </View>
     );
@@ -190,8 +190,8 @@ User: ${currentUser?.name || 'Unknown'}
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 text-center">{t('settings.title')}</Text>
+      <View className="px-6 pt-16 pb-6 shadow-sm">
+        <Text className="text-2xl font-bold text-center">{t('settings.title')}</Text>
       </View>
       <ScrollView 
         className="flex-1 px-6 py-6"
@@ -204,11 +204,11 @@ User: ${currentUser?.name || 'Unknown'}
         <AppSettingsSection />
 
         {/* Haptics Setting */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+        <View className="rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
-              <Text className="text-lg font-semibold text-gray-900" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.haptics')}</Text>
-              <Text className="text-sm text-gray-600 mt-1" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.hapticsDescription')}</Text>
+              <Text className="text-lg font-semibold" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.haptics')}</Text>
+              <Text className="text-sm mt-1" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.hapticsDescription')}</Text>
             </View>
             <Pressable
               onPress={() => {
@@ -225,18 +225,18 @@ User: ${currentUser?.name || 'Unknown'}
           </View>
         </View>
         {/* Apartment Details */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.apartmentFallback')}</Text>
+        <View className="rounded-2xl p-6 mb-6 shadow-sm">
+          <Text className="text-lg font-semibold mb-4">{t('dashboard.apartmentFallback')}</Text>
 
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm mb-1">{t('welcome.aptName')}</Text>
-            <Text className="text-gray-900 text-lg font-medium">{currentApartment.name}</Text>
+            <Text className="text-sm mb-1">{t('welcome.aptName')}</Text>
+            <Text className="text-lg font-medium">{currentApartment.name}</Text>
           </View>
 
           <View className="mb-1">
-            <Text className="text-gray-600 text-sm mb-1">{t('welcome.aptCode')}</Text>
-            <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
-              <Text className="text-gray-900 text-lg font-mono font-bold">{currentApartment.invite_code}</Text>
+            <Text className="text-sm mb-1">{t('welcome.aptCode')}</Text>
+            <View className="flex-row items-center justify-between p-3 rounded-xl">
+              <Text className="text-lg font-mono font-bold">{currentApartment.invite_code}</Text>
               <View className="flex-row">
                 <Pressable onPress={handleCopyCode} className="bg-blue-100 p-2 rounded-lg ml-2">
                   <Ionicons name="copy-outline" size={20} color="#007AFF" />
