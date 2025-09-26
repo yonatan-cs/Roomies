@@ -1,5 +1,7 @@
 import React from "react";
 import { Modal, View, Text, Pressable } from "react-native";
+import { ThemedCard } from "../theme/components/ThemedCard";
+import { ThemedText } from "../theme/components/ThemedText";
 import { useTranslation } from 'react-i18next';
 
 interface ConfirmModalProps {
@@ -29,12 +31,12 @@ export default function ConfirmModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View className="flex-1 bg-black/40 items-center justify-center px-6">
-        <View className="bg-white rounded-2xl w-full p-6">
+        <ThemedCard className="rounded-2xl w-full p-6">
           {!!finalTitle && (
-            <Text className="text-lg font-bold text-gray-900 text-center mb-2">{finalTitle}</Text>
+            <ThemedText className="text-lg font-bold text-center mb-2">{finalTitle}</ThemedText>
           )}
           {!!finalMessage && (
-            <Text className="text-gray-600 text-center mb-6">{finalMessage}</Text>
+            <ThemedText className="text-center mb-6">{finalMessage}</ThemedText>
           )}
 
           <View className="flex-row justify-between">
@@ -42,7 +44,7 @@ export default function ConfirmModal({
               onPress={onCancel}
               className="flex-1 py-3 bg-gray-100 rounded-xl mr-2"
             >
-              <Text className="text-center text-gray-700 font-semibold">{finalCancel}</Text>
+              <Text className="text-center font-semibold">{finalCancel}</Text>
             </Pressable>
 
             <Pressable
@@ -52,7 +54,7 @@ export default function ConfirmModal({
               <Text className="text-center text-white font-semibold">{finalConfirm}</Text>
             </Pressable>
           </View>
-        </View>
+        </ThemedCard>
       </View>
     </Modal>
   );

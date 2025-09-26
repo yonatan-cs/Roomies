@@ -12,10 +12,18 @@ import { AsyncButton } from '../components/AsyncButton';
 import { useTranslation } from 'react-i18next';
 import { impactLight, success } from '../utils/haptics';
 import { getDisplayName } from '../utils/userDisplay';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 
 export default function CleaningScreen() {
   const { t } = useTranslation();
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
   const appLanguage = useStore(s => s.appLanguage);
   const [showNotYourTurn, setShowNotYourTurn] = useState(false);
   const [showIncomplete, setShowIncomplete] = useState(false);
@@ -313,26 +321,26 @@ export default function CleaningScreen() {
 
   if (!currentApartment || !cleaningTask) {
     return (
-      <View className="flex-1 bg-white justify-center items-center px-6">
+      <View className="flex-1 justify-center items-center px-6" style={themed.surfaceBg}>
         <Ionicons name="brush-outline" size={80} color="#6b7280" />
-        <Text className="text-xl text-gray-600 text-center mt-4">{t('cleaning.loading')}</Text>
+        <ThemedText className="text-xl text-center mt-4" style={themed.textSecondary}>{t('cleaning.loading')}</ThemedText>
       </View>
     );
   }
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-gray-900 text-center mb-2">{t('cleaning.title')}</Text>
-        <Text className="text-gray-600 text-center">{currentApartment.name}</Text>
+      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
+        <ThemedText className="text-2xl font-bold text-center mb-2">{t('cleaning.title')}</ThemedText>
+        <ThemedText className="text-center" style={themed.textSecondary}>{currentApartment.name}</ThemedText>
         <View className="flex-row items-center justify-center mt-2">
-          <View className="px-3 py-1 rounded-full bg-gray-100">
-            <Text className="text-gray-700 text-sm">
+          <View className="px-3 py-1 rounded-full" style={themed.surfaceBg}>
+            <ThemedText className="text-sm" style={themed.textSecondary}>
               {cleaningSettings.intervalDays === 7 ? t('cleaning.scheduleWeekly') : t('cleaning.scheduleDays', { count: cleaningSettings.intervalDays })} • {t('cleaning.rotatesOn', { day: t(`days.${cleaningSettings.anchorDow}`) })}
-            </Text>
+            </ThemedText>
           </View>
         </View>
-      </View>
+      </ThemedCard>
 
       <ScrollView 
         className="flex-1 px-6 py-6"
@@ -345,20 +353,20 @@ export default function CleaningScreen() {
         }
       >
         {/* Current Turn Card */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
           <View className="items-center">
-            <View className={cn('w-16 h-16 rounded-full items-center justify-center mb-4', isMyTurn ? 'bg-blue-100' : 'bg-gray-100')}>
+            <View className={cn('w-16 h-16 rounded-full items-center justify-center mb-4', isMyTurn ? 'bg-blue-100' : '')} style={!isMyTurn ? themed.surfaceBg : undefined}>
               <Ionicons name="person" size={32} color={isMyTurn ? '#007AFF' : '#6b7280'} />
             </View>
 
-            <Text className="text-xl font-semibold text-gray-900 mb-1">
+            <ThemedText className="text-xl font-semibold mb-1">
               {getDisplayName(currentApartment.members.find((m) => m.id === (cleaningTask as any).user_id)) || t('cleaning.unknownUser')}
-            </Text>
+            </ThemedText>
 
             {(() => {
               const dow = cleaningSettings.preferredDayByUser[(cleaningTask as any).user_id];
               if (dow === undefined) return null;
-              return <Text className="text-sm text-gray-500 mb-1">{t('cleaning.recommendedDay', { day: t(`days.${dow}`) })}</Text>;
+              return <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('cleaning.recommendedDay', { day: t(`days.${dow}`) })}</ThemedText>;
             })()}
 
             {(() => {
@@ -369,16 +377,16 @@ export default function CleaningScreen() {
               });
               const overdue = new Date() > cycleEnd;
               return (
-                <Text className={cn('text-sm mb-4', overdue ? 'text-red-600' : 'text-gray-600')}>
+                <ThemedText className={cn('text-sm mb-4', overdue ? 'text-red-600' : '')} style={!overdue ? themed.textSecondary : undefined}>
                   {t('cleaning.untilDate', { date: formatDueDate(cycleEnd) })}{overdue && t('cleaning.overdue')}
-                </Text>
+                </ThemedText>
               );
             })()}
 
             {isMyTurn && (
               <>
-                <Text className="text-sm text-gray-600 mb-2">{t('cleaning.progress', { percent: getCompletionPercentage() })}</Text>
-                <View className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('cleaning.progress', { percent: getCompletionPercentage() })}</ThemedText>
+                <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: '#e5e7eb' }}>
                   <View className="bg-blue-500 h-2 rounded-full" style={{ width: `${getCompletionPercentage()}%` }} />
                 </View>
                 <AsyncButton
@@ -397,28 +405,28 @@ export default function CleaningScreen() {
             {/* Show live progress even when it's not my turn */}
             {!isMyTurn && checklistItems.length > 0 && (
               <View className="w-full mt-4">
-                <Text className="text-sm text-gray-600 mb-2 text-center">{t('cleaning.progressCurrent', { percent: getCompletionPercentage() })}</Text>
-                <View className="w-full bg-gray-200 rounded-full h-2">
+                <ThemedText className="text-sm mb-2 text-center" style={themed.textSecondary}>{t('cleaning.progressCurrent', { percent: getCompletionPercentage() })}</ThemedText>
+                <View className="w-full rounded-full h-2" style={{ backgroundColor: '#e5e7eb' }}>
                   <View className="bg-green-500 h-2 rounded-full" style={{ width: `${getCompletionPercentage()}%` }} />
                 </View>
               </View>
             )}
           </View>
-        </View>
+        </ThemedCard>
 
         {/* Live Progress Section - Show completed tasks by others */}
         {!isMyTurn && checklistItems.length > 0 && (
-          <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">{t('cleaning.liveProgress')}</Text>
+          <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+            <ThemedText className="text-lg font-semibold mb-4">{t('cleaning.liveProgress')}</ThemedText>
             {checklistItems.map((item) => (
               <View key={item.id} className="flex-row items-center py-2">
                 <View className={cn('w-5 h-5 rounded border-2 items-center justify-center ml-3', 
-                  item.completed ? 'bg-green-500 border-green-500' : 'border-gray-300')}>
+                  item.completed ? 'bg-green-500 border-green-500' : '')} style={!item.completed ? themed.borderColor : undefined}>
                   {item.completed && <Ionicons name="checkmark" size={12} color="white" />}
                 </View>
-                <Text className={cn('flex-1 text-base', item.completed ? 'text-green-600 line-through' : 'text-gray-900')}>
+                <ThemedText className={cn('flex-1 text-base', item.completed ? 'text-green-600 line-through' : '')}>
                   {item.title}
-                </Text>
+                </ThemedText>
                 {item.completed && item.completed_by && (
                   <Text className="text-xs text-green-600">
                     ✓ {displayMemberName(item.completed_by)}
@@ -426,12 +434,12 @@ export default function CleaningScreen() {
                 )}
               </View>
             ))}
-          </View>
+          </ThemedCard>
         )}
 
         {/* Queue */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('cleaning.nextQueue')}</Text>
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedText className="text-lg font-semibold mb-4">{t('cleaning.nextQueue')}</ThemedText>
           {(() => {
             // אם יש רק שותף אחד בדירה - הוא תמיד בתור
             if (currentApartment?.members.length === 1) {
@@ -440,7 +448,7 @@ export default function CleaningScreen() {
                   <View className="bg-blue-100 w-10 h-10 rounded-full items-center justify-center">
                     <Text className="text-blue-600 font-medium">1</Text>
                   </View>
-                  <Text className="text-gray-900 text-base mr-3">{getDisplayName(currentApartment.members[0])}</Text>
+                  <ThemedText className="text-base mr-3">{getDisplayName(currentApartment.members[0])}</ThemedText>
                   <Text className="text-blue-600 text-sm">{t('cleaning.alwaysInTurn')}</Text>
                 </View>
               );
@@ -455,21 +463,21 @@ export default function CleaningScreen() {
               if (!user) return null;
               return (
                 <View key={user.id} className="flex-row items-center py-3">
-                  <View className="bg-gray-100 w-10 h-10 rounded-full items-center justify-center">
-                    <Text className="text-gray-600 font-medium">{i + 2}</Text>
+                  <View className="w-10 h-10 rounded-full items-center justify-center" style={themed.surfaceBg}>
+                    <ThemedText style={themed.textSecondary} className="font-medium">{i + 2}</ThemedText>
                   </View>
-                  <Text className="text-gray-900 text-base mr-3">{getDisplayName(user)}</Text>
+                  <ThemedText className="text-base mr-3">{getDisplayName(user)}</ThemedText>
                 </View>
               );
             });
           })()}
-        </View>
+        </ThemedCard>
 
         {/* Cleaning Tasks */}
         {isMyTurn && (
-          <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-lg font-semibold text-gray-900">{t('cleaning.tasksList')}</Text>
+              <ThemedText className="text-lg font-semibold">{t('cleaning.tasksList')}</ThemedText>
             </View>
 
             {checklistItems.map((item) => {
@@ -478,45 +486,46 @@ export default function CleaningScreen() {
               // אם זה התור שלי, הכפתורים חסומים רק אם סיימתי את התור
               const isDisabled = !isMyTurn || turnCompleted;
               return (
-                <View key={`${cycleKey}-${item.id}`} className="flex-row items-center py-3 px-2 rounded-xl mb-2 bg-gray-50">
+                <View key={`${cycleKey}-${item.id}`} className="flex-row items-center py-3 px-2 rounded-xl mb-2" style={themed.surfaceBg}>
                   <Pressable 
                     onPress={() => !isDisabled && handleToggleTask(item.id, !isCompleted)} 
                     className={cn(
                       'w-6 h-6 rounded border-2 items-center justify-center ml-3', 
-                      isDisabled ? 'bg-gray-200 border-gray-200' : (isCompleted ? 'bg-green-500 border-green-500' : 'border-gray-300')
+                      isDisabled ? '' : (isCompleted ? 'bg-green-500 border-green-500' : '')
                     )}
+                    style={isDisabled ? { backgroundColor: '#e5e7eb', borderColor: '#e5e7eb' } : (isCompleted ? undefined : themed.borderColor)}
                     disabled={isDisabled}
                   >
                     {isCompleted && <Ionicons name="checkmark" size={16} color="white" />}
                   </Pressable>
-                  <Text className={cn('flex-1 text-base', isCompleted ? 'text-gray-500 line-through' : 'text-gray-900')}>{item.title}</Text>
+                  <ThemedText className={cn('flex-1 text-base', isCompleted ? 'line-through' : '')} style={isCompleted ? themed.textSecondary : undefined}>{item.title}</ThemedText>
                 </View>
               );
             })}
 
-          </View>
+          </ThemedCard>
         )}
 
         {/* Last Cleaning Info */}
         {cleaningTask.last_completed_at && (
-          <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-3">{t('cleaning.lastCleaning')}</Text>
+          <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+            <ThemedText className="text-lg font-semibold mb-3">{t('cleaning.lastCleaning')}</ThemedText>
             <View className="flex-row items-center">
               <Ionicons name="checkmark-circle" size={20} color="#10b981" />
               <View className="mr-3">
-                <Text className="text-gray-600">{new Date(cleaningTask.last_completed_at).toLocaleString()}</Text>
+                <ThemedText style={themed.textSecondary}>{new Date(cleaningTask.last_completed_at).toLocaleString()}</ThemedText>
                 {cleaningTask.last_completed_by && (
-                  <Text className="text-sm text-gray-500">{t('cleaning.byUser', { name: getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) })}</Text>
+                  <ThemedText className="text-sm" style={themed.textSecondary}>{t('cleaning.byUser', { name: getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) })}</ThemedText>
                 )}
               </View>
             </View>
-          </View>
+          </ThemedCard>
         )}
 
         {/* Cleaning History */}
         {cleaningTask.last_completed_at && (
-          <View className="bg-white rounded-2xl p-6 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">{t('cleaning.history')}</Text>
+          <ThemedCard className="rounded-2xl p-6 shadow-sm">
+            <ThemedText className="text-lg font-semibold mb-4">{t('cleaning.history')}</ThemedText>
             {/* Show last cleaning from the new system */}
             <View className="flex-row items-center py-2">
               <Ionicons name="brush" size={16} color="#10b981" />
@@ -535,13 +544,13 @@ export default function CleaningScreen() {
                 <View key={history.id} className="flex-row items-center py-2">
                   <Ionicons name="brush" size={16} color="#10b981" />
                   <View className="mr-3">
-                    <Text className="text-gray-900">{getDisplayName(user) || t('cleaning.unknownUser')}</Text>
-                    <Text className="text-sm text-gray-500">{new Date(history.cleanedAt).toLocaleString()}</Text>
+                    <ThemedText>{getDisplayName(user) || t('cleaning.unknownUser')}</ThemedText>
+                    <ThemedText className="text-sm" style={themed.textSecondary}>{new Date(history.cleanedAt).toLocaleString()}</ThemedText>
                   </View>
                 </View>
               );
             })}
-          </View>
+          </ThemedCard>
         )}
       </ScrollView>
 

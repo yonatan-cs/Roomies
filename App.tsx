@@ -5,6 +5,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, Text, TextInput } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
+import { navigationRef } from "./src/navigation/navigationRef";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import "./src/i18n";
 import { useEffect } from "react";
 import { useStore } from "./src/state/store";
@@ -59,6 +61,22 @@ export default function App() {
 
   function ThemedRoot() {
     const { activeScheme, theme } = useTheme();
+    useEffect(() => {
+      (async () => {
+        try {
+          const raw = await AsyncStorage.getItem('__pendingRoute__');
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          const fresh = Date.now() - (data.ts ?? 0) < 60000;
+          if (fresh && navigationRef.isReady()) {
+            navigationRef.navigate(data.name, data.params);
+          }
+        } catch {}
+        finally {
+          await AsyncStorage.removeItem('__pendingRoute__');
+        }
+      })();
+    }, []);
 
     const navTheme: NavTheme =
       activeScheme === 'dark'
@@ -87,7 +105,7 @@ export default function App() {
 
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
-        <NavigationContainer theme={navTheme}>
+        <NavigationContainer ref={navigationRef} theme={navTheme}>
           <AppNavigator />
         </NavigationContainer>
         <StatusBar style={activeScheme === 'dark' ? 'light' : 'dark'} />

@@ -5,6 +5,9 @@ import { useStore } from '../state/store';
 import { useTranslation } from 'react-i18next';
 import { selection } from '../utils/haptics';
 import { ThemeSetting } from '../theme/theme-settings';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { changeAppLanguage } from '../utils/changeLanguage';
 
 export default function AppSettingsSection() {
   const { t } = useTranslation();
@@ -14,16 +17,16 @@ export default function AppSettingsSection() {
   const setThemeSetting = useStore(s => s.setThemeSetting);
 
   return (
-    <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+    <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
       <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-lg font-semibold text-gray-900">{t('settings.appSettings')}</Text>
+        <ThemedText className="text-lg font-semibold">{t('settings.appSettings')}</ThemedText>
         <Ionicons name="settings-outline" size={20} color="#6b7280" />
       </View>
 
       {/* Language Section */}
       <View className="mb-6">
         <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-base font-medium text-gray-900">{t('settings.language')}</Text>
+          <ThemedText className="text-base font-medium">{t('settings.language')}</ThemedText>
           <Ionicons name="language" size={18} color="#6b7280" />
         </View>
         <View className="flex-row">
@@ -31,19 +34,21 @@ export default function AppSettingsSection() {
             onPress={() => {
               selection();
               setAppLanguage('he');
+              changeAppLanguage('he');
             }}
             className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-100'}`}
           >
-            <Text className={appLanguage === 'he' ? 'text-white' : 'text-gray-700'}>{t('settings.hebrew')}</Text>
+            <ThemedText className={appLanguage === 'he' ? 'text-white' : 'text-gray-700'}>{t('settings.hebrew')}</ThemedText>
           </Pressable>
           <Pressable
             onPress={() => {
               selection();
               setAppLanguage('en');
+              changeAppLanguage('en');
             }}
             className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
           >
-            <Text className={appLanguage === 'en' ? 'text-white' : 'text-gray-700'}>{t('settings.english')}</Text>
+            <ThemedText className={appLanguage === 'en' ? 'text-white' : 'text-gray-700'}>{t('settings.english')}</ThemedText>
           </Pressable>
         </View>
       </View>
@@ -51,7 +56,7 @@ export default function AppSettingsSection() {
       {/* Theme Section */}
       <View>
         <View className="flex-row items-center justify-between mb-3">
-          <Text className="text-base font-medium text-gray-900">{t('settings.theme')}</Text>
+          <ThemedText className="text-base font-medium">{t('settings.theme')}</ThemedText>
           <Ionicons name="color-palette-outline" size={18} color="#6b7280" />
         </View>
         <View className="flex-row flex-wrap">
@@ -64,18 +69,18 @@ export default function AppSettingsSection() {
               }}
               className={`px-3 py-2 rounded-xl mr-2 mb-2 ${themeSetting === theme ? 'bg-blue-500' : 'bg-gray-100'}`}
             >
-              <Text className={themeSetting === theme ? 'text-white' : 'text-gray-700'}>
+              <ThemedText className={themeSetting === theme ? 'text-white' : 'text-gray-700'}>
                 {t(`settings.theme.${theme}`)}
-              </Text>
+              </ThemedText>
             </Pressable>
           ))}
         </View>
         {themeSetting === 'system' && (
-          <Text className="text-sm text-gray-600 mt-2" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>
+          <ThemedText className="text-sm mt-2" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>
             {t('settings.theme.system.help')}
-          </Text>
+          </ThemedText>
         )}
       </View>
-    </View>
+    </ThemedCard>
   );
 }
