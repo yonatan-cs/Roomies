@@ -547,7 +547,13 @@ export class FirestoreService {
     const fields: { [key: string]: FirestoreValue } = {};
 
     for (const [key, value] of Object.entries(data)) {
-      if (value === null || value === undefined) {
+      // Important: undefined means "do nothing" — don't send the field
+      if (value === undefined) {
+        continue;
+      }
+      
+      if (value === null) {
+        // Only include explicit null if you really want the field set to null
         fields[key] = { nullValue: null };
       } else if (typeof value === 'string') {
         // Detect ISO timestamp strings for fields like 'closed_at', 'created_at', etc.
@@ -1092,6 +1098,47 @@ export class FirestoreService {
     // Only update the fields that are provided, don't replace the entire document
     const updateMaskFields = Object.keys(userData).filter(key => userData[key as keyof typeof userData] !== undefined);
     return this.updateDocument(COLLECTIONS.USERS, userId, userData, updateMaskFields);
+  }
+
+  /**
+   * Delete a specific field from user document
+   */
+  async deleteUserField(userId: string, fieldName: string): Promise<void> {
+    try {
+      const headers = await this.getAuthHeaders();
+      const url = `${FIRESTORE_BASE_URL}/${COLLECTIONS.USERS}/${userId}?updateMask.fieldPaths=${encodeURIComponent(fieldName)}`;
+
+      const requestBody = {
+        fields: {
+          [fieldName]: { nullValue: null }
+        }
+      };
+
+      console.log('🗑️ Deleting user field:', { userId, fieldName, url });
+
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMessage = errorData.error?.message || 'Unknown error';
+        console.error('❌ Delete user field failed:', {
+          status: response.status,
+          error: errorMessage,
+          userId,
+          fieldName
+        });
+        throw new Error(`Failed to delete user field: ${errorMessage}`);
+      }
+
+      console.log('✅ User field deleted successfully');
+    } catch (error) {
+      console.error('Delete user field error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -2086,9 +2133,9 @@ export class FirestoreService {
       await this.deleteDocument(COLLECTIONS.APARTMENT_MEMBERS, memberId);
       console.log('✅ Membership record removed');
       
-      // Clear user's current_apartment_id
+      // Clear user's current_apartment_id using proper field deletion
       console.log('👤 Clearing user profile apartment reference...');
-      await this.updateUser(userId, { current_apartment_id: undefined });
+      await this.deleteUserField(userId, 'current_apartment_id');
       console.log('✅ User profile updated');
       
     } catch (error) {
