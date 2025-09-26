@@ -27,15 +27,7 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-video",
-      "expo-web-browser",
-      [
-        "@react-native-firebase/app",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ]
+      "expo-web-browser"
     ]
   }
 }
