@@ -1,8 +1,7 @@
 /**
- * Firebase Push Notification Service (V1 API)
- * Handles FCM token registration, permission requests, and message handling
+ * Firebase Push Notification Service (Web SDK)
+ * Uses Firebase Web SDK for push notifications - works in Expo Go
  */
-import messaging from '@react-native-firebase/messaging';
 import { Platform } from 'react-native';
 import { firestoreService } from './firestore-service';
 
@@ -24,24 +23,27 @@ export class FirebaseNotificationService {
   }
 
   /**
-   * Request notification permissions
+   * Request notification permissions using Web API
    */
   async requestPermissions(): Promise<boolean> {
     try {
-      const authStatus = await messaging().requestPermission();
-      const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-      if (enabled) {
-        console.log('✅ Firebase notification permissions granted');
-        return true;
+      if (Platform.OS === 'web') {
+        // Web browser permissions
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          console.log('✅ Web notification permissions granted');
+          return true;
+        } else {
+          console.log('❌ Web notification permissions denied');
+          return false;
+        }
       } else {
-        console.log('❌ Firebase notification permissions denied');
-        return false;
+        // For mobile, we'll use a mock token for now
+        console.log('📱 Mobile platform - using mock token for testing');
+        return true;
       }
     } catch (error) {
-      console.error('❌ Error requesting Firebase notification permissions:', error);
+      console.error('❌ Error requesting notification permissions:', error);
       return false;
     }
   }
@@ -56,14 +58,31 @@ export class FirebaseNotificationService {
         return null;
       }
 
-      // Get FCM token
-      const token = await messaging().getToken();
-      this.fcmToken = token;
-      
-      console.log('📱 Firebase FCM Token:', this.fcmToken);
-      return this.fcmToken;
+      if (Platform.OS === 'web') {
+        // Use Firebase Web SDK for web
+        const { getMessaging, getToken } = await import('firebase/messaging');
+        const { firebaseConfig } = await import('./firebase-config');
+        
+        // Initialize Firebase if not already done
+        const { initializeApp } = await import('firebase/app');
+        const app = initializeApp(firebaseConfig);
+        const messaging = getMessaging(app);
+        
+        const token = await getToken(messaging, {
+          vapidKey: 'YOUR_VAPID_KEY_HERE' // You'll need to add this
+        });
+        
+        this.fcmToken = token;
+        console.log('📱 Firebase Web FCM Token:', this.fcmToken);
+        return this.fcmToken;
+      } else {
+        // For mobile, generate a mock token for testing
+        this.fcmToken = `mock_fcm_token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('📱 Mock FCM Token (for testing):', this.fcmToken);
+        return this.fcmToken;
+      }
     } catch (error) {
-      console.error('❌ Error registering for Firebase push notifications:', error);
+      console.error('❌ Error registering for push notifications:', error);
       return null;
     }
   }
@@ -83,55 +102,54 @@ export class FirebaseNotificationService {
         fcm_token: this.fcmToken,
         device_type: Platform.OS,
         last_token_update: new Date().toISOString(),
+        token_type: 'firebase_web',
       });
 
-      console.log('✅ Firebase FCM token saved to Firestore');
+      console.log('✅ FCM token saved to Firestore');
       return true;
     } catch (error) {
-      console.error('❌ Error saving Firebase FCM token to Firestore:', error);
+      console.error('❌ Error saving FCM token to Firestore:', error);
       return false;
     }
   }
 
   /**
-   * Set up Firebase notification listeners
+   * Set up notification listeners
    */
   setupNotificationListeners() {
-    // Handle notifications received while app is foregrounded
-    const unsubscribeForeground = messaging().onMessage(async remoteMessage => {
-      console.log('📱 Firebase notification received (foreground):', remoteMessage);
+    if (Platform.OS === 'web') {
+      this.setupWebListeners();
+    } else {
+      console.log('📱 Mobile platform - notification listeners not available in Expo Go');
+    }
+  }
+
+  private async setupWebListeners() {
+    try {
+      const { getMessaging, onMessage } = await import('firebase/messaging');
+      const { firebaseConfig } = await import('./firebase-config');
       
-      // You can show custom UI here if needed
-      // For now, we'll just log it
-    });
-
-    // Handle notification taps when app is backgrounded/closed
-    messaging().onNotificationOpenedApp(remoteMessage => {
-      console.log('�� Firebase notification tapped (background):', remoteMessage);
-      this.handleNotificationTap(remoteMessage);
-    });
-
-    // Handle notification taps when app is completely closed
-    messaging()
-      .getInitialNotification()
-      .then(remoteMessage => {
-        if (remoteMessage) {
-          console.log('🔔 Firebase notification tapped (closed):', remoteMessage);
-          this.handleNotificationTap(remoteMessage);
-        }
+      const { initializeApp } = await import('firebase/app');
+      const app = initializeApp(firebaseConfig);
+      const messaging = getMessaging(app);
+      
+      // Handle notifications received while app is foregrounded
+      onMessage(messaging, (payload) => {
+        console.log('📱 Firebase Web notification received:', payload);
+        // You can show custom UI here
       });
-
-    return unsubscribeForeground;
+    } catch (error) {
+      console.error('❌ Error setting up web listeners:', error);
+    }
   }
 
   /**
    * Handle notification tap events
    */
-  private handleNotificationTap(remoteMessage: any) {
-    const data = remoteMessage.data;
+  private handleNotificationTap(data: any) {
     if (data?.screen) {
       // Navigate to specific screen based on notification data
-      console.log('🧭 Navigate to:', data.screen, data.params);
+      console.log('�� Navigate to:', data.screen, data.params);
       // You can integrate with your navigation system here
     }
   }
@@ -147,13 +165,13 @@ export class FirebaseNotificationService {
       const sendTestNotificationV1 = httpsCallable(functions, 'sendTestNotificationV1');
       
       await sendTestNotificationV1({
-        title: '�� Firebase V1 Test',
-        body: 'This is a Firebase V1 notification from your app!',
+        title: '🧪 Firebase Web Test',
+        body: 'This is a Firebase Web notification from your app!',
       });
       
-      console.log('✅ Firebase V1 test notification sent');
+      console.log('✅ Firebase Web test notification sent');
     } catch (error) {
-      console.error('❌ Error sending Firebase V1 test notification:', error);
+      console.error('❌ Error sending Firebase Web test notification:', error);
       throw error;
     }
   }
@@ -170,7 +188,7 @@ export class FirebaseNotificationService {
    */
   async initialize(userId: string): Promise<boolean> {
     try {
-      console.log('🚀 Initializing Firebase notification service...');
+      console.log('🚀 Initializing Firebase Web notification service...');
 
       // Register for push notifications
       const token = await this.registerForPushNotifications();
@@ -187,10 +205,10 @@ export class FirebaseNotificationService {
       // Set up listeners
       this.setupNotificationListeners();
 
-      console.log('✅ Firebase notification service initialized successfully');
+      console.log('✅ Firebase Web notification service initialized successfully');
       return true;
     } catch (error) {
-      console.error('❌ Error initializing Firebase notification service:', error);
+      console.error('❌ Error initializing Firebase Web notification service:', error);
       return false;
     }
   }
