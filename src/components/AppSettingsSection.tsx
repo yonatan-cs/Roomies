@@ -40,7 +40,7 @@ export default function AppSettingsSection() {
               setAppLanguage('he');
               changeAppLanguage('he');
             }}
-            className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-100'}`}
+            className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-200'}`}
           >
             <ThemedText className={appLanguage === 'he' ? 'text-white' : ''} style={appLanguage !== 'he' ? themed.textSecondary : undefined}>{t('settings.hebrew')}</ThemedText>
           </Pressable>
@@ -50,7 +50,7 @@ export default function AppSettingsSection() {
               setAppLanguage('en');
               changeAppLanguage('en');
             }}
-            className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
+            className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-200'}`}
           >
             <ThemedText className={appLanguage === 'en' ? 'text-white' : ''} style={appLanguage !== 'en' ? themed.textSecondary : undefined}>{t('settings.english')}</ThemedText>
           </Pressable>
@@ -71,7 +71,7 @@ export default function AppSettingsSection() {
                 selection();
                 setThemeSetting(theme);
               }}
-              className={`px-3 py-2 rounded-xl mr-2 mb-2 ${themeSetting === theme ? 'bg-blue-500' : 'bg-gray-100'}`}
+              className={`px-3 py-2 rounded-xl mr-2 mb-2 ${themeSetting === theme ? 'bg-blue-500' : 'bg-gray-200'}`}
             >
               <ThemedText className={themeSetting === theme ? 'text-white' : ''} style={themeSetting !== theme ? themed.textSecondary : undefined}>
                 {t(`settings.theme.${theme}`)}
