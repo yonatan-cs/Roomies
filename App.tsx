@@ -11,6 +11,12 @@ import "./src/i18n";
 import { useEffect } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
+import { configureReanimatedLogger } from 'react-native-reanimated';
+
+// Configure Reanimated logger to disable strict mode warnings
+configureReanimatedLogger({
+  strict: false, // Disable strict mode to stop the "Reading from value during render" warnings
+});
 
 /*
 IMPORTANT NOTICE: DO NOT REMOVE
