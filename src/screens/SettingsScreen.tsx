@@ -66,6 +66,7 @@ export default function SettingsScreen() {
   const [memberToRemove, setMemberToRemove] = useState<{id: string, name: string} | null>(null);
   const [showMemberOptions, setShowMemberOptions] = useState<string | null>(null);
   const themed = useThemedStyles(tk => ({
+    textPrimary: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
   }));
@@ -198,7 +199,7 @@ User: ${currentUser?.name || 'Unknown'}
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <View className="px-6 pt-16 pb-6 shadow-sm">
-        <ThemedText className="text-2xl font-bold text-center">{t('settings.title')}</ThemedText>
+        <Text className="text-2xl font-bold text-center">{t('settings.title')}</Text>
       </View>
       <ScrollView 
         className="flex-1 px-6 py-6"
@@ -211,11 +212,11 @@ User: ${currentUser?.name || 'Unknown'}
         <AppSettingsSection />
 
         {/* Haptics Setting */}
-        <View className="rounded-2xl p-6 mb-6 shadow-sm">
+        <ThemedCard className="rounded-2xl p-6 mb-6">
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
-              <ThemedText className="text-lg font-semibold" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.haptics')}</ThemedText>
-              <ThemedText className="text-sm mt-1" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.hapticsDescription')}</ThemedText>
+              <Text className="text-lg font-semibold" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.haptics')}</Text>
+              <Text className="text-sm mt-1" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.hapticsDescription')}</Text>
             </View>
             <Pressable
               onPress={() => {
@@ -230,20 +231,20 @@ User: ${currentUser?.name || 'Unknown'}
               <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
             </Pressable>
           </View>
-        </View>
+        </ThemedCard>
         {/* Apartment Details */}
-        <View className="rounded-2xl p-6 mb-6 shadow-sm">
-          <ThemedText className="text-lg font-semibold mb-4">{t('dashboard.apartmentFallback')}</ThemedText>
+        <ThemedCard className="rounded-2xl p-6 mb-6">
+          <Text className="text-lg font-semibold mb-4">{t('dashboard.apartmentFallback')}</Text>
 
           <View className="mb-4">
-            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptName')}</ThemedText>
-            <ThemedText className="text-lg font-medium">{currentApartment.name}</ThemedText>
+            <Text className="text-sm mb-1">{t('welcome.aptName')}</Text>
+            <Text className="text-lg font-medium">{currentApartment.name}</Text>
           </View>
 
           <View className="mb-1">
-            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
+            <Text className="text-sm mb-1">{t('welcome.aptCode')}</Text>
             <View className="flex-row items-center justify-between p-3 rounded-xl">
-              <ThemedText className="text-lg font-mono font-bold">{currentApartment.invite_code}</ThemedText>
+              <Text className="text-lg font-mono font-bold">{currentApartment.invite_code}</Text>
               <View className="flex-row">
                 <Pressable onPress={handleCopyCode} className="bg-blue-100 p-2 rounded-lg ml-2">
                   <Ionicons name="copy-outline" size={20} color="#007AFF" />
@@ -254,10 +255,10 @@ User: ${currentUser?.name || 'Unknown'}
               </View>
             </View>
           </View>
-          {copied && <ThemedText className="text-xs text-green-600 mt-1">{t('common.success')}</ThemedText>}
+          {copied && <Text className="text-xs text-green-600 mt-1">{t('common.success')}</Text>}
 
           <ThemedText className="text-xs mt-2" style={themed.textSecondary}>{t('settings.feedbackTitle')}</ThemedText>
-        </View>
+        </ThemedCard>
 
         {/* Roommates */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
@@ -277,9 +278,9 @@ User: ${currentUser?.name || 'Unknown'}
             <View key={member.id} className="mb-4">
               <View className="flex-row items-center">
                 <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
-                  <ThemedText className="text-blue-700 font-semibold text-lg">
+                  <Text className="text-blue-700 font-semibold text-lg">
                     {getUserDisplayInfo(member).initial}
-                  </ThemedText>
+                  </Text>
                 </View>
                 <View className="mr-3 flex-1">
                   <ThemedText className="font-medium">
@@ -308,7 +309,7 @@ User: ${currentUser?.name || 'Unknown'}
                           className="px-4 py-3 border-b"
                           style={themed.borderColor}
                         >
-                          <ThemedText className="text-red-600 font-medium">{t('settings.removeMember')}</ThemedText>
+                          <Text className="text-red-600 font-medium">{t('settings.removeMember')}</Text>
                         </Pressable>
                       </View>
                     )}
@@ -337,7 +338,7 @@ User: ${currentUser?.name || 'Unknown'}
                   onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 <View className="flex-row mr-3">
-                  <Pressable onPress={handleSaveName} className={"p-2 rounded-lg ml-2 " + (newName.trim() ? 'bg-green-100' : 'bg-gray-200')}>
+                  <Pressable onPress={handleSaveName} className={"p-2 rounded-lg ml-2 " + (newName.trim() ? 'bg-green-100' : 'bg-gray-100')}>
                     <Ionicons name="checkmark" size={20} color={newName.trim() ? '#10b981' : '#9ca3af'} />
                   </Pressable>
                   <Pressable
@@ -353,7 +354,7 @@ User: ${currentUser?.name || 'Unknown'}
               </View>
             ) : (
               <Pressable onPress={() => setEditingName(true)} className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
-                <ThemedText className="text-base">{getDisplayName(currentUser)}</ThemedText>
+                <ThemedText className="text-base" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
                 <Ionicons name="pencil-outline" size={20} color="#6b7280" />
               </Pressable>
             )}
@@ -378,7 +379,7 @@ User: ${currentUser?.name || 'Unknown'}
                 <Pressable
                   key={days}
                   onPress={() => setCleaningIntervalDays(days)}
-                  className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-200')}
+                  className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
                   <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{label}</ThemedText>
                 </Pressable>
@@ -395,7 +396,7 @@ User: ${currentUser?.name || 'Unknown'}
                 <Pressable
                   key={dayIndex}
                   onPress={() => setCleaningAnchorDow(dayIndex)}
-                  className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-200')}
+                  className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
                   <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
                 </Pressable>
@@ -544,9 +545,9 @@ User: ${currentUser?.name || 'Unknown'}
           {/* Success Message */}
           {showSuccessMessage && (
             <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
-              <ThemedText className="text-green-800 text-center font-medium">
+              <Text className="text-green-800 text-center font-medium">
                 ✅ המשימה נוספה בהצלחה!
-              </ThemedText>
+              </Text>
             </View>
           )}
         </ThemedCard>
@@ -563,14 +564,14 @@ User: ${currentUser?.name || 'Unknown'}
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="mail-outline" size={20} color="white" className="ml-2" />
-              <ThemedText className="text-white font-semibold text-center"> {t('settings.feedbackCta')} </ThemedText>
+              <Text className="text-white font-semibold text-center"> {t('settings.feedbackCta')} </Text>
             </View>
           </Pressable>
         </ThemedCard>
 
         {/* Danger Zone */}
         <ThemedCard className="rounded-2xl p-6 shadow-sm border-2 border-red-100">
-          <ThemedText className="text-lg font-semibold text-red-600 mb-4">{t('settings.dangerZone')}</ThemedText>
+          <Text className="text-lg font-semibold text-red-600 mb-4">{t('settings.dangerZone')}</Text>
           
           <Pressable 
             onPress={async () => {
@@ -592,11 +593,11 @@ User: ${currentUser?.name || 'Unknown'}
             }}
             className="bg-orange-500 py-3 px-6 rounded-xl mb-3"
           >
-            <ThemedText className="text-white font-semibold text-center">{t('settings.signOut')}</ThemedText>
+            <Text className="text-white font-semibold text-center">{t('settings.signOut')}</Text>
           </Pressable>
           
           <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
-            <ThemedText className="text-white font-semibold text-center">{t('settings.leaveApartment')}</ThemedText>
+            <Text className="text-white font-semibold text-center">{t('settings.leaveApartment')}</Text>
           </Pressable>
           <ThemedText className="text-xs text-center mt-2" style={themed.textSecondary}>{t('settings.actionWillRemove')}</ThemedText>
         </ThemedCard>

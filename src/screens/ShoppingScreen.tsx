@@ -18,12 +18,11 @@ import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
-import { ThemedCard } from '../theme/components/ThemedCard';
-import { ThemedText } from '../theme/components/ThemedText';
-import { ThemedView } from '../theme/components/ThemedView';
-import { useThemedStyles } from '../theme/useThemedStyles';
 import { success, impactMedium } from '../utils/haptics';
 import { getDisplayName } from '../utils/userDisplay';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 
 
@@ -551,8 +550,7 @@ export default function ShoppingScreen() {
                   value={newItemQuantity}
                   onChangeText={setNewItemQuantity}
                   placeholder="1"
-                  className="border rounded-xl px-4 py-3 text-base"
-                  style={themed.borderColor}
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="center"
                   keyboardType="numeric"
                   returnKeyType="done"
@@ -574,7 +572,7 @@ export default function ShoppingScreen() {
                       }}
                       className={cn(
                         'flex-1 py-3 px-2 rounded-xl border-2 items-center',
-                        newItemPriority === priority.key ? 'bg-blue-100 border-blue-500' : 'bg-gray-100 border-gray-300'
+                        newItemPriority === priority.key ? 'bg-blue-100 border-blue-500' : 'bg-gray-50 border-gray-200'
                       )}
                     >
                       <Ionicons
@@ -582,14 +580,15 @@ export default function ShoppingScreen() {
                         size={20}
                         color={newItemPriority === priority.key ? priority.color : '#6b7280'}
                       />
-                      <Text
+                      <ThemedText
                         className={cn(
                           'text-sm font-medium mt-1 text-center',
-                          newItemPriority === priority.key ? priority.color : '#6b7280'
+                          newItemPriority === priority.key ? priority.color : ''
                         )}
+                        style={newItemPriority !== priority.key ? themed.textSecondary : undefined}
                       >
                         {priority.label}
-                      </Text>
+                      </ThemedText>
                     </Pressable>
                   ))}
                 </View>
@@ -597,13 +596,12 @@ export default function ShoppingScreen() {
 
               {/* Notes */}
               <View className="mb-6">
-                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('shopping.addModal.notes')}</ThemedText>
+                <Text className="text-gray-700 text-base mb-2">{t('shopping.addModal.notes')}</Text>
                 <TextInput
                   value={newItemNotes}
                   onChangeText={setNewItemNotes}
                   placeholder={t('shopping.addModal.notesPh')}
-                  className="border rounded-xl px-4 py-3 text-base"
-                  style={themed.borderColor}
+                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                   textAlign="right"
                   multiline
                   numberOfLines={3}
@@ -624,10 +622,10 @@ export default function ShoppingScreen() {
                     setNewItemPriority('normal');
                     setNewItemNotes('');
                   }}
-                  className="flex-1 bg-gray-200 py-3 px-4 rounded-xl mr-2"
+                  className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                   disabled={isAddingItem}
                 >
-                  <ThemedText className="font-medium text-center" style={themed.textSecondary}>{t('shopping.addModal.cancel')}</ThemedText>
+                  <Text className="text-gray-700 font-medium text-center">{t('shopping.addModal.cancel')}</Text>
                 </Pressable>
 
                 <Pressable
@@ -656,42 +654,40 @@ export default function ShoppingScreen() {
         <View className="absolute inset-0">
           <Pressable onPress={Keyboard.dismiss} className="flex-1 bg-black/50 justify-center items-center px-6">
             <Animated.View onLayout={purchaseLift.onLayoutCard} style={[{ width: '100%', maxWidth: 400 }, purchaseLift.animatedStyle]}>
-              <ThemedCard className="rounded-2xl p-6">
+              <View className="bg-white rounded-2xl p-6">
                 <Pressable onPress={Keyboard.dismiss}>
-                  <ThemedText className="text-xl font-semibold mb-4 text-center">{t('shopping.purchaseModal.title')}</ThemedText>
+                  <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">{t('shopping.purchaseModal.title')}</Text>
                 </Pressable>
 
                 {/* Price */}
                 <View className="mb-6">
-                  <ThemedText className="text-base mb-2" style={themed.textSecondary}>
-                    {t('shopping.purchaseModal.price')} <ThemedText className="text-red-500">*</ThemedText>
-                  </ThemedText>
+                  <Text className="text-gray-700 text-base mb-2">
+                    {t('shopping.purchaseModal.price')} <Text className="text-red-500">*</Text>
+                  </Text>
                   <View className="flex-row items-center">
                     <TextInput
                       value={purchasePrice}
                       onChangeText={setPurchasePrice}
                       placeholder={t('shopping.purchaseModal.pricePlaceholder')}
-                      className="flex-1 border rounded-xl px-4 py-3 text-base"
-                      style={themed.borderColor}
+                      className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
                       keyboardType="numeric"
                       textAlign="center"
                       returnKeyType="next"
                       onSubmitEditing={Keyboard.dismiss}
                       blurOnSubmit={false}
                     />
-                    <ThemedText className="text-lg mr-3" style={themed.textSecondary}>{t('shopping.shekel')}</ThemedText>
+                    <Text className="text-gray-700 text-lg mr-3">{t('shopping.shekel')}</Text>
                   </View>
                 </View>
 
                 {/* Note */}
                 <View className="mb-6">
-                  <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('shopping.purchaseModal.note')}</ThemedText>
+                  <Text className="text-gray-700 text-base mb-2">{t('shopping.purchaseModal.note')}</Text>
                   <TextInput
                     value={purchaseNote}
                     onChangeText={setPurchaseNote}
                     placeholder={t('shopping.additionalDetailsPlaceholder')}
-                    className="border rounded-xl px-4 py-3 text-base"
-                    style={themed.borderColor}
+                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
                     textAlign="right"
                     multiline
                     numberOfLines={3}
@@ -704,7 +700,7 @@ export default function ShoppingScreen() {
                 {/* Participants */}
                 {purchasePrice.trim() && (
                   <View className="mb-4">
-                    <ThemedText className="text-base mb-3 text-center" style={themed.textSecondary}>{t('shopping.purchaseModal.whoParticipates')}</ThemedText>
+                    <Text className="text-gray-700 text-base mb-3 text-center">{t('shopping.purchaseModal.whoParticipates')}</Text>
                     <View className={cn('space-y-2', (currentApartment?.members?.length || 0) > 5 && 'max-h-40')}>
                       <ScrollView showsVerticalScrollIndicator={false}>
                         {currentApartment?.members.map(member => (
@@ -718,12 +714,12 @@ export default function ShoppingScreen() {
                             }}
                             className={cn(
                               'flex-row items-center justify-between p-3 rounded-xl border mb-2',
-                              selectedParticipants.includes(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-gray-100 border-gray-300'
+                              selectedParticipants.includes(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
                             )}
                           >
-                            <ThemedText className={cn('font-medium', selectedParticipants.includes(member.id) ? 'text-blue-700' : '')} style={!selectedParticipants.includes(member.id) ? themed.textSecondary : undefined}>
+                            <Text className={cn('font-medium', selectedParticipants.includes(member.id) ? 'text-blue-700' : 'text-gray-700')}>
                               {member.name} {member.id === currentUser?.id && t('shopping.youLabel')}
-                            </ThemedText>
+                            </Text>
                             <View
                               className={cn(
                                 'w-5 h-5 rounded-full border-2 items-center justify-center',
@@ -737,11 +733,11 @@ export default function ShoppingScreen() {
                       </ScrollView>
                     </View>
 
-                    <ThemedText className="text-xs text-center mt-2" style={themed.textSecondary}>{t('shopping.purchaseModal.splitNote')}</ThemedText>
+                    <Text className="text-xs text-gray-500 text-center mt-2">{t('shopping.purchaseModal.splitNote')}</Text>
                   </View>
                 )}
 
-                <ThemedText className="text-sm text-center mb-4" style={themed.textSecondary}>{t('shopping.purchaseModal.budgetHintWithPrice')}</ThemedText>
+                <Text className="text-sm text-gray-500 text-center mb-4">{t('shopping.purchaseModal.budgetHintWithPrice')}</Text>
 
                 {/* Footer buttons */}
                 <View className="flex-row space-x-3">
@@ -755,9 +751,9 @@ export default function ShoppingScreen() {
                       setPurchaseNote('');
                       setPurchaseDate(new Date());
                     }}
-                    className="flex-1 bg-gray-200 py-3 px-4 rounded-xl mr-2"
+                    className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                   >
-                    <ThemedText className="font-medium text-center" style={themed.textSecondary}>{t('shopping.purchaseModal.cancel')}</ThemedText>
+                    <Text className="text-gray-700 font-medium text-center">{t('shopping.purchaseModal.cancel')}</Text>
                   </Pressable>
 
                   <Pressable
@@ -778,7 +774,7 @@ export default function ShoppingScreen() {
                     )}
                   </Pressable>
                 </View>
-              </ThemedCard>
+              </View>
             </Animated.View>
           </Pressable>
         </View>
@@ -787,8 +783,8 @@ export default function ShoppingScreen() {
       {/* Item Details Modal */}
       {showItemDetailsModal && selectedItemId && (
         <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
-          <ThemedCard className="rounded-2xl p-6 w-full max-w-sm">
-            <ThemedText className="text-xl font-semibold mb-6 text-center">{t('shopping.detailsModal.title')}</ThemedText>
+          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
+            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('shopping.detailsModal.title')}</Text>
 
             {(() => {
               const item = shoppingItems.find(i => i.id === selectedItemId);
@@ -797,8 +793,8 @@ export default function ShoppingScreen() {
               return (
                 <View className="space-y-5">
                   <View className="bg-gray-50 p-4 rounded-xl">
-                    <ThemedText className="text-sm mb-2 text-center" style={themed.textSecondary}>{t('shopping.detailsModal.itemName')}</ThemedText>
-                    <ThemedText className="font-semibold text-lg text-center">{item?.name || ''}</ThemedText>
+                    <Text className="text-gray-600 text-sm mb-2 text-center">{t('shopping.detailsModal.itemName')}</Text>
+                    <Text className="text-gray-900 font-semibold text-lg text-center">{item?.name || ''}</Text>
                   </View>
 
                   <View className="bg-blue-50 p-4 rounded-xl">
@@ -877,9 +873,9 @@ export default function ShoppingScreen() {
                         setShowItemDetailsModal(false);
                         setSelectedItemId(null);
                       }}
-                      className="flex-1 bg-gray-200 py-3 px-4 rounded-xl mr-2"
+                      className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                     >
-                      <ThemedText className="font-medium text-center" style={themed.textSecondary}>{t('shopping.detailsModal.close')}</ThemedText>
+                      <Text className="text-gray-700 font-medium text-center">{t('shopping.detailsModal.close')}</Text>
                     </Pressable>
 
                     <Pressable
@@ -900,7 +896,7 @@ export default function ShoppingScreen() {
                 </View>
               );
             })()}
-          </ThemedCard>
+          </View>
         </View>
       )}
     </Screen>

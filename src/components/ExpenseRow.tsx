@@ -35,6 +35,7 @@ export default function ExpenseRow({
     row: { backgroundColor: tk.colors.card },
     title: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
   }));
 
   const confirmDelete = () => {
@@ -107,7 +108,7 @@ export default function ExpenseRow({
   }
 
   return (
-    <ThemedCard style={styles.row}>
+    <ThemedCard style={[styles.row, { borderWidth: 1, ...themed.borderColor }]}>
       <View style={styles.content}>
         <View style={styles.titleContainer}>
           <ThemedText style={[styles.title]}>{item.title}</ThemedText>
