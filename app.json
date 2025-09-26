@@ -8,21 +8,34 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.Roomies.app",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "edgeToEdgeEnabled": true,
-      "softwareKeyboardLayoutMode": "resize"
+      "softwareKeyboardLayoutMode": "resize",
+      "package": "com.Roomies.app",
+      "googleServicesFile": "./google-services.json"
     },
     "plugins": [
       "expo-asset",
       "expo-build-properties",
+      "expo-dev-client",
       "expo-font",
       "expo-mail-composer",
       "expo-secure-store",
       "expo-sqlite",
       "expo-video",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ]
   }
 }
