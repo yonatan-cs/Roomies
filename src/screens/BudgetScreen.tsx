@@ -26,6 +26,10 @@ import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { useTranslation } from 'react-i18next';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedView } from '../theme/components/ThemedView';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 type RootStackParamList = {
   AddExpense: undefined;
@@ -87,6 +91,11 @@ export default function BudgetScreen() {
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
   const navigation = useNavigation<NavigationProp>();
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   
@@ -314,17 +323,17 @@ export default function BudgetScreen() {
 
   if (!currentUser || !currentApartment) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">{t('common.loading')}</Text>
-      </View>
+      <ThemedView className="flex-1 justify-center items-center">
+        <ThemedText style={themed.textSecondary}>{t('common.loading')}</ThemedText>
+      </ThemedView>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
-      <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
+    <ThemedView className="flex-1" style={themed.surfaceBg}>
+      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-2xl font-bold text-gray-900">{t('budget.title')}</Text>
+          <ThemedText className="text-2xl font-bold">{t('budget.title')}</ThemedText>
           <Pressable
             onPress={() => setShowAddExpenseModal(true)}
             className="bg-blue-500 w-10 h-10 rounded-full items-center justify-center"
@@ -334,7 +343,7 @@ export default function BudgetScreen() {
         </View>
         
         {/* Month Selector */}
-        <View className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl mb-4">
+        <View className="flex-row items-center justify-between p-3 rounded-xl mb-4" style={themed.surfaceBg}>
           <Pressable
             onPress={() => {
               if (selectedMonth === 0) {
@@ -344,7 +353,8 @@ export default function BudgetScreen() {
                 setSelectedMonth(selectedMonth - 1);
               }
             }}
-            className="w-8 h-8 rounded-full bg-white items-center justify-center"
+            className="w-8 h-8 rounded-full items-center justify-center"
+            style={{ backgroundColor: '#ffffff' }}
           >
             <Ionicons 
               name="chevron-back" 
@@ -353,9 +363,9 @@ export default function BudgetScreen() {
             />
           </Pressable>
           
-          <Text className="text-lg font-semibold text-gray-900">
+          <ThemedText className="text-lg font-semibold">
             {getMonthName(selectedMonth)} {selectedYear}
-          </Text>
+          </ThemedText>
           
           <Pressable
             onPress={() => {
@@ -375,16 +385,14 @@ export default function BudgetScreen() {
                 setSelectedMonth(selectedMonth + 1);
               }
             }}
-            className={cn(
-              "w-8 h-8 rounded-full items-center justify-center",
-              (() => {
-                const now = new Date();
-                const currentMonth = now.getMonth();
-                const currentYear = now.getFullYear();
-                const canGoForward = !(selectedYear > currentYear || (selectedYear === currentYear && selectedMonth >= currentMonth));
-                return canGoForward ? "bg-white" : "bg-gray-200";
-              })()
-            )}
+            className="w-8 h-8 rounded-full items-center justify-center"
+            style={(() => {
+              const now = new Date();
+              const currentMonth = now.getMonth();
+              const currentYear = now.getFullYear();
+              const canGoForward = !(selectedYear > currentYear || (selectedYear === currentYear && selectedMonth >= currentMonth));
+              return canGoForward ? { backgroundColor: '#ffffff' } : { backgroundColor: '#e5e7eb' };
+            })()}
             disabled={(() => {
               const now = new Date();
               const currentMonth = now.getMonth();
@@ -409,25 +417,25 @@ export default function BudgetScreen() {
         {/* Summary */}
         <View className="flex-row justify-between">
           <View>
-            <Text className="text-sm text-gray-600">{t('budget.totalApartment')}</Text>
-            <Text className="text-xl font-bold text-gray-900">
+            <ThemedText className="text-sm" style={themed.textSecondary}>{t('budget.totalApartment')}</ThemedText>
+            <ThemedText className="text-xl font-bold">
               {formatCurrency(totalApartmentExpenses)}
-            </Text>
+            </ThemedText>
           </View>
           <View className="items-end">
-            <Text className="text-sm text-gray-600">{t('budget.yourShare')}</Text>
+            <ThemedText className="text-sm" style={themed.textSecondary}>{t('budget.yourShare')}</ThemedText>
             <Text className="text-xl font-bold text-blue-600">
               {formatCurrency(monthlyData.personalTotal)}
             </Text>
           </View>
         </View>
-      </View>
+      </ThemedCard>
 
       <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ alignItems: 'stretch' }}>
         {/* Personal Balance Summary */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-gray-900">{t('budget.myStatus')}</Text>
+            <ThemedText className="text-lg font-semibold">{t('budget.myStatus')}</ThemedText>
             
             <Pressable
               onPress={() => navigation.navigate('GroupDebts')}
@@ -447,9 +455,9 @@ export default function BudgetScreen() {
                 <Text className="text-xl font-bold text-green-600 mt-2 mb-1">
                   {t('budget.allClearedMessage')}
                 </Text>
-                <Text className="text-gray-600 text-center">
+                <ThemedText className="text-center" style={themed.textSecondary}>
                   {personalSummary.message}
-                </Text>
+                </ThemedText>
               </>
             ) : (
               <>
@@ -459,40 +467,40 @@ export default function BudgetScreen() {
                   {formatCurrency(personalSummary.amount)}
                 </Text>
                 
-                <Text className="text-gray-600 text-center text-lg">
+                <ThemedText className="text-center text-lg" style={themed.textSecondary}>
                   {personalSummary.message}
-                </Text>
+                </ThemedText>
                 
                 {personalSummary.status === 'owed' && (
-                  <Text className="text-sm text-gray-500 mt-2 text-center">
+                  <ThemedText className="text-sm mt-2 text-center" style={themed.textSecondary}>
                     {t('budget.moneyYouAreOwedMessage')}
-                  </Text>
+                  </ThemedText>
                 )}
                 {personalSummary.status === 'owes' && (
-                  <Text className="text-sm text-gray-500 mt-2 text-center">
+                  <ThemedText className="text-sm mt-2 text-center" style={themed.textSecondary}>
                     {t('budget.moneyYouOweMessage')}
-                  </Text>
+                  </ThemedText>
                 )}
               </>
             )}
           </View>
-        </View>
+        </ThemedCard>
 
         {/* Monthly Expenses */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('budget.monthlyExpenses', { month: getMonthName(selectedMonth) })}</Text>
+          <ThemedText className="text-lg font-semibold mb-4">{t('budget.monthlyExpenses', { month: getMonthName(selectedMonth) })}</ThemedText>
           
           {monthlyData.expenses.length === 0 ? (
-            <View className="bg-white rounded-2xl p-8 items-center shadow-sm">
+            <ThemedCard className="rounded-2xl p-8 items-center shadow-sm">
               <Ionicons name="calendar-outline" size={48} color="#6b7280" />
-              <Text className="text-gray-600 text-center mt-4 mb-4">{t('budget.noExpensesInMonth', { month: getMonthName(selectedMonth) })}</Text>
+              <ThemedText className="text-center mt-4 mb-4" style={themed.textSecondary}>{t('budget.noExpensesInMonth', { month: getMonthName(selectedMonth) })}</ThemedText>
               <Pressable
                 onPress={() => setShowAddExpenseModal(true)}
                 className="bg-blue-500 py-2 px-6 rounded-xl"
               >
                 <Text className="text-white font-medium">{t('budget.addExpense')}</Text>
               </Pressable>
-            </View>
+            </ThemedCard>
           ) : (
             <FlatList
               data={monthlyData.expenses}
@@ -525,19 +533,20 @@ export default function BudgetScreen() {
               onLayout={addExpenseLift.onLayoutCard}
               style={[{ width: '100%', maxWidth: 400 }, addExpenseLift.animatedStyle]}
             >
-              <View className="bg-white rounded-2xl p-6">
-              <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
+              <ThemedCard className="rounded-2xl p-6">
+              <ThemedText className="text-xl font-semibold mb-6 text-center">
                 {t('budget.addExpenseModal.title')}
-              </Text>
+              </ThemedText>
 
               {/* Expense Title */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.expenseName')}</Text>
+                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.expenseName')}</ThemedText>
                 <TextInput
                   value={expenseTitle}
                   onChangeText={setExpenseTitle}
                   placeholder={t('budget.expenseNamePlaceholder')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  className="border rounded-xl px-4 py-3 text-base"
+                  style={themed.borderColor}
                   textAlign="right"
                   autoFocus
                   returnKeyType="next"
@@ -548,12 +557,13 @@ export default function BudgetScreen() {
 
               {/* Amount */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.amount')}</Text>
+                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.amount')}</ThemedText>
                 <NumericInput
                   value={expenseAmount}
                   onChangeText={setExpenseAmount}
                   placeholder="0"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  className="border rounded-xl px-4 py-3 text-base"
+                  style={themed.borderColor}
                   textAlign="right"
                   returnKeyType="next"
                   onSubmitEditing={Keyboard.dismiss}
@@ -563,7 +573,7 @@ export default function BudgetScreen() {
 
               {/* Participants */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.participants')}</Text>
+                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.participants')}</ThemedText>
                 <View className="flex-row flex-wrap">
                   {currentApartment?.members.map((member) => (
                     <Pressable
@@ -573,17 +583,18 @@ export default function BudgetScreen() {
                         "mr-2 mb-2 px-4 py-2 rounded-xl border-2",
                         selectedParticipants.includes(member.id)
                           ? "bg-blue-500 border-blue-500"
-                          : "bg-white border-gray-300"
+                          : ""
                       )}
+                      style={!selectedParticipants.includes(member.id) ? { backgroundColor: '#ffffff', ...themed.borderColor } : undefined}
                     >
-                      <Text className={cn(
+                      <ThemedText className={cn(
                         "text-sm font-medium",
                         selectedParticipants.includes(member.id)
                           ? "text-white"
-                          : "text-gray-700"
-                      )}>
+                          : ""
+                      )} style={!selectedParticipants.includes(member.id) ? themed.textSecondary : undefined}>
                         {getDisplayName(member)}
-                      </Text>
+                      </ThemedText>
                     </Pressable>
                   ))}
                 </View>
@@ -591,12 +602,13 @@ export default function BudgetScreen() {
 
               {/* Description */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('budget.addExpenseModal.description')}</Text>
+                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.description')}</ThemedText>
                 <TextInput
                   value={expenseDescription}
                   onChangeText={setExpenseDescription}
                   placeholder={t('budget.additionalDetailsPlaceholder')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  className="border rounded-xl px-4 py-3 text-base"
+                  style={themed.borderColor}
                   textAlign="right"
                   multiline
                   numberOfLines={3}
@@ -610,11 +622,12 @@ export default function BudgetScreen() {
               <View className="flex-row gap-3">
                 <Pressable
                   onPress={() => setShowAddExpenseModal(false)}
-                  className="flex-1 bg-gray-100 py-3 px-4 rounded-xl"
+                  className="flex-1 py-3 px-4 rounded-xl"
+                  style={themed.surfaceBg}
                 >
-                  <Text className="text-gray-700 font-medium text-center">
+                  <ThemedText className="font-medium text-center" style={themed.textSecondary}>
                     {t('common.cancel')}
-                  </Text>
+                  </ThemedText>
                 </Pressable>
                 
                 <AsyncButton
@@ -625,11 +638,11 @@ export default function BudgetScreen() {
                   disabled={isAddingExpense}
                 />
               </View>
-              </View>
+              </ThemedCard>
             </Animated.View>
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    </View>
+    </ThemedView>
   );
 }

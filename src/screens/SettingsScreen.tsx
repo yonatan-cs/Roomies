@@ -11,6 +11,9 @@ import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
 import { selection, impactMedium, success } from '../utils/haptics';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 
 export default function SettingsScreen() {
@@ -62,6 +65,10 @@ export default function SettingsScreen() {
   const [confirmRemoveVisible, setConfirmRemoveVisible] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<{id: string, name: string} | null>(null);
   const [showMemberOptions, setShowMemberOptions] = useState<string | null>(null);
+  const themed = useThemedStyles(tk => ({
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
 
   const handleSaveName = async () => {
     if (!newName.trim() || !currentUser) return;
@@ -183,7 +190,7 @@ User: ${currentUser?.name || 'Unknown'}
   if (!currentUser || !currentApartment) {
     return (
       <View className="flex-1 justify-center items-center">
-        <Text className="text-gray-500">{t('common.loading')}</Text>
+        <ThemedText style={themed.textSecondary}>{t('common.loading')}</ThemedText>
       </View>
     );
   }
@@ -220,7 +227,7 @@ User: ${currentUser?.name || 'Unknown'}
               }}
               className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
             >
-              <View className={`w-5 h-5 rounded-full bg-white transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+              <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
             </Pressable>
           </View>
         </View>
@@ -249,15 +256,15 @@ User: ${currentUser?.name || 'Unknown'}
           </View>
           {copied && <Text className="text-xs text-green-600 mt-1">{t('common.success')}</Text>}
 
-          <Text className="text-xs text-gray-500 mt-2">{t('settings.feedbackTitle')}</Text>
+          <ThemedText className="text-xs mt-2" style={themed.textSecondary}>{t('settings.feedbackTitle')}</ThemedText>
         </View>
 
         {/* Roommates */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-gray-900">
+            <ThemedText className="text-lg font-semibold">
               {t('dashboard.roommates')} ({currentApartment.members.length})
-            </Text>
+            </ThemedText>
             <Pressable 
               onPress={refreshApartmentMembers}
               className="bg-blue-100 p-2 rounded-lg"
@@ -265,7 +272,7 @@ User: ${currentUser?.name || 'Unknown'}
               <Ionicons name="refresh" size={20} color="#007AFF" />
             </Pressable>
           </View>
-          <Text className="text-xs text-gray-500 mb-4">{t('dashboard.showAll')}</Text>
+          <ThemedText className="text-xs mb-4" style={themed.textSecondary}>{t('dashboard.showAll')}</ThemedText>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
               <View className="flex-row items-center">
@@ -275,10 +282,10 @@ User: ${currentUser?.name || 'Unknown'}
                   </Text>
                 </View>
                 <View className="mr-3 flex-1">
-                  <Text className="text-gray-900 font-medium">
+                  <ThemedText className="font-medium">
                     {getDisplayName(member)} {member.id === currentUser.id && `(${t('common.you')})`}
-                  </Text>
-                  <Text className="text-gray-500 text-sm">{member.email || t('common.unknown')}</Text>
+                  </ThemedText>
+                  <ThemedText className="text-sm" style={themed.textSecondary}>{member.email || t('common.unknown')}</ThemedText>
                 </View>
                 {removingMemberId === member.id ? (
                   <View className="ml-2">
@@ -295,10 +302,11 @@ User: ${currentUser?.name || 'Unknown'}
                     
                     {/* Popup menu */}
                     {showMemberOptions === member.id && (
-                      <View className="absolute top-10 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
+                      <View className="absolute top-10 right-0 rounded-lg shadow-lg z-10 min-w-[120px]" style={{ backgroundColor: '#ffffff', ...themed.borderColor }}>
                         <Pressable
                           onPress={() => handleRemoveMemberPress(member)}
-                          className="px-4 py-3 border-b border-gray-100"
+                          className="px-4 py-3 border-b"
+                          style={themed.borderColor}
                         >
                           <Text className="text-red-600 font-medium">{t('settings.removeMember')}</Text>
                         </Pressable>
@@ -309,19 +317,20 @@ User: ${currentUser?.name || 'Unknown'}
               </View>
             </View>
           ))}
-        </View>
+        </ThemedCard>
 
         {/* My Profile */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.myProfile')}</Text>
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedText className="text-lg font-semibold mb-4">{t('settings.myProfile')}</ThemedText>
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm mb-2">{t('settings.fullName')}</Text>
+            <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('settings.fullName')}</ThemedText>
             {editingName ? (
               <View className="flex-row items-center">
                 <TextInput
                   value={newName}
                   onChangeText={setNewName}
-                  className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  className="flex-1 border rounded-xl px-4 py-3 text-base"
+                  style={themed.borderColor}
                   textAlign="right"
                   autoFocus
                   returnKeyType="done"
@@ -344,23 +353,23 @@ User: ${currentUser?.name || 'Unknown'}
               </View>
             ) : (
               <Pressable onPress={() => setEditingName(true)} className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
-                <Text className="text-gray-900 text-base">{getDisplayName(currentUser)}</Text>
+                <ThemedText className="text-base">{getDisplayName(currentUser)}</ThemedText>
                 <Ionicons name="pencil-outline" size={20} color="#6b7280" />
               </Pressable>
             )}
           </View>
 
           <View className="mb-4">
-            <Text className="text-gray-600 text-sm mb-1">{t('settings.email')}</Text>
-            <Text className="text-gray-500">{currentUser.email || t('settings.notDefined')}</Text>
+            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('settings.email')}</ThemedText>
+            <ThemedText style={themed.textSecondary}>{currentUser.email || t('settings.notDefined')}</ThemedText>
           </View>
-        </View>
+        </ThemedCard>
 
         {/* Cleaning Schedule */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.cleaningSchedule')}</Text>
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningSchedule')}</ThemedText>
 
-          <Text className="text-gray-700 mb-2">{t('settings.frequency')}</Text>
+          <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.frequency')}</ThemedText>
           <View className="flex-row mb-4">
             {[7, 14, 30].map((days) => {
               const selected = cleaningSettings.intervalDays === days;
@@ -371,14 +380,14 @@ User: ${currentUser?.name || 'Unknown'}
                   onPress={() => setCleaningIntervalDays(days)}
                   className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <Text className={selected ? 'text-white' : 'text-gray-700'}>{label}</Text>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{label}</ThemedText>
                 </Pressable>
               );
             })}
             {/* Custom days input could be added later */}
           </View>
 
-          <Text className="text-gray-700 mb-2">{t('settings.rotationDay')}</Text>
+          <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.rotationDay')}</ThemedText>
           <View className="flex-row flex-wrap">
             {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
               const selected = cleaningSettings.anchorDow === dayIndex;
@@ -388,16 +397,16 @@ User: ${currentUser?.name || 'Unknown'}
                   onPress={() => setCleaningAnchorDow(dayIndex)}
                   className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <Text className={selected ? 'text-white' : 'text-gray-700'}>{t(`days.${dayIndex}`)}</Text>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
                 </Pressable>
               );
             })}
           </View>
-        </View>
+        </ThemedCard>
 
         {/* Cleaning Chores */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.cleaningTasks')} ({checklistItems.length})</Text>
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningTasks')} ({checklistItems.length})</ThemedText>
           
 
           {checklistItems.map((item) => {
@@ -408,7 +417,8 @@ User: ${currentUser?.name || 'Unknown'}
                   <TextInput
                     value={editingChoreName}
                     onChangeText={setEditingChoreName}
-                    className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-base"
+                    className="flex-1 border rounded-xl px-3 py-2 text-base"
+                    style={themed.borderColor}
                     textAlign="right"
                     returnKeyType="done"
                     onSubmitEditing={() => {
@@ -423,7 +433,7 @@ User: ${currentUser?.name || 'Unknown'}
                     }}
                   />
                 ) : (
-                  <Text className="flex-1 text-base text-gray-900">{item.title}</Text>
+                  <ThemedText className="flex-1 text-base">{item.title}</ThemedText>
                 )}
                 {!isEditing ? (
                   <View className="flex-row ml-2">
@@ -479,7 +489,8 @@ User: ${currentUser?.name || 'Unknown'}
               value={newChore}
               onChangeText={setNewChore}
               placeholder={t('settings.addNewTaskPlaceholder')}
-              className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+              className="flex-1 border rounded-xl px-4 py-3 text-base"
+              style={themed.borderColor}
               textAlign="right"
               onSubmitEditing={async () => {
                 if (!newChore.trim()) return;
@@ -538,14 +549,14 @@ User: ${currentUser?.name || 'Unknown'}
               </Text>
             </View>
           )}
-        </View>
+        </ThemedCard>
 
         {/* Feedback Section */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">{t('settings.feedbackTitle')}</Text>
-          <Text className="text-gray-600 text-sm mb-4">
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedText className="text-lg font-semibold mb-4">{t('settings.feedbackTitle')}</ThemedText>
+          <ThemedText className="text-sm mb-4" style={themed.textSecondary}>
             {t('settings.feedbackDescription')}
-          </Text>
+          </ThemedText>
           <Pressable 
             onPress={handleSendFeedback}
             className="bg-blue-500 py-3 px-6 rounded-xl"
@@ -555,10 +566,10 @@ User: ${currentUser?.name || 'Unknown'}
               <Text className="text-white font-semibold text-center"> {t('settings.feedbackCta')} </Text>
             </View>
           </Pressable>
-        </View>
+        </ThemedCard>
 
         {/* Danger Zone */}
-        <View className="bg-white rounded-2xl p-6 shadow-sm border-2 border-red-100">
+        <ThemedCard className="rounded-2xl p-6 shadow-sm border-2 border-red-100">
           <Text className="text-lg font-semibold text-red-600 mb-4">{t('settings.dangerZone')}</Text>
           
           <Pressable 
@@ -587,8 +598,8 @@ User: ${currentUser?.name || 'Unknown'}
           <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
             <Text className="text-white font-semibold text-center">{t('settings.leaveApartment')}</Text>
           </Pressable>
-          <Text className="text-xs text-gray-500 text-center mt-2">{t('settings.actionWillRemove')}</Text>
-        </View>
+          <ThemedText className="text-xs text-center mt-2" style={themed.textSecondary}>{t('settings.actionWillRemove')}</ThemedText>
+        </ThemedCard>
 
       <ConfirmModal
         visible={confirmLeaveVisible}

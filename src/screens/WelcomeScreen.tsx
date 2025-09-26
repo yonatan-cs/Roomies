@@ -25,9 +25,10 @@ import { getDisplayName } from '../utils/userDisplay';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
-  const styles = useThemedStyles(tk => ({
+  const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
   }));
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [apartmentName, setApartmentName] = useState('');
@@ -260,9 +261,9 @@ export default function WelcomeScreen() {
   // Show loading spinner while initializing
   if (initializing) {
     return (
-      <View className="flex-1 justify-center items-center" style={styles.surfaceBg}>
+      <View className="flex-1 justify-center items-center" style={themed.surfaceBg}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <ThemedText style={[styles.textSecondary, { marginTop: 16 }]}>{t('welcome.loading')}</ThemedText>
+        <ThemedText style={[themed.textSecondary, { marginTop: 16 }]}>{t('welcome.loading')}</ThemedText>
       </View>
     );
   }
@@ -288,7 +289,7 @@ export default function WelcomeScreen() {
             <ThemedText className="text-3xl font-bold mt-4 text-center">
               {t('welcome.hello', { name: getDisplayName(currentUser) })}
             </ThemedText>
-            <ThemedText className="text-lg mt-2 text-center" style={styles.textSecondary}>
+            <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>
               {t('welcome.subtitle')}
             </ThemedText>
           </View>
@@ -305,7 +306,7 @@ export default function WelcomeScreen() {
             <Pressable
               onPress={() => setMode('join')}
               className="py-4 px-6 rounded-xl flex-row items-center justify-center"
-              style={styles.surfaceBg}
+              style={themed.surfaceBg}
             >
               <Ionicons name="people-outline" size={24} color="#007AFF" />
               <Text className="text-blue-500 text-lg font-semibold mr-2">{t('welcome.joinApt')}</Text>
@@ -346,12 +347,13 @@ export default function WelcomeScreen() {
         <View className="space-y-4">
           {mode === 'create' && (
             <View>
-              <ThemedText className="text-base mb-2" style={styles.textSecondary}>{t('welcome.aptName')}</ThemedText>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('welcome.aptName')}</ThemedText>
               <TextInput
                 value={apartmentName}
                 onChangeText={setApartmentName}
                 placeholder={t('welcome.aptNamePh')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign="right"
                 editable={!loading}
               />
@@ -360,12 +362,13 @@ export default function WelcomeScreen() {
 
           {mode === 'join' && (
             <View>
-              <ThemedText className="text-base mb-2" style={styles.textSecondary}>{t('welcome.aptCode')}</ThemedText>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
               <TextInput
                 value={joinCode}
                 onChangeText={setJoinCode}
                 placeholder={t('welcome.aptCodePh')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign="center"
                 autoCapitalize="characters"
                 maxLength={6}

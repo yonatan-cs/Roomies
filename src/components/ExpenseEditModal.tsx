@@ -19,6 +19,10 @@ import { cn } from '../utils/cn';
 import { AsyncButton } from './AsyncButton';
 import { NumericInput } from './NumericInput';
 import { useTranslation } from 'react-i18next';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedView } from '../theme/components/ThemedView';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 type Props = {
   visible: boolean;
@@ -30,6 +34,11 @@ type Props = {
 export default function ExpenseEditModal({ visible, expense, onClose, onSuccess }: Props) {
   const { t } = useTranslation();
   const { currentUser, currentApartment, updateExpense } = useStore();
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -216,13 +225,13 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View className="flex-1 bg-white">
+        <ThemedView className="flex-1">
           {/* Header */}
-          <View className="flex-row items-center justify-between px-6 py-4 border-b border-gray-200">
+          <View className="flex-row items-center justify-between px-6 py-4 border-b" style={themed.borderColor}>
             <Pressable onPress={onClose} className="p-2">
               <Ionicons name="close" size={24} color="#374151" />
             </Pressable>
-            <Text className="text-lg font-semibold text-gray-900">{t('expenseEdit.title')}</Text>
+            <ThemedText className="text-lg font-semibold">{t('expenseEdit.title')}</ThemedText>
             <View className="w-8" />
           </View>
 
@@ -234,14 +243,15 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
             >
             {/* Title */}
             <View className="mb-6">
-              <Text className="text-gray-700 text-base mb-2 font-medium">
+              <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
                 {t('expenseEdit.expenseName')}
-              </Text>
+              </ThemedText>
               <TextInput
                 value={title}
                 onChangeText={setTitle}
                 placeholder={t('expenseEdit.examplePlaceholder')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign="right"
                 returnKeyType="next"
                 blurOnSubmit={false}
@@ -250,29 +260,30 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
 
             {/* Amount */}
             <View className="mb-6">
-              <Text className="text-gray-700 text-base mb-2 font-medium">
+              <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
                 {t('expenseEdit.amount')}
-              </Text>
+              </ThemedText>
               <NumericInput
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0.00"
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign="right"
               />
               {selectedParticipants.length > 0 && amount && (
-                <Text className="text-sm text-gray-500 mt-2 text-right">
+                <ThemedText className="text-sm mt-2 text-right" style={themed.textSecondary}>
                   {t('expenseEdit.perPerson', { amount: amountPerPerson.toFixed(2) })}
-                </Text>
+                </ThemedText>
               )}
             </View>
 
             {/* Participants */}
             <View className="mb-6">
               <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-gray-700 text-base font-medium">
+                <ThemedText className="text-base font-medium" style={themed.textSecondary}>
                   {t('expenseEdit.participants')}
-                </Text>
+                </ThemedText>
                 <View className="flex-row">
                   <Pressable
                     onPress={selectAllParticipants}
@@ -282,9 +293,10 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                   </Pressable>
                   <Pressable
                     onPress={clearAllParticipants}
-                    className="bg-gray-100 py-1 px-3 rounded-lg"
+                    className="py-1 px-3 rounded-lg"
+                    style={themed.surfaceBg}
                   >
-                    <Text className="text-gray-700 text-sm">{t('expenseEdit.clearAll')}</Text>
+                    <ThemedText className="text-sm" style={themed.textSecondary}>{t('expenseEdit.clearAll')}</ThemedText>
                   </Pressable>
                 </View>
               </View>
@@ -298,20 +310,21 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                       "flex-row items-center px-3 py-2 rounded-lg border",
                       selectedParticipants.includes(member.id)
                         ? "bg-blue-100 border-blue-300"
-                        : "bg-gray-50 border-gray-200"
+                        : ""
                     )}
+                    style={!selectedParticipants.includes(member.id) ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
                   >
                     <Ionicons 
                       name={selectedParticipants.includes(member.id) ? "checkmark-circle" : "ellipse-outline"} 
                       size={16} 
                       color={selectedParticipants.includes(member.id) ? "#3b82f6" : "#6b7280"} 
                     />
-                    <Text className={cn(
+                    <ThemedText className={cn(
                       "mr-2 text-sm font-medium",
-                      selectedParticipants.includes(member.id) ? "text-blue-700" : "text-gray-700"
-                    )}>
+                      selectedParticipants.includes(member.id) ? "text-blue-700" : ""
+                    )} style={!selectedParticipants.includes(member.id) ? themed.textSecondary : undefined}>
                       {member.name}
-                    </Text>
+                    </ThemedText>
                   </Pressable>
                 ))}
               </View>
@@ -319,14 +332,15 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
 
             {/* Description */}
             <View className="mb-6">
-              <Text className="text-gray-700 text-base mb-2 font-medium">
+              <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
                 {t('expenseEdit.description')}
-              </Text>
+              </ThemedText>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
                 placeholder={t('expenseEdit.additionalDetailsPlaceholder')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign="right"
                 multiline
                 numberOfLines={3}
@@ -391,13 +405,13 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
               disabled={loading}
               className="py-3"
             >
-              <Text className="text-gray-500 text-center">
+              <ThemedText className="text-center" style={themed.textSecondary}>
                 {t('expenseEdit.cancel')}
-              </Text>
+              </ThemedText>
             </Pressable>
             </ScrollView>
           </TouchableWithoutFeedback>
-        </View>
+        </ThemedView>
       </KeyboardAvoidingView>
     </Modal>
   );

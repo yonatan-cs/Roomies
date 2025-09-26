@@ -17,6 +17,10 @@ import { firebaseAuth } from '../services/firebase-auth';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { useTranslation } from 'react-i18next';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedView } from '../theme/components/ThemedView';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 interface ForgotPasswordScreenProps {
   onBack: () => void;
@@ -28,6 +32,11 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
 
   const handleResetPassword = async () => {
     setError(null);
@@ -78,18 +87,19 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
             {/* Header */}
             <View className="items-center mb-12">
               <Ionicons name="key" size={80} color="#007AFF" />
-              <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">{t('forgot.title')}</Text>
-              <Text className="text-lg text-gray-600 mt-2 text-center">{t('forgot.subtitle')}</Text>
+              <ThemedText className="text-3xl font-bold mt-4 text-center">{t('forgot.title')}</ThemedText>
+              <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>{t('forgot.subtitle')}</ThemedText>
             </View>
 
             {/* Email Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('forgot.email')}</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('forgot.email')}</ThemedText>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder={t('forgot.emailPh')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign="right"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -132,7 +142,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
             </View>
 
             {/* Contact Support */}
-            <Text className="text-gray-500 text-center text-sm mt-6">{t('forgot.support')}</Text>
+            <ThemedText className="text-center text-sm mt-6" style={themed.textSecondary}>{t('forgot.support')}</ThemedText>
           </View>
     </Screen>
   );

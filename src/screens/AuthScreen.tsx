@@ -21,6 +21,10 @@ import { NumericInput } from '../components/NumericInput';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../state/store';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedView } from '../theme/components/ThemedView';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 interface AuthScreenProps {
   onAuthSuccess: (user: any) => void;
@@ -35,6 +39,11 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const appLanguage = useStore(s => s.appLanguage);
   const setAppLanguage = useStore(s => s.setAppLanguage);
   const isRTL = useMemo(() => appLanguage === 'he', [appLanguage]);
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -209,8 +218,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Language toggle */}
         <Pressable
           onPress={() => setAppLanguage(appLanguage === 'he' ? 'en' : 'he')}
-          className="absolute p-2 bg-gray-100 rounded-full"
-          style={{ right: 16, top: 60 }}
+          className="absolute p-2 rounded-full"
+          style={{ right: 16, top: 60, ...themed.surfaceBg }}
           accessibilityRole="button"
           accessibilityLabel={t('settings.language')}
         >
@@ -219,26 +228,28 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         {/* Header */}
         <View className="items-center mb-8">
           <Ionicons name="home" size={80} color="#007AFF" />
-          <Text className="text-3xl font-bold text-gray-900 mt-4 text-center">{t('auth.title')}</Text>
-          <Text className="text-lg text-gray-600 mt-2 text-center">{t('auth.subtitle')}</Text>
+          <ThemedText className="text-3xl font-bold mt-4 text-center">{t('auth.title')}</ThemedText>
+          <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>{t('auth.subtitle')}</ThemedText>
         </View>
 
         {/* Tabs with subtle per-mode accent */}
-        <View className="flex-row bg-gray-100 rounded-xl p-1 mb-8">
+        <View className="flex-row rounded-xl p-1 mb-8" style={themed.surfaceBg}>
           <Pressable
-            className={`flex-1 py-3 rounded-lg items-center ${tab === 'login' ? 'bg-white' : ''}`}
+            className={`flex-1 py-3 rounded-lg items-center ${tab === 'login' ? '' : ''}`}
+            style={tab === 'login' ? { backgroundColor: '#ffffff' } : undefined}
             onPress={() => setTab('login')}
           >
-            <Text className={`font-semibold ${tab === 'login' ? 'text-blue-600' : 'text-gray-600'}`}>{t('auth.loginTab')}</Text>
+            <ThemedText className={`font-semibold ${tab === 'login' ? 'text-blue-600' : ''}`} style={tab === 'login' ? undefined : themed.textSecondary}>{t('auth.loginTab')}</ThemedText>
             {tab === 'login' && (
               <View className="h-0.5 bg-blue-600 w-10 mt-2 rounded-full" />
             )}
           </Pressable>
           <Pressable
-            className={`flex-1 py-3 rounded-lg items-center ${tab === 'register' ? 'bg-white' : ''}`}
+            className={`flex-1 py-3 rounded-lg items-center ${tab === 'register' ? '' : ''}`}
+            style={tab === 'register' ? { backgroundColor: '#ffffff' } : undefined}
             onPress={() => setTab('register')}
           >
-            <Text className={`font-semibold ${tab === 'register' ? 'text-green-600' : 'text-gray-600'}`}>{t('auth.registerTab')}</Text>
+            <ThemedText className={`font-semibold ${tab === 'register' ? 'text-green-600' : ''}`} style={tab === 'register' ? undefined : themed.textSecondary}>{t('auth.registerTab')}</ThemedText>
             {tab === 'register' && (
               <View className="h-0.5 bg-green-600 w-10 mt-2 rounded-full" />
             )}
@@ -250,12 +261,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           <View className="space-y-4">
             {/* Email Input (emphasized, calm) */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('auth.email')}</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.email')}</ThemedText>
               <TextInput
                 value={loginEmail}
                 onChangeText={setLoginEmail}
                 placeholder={t('auth.emailPlaceholder')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -268,13 +280,14 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('auth.password')}</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.password')}</ThemedText>
               <View className="relative">
                 <TextInput
                   value={loginPassword}
                   onChangeText={setLoginPassword}
                   placeholder={t('auth.passwordPlaceholder')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12 bg-white"
+                  className="border rounded-xl px-4 py-3 text-base pr-12"
+                  style={themed.borderColor}
                   textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showLoginPassword}
                   autoCapitalize="none"
@@ -329,12 +342,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           <View className="space-y-4">
             {/* Full Name Input (emphasized, calm) */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('auth.fullName')}</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.fullName')}</ThemedText>
               <TextInput
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder={t('auth.fullNamePlaceholder')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign={isRTL ? 'right' : 'left'}
                 autoCapitalize="words"
                 editable={!registerLoading}
@@ -345,12 +359,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Email Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('auth.email')} *</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.email')} *</ThemedText>
               <TextInput
                 value={registerEmail}
                 onChangeText={setRegisterEmail}
                 placeholder={t('auth.emailPlaceholder')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -363,25 +378,27 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Phone Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('auth.phone')}</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.phone')}</ThemedText>
               <NumericInput
                 value={phone}
                 onChangeText={setPhone}
                 placeholder={t('auth.phonePlaceholder')}
-                className="border border-gray-300 rounded-xl px-4 py-3 text-base bg-white"
+                className="border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign={isRTL ? 'right' : 'left'}
               />
             </View>
 
             {/* Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('auth.password')} *</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.password')} *</ThemedText>
               <View className="relative">
                 <TextInput
                   value={registerPassword}
                   onChangeText={setRegisterPassword}
                   placeholder={t('auth.passwordPlaceholder')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12 bg-white"
+                  className="border rounded-xl px-4 py-3 text-base pr-12"
+                  style={themed.borderColor}
                   textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showRegisterPassword}
                   autoCapitalize="none"
@@ -407,13 +424,14 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Confirm Password Input */}
             <View>
-              <Text className="text-gray-700 text-base mb-2">{t('auth.confirmPassword')}</Text>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.confirmPassword')}</ThemedText>
               <View className="relative">
                 <TextInput
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder={t('auth.confirmPasswordPlaceholder')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base pr-12 bg-white"
+                  className="border rounded-xl px-4 py-3 text-base pr-12"
+                  style={themed.borderColor}
                   textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
@@ -454,7 +472,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             />
 
             {/* Required Fields Note */}
-            <Text className="text-gray-500 text-sm text-center mt-4">{t('auth.requiredNote')}</Text>
+            <ThemedText className="text-sm text-center mt-4" style={themed.textSecondary}>{t('auth.requiredNote')}</ThemedText>
           </View>
         )}
       </View>

@@ -530,10 +530,10 @@ export default function CleaningScreen() {
             <View className="flex-row items-center py-2">
               <Ionicons name="brush" size={16} color="#10b981" />
               <View className="mr-3">
-                <Text className="text-gray-900">{cleaningTask.last_completed_by ? (getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) || t('cleaning.unknownUser')) : t('cleaning.unknownUser')}</Text>
-                <Text className="text-sm text-gray-500">
+                <ThemedText>{cleaningTask.last_completed_by ? (getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) || t('cleaning.unknownUser')) : t('cleaning.unknownUser')}</ThemedText>
+                <ThemedText className="text-sm" style={themed.textSecondary}>
                   {new Date(cleaningTask.last_completed_at).toLocaleString()}
-                </Text>
+                </ThemedText>
               </View>
             </View>
             
