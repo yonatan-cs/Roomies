@@ -12,6 +12,7 @@ import { useEffect } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
 import { configureReanimatedLogger } from 'react-native-reanimated';
+import { firebaseNotificationService } from './src/services/firebase-notification-service';
 
 // Configure Reanimated logger to disable strict mode warnings
 configureReanimatedLogger({
@@ -41,12 +42,30 @@ const openai_api_key = Constants.expoConfig.extra.apikey;
 
 export default function App() {
   const appLanguage = useStore(s => s.appLanguage);
+  const currentUser = useStore(s => s.currentUser);
 
   useEffect(() => {
     if (i18n.language !== appLanguage) {
       i18n.changeLanguage(appLanguage).catch(() => {});
     }
   }, [appLanguage]);
+
+  // Initialize Firebase notifications when user is logged in
+  useEffect(() => {
+    const initializeFirebaseNotifications = async () => {
+      if (currentUser?.id) {
+        console.log('🚀 Initializing Firebase notifications for user:', currentUser.id);
+        const success = await firebaseNotificationService.initialize(currentUser.id);
+        if (success) {
+          console.log('✅ Firebase notifications initialized successfully');
+        } else {
+          console.log('❌ Failed to initialize Firebase notifications');
+        }
+      }
+    };
+
+    initializeFirebaseNotifications();
+  }, [currentUser?.id]);
 
   // ברירת מחדל ליישור טקסטים לפי השפה (עברית → ימין), מבלי לפגוע ב־text-center מקומי
   useEffect(() => {
