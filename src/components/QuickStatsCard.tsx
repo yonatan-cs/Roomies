@@ -26,7 +26,7 @@ export default function QuickStatsCard({
     green: 'text-green-600',
     red: 'text-red-600',
     blue: 'text-blue-600',
-    gray: 'text-gray-900'
+    gray: 'text-gray-900' // Keep brand color for gray
   };
 
   return (

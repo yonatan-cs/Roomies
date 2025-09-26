@@ -7,6 +7,7 @@ import { selection } from '../utils/haptics';
 import { ThemeSetting } from '../theme/theme-settings';
 import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedCard } from '../theme/components/ThemedCard';
+import { useThemedStyles } from '../theme/useThemedStyles';
 import { changeAppLanguage } from '../utils/changeLanguage';
 
 export default function AppSettingsSection() {
@@ -15,6 +16,9 @@ export default function AppSettingsSection() {
   const setAppLanguage = useStore(s => s.setAppLanguage);
   const themeSetting = useStore(s => s.themeSetting);
   const setThemeSetting = useStore(s => s.setThemeSetting);
+  const themed = useThemedStyles(tk => ({
+    textSecondary: { color: tk.colors.text.secondary },
+  }));
 
   return (
     <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
@@ -38,7 +42,7 @@ export default function AppSettingsSection() {
             }}
             className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-100'}`}
           >
-            <ThemedText className={appLanguage === 'he' ? 'text-white' : 'text-gray-700'}>{t('settings.hebrew')}</ThemedText>
+            <ThemedText className={appLanguage === 'he' ? 'text-white' : ''} style={appLanguage !== 'he' ? themed.textSecondary : undefined}>{t('settings.hebrew')}</ThemedText>
           </Pressable>
           <Pressable
             onPress={() => {
@@ -48,7 +52,7 @@ export default function AppSettingsSection() {
             }}
             className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
           >
-            <ThemedText className={appLanguage === 'en' ? 'text-white' : 'text-gray-700'}>{t('settings.english')}</ThemedText>
+            <ThemedText className={appLanguage === 'en' ? 'text-white' : ''} style={appLanguage !== 'en' ? themed.textSecondary : undefined}>{t('settings.english')}</ThemedText>
           </Pressable>
         </View>
       </View>
@@ -69,7 +73,7 @@ export default function AppSettingsSection() {
               }}
               className={`px-3 py-2 rounded-xl mr-2 mb-2 ${themeSetting === theme ? 'bg-blue-500' : 'bg-gray-100'}`}
             >
-              <ThemedText className={themeSetting === theme ? 'text-white' : 'text-gray-700'}>
+              <ThemedText className={themeSetting === theme ? 'text-white' : ''} style={themeSetting !== theme ? themed.textSecondary : undefined}>
                 {t(`settings.theme.${theme}`)}
               </ThemedText>
             </Pressable>

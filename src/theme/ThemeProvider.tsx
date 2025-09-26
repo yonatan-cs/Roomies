@@ -22,7 +22,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const themeSetting = useStore(state => state.themeSetting);
   const setThemeSetting = useStore(state => state.setThemeSetting);
   // Keep system scheme in local state to react immediately on change
-  const [systemScheme, setSystemScheme] = useState<'light' | 'dark' | null>(Appearance.getColorScheme());
+  const [systemScheme, setSystemScheme] = useState<'light' | 'dark' | null>(Appearance.getColorScheme() || 'light');
 
   // Resolve active theme using current system scheme value
   const activeScheme = resolveTheme(themeSetting, systemScheme);
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Listen to appearance changes and update immediately
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
-      setSystemScheme(colorScheme);
+      setSystemScheme(colorScheme || 'light');
     });
     return () => subscription.remove();
   }, []);

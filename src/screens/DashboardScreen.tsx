@@ -672,22 +672,23 @@ export default function DashboardScreen() {
 
   return (
     <View className="flex-1 bg-gray-50">
-      <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-2">
-          <Text className="text-2xl font-bold text-gray-900">
+          <ThemedText className="text-2xl font-bold">
             {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
-          </Text>
+          </ThemedText>
           <Pressable
             onPress={() => navigation.navigate('Settings')}
-            className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center"
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={themed.surfaceBg}
           >
             <Ionicons name="person-outline" size={20} color="#6b7280" />
           </Pressable>
         </View>
-        <Text className="text-gray-600">
+        <ThemedText style={themed.textSecondary}>
           {currentApartment?.name || t('dashboard.apartmentFallback')}
-        </Text>
-      </View>
+        </ThemedText>
+      </ThemedCard>
 
       <ScrollView className="flex-1 px-6 py-6">
         {/* Quick Actions */}
@@ -742,19 +743,19 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl shadow-lg">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="wallet-outline" size={20} color="#6b7280" />
-              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cardMyBalance')}</ThemedText>
-            </View>
-            <ThemedText className={cn(
-              "text-2xl font-bold",
-              (myBalance?.netBalance ?? 0) >= 0 ? "text-green-600" : "text-red-600"
-            )}>
-              {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
-            </ThemedText>
-            <ThemedText className="text-xs" style={themed.textSecondary}>
-              {(myBalance?.netBalance ?? 0) >= 0 ? t('dashboard.comesToYou') : t('dashboard.youOwe')}
-            </ThemedText>
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="wallet-outline" size={20} color="#6b7280" />
+                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cardMyBalance')}</ThemedText>
+              </View>
+              <ThemedText className={cn(
+                "text-2xl font-bold",
+                (myBalance?.netBalance ?? 0) >= 0 ? "text-green-600" : "text-red-600"
+              )}>
+                {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
+              </ThemedText>
+              <ThemedText className="text-xs" style={themed.textSecondary}>
+                {(myBalance?.netBalance ?? 0) >= 0 ? t('dashboard.comesToYou') : t('dashboard.youOwe')}
+              </ThemedText>
             </ThemedCard>
           </Pressable>
 
@@ -771,19 +772,19 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl shadow-lg">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="brush-outline" size={20} color="#6b7280" />
-              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cleaningTurn')}</ThemedText>
-            </View>
-            <ThemedText className="text-lg font-bold">
-              {getDisplayName(currentTurnUser) || t('common.unknown')}
-            </ThemedText>
-            <ThemedText className={cn(
-              "text-xs",
-              isMyTurn ? "text-blue-600" : "text-gray-500"
-            )}>
-              {isMyTurn ? t('dashboard.yourTurn') : t('dashboard.theirTurn')}
-            </ThemedText>
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="brush-outline" size={20} color="#6b7280" />
+                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cleaningTurn')}</ThemedText>
+              </View>
+              <ThemedText className="text-lg font-bold">
+                {getDisplayName(currentTurnUser) || t('common.unknown')}
+              </ThemedText>
+              <ThemedText className={cn(
+                "text-xs",
+                isMyTurn ? "text-blue-600" : ""
+              )} style={!isMyTurn ? themed.textSecondary : undefined}>
+                {isMyTurn ? t('dashboard.yourTurn') : t('dashboard.theirTurn')}
+              </ThemedText>
             </ThemedCard>
           </Pressable>
 
@@ -800,13 +801,13 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl shadow-lg">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="basket-outline" size={20} color="#6b7280" />
-              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.toBuy')}</ThemedText>
-            </View>
-            <ThemedText className="text-2xl font-bold">
-              {pendingShoppingItems.length}
-            </ThemedText>
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="basket-outline" size={20} color="#6b7280" />
+                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.toBuy')}</ThemedText>
+              </View>
+              <ThemedText className="text-2xl font-bold">
+                {pendingShoppingItems.length}
+              </ThemedText>
             </ThemedCard>
           </Pressable>
 
@@ -823,28 +824,28 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl shadow-lg">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="people-outline" size={20} color="#6b7280" />
-              <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.roommates')}</ThemedText>
-            </View>
-            <ThemedText className="text-2xl font-bold">
-              {currentApartment?.members.length || 0}
-            </ThemedText>
-            <View className="flex-row mt-1">
-              {currentApartment?.members.slice(0, 3).map((member, index) => (
-                <View 
-                  key={member.id}
-                  className={cn(
-                    "w-5 h-5 bg-blue-100 rounded-full items-center justify-center",
-                    index > 0 && "-mr-1"
-                  )}
-                >
-                  <Text className="text-xs text-blue-700 font-medium">
-                    {getUserDisplayInfo(member).initial}
-                  </Text>
-                </View>
-              ))}
-            </View>
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="people-outline" size={20} color="#6b7280" />
+                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.roommates')}</ThemedText>
+              </View>
+              <ThemedText className="text-2xl font-bold">
+                {currentApartment?.members.length || 0}
+              </ThemedText>
+              <View className="flex-row mt-1">
+                {currentApartment?.members.slice(0, 3).map((member, index) => (
+                  <View 
+                    key={member.id}
+                    className={cn(
+                      "w-5 h-5 bg-blue-100 rounded-full items-center justify-center",
+                      index > 0 && "-mr-1"
+                    )}
+                  >
+                    <Text className="text-xs text-blue-700 font-medium">
+                      {getUserDisplayInfo(member).initial}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </ThemedCard>
           </Pressable>
         </View>
@@ -998,14 +999,14 @@ export default function DashboardScreen() {
                         : "bg-gray-100"
                     )}
                   >
-                    <Text className={cn(
+                    <ThemedText className={cn(
                       "text-center text-sm font-medium",
                       timeRange === option.key 
                         ? "text-white" 
-                        : "text-gray-700"
-                    )}>
+                        : ""
+                    )} style={timeRange !== option.key ? themed.textSecondary : undefined}>
                       {option.label}
-                    </Text>
+                    </ThemedText>
                   </Pressable>
                 ))}
               </View>
@@ -1015,39 +1016,39 @@ export default function DashboardScreen() {
             <View className="space-y-4">
               {/* Total Spent & King of Expenses */}
               <View className="flex-row gap-4">
-                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.totalExpenses')}</Text>
+                <ThemedCard className="flex-1 rounded-2xl p-6 shadow-sm">
+                  <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.totalExpenses')}</ThemedText>
                   <Text className="text-2xl font-bold text-blue-600 mb-1">
                     {formatCurrency(highlightsStats.totalExpenses)}
                   </Text>
-                  <Text className="text-xs text-gray-400">
+                  <ThemedText className="text-xs" style={themed.textSecondary}>
                     ({timeRange === 'all' ? t('dashboard.allTime') : 
                       timeRange === 'year' ? t('dashboard.thisYear') :
                       timeRange === 'month' ? t('dashboard.thisMonth') : t('dashboard.last30Days')})
-                  </Text>
-                </View>
+                  </ThemedText>
+                </ThemedCard>
                 
-                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.kingOfExpenses')}</Text>
+                <ThemedCard className="flex-1 rounded-2xl p-6 shadow-sm">
+                  <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.kingOfExpenses')}</ThemedText>
                   {highlightsStats.kingOfExpenses ? (
                     <>
                       <Text className="text-lg font-bold text-yellow-600 mb-1">
                         {getUserName(highlightsStats.kingOfExpenses.userId)}
                       </Text>
-                      <Text className="text-sm text-gray-600">
+                      <ThemedText className="text-sm" style={themed.textSecondary}>
                         {formatCurrency(highlightsStats.kingOfExpenses.amount)}
-                      </Text>
-                      <Text className="text-xs text-gray-400">
+                      </ThemedText>
+                      <ThemedText className="text-xs" style={themed.textSecondary}>
                         ({highlightsStats.kingOfExpenses.percentage.toFixed(1)}% מהסך)
-                      </Text>
-                      <Text className="text-xs text-gray-400 mt-1">
+                      </ThemedText>
+                      <ThemedText className="text-xs mt-1" style={themed.textSecondary}>
                         {t('dashboard.giveHimCrown')}
-                      </Text>
+                      </ThemedText>
                     </>
                   ) : (
-                    <Text className="text-gray-500">{t('dashboard.noData')}</Text>
+                    <ThemedText style={themed.textSecondary}>{t('dashboard.noData')}</ThemedText>
                   )}
-                </View>
+                </ThemedCard>
               </View>
 
               {/* Cleanings Done & Shopping King */}
@@ -1157,7 +1158,7 @@ export default function DashboardScreen() {
                   {t('dashboard.share')}
                 </Text>
               </Pressable>
-            </ThemedCard>
+            </View>
           </ScrollView>
         </ThemedView>
       </Modal>

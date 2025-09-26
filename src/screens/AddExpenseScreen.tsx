@@ -21,11 +21,20 @@ import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
 import { useTranslation } from 'react-i18next';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedView } from '../theme/components/ThemedView';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 export default function AddExpenseScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const { currentUser, currentApartment, addExpense } = useStore();
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -87,9 +96,9 @@ export default function AddExpenseScreen() {
 
   if (!currentUser || !currentApartment) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">{t('common.loading')}</Text>
-      </View>
+      <ThemedView className="flex-1 justify-center items-center">
+        <ThemedText style={themed.textSecondary}>{t('common.loading')}</ThemedText>
+      </ThemedView>
     );
   }
 
@@ -101,12 +110,13 @@ export default function AddExpenseScreen() {
     <Screen withPadding={true} keyboardVerticalOffset={0}>
           {/* Title */}
           <View className="mb-6">
-            <Text className="text-gray-700 text-base mb-2 font-medium">{t('addExpense.expenseName')}</Text>
+            <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>{t('addExpense.expenseName')}</ThemedText>
             <TextInput
               value={title}
               onChangeText={setTitle}
               placeholder={t('addExpense.expenseNamePh')}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+              className="border rounded-xl px-4 py-3 text-base"
+              style={themed.borderColor}
               textAlign="right"
               returnKeyType="next"
               blurOnSubmit={false}
@@ -115,26 +125,27 @@ export default function AddExpenseScreen() {
 
           {/* Amount */}
           <View className="mb-6">
-            <Text className="text-gray-700 text-base mb-2 font-medium">{t('addExpense.amount')}</Text>
+            <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>{t('addExpense.amount')}</ThemedText>
             <View className="flex-row items-center">
               <NumericInput
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="0"
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="flex-1 border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 textAlign="center"
               />
-              <Text className="text-gray-700 text-lg mr-3">{t('shopping.shekel')}</Text>
+              <ThemedText className="text-lg mr-3" style={themed.textSecondary}>{t('shopping.shekel')}</ThemedText>
             </View>
             {selectedParticipants.length > 0 && parseFloat(amount) > 0 && (
-              <Text className="text-sm text-gray-500 mt-2 text-center">{t('addExpense.perPerson', { amount: `${amountPerPerson.toFixed(2)}${t('shopping.shekel')}` })}</Text>
+              <ThemedText className="text-sm mt-2 text-center" style={themed.textSecondary}>{t('addExpense.perPerson', { amount: `${amountPerPerson.toFixed(2)}${t('shopping.shekel')}` })}</ThemedText>
             )}
           </View>
 
           {/* Participants */}
           <View className="mb-6">
             <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-gray-700 text-base font-medium">{t('addExpense.participants')}</Text>
+              <ThemedText className="text-base font-medium" style={themed.textSecondary}>{t('addExpense.participants')}</ThemedText>
               <View className="flex-row">
                 <Pressable
                   onPress={selectAllParticipants}
@@ -144,9 +155,10 @@ export default function AddExpenseScreen() {
                 </Pressable>
                 <Pressable
                   onPress={clearAllParticipants}
-                  className="bg-gray-100 py-1 px-3 rounded-lg"
+                  className="py-1 px-3 rounded-lg"
+                  style={themed.surfaceBg}
                 >
-                  <Text className="text-gray-700 text-sm">{t('addExpense.clear')}</Text>
+                  <ThemedText className="text-sm" style={themed.textSecondary}>{t('addExpense.clear')}</ThemedText>
                 </Pressable>
               </View>
             </View>
@@ -155,33 +167,35 @@ export default function AddExpenseScreen() {
               <Pressable
                 key={member.id}
                 onPress={() => toggleParticipant(member.id)}
-                className="flex-row items-center py-3 px-4 bg-gray-50 rounded-xl mb-2"
+                className="flex-row items-center py-3 px-4 rounded-xl mb-2"
+                style={themed.surfaceBg}
               >
                 <View className={cn(
                   "w-6 h-6 rounded border-2 items-center justify-center ml-3",
                   selectedParticipants.includes(member.id) 
                     ? "bg-blue-500 border-blue-500" 
-                    : "border-gray-300"
-                )}>
+                    : ""
+                )} style={!selectedParticipants.includes(member.id) ? themed.borderColor : undefined}>
                   {selectedParticipants.includes(member.id) && (
                     <Ionicons name="checkmark" size={16} color="white" />
                   )}
                 </View>
-                <Text className="text-gray-900 flex-1">
+                <ThemedText className="flex-1">
                   {getDisplayName(member)} {member.id === currentUser.id && `(${t('common.you')})`}
-                </Text>
+                </ThemedText>
               </Pressable>
             ))}
           </View>
 
           {/* Description */}
           <View className="mb-8">
-            <Text className="text-gray-700 text-base mb-2 font-medium">{t('addExpense.description')}</Text>
+            <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>{t('addExpense.description')}</ThemedText>
             <TextInput
               value={description}
               onChangeText={setDescription}
               placeholder={t('addExpense.descriptionPh')}
-              className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+              className="border rounded-xl px-4 py-3 text-base"
+              style={themed.borderColor}
               textAlign="right"
               multiline
               numberOfLines={3}
@@ -199,7 +213,7 @@ export default function AddExpenseScreen() {
             onPress={() => navigation.goBack()}
             className="py-3"
           >
-            <Text className="text-gray-500 text-center">{t('addExpense.cancel')}</Text>
+            <ThemedText className="text-center" style={themed.textSecondary}>{t('addExpense.cancel')}</ThemedText>
           </Pressable>
     </Screen>
   );

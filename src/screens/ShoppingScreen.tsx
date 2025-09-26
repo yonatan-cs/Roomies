@@ -79,7 +79,7 @@ export default function ShoppingScreen() {
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
   const { theme } = useTheme();
-  const styles = useThemedStyles(tk => ({
+  const themed = useThemedStyles(tk => ({
     textSecondary: { color: tk.colors.text.secondary },
     surfaceBg: { backgroundColor: tk.colors.surface },
     borderColor: { borderColor: tk.colors.border.primary },
@@ -387,8 +387,8 @@ export default function ShoppingScreen() {
 
   if (!currentUser || !currentApartment) {
     return (
-      <View className="flex-1 justify-center items-center" style={styles.surfaceBg}>
-        <ThemedText style={styles.textSecondary}>{t('common.loading')}</ThemedText>
+      <View className="flex-1 justify-center items-center" style={themed.surfaceBg}>
+        <ThemedText style={themed.textSecondary}>{t('common.loading')}</ThemedText>
       </View>
     );
   }
@@ -401,7 +401,7 @@ export default function ShoppingScreen() {
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
         <ThemedText className="text-2xl font-bold text-center mb-4">{t('shopping.title')}</ThemedText>
-        <ThemedText style={styles.textSecondary} className="text-center">
+        <ThemedText style={themed.textSecondary} className="text-center">
           {t('shopping.itemsToBuy', { count: pendingItems.length })}
           {selectedPriorityFilter !== 'all' && (
             <Text className="text-blue-600 font-medium">{' '}• {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}</Text>
@@ -411,13 +411,14 @@ export default function ShoppingScreen() {
 
       {/* Priority Filter */}
       <ThemedCard className="mx-6 mt-6 p-4 rounded-2xl shadow-sm">
-        <ThemedText style={styles.textSecondary} className="text-base mb-3 text-center">{t('shopping.priorityFilter')}</ThemedText>
+        <ThemedText style={themed.textSecondary} className="text-base mb-3 text-center">{t('shopping.priorityFilter')}</ThemedText>
         <View className="flex-row justify-center space-x-2">
           <Pressable
             onPress={() => setSelectedPriorityFilter('all')}
-            className={cn('px-4 py-2 rounded-lg border-2', selectedPriorityFilter === 'all' ? 'bg-blue-500 border-blue-500' : 'bg-gray-50 border-gray-200')}
+            className={cn('px-4 py-2 rounded-lg border-2', selectedPriorityFilter === 'all' ? 'bg-blue-500 border-blue-500' : '')}
+            style={selectedPriorityFilter !== 'all' ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
           >
-            <Text className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : 'text-gray-700')}>{t('shopping.all')}</Text>
+            <ThemedText className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : '')} style={selectedPriorityFilter !== 'all' ? themed.textSecondary : undefined}>{t('shopping.all')}</ThemedText>
           </Pressable>
 
           {PRIORITIES.map(priority => (
@@ -426,13 +427,14 @@ export default function ShoppingScreen() {
               onPress={() => setSelectedPriorityFilter(priority.key as any)}
               className={cn(
                 'px-4 py-2 rounded-lg border-2 flex-row items-center',
-                selectedPriorityFilter === priority.key ? 'bg-blue-500 border-blue-500' : 'bg-gray-50 border-gray-200'
+                selectedPriorityFilter === priority.key ? 'bg-blue-500 border-blue-500' : ''
               )}
+              style={selectedPriorityFilter !== priority.key ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
             >
               <Ionicons name={priority.icon as any} size={16} color={selectedPriorityFilter === priority.key ? 'white' : priority.color} />
-              <Text className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : 'text-gray-700')}>
+              <ThemedText className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : '')} style={selectedPriorityFilter !== priority.key ? themed.textSecondary : undefined}>
                 {priority.label}
-              </Text>
+              </ThemedText>
             </Pressable>
           ))}
         </View>
@@ -458,14 +460,14 @@ export default function ShoppingScreen() {
         {/* Pending Items */}
         {pendingItems.length > 0 && (
           <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">
+            <ThemedText className="text-lg font-semibold mb-4">
               {t('shopping.toBuy')}
               {selectedPriorityFilter !== 'all' && (
                 <Text className="text-blue-600 font-medium text-base">
                   {' '}({t('shopping.priorityLabel')}: {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label})
                 </Text>
               )}
-            </Text>
+            </ThemedText>
             <FlatList data={pendingItems} renderItem={renderShoppingItem} keyExtractor={item => item.id} scrollEnabled={false} />
           </View>
         )}
@@ -475,7 +477,7 @@ export default function ShoppingScreen() {
           <ThemedCard className="rounded-2xl p-8 items-center shadow-sm">
             <Ionicons name="filter-outline" size={64} color="#6b7280" />
             <ThemedText className="text-lg font-medium mt-4 mb-2">{t('shopping.noItemsWithPriority')}</ThemedText>
-            <ThemedText style={styles.textSecondary} className="text-center">{t('shopping.noItemsWithPriority')}</ThemedText>
+            <ThemedText style={themed.textSecondary} className="text-center">{t('shopping.noItemsWithPriority')}</ThemedText>
             <Pressable onPress={() => setSelectedPriorityFilter('all')} className="bg-blue-500 py-3 px-6 rounded-xl mt-4">
               <Text className="text-white font-medium text-center">{t('shopping.showAll')}</Text>
             </Pressable>
@@ -487,14 +489,14 @@ export default function ShoppingScreen() {
           <ThemedCard className="rounded-2xl p-8 items-center shadow-sm">
             <Ionicons name="basket-outline" size={64} color="#6b7280" />
             <ThemedText className="text-lg font-medium mt-4 mb-2">{t('shopping.emptyTitle')}</ThemedText>
-            <ThemedText style={styles.textSecondary} className="text-center">{t('shopping.emptySubtitle')}</ThemedText>
+            <ThemedText style={themed.textSecondary} className="text-center">{t('shopping.emptySubtitle')}</ThemedText>
           </ThemedCard>
         )}
 
         {/* Purchased Items */}
         {purchasedItems.length > 0 && (
           <View className="mb-6">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">{t('shopping.purchased')}</Text>
+            <ThemedText className="text-lg font-semibold mb-4">{t('shopping.purchased')}</ThemedText>
             <FlatList
               data={purchasedItems.slice().reverse().slice(0, 10)}
               renderItem={renderShoppingItem}
@@ -519,19 +521,20 @@ export default function ShoppingScreen() {
             onLayout={addLift.onLayoutCard}
             style={[{ width: '100%', maxWidth: 400 }, addLift.animatedStyle]}
           >
-            <View className="bg-white rounded-2xl p-6">
+            <ThemedCard className="rounded-2xl p-6">
               <Pressable onPress={Keyboard.dismiss}>
-                <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('shopping.addModal.title')}</Text>
+                <ThemedText className="text-xl font-semibold mb-6 text-center">{t('shopping.addModal.title')}</ThemedText>
               </Pressable>
 
               {/* Item Name */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('shopping.addModal.itemName')}</Text>
+                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('shopping.addModal.itemName')}</ThemedText>
                 <TextInput
                   value={newItemName}
                   onChangeText={setNewItemName}
                   placeholder={t('shopping.addModal.itemNamePh')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  className="border rounded-xl px-4 py-3 text-base"
+                  style={themed.borderColor}
                   textAlign="right"
                   autoFocus
                   returnKeyType="next"
@@ -640,7 +643,7 @@ export default function ShoppingScreen() {
                   </View>
                 </Pressable>
               </View>
-            </View>
+            </ThemedCard>
           </Animated.View>
         </Pressable>
       </Modal>

@@ -19,6 +19,10 @@ import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
 import { AsyncButton } from '../components/AsyncButton';
 import { getDisplayName } from '../utils/userDisplay';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { ThemedView } from '../theme/components/ThemedView';
+import { useThemedStyles } from '../theme/useThemedStyles';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -29,6 +33,11 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function GroupDebtsScreen() {
   const { t } = useTranslation();
   const navigation = useNavigation<NavigationProp>();
+  const themed = useThemedStyles(tk => ({
+    surfaceBg: { backgroundColor: tk.colors.surface },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+  }));
   const [showSettlementModal, setShowSettlementModal] = useState(false);
   const [settlementAmount, setSettlementAmount] = useState('');
   const [settlementFromUser, setSettlementFromUser] = useState('');
@@ -252,40 +261,41 @@ export default function GroupDebtsScreen() {
 
   if (!currentUser || !currentApartment) {
     return (
-      <View className="flex-1 bg-white justify-center items-center">
-        <Text className="text-gray-500">{t('common.loading')}</Text>
-      </View>
+      <ThemedView className="flex-1 justify-center items-center">
+        <ThemedText style={themed.textSecondary}>{t('common.loading')}</ThemedText>
+      </ThemedView>
     );
   }
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       {/* Header */}
-      <View className="bg-white px-6 pt-16 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-4">
           <Pressable
             onPress={() => navigation.goBack()}
-            className="w-10 h-10 rounded-full items-center justify-center bg-gray-100"
+            className="w-10 h-10 rounded-full items-center justify-center"
+            style={themed.surfaceBg}
           >
             <Ionicons name="arrow-forward" size={24} color="#374151" />
           </Pressable>
           
-          <Text className="text-2xl font-bold text-gray-900">
+          <ThemedText className="text-2xl font-bold">
             {t('debts.title')}
-          </Text>
+          </ThemedText>
           
           <View className="w-10" />
         </View>
         
         {/* Simplification Toggle */}
-        <View className="flex-row items-center justify-between bg-gray-50 p-4 rounded-xl">
+        <View className="flex-row items-center justify-between p-4 rounded-xl" style={themed.surfaceBg}>
           <View>
-            <Text className="text-gray-900 font-medium">
+            <ThemedText className="font-medium">
               {t('debts.simplify')}
-            </Text>
-            <Text className="text-sm text-gray-600">
+            </ThemedText>
+            <ThemedText className="text-sm" style={themed.textSecondary}>
               {useSimplified ? t('debts.simplifiedOn') : t('debts.simplifiedOff')}
-            </Text>
+            </ThemedText>
           </View>
           <Switch
             value={useSimplified}
@@ -294,7 +304,7 @@ export default function GroupDebtsScreen() {
             thumbColor={useSimplified ? '#ffffff' : '#f3f4f6'}
           />
         </View>
-      </View>
+      </ThemedCard>
 
       <ScrollView 
         className="flex-1 px-6 py-6"
@@ -303,41 +313,41 @@ export default function GroupDebtsScreen() {
         nestedScrollEnabled
       >
         {/* Group Balance Summary */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold text-gray-900 mb-4">
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedText className="text-lg font-semibold mb-4">
             {t('debts.groupBalanceSummary')}
-          </Text>
+          </ThemedText>
           
           {balances.map((balance) => {
             const user = currentApartment.members.find(m => m.id === balance.userId);
             const isCurrentUser = balance.userId === currentUser.id;
             
             return (
-              <View key={balance.userId} className="flex-row justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
-                <Text className={cn(
+              <View key={balance.userId} className="flex-row justify-between items-center py-3 border-b last:border-b-0" style={themed.borderColor}>
+                <ThemedText className={cn(
                   "font-medium",
-                  isCurrentUser ? "text-blue-700" : "text-gray-700"
-                )}>
+                  isCurrentUser ? "text-blue-700" : ""
+                )} style={!isCurrentUser ? themed.textSecondary : undefined}>
                   {getDisplayName(user)} {isCurrentUser && `(${t('common.you')})`}
-                </Text>
+                </ThemedText>
                 
-                <Text className={cn(
+                <ThemedText className={cn(
                   "font-semibold text-base",
                   balance.netBalance >= 0 ? "text-green-600" : "text-red-600"
                 )}>
                   {balance.netBalance >= 0 ? '+' : ''}{formatCurrency(balance.netBalance)}
-                </Text>
+                </ThemedText>
               </View>
             );
           })}
-        </View>
+        </ThemedCard>
 
         {/* Active Debts */}
-        <View className="bg-white rounded-2xl p-6 mb-6 shadow-sm">
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
           <View className="flex-row items-center justify-between mb-4">
-            <Text className="text-lg font-semibold text-gray-900">
+            <ThemedText className="text-lg font-semibold">
               {t('debts.activeDebts')}
-            </Text>
+            </ThemedText>
             {useSimplified && (
               <View className="bg-blue-100 px-3 py-1 rounded-full">
                 <Text className="text-blue-700 text-sm font-medium">
@@ -353,20 +363,20 @@ export default function GroupDebtsScreen() {
               <Text className="text-green-600 font-medium text-lg mt-2">
                 {t('debts.noOpenDebtsTitle')}
               </Text>
-              <Text className="text-gray-500 text-center mt-2">
+              <ThemedText className="text-center mt-2" style={themed.textSecondary}>
                 {t('debts.noOpenDebtsSubtitle')}
-              </Text>
+              </ThemedText>
             </View>
           ) : (
             allDebts.map((debt, index) => (
-              <View key={`${debt.fromUserId}-${debt.toUserId}-${index}`} className="flex-row items-center justify-between py-4 border-b border-gray-100 last:border-b-0">
+              <View key={`${debt.fromUserId}-${debt.toUserId}-${index}`} className="flex-row items-center justify-between py-4 border-b last:border-b-0" style={themed.borderColor}>
                 <View className="flex-1">
-                  <Text className="text-gray-900 font-medium">
+                  <ThemedText className="font-medium">
                     {getUserName(debt.fromUserId)}
-                  </Text>
-                  <Text className="text-sm text-gray-500">
+                  </ThemedText>
+                  <ThemedText className="text-sm" style={themed.textSecondary}>
                     {t('debts.youOweTo', { to: getUserName(debt.toUserId) })}
-                  </Text>
+                  </ThemedText>
                 </View>
                 
                 <View className="flex-row items-center">
@@ -393,7 +403,7 @@ export default function GroupDebtsScreen() {
               </View>
             ))
           )}
-        </View>
+        </ThemedCard>
 
         {/* Info Card */}
         <View className="bg-blue-50 rounded-2xl p-6">
@@ -414,31 +424,32 @@ export default function GroupDebtsScreen() {
       {/* Debt Settlement Modal */}
       {showSettlementModal && (
         <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">
+          <ThemedCard className="rounded-2xl p-6 w-full max-w-sm">
+            <ThemedText className="text-xl font-semibold mb-4 text-center">
               {t('debts.modal.title')}
-            </Text>
+            </ThemedText>
             
-            <Text className="text-gray-600 text-center mb-4">
+            <ThemedText className="text-center mb-4" style={themed.textSecondary}>
               {t('debts.modal.youAreAboutToClose', { amount: formatCurrency(settlementOriginalAmount), to: getUserName(settlementToUser) })}
-            </Text>
-            <Text className="text-gray-600 text-center mb-4">
+            </ThemedText>
+            <ThemedText className="text-center mb-4" style={themed.textSecondary}>
               {t('debts.modal.direction', { from: getUserName(settlementFromUser), to: getUserName(settlementToUser) })}
-            </Text>
+            </ThemedText>
 
-            <Text className="text-gray-700 mb-2">{t('debts.modal.amountToClose')}</Text>
+            <ThemedText className="mb-2">{t('debts.modal.amountToClose')}</ThemedText>
             <View className="flex-row items-center mb-6">
               <TextInput
                 value={settlementAmount}
                 onChangeText={setSettlementAmount}
                 placeholder="0"
-                className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+                className="flex-1 border rounded-xl px-4 py-3 text-base"
+                style={themed.borderColor}
                 keyboardType="numeric"
                 textAlign="center"
                 returnKeyType="done"
                 onSubmitEditing={() => Keyboard.dismiss()}
               />
-              <Text className="text-gray-700 text-lg mr-3">₪</Text>
+              <ThemedText className="text-lg mr-3">₪</ThemedText>
             </View>
 
             <View className="flex-row">
@@ -450,11 +461,12 @@ export default function GroupDebtsScreen() {
                   setSettlementToUser('');
                   setSettlementOriginalAmount(0);
                 }}
-                className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                className="flex-1 py-3 px-4 rounded-xl mr-2"
+                style={themed.surfaceBg}
               >
-                <Text className="text-gray-700 font-medium text-center">
+                <ThemedText className="font-medium text-center" style={themed.textSecondary}>
                   {t('debts.modal.cancel')}
-                </Text>
+                </ThemedText>
               </Pressable>
               
               <Pressable
@@ -470,7 +482,7 @@ export default function GroupDebtsScreen() {
                 </Text>
               </Pressable>
             </View>
-          </View>
+          </ThemedCard>
         </View>
       )}
     </Screen>
