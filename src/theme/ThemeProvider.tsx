@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, ReactNode } from 'react';
-import { Appearance, useColorScheme } from 'react-native';
+import React, { createContext, useContext, useEffect, ReactNode, useState } from 'react';
+import { Appearance } from 'react-native';
 import { useStore } from '../state/store';
 import { lightTokens, darkTokens, ThemeTokens } from './tokens';
 import { ThemeSetting, resolveTheme } from './theme-settings';
@@ -18,27 +18,23 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const systemColorScheme = useColorScheme();
-  
   // Get theme setting from store
   const themeSetting = useStore(state => state.themeSetting);
   const setThemeSetting = useStore(state => state.setThemeSetting);
-  
-  // Resolve active theme - handle undefined from useColorScheme
-  const activeScheme = resolveTheme(themeSetting, systemColorScheme || 'light');
+  // Keep system scheme in local state to react immediately on change
+  const [systemScheme, setSystemScheme] = useState<'light' | 'dark' | null>(Appearance.getColorScheme());
+
+  // Resolve active theme using current system scheme value
+  const activeScheme = resolveTheme(themeSetting, systemScheme);
   const theme = activeScheme === 'dark' ? darkTokens : lightTokens;
 
-  // Listen to appearance changes when system theme is selected
+  // Listen to appearance changes and update immediately
   useEffect(() => {
-    if (themeSetting !== 'system') return;
-    
-    const subscription = Appearance.addChangeListener(() => {
-      // Force re-render by updating a dummy state or just let useColorScheme handle it
-      // The useColorScheme hook will trigger a re-render automatically
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      setSystemScheme(colorScheme);
     });
-
-    return () => subscription?.remove();
-  }, [themeSetting]);
+    return () => subscription.remove();
+  }, []);
 
   const contextValue: ThemeContextType = {
     setting: themeSetting,
