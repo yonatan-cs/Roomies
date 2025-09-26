@@ -40,7 +40,7 @@ export function AsyncButton({
       case 'secondary':
         return isDisabled 
           ? 'bg-gray-200' 
-          : 'bg-gray-200 active:bg-gray-200 border border-gray-300';
+          : 'bg-gray-100 active:bg-gray-200 border border-gray-300';
       case 'danger':
         return isDisabled 
           ? 'bg-gray-300' 
