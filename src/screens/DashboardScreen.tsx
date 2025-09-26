@@ -1009,7 +1009,7 @@ export default function DashboardScreen() {
                   </Pressable>
                 ))}
               </View>
-            </View>
+            </ThemedCard>
 
             {/* Statistics Cards */}
             <View className="space-y-4">
