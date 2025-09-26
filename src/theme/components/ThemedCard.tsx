@@ -11,7 +11,8 @@ export function ThemedCard({ style, ...rest }: ViewProps) {
       StyleSheet.create({
         card: {
           backgroundColor: theme.colors.card,
-          // No default border to preserve pixel-identical light mode.
+          borderWidth: 1,
+          borderColor: theme.colors.border.primary,
         } as ViewStyle,
       }),
     [theme]
