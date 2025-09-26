@@ -1,10 +1,10 @@
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, DefaultTheme, DarkTheme, Theme as NavTheme } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { View, Text, TextInput } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
-import { ThemeProvider } from "./src/theme/ThemeProvider";
+import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 import "./src/i18n";
 import { useEffect } from "react";
 import { useStore } from "./src/state/store";
@@ -57,16 +57,49 @@ export default function App() {
     };
   }, [appLanguage]);
 
+  function ThemedRoot() {
+    const { activeScheme, theme } = useTheme();
+
+    const navTheme: NavTheme =
+      activeScheme === 'dark'
+        ? {
+            ...DarkTheme,
+            colors: {
+              ...DarkTheme.colors,
+              background: theme.colors.background,
+              card: theme.colors.card,
+              text: theme.colors.text.primary,
+              border: theme.colors.border.primary,
+              primary: theme.colors.primary,
+            },
+          }
+        : {
+            ...DefaultTheme,
+            colors: {
+              ...DefaultTheme.colors,
+              background: theme.colors.background,
+              card: theme.colors.card,
+              text: theme.colors.text.primary,
+              border: theme.colors.border.primary,
+              primary: theme.colors.primary,
+            },
+          };
+
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <NavigationContainer theme={navTheme}>
+          <AppNavigator />
+        </NavigationContainer>
+        <StatusBar style={activeScheme === 'dark' ? 'light' : 'dark'} />
+      </View>
+    );
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <View style={{ flex: 1 }}>
-            <NavigationContainer>
-              <AppNavigator />
-              <StatusBar style="auto" />
-            </NavigationContainer>
-          </View>
+          <ThemedRoot />
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

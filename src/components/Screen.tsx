@@ -1,5 +1,6 @@
 import React from 'react';
 import { Platform, Keyboard, KeyboardAvoidingView, Pressable, View, ScrollView } from 'react-native';
+import { ThemedView } from '../theme/components/ThemedView';
 import { useStore } from '../state/store';
 
 // מסך בסיסי: מרחיק מהקצה, מרים מול מקלדת, ולחיצה בחוץ סוגרת מקלדת
@@ -45,9 +46,9 @@ export function Screen({
           {children}
         </ScrollView>
       ) : (
-        <View style={{ flex: 1, padding: withPadding ? 16 : 0, alignItems: 'stretch', direction: 'ltr' as any }}>
+        <ThemedView style={{ flex: 1, padding: withPadding ? 16 : 0, alignItems: 'stretch', direction: 'ltr' as any }}>
           {children}
-        </View>
+        </ThemedView>
       )}
     </>
   );
@@ -58,7 +59,9 @@ export function Screen({
       behavior={Platform.OS === 'ios' ? behavior : undefined}
       keyboardVerticalOffset={keyboardVerticalOffset ?? Platform.select({ ios: 64, android: 0 })} // להתאים ל־Header אם צריך
     >
-      {content}
+      <ThemedView style={{ flex: 1 }}>
+        {content}
+      </ThemedView>
     </KeyboardAvoidingView>
   );
 }

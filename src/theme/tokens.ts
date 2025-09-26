@@ -3,6 +3,7 @@ export interface ThemeTokens {
   colors: {
     background: string;
     surface: string;
+    card: string; // card containers like headers/cards
     primary: string;
     secondary: string;
     text: {
@@ -27,6 +28,7 @@ export const lightTokens: ThemeTokens = {
   colors: {
     background: '#ffffff',
     surface: '#f8fafc',
+    card: '#ffffff',
     primary: '#3b82f6', // blue-500
     secondary: '#6b7280', // gray-500
     text: {
@@ -51,6 +53,7 @@ export const darkTokens: ThemeTokens = {
   colors: {
     background: '#111827', // gray-900
     surface: '#1f2937', // gray-800
+    card: '#1f2937', // match surface for cards
     primary: '#60a5fa', // blue-400
     secondary: '#9ca3af', // gray-400
     text: {
