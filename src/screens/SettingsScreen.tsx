@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Pl
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
-import Clipboard from '@react-native-clipboard/clipboard';
+import * as Clipboard from 'expo-clipboard';
 import ConfirmModal from '../components/ConfirmModal';
 import AppSettingsSection from '../components/AppSettingsSection';
 import { firebaseAuth } from '../services/firebase-auth';
@@ -14,6 +14,7 @@ import { selection, impactMedium, success } from '../utils/haptics';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { firebaseNotificationService } from '../services/firebase-notification-service';
 
 
 export default function SettingsScreen() {
@@ -92,7 +93,7 @@ export default function SettingsScreen() {
   const handleCopyCode = async () => {
     if (!currentApartment?.invite_code) return;
     try {
-      Clipboard.setString(currentApartment.invite_code);
+      await Clipboard.setStringAsync(currentApartment.invite_code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (error) {
@@ -185,6 +186,16 @@ User: ${currentUser?.name || 'Unknown'}
       setRemovingMemberId(null);
       setConfirmRemoveVisible(false);
       setMemberToRemove(null);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      await firebaseNotificationService.sendTestNotification();
+      Alert.alert('✅ Success', 'Test notification sent!');
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      Alert.alert('❌ Error', 'Failed to send test notification');
     }
   };
 
@@ -558,6 +569,15 @@ User: ${currentUser?.name || 'Unknown'}
           <ThemedText className="text-sm mb-4" style={themed.textSecondary}>
             {t('settings.feedbackDescription')}
           </ThemedText>
+          
+          {/* Test Notification Button */}
+          <Pressable 
+            onPress={handleTestNotification}
+            className="bg-purple-500 py-3 px-6 rounded-xl mb-3"
+          >
+            <Text className="text-white font-semibold text-center">🧪 Test Push Notification</Text>
+          </Pressable>
+          
           <Pressable 
             onPress={handleSendFeedback}
             className="bg-blue-500 py-3 px-6 rounded-xl"
