@@ -856,18 +856,20 @@ export class FirestoreService {
         body: JSON.stringify(requestBody),
       });
 
-      const responseData = await response.json();
+      const responseData = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const errorMessage = responseData.error?.message || 'Unknown error';
+        const errorMessage = responseData.error?.message || `Firestore error ${response.status}`;
         console.error('❌ Update document failed:', {
           status: response.status,
-          error: errorMessage,
           url,
-          data,
-          updateMaskFields
+          requestBody,
+          responseData
         });
-        throw new Error(`Failed to update document: ${errorMessage}`);
+        const err: any = new Error(errorMessage);
+        err.status = response.status;
+        err.responseData = responseData;
+        throw err;
       }
 
       const convertedData = this.fromFirestoreFormat(responseData.fields || {});
@@ -4188,8 +4190,12 @@ export class FirestoreService {
    */
   async getShoppingItems(): Promise<any[]> {
     try {
+      // Prefer profile-based context; if missing, return [] and let UI route
       const { idToken, aptId } = await getApartmentContextSlim();
-      await ensureCurrentApartmentIdMatches(aptId);
+      if (!aptId) {
+        console.warn('GET_SHOPPING_ITEMS_ERROR: NO_APARTMENT_ON_PROFILE');
+        return [];
+      }
 
       const url = `${FIRESTORE_BASE_URL}:runQuery`; // שים לב: אין "/" בסוף!
       const body = {

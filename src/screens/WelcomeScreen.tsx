@@ -40,15 +40,77 @@ export default function WelcomeScreen() {
 
   const { setCurrentUser, createApartment, joinApartment } = useStore();
 
+  // Enhanced polling utility with backoff and limits
+  const startUserPoll = (uid: string, onFound: (userDoc: any) => void, opts = { intervalMs: 2500, maxAttempts: 40 }) => {
+    let stopped = false;
+    let attempts = 0;
+    let timeoutId: any;
+    
+    const tick = async () => {
+      if (stopped) return;
+      attempts++;
+      try {
+        console.log(`poll: tick #${attempts} for user ${uid}`);
+        const userDoc = await firestoreService.getUser(uid);
+        console.log('poll: user doc:', userDoc && { 
+          id: userDoc.id, 
+          current_apartment_id: userDoc.current_apartment_id || userDoc.apartment?.id 
+        });
+        
+        if (userDoc) {
+          const aptId = userDoc.current_apartment_id || userDoc.apartment?.id;
+          if (aptId) {
+            onFound(userDoc);
+            stopped = true;
+            console.log('poll: apartment found, stopping poll', aptId);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('poll: fetch error', e);
+      }
+      
+      if (attempts >= (opts.maxAttempts ?? 40)) {
+        stopped = true;
+        console.log('poll: max attempts reached, stopping');
+        return;
+      }
+      
+      // Exponential backoff with cap
+      const wait = Math.min((opts.intervalMs ?? 2500) * Math.pow(1.5, attempts - 1), 15000);
+      if (!stopped) {
+        timeoutId = setTimeout(tick, wait);
+      }
+    };
+    
+    console.log('poll: start');
+    tick();
+    
+    return () => { 
+      stopped = true; 
+      if (timeoutId) clearTimeout(timeoutId);
+      console.log('poll: manual stop'); 
+    };
+  };
+
   // Check for existing user session on component mount
   useEffect(() => {
-    checkUserSession();
+    let cleanup: (() => void) | undefined;
+    (async () => { cleanup = await checkUserSession(); })();
+    return () => { cleanup?.(); };
   }, []);
 
-  const checkUserSession = async () => {
+  const checkUserSession = async (): Promise<(() => void) | undefined> => {
+    console.log('Checking user session...');
+    // small timeout wrapper so restoreUserSession לא תיתקע לנצח
+    const withTimeout = <T,>(p: Promise<T>, ms = 5000) =>
+      Promise.race([
+        p,
+        new Promise<T>((_, rej) => setTimeout(() => rej(new Error('restoreUserSession timeout')), ms))
+      ]);
+
     try {
-      console.log('Checking user session...');
-      const authUser = await firebaseAuth.restoreUserSession();
+      const authUser = await withTimeout(firebaseAuth.restoreUserSession(), 7000);
 
       if (!authUser) {
         console.log('No authenticated user, showing Auth screen');
@@ -56,14 +118,17 @@ export default function WelcomeScreen() {
         return;
       }
 
-      console.log('Auth user found, waiting for auth to stabilize...');
+      console.log('Auth user found, creating minimal local session...');
+      // small stabilization pause
       await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Load minimal user profile first and stop blocking UI
-      console.log('Getting user data...');
-      const userData = await firestoreService.getUser(authUser.localId);
-      if (!userData) {
-        console.log('User doc not found yet — creating minimal session user');
+      // try/catch around getUser so errors there לא יפסיקו המשך הזרימה
+      let userData = null;
+      try {
+        console.log('Getting user data...');
+        userData = await firestoreService.getUser(authUser.localId);
+      } catch (e) {
+        console.warn('getUser failed (will continue with minimal user):', e);
       }
 
       const baseUser = {
@@ -77,9 +142,12 @@ export default function WelcomeScreen() {
 
       // Set user immediately so UI can proceed to Join/Create if needed
       setCurrentUser(baseUser);
+      // Make sure UI is not stuck on "initializing"
       setInitializing(false);
+      // Ensure user sees choice screen
+      setMode('select');
 
-      // In background, try to find user's apartment and update state if found
+      // Background: resolve apartment without blocking UI
       (async () => {
         try {
           console.log('Background: resolving current apartment for user...');
@@ -87,7 +155,7 @@ export default function WelcomeScreen() {
           console.log('Background: apartment lookup result:', currentApartment);
 
           if (currentApartment) {
-            // Update user with apartment id
+            // update user with apartment id
             useStore.setState(state => ({
               currentUser: state.currentUser ? { ...state.currentUser, current_apartment_id: currentApartment.id } : state.currentUser,
             }));
@@ -103,20 +171,61 @@ export default function WelcomeScreen() {
                 id: currentApartment.id,
                 name: currentApartment.name,
                 invite_code: currentApartment.invite_code,
-                members: [],
+                members: [], // will be loaded later
                 createdAt: new Date(),
               }
             });
           } else {
-            console.log('no apartment for profile');
+            console.log('no apartment for profile — routing user to Join/Create');
+            // Explicitly ensure UI shows join/create path
+            // If you want to open the "join" tab directly: setMode('join')
+            // but keep default 'select' so user can pick
+            setMode('select');
           }
         } catch (bgErr) {
           console.warn('Background apartment resolution failed:', bgErr);
+          // keep user on select so they can continue
+          setMode('select');
         }
       })();
+
+      // Attach enhanced polling listener to auto-advance when user gains apartment
+      let stopPolling: (() => void) | undefined;
+      try {
+        stopPolling = startUserPoll(authUser.localId, async (userDoc) => {
+          console.log('poll: found apartment in user doc:', userDoc);
+          const aptId = userDoc.current_apartment_id || userDoc.apartment?.id;
+          if (aptId) {
+            try {
+              const apartment = await firestoreService.getApartment(aptId);
+              // Use functional updates for safer state management
+              useStore.setState(state => ({
+                currentUser: state.currentUser ? { ...state.currentUser, current_apartment_id: aptId } : state.currentUser,
+                currentApartment: {
+                  id: apartment.id,
+                  name: apartment.name,
+                  invite_code: apartment.invite_code,
+                  members: [],
+                  createdAt: new Date(),
+                }
+              }));
+              console.log('poll: apartment assigned, updating store');
+            } catch (e) {
+              console.warn('poll: failed to load apartment', e);
+            }
+          }
+        });
+      } catch (e) {
+        console.warn('Could not start user poll', e);
+      }
+
+      return stopPolling;
+
     } catch (error) {
       console.error('Session restore error:', error);
+      // make sure UI is usable even on error
       setInitializing(false);
+      setMode('select');
     }
   };
 
