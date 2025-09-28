@@ -105,7 +105,10 @@ export default function SettingsScreen() {
     try {
       impactMedium(); // Haptic feedback for share action
       await Share.share({
-        message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
+        message: t('settings.shareMessage', { 
+          apartmentName: currentApartment.name, 
+          inviteCode: currentApartment.invite_code 
+        }),
         title: t('settings.joinApartmentTitle'),
       });
     } catch (error) {}
@@ -120,14 +123,11 @@ export default function SettingsScreen() {
     impactMedium(); // Haptic feedback for send feedback action
     const to = 'yonatan.cs23@gmail.com';
     const subject = encodeURIComponent(t('settings.emailSubject'));
-    const body = encodeURIComponent(`תיאור הבעיה / ההצעה:
-
-
-Device: ${Platform.OS}
-App version: 1.0.0
-User: ${currentUser?.name || 'Unknown'}
-
-`);
+    const body = encodeURIComponent(t('settings.emailBody', {
+      device: Platform.OS,
+      appVersion: '1.0.0',
+      userName: currentUser?.name || 'Unknown'
+    }));
     
     const mailtoUrl = `mailto:${to}?subject=${subject}&body=${body}`;
     
@@ -156,7 +156,10 @@ User: ${currentUser?.name || 'Unknown'}
       if (!canBeRemoved.canBeRemoved) {
         Alert.alert(
           t('settings.alerts.cannotRemoveMember'),
-          `אי אפשר להסיר את ${getDisplayName(member)} כי ${canBeRemoved.reason}. סגרו חובות ואז נסו שוב.`,
+          t('settings.alerts.cannotRemoveMemberReason', { 
+            name: getDisplayName(member), 
+            reason: canBeRemoved.reason 
+          }),
           [{ text: t('common.ok') }]
         );
         return;
@@ -195,10 +198,10 @@ User: ${currentUser?.name || 'Unknown'}
     try {
       impactMedium(); // Haptic feedback for test notification
       await firebaseNotificationService.sendTestNotification();
-      Alert.alert('✅ Success', 'Test notification sent!');
+      Alert.alert(t('settings.alerts.testNotificationSuccess'), t('settings.alerts.testNotificationSent'));
     } catch (error) {
       console.error('Error sending test notification:', error);
-      Alert.alert('❌ Error', 'Failed to send test notification');
+      Alert.alert(t('settings.alerts.testNotificationError'), t('settings.alerts.testNotificationFailed'));
     }
   };
 
@@ -561,7 +564,7 @@ User: ${currentUser?.name || 'Unknown'}
           {showSuccessMessage && (
             <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
               <Text className="text-green-800 text-center font-medium">
-                ✅ המשימה נוספה בהצלחה!
+                ✅ {t('settings.alerts.taskAddedSuccess')}
               </Text>
             </View>
           )}
@@ -579,7 +582,7 @@ User: ${currentUser?.name || 'Unknown'}
             onPress={handleTestNotification}
             className="bg-purple-500 py-3 px-6 rounded-xl mb-3"
           >
-            <Text className="text-white font-semibold text-center">🧪 Test Push Notification</Text>
+            <Text className="text-white font-semibold text-center">🧪 {t('settings.testNotificationButton')}</Text>
           </Pressable>
           
           <Pressable 

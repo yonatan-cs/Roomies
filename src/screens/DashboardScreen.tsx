@@ -633,36 +633,48 @@ export default function DashboardScreen() {
                            timeRange === 'year' ? t('dashboard.thisYear') :
                            timeRange === 'month' ? t('dashboard.thisMonth') : t('dashboard.last30Days');
 
-      let shareText = `📊 סיכום פעילות הדירה - ${timeRangeText}\n\n`;
+      let shareText = t('dashboard.shareTextHeader', { timeRange: timeRangeText }) + '\n\n';
       
-      shareText += `💰 סך הוצאות: ${formatCurrency(highlightsStats.totalExpenses)}\n`;
+      shareText += t('dashboard.shareTextTotalExpenses', { amount: formatCurrency(highlightsStats.totalExpenses) }) + '\n';
       
       if (highlightsStats.kingOfExpenses) {
         const kingName = highlightsStats.kingOfExpenses.userId === currentUser?.id 
           ? getDisplayName(currentUser) 
           : getUserName(highlightsStats.kingOfExpenses.userId);
-        shareText += `👑 מלך ההוצאות: ${kingName} (${formatCurrency(highlightsStats.kingOfExpenses.amount)})\n`;
+        shareText += t('dashboard.shareTextKingOfExpenses', { 
+          name: kingName, 
+          amount: formatCurrency(highlightsStats.kingOfExpenses.amount) 
+        }) + '\n';
       }
       
       if (highlightsStats.shoppingKing) {
         const shoppingKingName = highlightsStats.shoppingKing.userId === currentUser?.id 
           ? getDisplayName(currentUser) 
           : getUserName(highlightsStats.shoppingKing.userId);
-        shareText += `🛒 אלוף הקניות: ${shoppingKingName} (${highlightsStats.shoppingKing.count} פריטים)\n`;
+        shareText += t('dashboard.shareTextShoppingKing', { 
+          name: shoppingKingName, 
+          count: highlightsStats.shoppingKing.count 
+        }) + '\n';
       }
       
       if (highlightsStats.cleaningKing) {
         const cleaningKingName = highlightsStats.cleaningKing.userId === currentUser?.id 
           ? getDisplayName(currentUser) 
           : getUserName(highlightsStats.cleaningKing.userId);
-        shareText += `🧹 אלוף הניקיון: ${cleaningKingName} (${highlightsStats.cleaningKing.count} ניקיונות)\n`;
+        shareText += t('dashboard.shareTextCleaningKing', { 
+          name: cleaningKingName, 
+          count: highlightsStats.cleaningKing.count 
+        }) + '\n';
       }
       
       if (highlightsStats.biggestExpenseLast30Days) {
-        shareText += `💸 ההוצאה הכי גדולה: ${formatCurrency(highlightsStats.biggestExpenseLast30Days.amount)} (${highlightsStats.biggestExpenseLast30Days.title})\n`;
+        shareText += t('dashboard.shareTextBiggestExpense', { 
+          amount: formatCurrency(highlightsStats.biggestExpenseLast30Days.amount),
+          title: highlightsStats.biggestExpenseLast30Days.title
+        }) + '\n';
       }
       
-      shareText += `\n📱 נשלח מהאפליקציה שלנו!`;
+      shareText += '\n' + t('dashboard.shareTextFooter');
 
       await Share.share({
         message: shareText,
@@ -898,7 +910,7 @@ export default function DashboardScreen() {
                 .map(([userId, amount]) => (
                 <View key={`owed-${userId}`} className="flex-row justify-between items-center py-2">
                   <ThemedText style={themed.textSecondary}>
-                    {getUserName(userId)} חייב לך
+                    {t('dashboard.owesYou', { name: getUserName(userId) })}
                   </ThemedText>
                   <Text className="text-green-600 font-medium">
                     {formatCurrency(amount)}
@@ -913,7 +925,7 @@ export default function DashboardScreen() {
                 .map(([userId, amount]) => (
                 <View key={`owes-${userId}`} className="flex-row justify-between items-center py-2">
                   <ThemedText style={themed.textSecondary}>
-                    אתה חייב ל{getUserName(userId)}
+                    {t('dashboard.youOweTo', { name: getUserName(userId) })}
                   </ThemedText>
                   <Text className="text-red-600 font-medium">
                     {formatCurrency(amount)}
@@ -1075,7 +1087,7 @@ export default function DashboardScreen() {
                         {formatCurrency(highlightsStats.kingOfExpenses.amount)}
                       </ThemedText>
                       <ThemedText className="text-xs" style={themed.textSecondary}>
-                        ({highlightsStats.kingOfExpenses.percentage.toFixed(1)}% מהסך)
+                        {t('dashboard.percentageOfTotal', { percentage: highlightsStats.kingOfExpenses.percentage.toFixed(1) })}
                       </ThemedText>
                       <ThemedText className="text-xs mt-1" style={themed.textSecondary}>
                         {t('dashboard.giveHimCrown')}
@@ -1124,7 +1136,7 @@ export default function DashboardScreen() {
                         {getUserName(highlightsStats.shoppingKing.userId)}
                       </Text>
                       <ThemedText className="text-sm" style={themed.textSecondary}>
-                        {highlightsStats.shoppingKing.count} פריטים
+                        {t('dashboard.itemsCount', { count: highlightsStats.shoppingKing.count })}
                       </ThemedText>
                       <ThemedText className="text-xs" style={themed.textSecondary}>
                         {t('dashboard.shopLikeNoTomorrow')}

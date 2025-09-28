@@ -175,7 +175,7 @@ export default function GroupDebtsScreen() {
         settlementFromUser,
         settlementToUser,
         amount,
-        `סגירת חוב`
+        t('debts.closeDebt')
       );
 
       console.log('✅ [GroupDebtsScreen] Debt settlement completed successfully:', result);
