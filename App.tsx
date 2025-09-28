@@ -105,6 +105,12 @@ export default function App() {
       })();
     }, []);
 
+    // Handle language change without full app refresh
+    useEffect(() => {
+      // This effect runs when appLanguage changes, but we don't need to do anything
+      // as the changeAppLanguage function handles navigation preservation
+    }, [appLanguage]);
+
     const navTheme: NavTheme =
       activeScheme === 'dark'
         ? {
