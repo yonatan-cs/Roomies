@@ -103,7 +103,7 @@ export default function SettingsScreen() {
     if (!currentApartment) return;
     try {
       await Share.share({
-        message: `הצטרף לרומיז שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
+        message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
         title: t('settings.joinApartmentTitle'),
       });
     } catch (error) {}
