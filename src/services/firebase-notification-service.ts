@@ -4,6 +4,7 @@
  */
 import { Platform } from 'react-native';
 import { firestoreService } from './firestore-service';
+import { firebaseAuth } from './firebase-auth';
 
 export interface NotificationData {
   title: string;
@@ -98,12 +99,42 @@ export class FirebaseNotificationService {
       }
 
       // Save token to user document
-      await firestoreService.updateUser(userId, {
-        fcm_token: this.fcmToken,
-        device_type: Platform.OS,
-        last_token_update: new Date().toISOString(),
-        token_type: 'firebase_web',
-      });
+      try {
+        await firestoreService.updateUser(userId, {
+          fcm_token: this.fcmToken,
+          device_type: Platform.OS,
+          last_token_update: new Date().toISOString(),
+          token_type: 'firebase_web',
+        });
+      } catch (err: any) {
+        const is403 = err?.status === 403 || (err?.message && err.message.includes('Missing or insufficient permissions'));
+        console.warn('saveTokenToFirestore: initial save failed', { userId, is403, err });
+
+        if (is403) {
+          // Attempt to refresh token once (REST flow)
+          try {
+            await firebaseAuth.refreshToken();
+          } catch (t) {
+            console.warn('saveTokenToFirestore: token refresh failed', t);
+          }
+
+          try {
+            await firestoreService.updateUser(userId, {
+              fcm_token: this.fcmToken,
+              device_type: Platform.OS,
+              last_token_update: new Date().toISOString(),
+              token_type: 'firebase_web',
+            });
+          } catch (err2) {
+            console.error('saveTokenToFirestore: retry failed', err2);
+            return false;
+          }
+        } else {
+          // Non-permission error
+          console.error('saveTokenToFirestore: non-403 error', err);
+          return false;
+        }
+      }
 
       console.log('✅ FCM token saved to Firestore');
       return true;

@@ -18,6 +18,7 @@ import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { success, impactMedium, selection, impactLight, warning } from '../utils/haptics';
 import { getDisplayName } from '../utils/userDisplay';
 import { ThemedCard } from '../theme/components/ThemedCard';
@@ -77,6 +78,7 @@ function useKeyboardLift() {
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
+  const navigation = useNavigation<any>();
   const appLanguage = useStore(s => s.appLanguage);
   const { theme } = useTheme();
   const themed = useThemedStyles(tk => ({
@@ -393,6 +395,13 @@ export default function ShoppingScreen() {
     return (
       <View className="flex-1 justify-center items-center" style={themed.surfaceBg}>
         <ThemedText style={themed.textSecondary}>{t('common.loading')}</ThemedText>
+        <Pressable
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })}
+          className="mt-4 py-2 px-4 rounded-xl"
+          style={{ backgroundColor: '#3b82f6' }}
+        >
+          <Text className="text-white font-medium">{t('welcome.joinApt')}</Text>
+        </Pressable>
       </View>
     );
   }
