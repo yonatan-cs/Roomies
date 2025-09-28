@@ -98,13 +98,13 @@ export class FirebaseNotificationService {
         return false;
       }
 
-      // Save token to user document
+      // Do not block init if user has no apartment; rules now allow safe updates regardless,
+      // but we keep a soft guard to reduce unnecessary writes on first launch
       try {
-        await firestoreService.updateUser(userId, {
+        await firestoreService.updateUserSafeProfileFields(userId, {
           fcm_token: this.fcmToken,
           device_type: Platform.OS,
-          last_token_update: new Date().toISOString(),
-          token_type: 'firebase_web',
+          last_seen: new Date().toISOString(),
         });
       } catch (err: any) {
         const is403 = err?.status === 403 || (err?.message && err.message.includes('Missing or insufficient permissions'));
@@ -112,18 +112,13 @@ export class FirebaseNotificationService {
 
         if (is403) {
           // Attempt to refresh token once (REST flow)
-          try {
-            await firebaseAuth.refreshToken();
-          } catch (t) {
-            console.warn('saveTokenToFirestore: token refresh failed', t);
-          }
+          try { await firebaseAuth.refreshToken(); } catch (t) { console.warn('saveTokenToFirestore: token refresh failed', t); }
 
           try {
-            await firestoreService.updateUser(userId, {
+            await firestoreService.updateUserSafeProfileFields(userId, {
               fcm_token: this.fcmToken,
               device_type: Platform.OS,
-              last_token_update: new Date().toISOString(),
-              token_type: 'firebase_web',
+              last_seen: new Date().toISOString(),
             });
           } catch (err2) {
             console.error('saveTokenToFirestore: retry failed', err2);
