@@ -74,9 +74,9 @@ export default function SettingsScreen() {
     if (!newName.trim() || !currentUser) return;
     
     try {
-      // Update user name in Firestore
-      await firestoreService.updateUser(currentUser.id, {
-        full_name: newName.trim(),
+      // Update user name in Firestore (allowed field branch uses display_name)
+      await firestoreService.updateUserSafeProfileFields(currentUser.id, {
+        display_name: newName.trim(),
       });
       
       // Update local state
