@@ -1109,20 +1109,9 @@ export default function DashboardScreen() {
                   <Text className="text-2xl font-bold text-green-600 mb-1">
                     {cleaningStats ? cleaningCount : '—'}
                   </Text>
-                  {cleaningStats && highlightsStats.cleaningKing ? (
-                    <>
-                      <ThemedText className="text-sm" style={themed.textSecondary}>
-                        {t('dashboard.champion')}: {getUserName(highlightsStats.cleaningKing.userId)}
-                      </ThemedText>
-                      <ThemedText className="text-xs" style={themed.textSecondary}>
-                        {highlightsStats.cleaningKing.count} {t('dashboard.dustCrusher')}
-                      </ThemedText>
-                    </>
-                  ) : cleaningStats ? (
-                    <ThemedText className="text-xs" style={themed.textSecondary}>{t('dashboard.noChampion')}</ThemedText>
-                  ) : (
-                    <ThemedText className="text-xs" style={themed.textSecondary}>{t('dashboard.loading')}</ThemedText>
-                  )}
+                  <ThemedText className="text-xs" style={themed.textSecondary}>
+                    {t('dashboard.totalCleaningsCounter')}
+                  </ThemedText>
                 </ThemedCard>
                 
                 <ThemedCard 
