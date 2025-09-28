@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, TextInput, RefreshControl } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, RefreshControl, I18nManager } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../state/store';
@@ -418,22 +418,44 @@ export default function CleaningScreen() {
         {!isMyTurn && checklistItems.length > 0 && (
           <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
             <ThemedText className="text-lg font-semibold mb-4">{t('cleaning.liveProgress')}</ThemedText>
-            {checklistItems.map((item) => (
-              <View key={item.id} className="flex-row items-center py-2">
-                <View className={cn('w-5 h-5 rounded border-2 items-center justify-center ml-3', 
-                  item.completed ? 'bg-green-500 border-green-500' : '')} style={!item.completed ? themed.borderColor : undefined}>
-                  {item.completed && <Ionicons name="checkmark" size={12} color="white" />}
+            {checklistItems.map((item) => {
+              const isRTL = I18nManager.isRTL;
+              return (
+                <View 
+                  key={item.id} 
+                  className={cn(
+                    "flex-row items-center py-3 px-3 rounded-xl mb-2",
+                    isRTL ? "flex-row-reverse" : "flex-row"
+                  )}
+                  style={themed.surfaceBg}
+                >
+                  <View 
+                    className={cn(
+                      'w-7 h-7 rounded-full border-2 items-center justify-center',
+                      item.completed ? 'bg-green-500 border-green-500' : 'bg-gray-100 border-gray-300',
+                      isRTL ? 'ml-3' : 'mr-3'
+                    )} 
+                    style={!item.completed ? themed.borderColor : undefined}
+                  >
+                    {item.completed && <Ionicons name="checkmark" size={14} color="white" />}
+                  </View>
+                  <ThemedText 
+                    className={cn(
+                      'flex-1 text-base',
+                      item.completed ? 'text-green-600 line-through' : '',
+                      isRTL ? 'text-right' : 'text-left'
+                    )}
+                  >
+                    {item.title}
+                  </ThemedText>
+                  {item.completed && item.completed_by && (
+                    <Text className={cn("text-xs text-green-600", isRTL ? "mr-2" : "ml-2")}>
+                      ✓ {displayMemberName(item.completed_by)}
+                    </Text>
+                  )}
                 </View>
-                <ThemedText className={cn('flex-1 text-base', item.completed ? 'text-green-600 line-through' : '')}>
-                  {item.title}
-                </ThemedText>
-                {item.completed && item.completed_by && (
-                  <Text className="text-xs text-green-600">
-                    ✓ {displayMemberName(item.completed_by)}
-                  </Text>
-                )}
-              </View>
-            ))}
+              );
+            })}
           </ThemedCard>
         )}
 
@@ -485,20 +507,56 @@ export default function CleaningScreen() {
               // אם זה לא התור שלי, הכפתורים צריכים להיות חסומים
               // אם זה התור שלי, הכפתורים חסומים רק אם סיימתי את התור
               const isDisabled = !isMyTurn || turnCompleted;
+              const isRTL = I18nManager.isRTL;
+              
               return (
-                <View key={`${cycleKey}-${item.id}`} className="flex-row items-center py-3 px-2 rounded-xl mb-2" style={themed.surfaceBg}>
+                <View 
+                  key={`${cycleKey}-${item.id}`} 
+                  className={cn(
+                    "flex-row items-center py-4 px-3 rounded-xl mb-3",
+                    isRTL ? "flex-row-reverse" : "flex-row"
+                  )} 
+                  style={themed.surfaceBg}
+                >
                   <Pressable 
                     onPress={() => !isDisabled && handleToggleTask(item.id, !isCompleted)} 
                     className={cn(
-                      'w-6 h-6 rounded border-2 items-center justify-center ml-3', 
-                      isDisabled ? '' : (isCompleted ? 'bg-green-500 border-green-500' : '')
+                      'w-8 h-8 rounded-full border-2 items-center justify-center shadow-sm',
+                      isDisabled ? '' : (isCompleted ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'),
+                      isRTL ? 'ml-3' : 'mr-3'
                     )}
-                    style={isDisabled ? { backgroundColor: '#e5e7eb', borderColor: '#e5e7eb' } : (isCompleted ? undefined : themed.borderColor)}
+                    style={[
+                      isDisabled ? { 
+                        backgroundColor: '#e5e7eb', 
+                        borderColor: '#e5e7eb',
+                        shadowOpacity: 0
+                      } : {
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowRadius: 2,
+                        elevation: 2,
+                      },
+                      isCompleted ? {
+                        shadowColor: '#10b981',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowRadius: 4,
+                        elevation: 3,
+                      } : undefined
+                    ]}
                     disabled={isDisabled}
                   >
-                    {isCompleted && <Ionicons name="checkmark" size={16} color="white" />}
+                    {isCompleted && <Ionicons name="checkmark" size={18} color="white" />}
                   </Pressable>
-                  <ThemedText className={cn('flex-1 text-base', isCompleted ? 'line-through' : '')} style={isCompleted ? themed.textSecondary : undefined}>{item.title}</ThemedText>
+                  <ThemedText 
+                    className={cn(
+                      'flex-1 text-base leading-6',
+                      isCompleted ? 'line-through' : '',
+                      isRTL ? 'text-right' : 'text-left'
+                    )} 
+                    style={isCompleted ? themed.textSecondary : undefined}
+                  >
+                    {item.title}
+                  </ThemedText>
                 </View>
               );
             })}
