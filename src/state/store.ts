@@ -725,10 +725,10 @@ export const useStore = create<AppState>()(
         }
 
         // Import cycle calculation functions
-        const { isTurnCompletedForCurrentCycle } = await import('../utils/dateUtils');
+        const { isTurnCompletedForCurrentCycleWithSettings } = await import('../utils/dateUtils');
         
         // Check if turn is already completed for current cycle
-        const isAlreadyCompleted = isTurnCompletedForCurrentCycle({
+        const isAlreadyCompleted = isTurnCompletedForCurrentCycleWithSettings({
           uid: currentUser.id,
           task: {
             assigned_at: cleaningTask.assigned_at || null,
@@ -741,7 +741,8 @@ export const useStore = create<AppState>()(
             completed: item.completed,
             completed_by: item.completed_by,
             completed_at: item.completed_at,
-          }))
+          })),
+          cleaningSettings: state.cleaningSettings,
         });
 
         if (isAlreadyCompleted) {

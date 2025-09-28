@@ -92,6 +92,36 @@ export interface ChecklistItem {
 }
 
 /**
+ * Find the next occurrence of a specific day of week from a given date
+ * @param fromDate Starting date
+ * @param targetDow Target day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
+ * @param inclusive When true, if fromDate is already on targetDow, return fromDate
+ */
+export function getNextDayOfWeek(fromDate: Date, targetDow: number, inclusive: boolean = false): Date {
+  const current = new Date(fromDate);
+  const currentDow = current.getDay();
+  let daysToAdd = (targetDow - currentDow + 7) % 7;
+  if (daysToAdd === 0 && !inclusive) {
+    daysToAdd = 7;
+  }
+  current.setDate(current.getDate() + daysToAdd);
+  return current;
+}
+
+/**
+ * Calculate the proper cycle anchor based on day of week settings
+ * If creation is already on the anchor day, return creation (inclusive)
+ */
+export function calculateCycleAnchor(creationDate: Date, anchorDow: number): Date {
+  const creation = new Date(creationDate);
+  const creationDow = creation.getDay();
+  if (creationDow === anchorDow) {
+    return creation;
+  }
+  return getNextDayOfWeek(creation, anchorDow, false);
+}
+
+/**
  * Calculate the current cleaning cycle based on assigned_at and frequency_days
  */
 export function getCurrentCycle(task: {
@@ -99,8 +129,9 @@ export function getCurrentCycle(task: {
   frequency_days: number;     // או intervalDays
   dueDate?: string | null;
 }) {
-  const freq = task.frequency_days || 7;               // fallback לשבועי
-  const lenMs = freq * 24 * 60 * 60 * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const frequencyDays = task.frequency_days && task.frequency_days > 0 ? task.frequency_days : 7;
+  const lenMs = frequencyDays * dayMs;
   const now = new Date();
 
   // אם אין assigned_at – נתחיל מהיום (מונע NaN)
@@ -128,6 +159,60 @@ export function getCurrentCycle(task: {
 }
 
 /**
+ * Calculate the current cleaning cycle based on chosen day-of-week (anchor)
+ * and a day-based interval (supports non-multiples of 7 as well).
+ */
+export function getCurrentCycleWithDayOfWeek(task: {
+  assigned_at: string | null;
+  frequency_days: number;
+  dueDate?: string | null;
+}, anchorDow: number = 0) {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const frequencyDays = task.frequency_days && task.frequency_days > 0 ? task.frequency_days : 7;
+  const lenMs = frequencyDays * dayMs;
+  const now = new Date();
+
+  const baseCreation = task.assigned_at ? new Date(task.assigned_at) : now;
+  const cycleAnchor = calculateCycleAnchor(baseCreation, anchorDow);
+
+  if (task.dueDate) {
+    const due = new Date(task.dueDate);
+    if (!isNaN(due.getTime()) && now > due) {
+      const diff = now.getTime() - cycleAnchor.getTime();
+      const k = Math.floor(diff / lenMs);
+      const cycleStart = new Date(cycleAnchor.getTime() + k * lenMs);
+      const cycleEnd = new Date(cycleStart.getTime() + lenMs);
+      return { cycleStart, cycleEnd };
+    }
+  }
+
+  const diff = Math.max(0, now.getTime() - cycleAnchor.getTime());
+  const k = Math.floor(diff / lenMs);
+  const cycleStart = new Date(cycleAnchor.getTime() + k * lenMs);
+  const cycleEnd = new Date(cycleStart.getTime() + lenMs);
+  return { cycleStart, cycleEnd };
+}
+
+/**
+ * Enhanced version that takes cleaning settings into account
+ */
+export function getCurrentCycleWithSettings(task: {
+  assigned_at: string | null;
+  frequency_days: number;
+  dueDate?: string | null;
+}, cleaningSettings?: {
+  anchorDow: number;
+  intervalDays: number;
+}) {
+  if (!cleaningSettings) {
+    return getCurrentCycle(task);
+  }
+  // Respect frequency_days coming from task; fallback to settings interval
+  const frequency_days = task.frequency_days || cleaningSettings.intervalDays || 7;
+  return getCurrentCycleWithDayOfWeek({ ...task, frequency_days }, cleaningSettings.anchorDow);
+}
+
+/**
  * Check if the current user has completed their turn in the current cycle
  */
 function inRange(ts: string | null | undefined, start: Date, end: Date) {
@@ -136,10 +221,11 @@ function inRange(ts: string | null | undefined, start: Date, end: Date) {
   return !isNaN(d.getTime()) && d >= start && d <= end;
 }
 
-export function isTurnCompletedForCurrentCycle({
+export function isTurnCompletedForCurrentCycleWithSettings({
   uid,
   task,
   checklistItems,
+  cleaningSettings,
 }: {
   uid: string;
   task: {
@@ -154,6 +240,10 @@ export function isTurnCompletedForCurrentCycle({
     completed_by?: string | null;
     completed_at?: string | null;
   }>;
+  cleaningSettings?: {
+    anchorDow: number;
+    intervalDays: number;
+  };
 }) {
   const now = new Date();
 
@@ -165,7 +255,7 @@ export function isTurnCompletedForCurrentCycle({
     }
   }
 
-  const { cycleStart, cycleEnd } = getCurrentCycle(task);
+  const { cycleStart, cycleEnd } = getCurrentCycleWithSettings(task, cleaningSettings);
 
   // סיום לפי הצ'קליסט בתוך המחזור הנוכחי
   const allItemsDoneInCycle =
@@ -185,4 +275,27 @@ export function isTurnCompletedForCurrentCycle({
     inRange(task.last_completed_at ?? null, cycleStart, cycleEnd);
 
   return !!metaSaysDone;
+}
+
+// Backward compatible wrapper (kept API in existing call sites)
+export function isTurnCompletedForCurrentCycle({
+  uid,
+  task,
+  checklistItems,
+}: {
+  uid: string;
+  task: {
+    assigned_at: string | null;
+    frequency_days: number;
+    last_completed_at?: string | null;
+    last_completed_by?: string | null;
+    dueDate?: string | null;
+  };
+  checklistItems: Array<{
+    completed: boolean;
+    completed_by?: string | null;
+    completed_at?: string | null;
+  }>;
+}) {
+  return isTurnCompletedForCurrentCycleWithSettings({ uid, task, checklistItems });
 }
