@@ -207,9 +207,9 @@ User: ${currentUser?.name || 'Unknown'}
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      <View className="px-6 pt-16 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-center">{t('settings.title')}</Text>
-      </View>
+      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
+        <ThemedText className="text-2xl font-bold text-center">{t('settings.title')}</ThemedText>
+      </ThemedCard>
       <ScrollView 
         className="flex-1 px-6 py-6"
         contentContainerStyle={{ alignItems: 'stretch' }}
