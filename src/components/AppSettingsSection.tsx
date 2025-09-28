@@ -67,7 +67,7 @@ export default function AppSettingsSection() {
           <Ionicons name="phone-portrait" size={18} color="#6b7280" />
         </View>
         
-        <View className="flex-row justify-end">
+        <View style={{ alignItems: appLanguage === 'he' ? 'flex-start' : 'flex-end' }}>
           <Pressable
             onPress={() => {
               // Give haptic feedback before toggling (so user feels it if enabling)
@@ -77,7 +77,6 @@ export default function AppSettingsSection() {
               setHapticsEnabled(!hapticsEnabled);
             }}
             className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
-            style={{ alignSelf: appLanguage === 'he' ? 'flex-start' : 'flex-end' }}
           >
             <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
           </Pressable>
