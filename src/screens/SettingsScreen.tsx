@@ -220,7 +220,7 @@ User: ${currentUser?.name || 'Unknown'}
         {/* App Settings Section */}
         <AppSettingsSection />
         {/* Apartment Details */}
-        <ThemedCard className="rounded-2xl p-6 mb-6">
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
           <Text className="text-lg font-semibold mb-4">{t('dashboard.apartmentFallback')}</Text>
 
           <View className="mb-4">
