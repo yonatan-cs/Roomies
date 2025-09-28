@@ -103,7 +103,7 @@ export default function SettingsScreen() {
     if (!currentApartment) return;
     try {
       await Share.share({
-        message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
+        message: `הצטרף לרומיז שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
         title: t('settings.joinApartmentTitle'),
       });
     } catch (error) {}
@@ -243,8 +243,6 @@ User: ${currentUser?.name || 'Unknown'}
             </View>
           </View>
           {copied && <ThemedText className="text-xs text-green-600 mt-1">{t('common.success')}</ThemedText>}
-
-          <ThemedText className="text-xs mt-2" style={themed.textSecondary}>{t('settings.feedbackTitle')}</ThemedText>
         </ThemedCard>
 
         {/* Roommates */}
@@ -260,7 +258,6 @@ User: ${currentUser?.name || 'Unknown'}
               <Ionicons name="refresh" size={20} color="#007AFF" />
             </Pressable>
           </View>
-          <ThemedText className="text-xs mb-4" style={themed.textSecondary}>{t('dashboard.showAll')}</ThemedText>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
               <View className="flex-row items-center">
