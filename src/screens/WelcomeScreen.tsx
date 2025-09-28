@@ -108,7 +108,7 @@ export default function WelcomeScreen() {
       return;
     }
 
-    const TIMEOUT_MS = 10000; // 10s
+    const TIMEOUT_MS = 2000; // 2s
     const timer = setTimeout(() => {
       console.warn('WelcomeScreen: initialization timeout (>10s). Falling back to Auth screen.');
       setTimedOut(true);
@@ -131,6 +131,7 @@ export default function WelcomeScreen() {
 
     try {
       const authUser = await withTimeout(firebaseAuth.restoreUserSession(), 7000);
+      console.log('restoreUserSession result:', authUser);
 
       if (!authUser) {
         console.log('No authenticated user, showing Auth screen');
@@ -164,6 +165,7 @@ export default function WelcomeScreen() {
       setCurrentUser(baseUser);
       // Make sure UI is not stuck on "initializing"
       setInitializing(false);
+      console.log('WelcomeScreen: setInitializing(false)');
       // Ensure user sees choice screen
       setMode('select');
 
@@ -245,6 +247,7 @@ export default function WelcomeScreen() {
       console.error('Session restore error:', error);
       // make sure UI is usable even on error
       setInitializing(false);
+      console.log('WelcomeScreen: setInitializing(false)');
       setMode('select');
     }
   };
