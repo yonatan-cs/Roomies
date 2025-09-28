@@ -332,11 +332,11 @@ export default function BudgetScreen() {
   return (
     <ThemedView className="flex-1" style={themed.surfaceBg}>
       <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
-        <View className="flex-row items-center justify-between mb-4">
-          <ThemedText className="text-2xl font-bold">{t('budget.title')}</ThemedText>
+        <View className="flex-row items-center justify-center mb-4 relative">
+          <ThemedText className="text-2xl font-bold text-center">{t('budget.title')}</ThemedText>
           <Pressable
             onPress={() => setShowAddExpenseModal(true)}
-            className="bg-blue-500 w-10 h-10 rounded-full items-center justify-center"
+            className="bg-blue-500 w-10 h-10 rounded-full items-center justify-center absolute right-0"
           >
             <Ionicons name="add" size={24} color="white" />
           </Pressable>

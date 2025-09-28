@@ -230,7 +230,7 @@ User: ${currentUser?.name || 'Unknown'}
 
           <View className="mb-1">
             <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
-            <View className="flex-row items-center justify-between p-3 rounded-xl bg-gray-50" style={{ backgroundColor: themed.borderColor.borderColor + '20' }}>
+            <View className="flex-row items-center justify-between p-3 rounded-xl" style={{ backgroundColor: themed.textSecondary.color + '15', borderWidth: 1, borderColor: themed.borderColor.borderColor }}>
               <ThemedText className="text-lg font-mono font-bold" style={themed.textPrimary}>{currentApartment.invite_code}</ThemedText>
               <View className="flex-row">
                 <Pressable onPress={handleCopyCode} className="bg-blue-100 p-2 rounded-lg ml-2">
