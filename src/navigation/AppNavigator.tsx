@@ -98,10 +98,16 @@ export default function AppNavigator() {
             localApartmentName: currentApartment?.name
           });
           
-          // Try to get apartment context
-          const apartmentContext = await getApartmentContext();
-          console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
-          setHasApartment(true);
+          // If user has no apartment yet, don't call getApartmentContext; show Welcome
+          if (!currentUser.current_apartment_id && !currentApartment?.id) {
+            console.log('📭 AppNavigator: No apartment detected for user – routing to Welcome');
+            setHasApartment(false);
+          } else {
+            // Try to get apartment context
+            const apartmentContext = await getApartmentContext();
+            console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
+            setHasApartment(true);
+          }
           
           // Trigger initial data refresh
           try {
