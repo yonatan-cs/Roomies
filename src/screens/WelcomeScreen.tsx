@@ -37,6 +37,7 @@ export default function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [timedOut, setTimedOut] = useState(false);
 
   const { setCurrentUser, createApartment, joinApartment } = useStore();
 
@@ -99,6 +100,25 @@ export default function WelcomeScreen() {
     (async () => { cleanup = await checkUserSession(); })();
     return () => { cleanup?.(); };
   }, []);
+
+  // fallback timeout — if initialization takes too long, fall back to Auth
+  useEffect(() => {
+    if (!initializing) {
+      setTimedOut(false);
+      return;
+    }
+
+    const TIMEOUT_MS = 10000; // 10s
+    const timer = setTimeout(() => {
+      console.warn('WelcomeScreen: initialization timeout (>10s). Falling back to Auth screen.');
+      setTimedOut(true);
+      setInitializing(false);
+      setCurrentUser(undefined as any);
+      setMode('select');
+    }, TIMEOUT_MS);
+
+    return () => clearTimeout(timer);
+  }, [initializing]);
 
   const checkUserSession = async (): Promise<(() => void) | undefined> => {
     console.log('Checking user session...');
@@ -386,12 +406,47 @@ export default function WelcomeScreen() {
     }
   };
 
-  // Show loading spinner while initializing
+  // Show loading spinner while initializing (with timeout fallback UI)
   if (initializing) {
     return (
       <View className="flex-1 justify-center items-center" style={themed.surfaceBg}>
         <ActivityIndicator size="large" color="#007AFF" />
         <ThemedText style={[themed.textSecondary, { marginTop: 16 }]}>{t('welcome.loading')}</ThemedText>
+        {timedOut && (
+          <View className="mt-6 items-center">
+            <ThemedText style={[themed.textSecondary, { marginBottom: 12 }]}>
+              טעינת הפרופיל לקחה יותר מדי זמן — נסה להתחבר שוב או חזור למסך ההרשמה.
+            </ThemedText>
+
+            <Pressable
+              onPress={async () => {
+                setTimedOut(false);
+                setInitializing(true);
+                try {
+                  await checkUserSession();
+                } catch (e) {
+                  console.warn('Retry checkUserSession failed', e);
+                  setInitializing(false);
+                }
+              }}
+              className="py-3 px-6 rounded-xl bg-blue-500 mb-3"
+            >
+              <Text className="text-white font-medium">נסה שוב</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => {
+                setTimedOut(false);
+                setInitializing(false);
+                setCurrentUser(undefined as any);
+                setMode('select');
+              }}
+              className="py-3 px-6 rounded-xl bg-gray-200"
+            >
+              <Text className="text-black font-medium">חזור למסך התחברות</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     );
   }
