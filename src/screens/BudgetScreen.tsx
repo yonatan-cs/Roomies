@@ -28,6 +28,7 @@ import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { useTranslation } from 'react-i18next';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
+import { impactMedium, impactLight, warning, success } from '../utils/haptics';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
 
@@ -335,7 +336,10 @@ export default function BudgetScreen() {
         <View className="flex-row items-center justify-center mb-4 relative">
           <ThemedText className="text-2xl font-bold text-center">{t('budget.title')}</ThemedText>
           <Pressable
-            onPress={() => setShowAddExpenseModal(true)}
+            onPress={() => {
+              impactMedium(); // Haptic feedback for add expense
+              setShowAddExpenseModal(true);
+            }}
             className="bg-blue-500 w-10 h-10 rounded-full items-center justify-center absolute right-0"
           >
             <Ionicons name="add" size={24} color="white" />
@@ -495,7 +499,10 @@ export default function BudgetScreen() {
               <Ionicons name="calendar-outline" size={48} color="#6b7280" />
               <ThemedText className="text-center mt-4 mb-4" style={themed.textSecondary}>{t('budget.noExpensesInMonth', { month: getMonthName(selectedMonth) })}</ThemedText>
               <Pressable
-                onPress={() => setShowAddExpenseModal(true)}
+                onPress={() => {
+                  impactMedium(); // Haptic feedback for add expense
+                  setShowAddExpenseModal(true);
+                }}
                 className="bg-blue-500 py-2 px-6 rounded-xl"
               >
                 <Text className="text-white font-medium">{t('budget.addExpense')}</Text>
@@ -621,7 +628,10 @@ export default function BudgetScreen() {
               {/* Action Buttons */}
               <View className="flex-row gap-3">
                 <Pressable
-                  onPress={() => setShowAddExpenseModal(false)}
+                  onPress={() => {
+                    impactLight(); // Haptic feedback for cancel action
+                    setShowAddExpenseModal(false);
+                  }}
                   className="flex-1 py-3 px-4 rounded-xl"
                   style={themed.surfaceBg}
                 >

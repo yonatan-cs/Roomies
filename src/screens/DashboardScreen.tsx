@@ -28,6 +28,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
+import { impactMedium, impactLight, selection } from '../utils/haptics';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
 import { useTranslation } from 'react-i18next';
@@ -681,7 +682,10 @@ export default function DashboardScreen() {
             {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
           </ThemedText>
           <Pressable
-            onPress={() => navigation.navigate('Settings')}
+            onPress={() => {
+              impactLight(); // Haptic feedback for settings navigation
+              navigation.navigate('Settings');
+            }}
             className="w-10 h-10 rounded-full items-center justify-center"
             style={themed.surfaceBg}
           >
@@ -697,7 +701,10 @@ export default function DashboardScreen() {
         {/* Quick Actions */}
       <View className="flex-row justify-center gap-4 mb-6">
           <Pressable
-            onPress={() => navigation.navigate('Shopping')}
+            onPress={() => {
+              impactMedium(); // Haptic feedback for shopping action
+              navigation.navigate('Shopping');
+            }}
             className="bg-blue-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
             style={{
               shadowColor: '#3b82f6',
@@ -714,7 +721,10 @@ export default function DashboardScreen() {
           </Pressable>
           
           <Pressable
-            onPress={() => setShowAddExpenseModal(true)}
+            onPress={() => {
+              impactMedium(); // Haptic feedback for add expense action
+              setShowAddExpenseModal(true);
+            }}
             className="bg-green-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
             style={{
               shadowColor: '#10b981',
@@ -735,7 +745,10 @@ export default function DashboardScreen() {
         <View className="flex-row flex-wrap mb-6 gap-3">
           {/* My Balance */}
           <Pressable
-            onPress={() => navigation.navigate('Budget')}
+            onPress={() => {
+              impactLight(); // Haptic feedback for budget navigation
+              navigation.navigate('Budget');
+            }}
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
@@ -764,7 +777,10 @@ export default function DashboardScreen() {
 
           {/* Cleaning Turn */}
           <Pressable
-            onPress={() => navigation.navigate('Cleaning')}
+            onPress={() => {
+              impactLight(); // Haptic feedback for cleaning navigation
+              navigation.navigate('Cleaning');
+            }}
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
@@ -793,7 +809,10 @@ export default function DashboardScreen() {
 
           {/* Shopping Items */}
           <Pressable
-            onPress={() => navigation.navigate('Shopping')}
+            onPress={() => {
+              impactLight(); // Haptic feedback for shopping navigation
+              navigation.navigate('Shopping');
+            }}
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
@@ -816,7 +835,10 @@ export default function DashboardScreen() {
 
           {/* Roommates */}
           <Pressable
-            onPress={() => navigation.navigate('Settings')}
+            onPress={() => {
+              impactLight(); // Haptic feedback for settings navigation
+              navigation.navigate('Settings');
+            }}
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
@@ -1290,7 +1312,10 @@ export default function DashboardScreen() {
               {/* Action Buttons */}
               <View className="flex-row gap-3">
                 <Pressable
-                  onPress={() => setShowAddExpenseModal(false)}
+                  onPress={() => {
+                    impactLight(); // Haptic feedback for cancel action
+                    setShowAddExpenseModal(false);
+                  }}
                   className="flex-1 py-3 px-4 rounded-xl"
                   style={[
                     { backgroundColor: '#f3f4f6' }, // Keep light mode exactly the same

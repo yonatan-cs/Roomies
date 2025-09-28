@@ -25,6 +25,7 @@ import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { impactMedium, impactLight, success, warning } from '../utils/haptics';
 
 export default function AddExpenseScreen() {
   const { t } = useTranslation();
@@ -210,7 +211,10 @@ export default function AddExpenseScreen() {
 
           {/* Cancel Button */}
           <Pressable
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              impactLight(); // Haptic feedback for cancel action
+              navigation.goBack();
+            }}
             className="py-3"
           >
             <ThemedText className="text-center" style={themed.textSecondary}>{t('addExpense.cancel')}</ThemedText>
