@@ -4,6 +4,7 @@
  */
 
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AUTH_ENDPOINTS } from './firebase-config';
 
 // Types for authentication responses
@@ -68,6 +69,16 @@ export class FirebaseAuthService {
       FirebaseAuthService.instance = new FirebaseAuthService();
     }
     return FirebaseAuthService.instance;
+  }
+
+  // Safe secure-store getter that swallows errors like "User interaction is not allowed"
+  private async safeGetSecureItem(key: string): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (err) {
+      console.warn('safeGetSecureItem failed for', key, err);
+      return null;
+    }
   }
 
   /**
@@ -199,7 +210,7 @@ export class FirebaseAuthService {
    */
   async refreshToken(): Promise<string> {
     try {
-      const refreshToken = await SecureStore.getItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
+      const refreshToken = await this.safeGetSecureItem(STORAGE_KEYS.REFRESH_TOKEN);
       
       if (!refreshToken) {
         throw new Error('No refresh token available');
@@ -239,8 +250,16 @@ export class FirebaseAuthService {
   async getCurrentIdToken(): Promise<string | null> {
     try {
       console.log('🔑 Getting current ID token...');
-      
-      const idToken = await SecureStore.getItemAsync(STORAGE_KEYS.ID_TOKEN);
+      // SecureStore may throw if user interaction is not allowed
+      let idToken = await this.safeGetSecureItem(STORAGE_KEYS.ID_TOKEN);
+      if (!idToken) {
+        // Optional: fallback to AsyncStorage in dev flows
+        try {
+          idToken = await AsyncStorage.getItem(STORAGE_KEYS.ID_TOKEN);
+        } catch (e) {
+          console.warn('AsyncStorage fallback for ID token failed', e);
+        }
+      }
       console.log('🔑 Stored ID token:', idToken ? `Present (${idToken.substring(0, 20)}...)` : 'NULL');
       
       if (!idToken) {
@@ -275,7 +294,7 @@ export class FirebaseAuthService {
       console.log('✅ ID token is valid');
       return idToken;
     } catch (error) {
-      console.error('❌ Get current token error:', error);
+      console.warn('❌ Get current token error:', error);
       return null;
     }
   }
@@ -320,8 +339,8 @@ export class FirebaseAuthService {
     try {
       console.log('Attempting to restore user session...');
       const idToken = await this.getCurrentIdToken();
-      const userId = await SecureStore.getItemAsync(STORAGE_KEYS.USER_ID);
-      const userEmail = await SecureStore.getItemAsync(STORAGE_KEYS.USER_EMAIL);
+      const userId = await this.safeGetSecureItem(STORAGE_KEYS.USER_ID);
+      const userEmail = await this.safeGetSecureItem(STORAGE_KEYS.USER_EMAIL);
 
       console.log('Session restoration check:', {
         hasIdToken: !!idToken,
@@ -330,7 +349,7 @@ export class FirebaseAuthService {
       });
 
       if (idToken && userId && userEmail) {
-        const refreshToken = await SecureStore.getItemAsync(STORAGE_KEYS.REFRESH_TOKEN);
+        const refreshToken = await this.safeGetSecureItem(STORAGE_KEYS.REFRESH_TOKEN);
         
         this.currentUser = {
           localId: userId,
@@ -347,7 +366,7 @@ export class FirebaseAuthService {
       console.log('No valid session found');
       return null;
     } catch (error) {
-      console.error('Restore session error:', error);
+      console.warn('Restore session error:', error);
       return null;
     }
   }
