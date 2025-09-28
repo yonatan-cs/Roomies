@@ -55,12 +55,8 @@ export default function App() {
     const initializeFirebaseNotifications = async () => {
       if (currentUser?.id) {
         console.log('🚀 Initializing Firebase notifications for user:', currentUser.id);
-        const success = await firebaseNotificationService.initialize(currentUser.id);
-        if (success) {
-          console.log('✅ Firebase notifications initialized successfully');
-        } else {
-          console.log('❌ Failed to initialize Firebase notifications');
-        }
+        // Fire-and-forget to avoid blocking app startup
+        void firebaseNotificationService.initialize(currentUser.id);
       }
     };
 
