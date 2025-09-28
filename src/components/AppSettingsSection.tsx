@@ -67,28 +67,44 @@ export default function AppSettingsSection() {
           <Ionicons name="phone-portrait" size={18} color="#6b7280" />
         </View>
         
-        <View className="flex-row items-center justify-between">
-          <View className="flex-1">
-            <ThemedText className="text-sm" style={{ 
-              textAlign: appLanguage === 'he' ? 'right' : 'left',
-              color: themed.textSecondary.color 
-            }}>
-              {t('settings.hapticsDescription')}
-            </ThemedText>
-          </View>
-          <Pressable
-            onPress={() => {
-              // Give haptic feedback before toggling (so user feels it if enabling)
-              if (!hapticsEnabled) {
-                impactMedium();
-              }
-              setHapticsEnabled(!hapticsEnabled);
-            }}
-            className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
-            style={{ marginStart: appLanguage === 'he' ? 12 : 0, marginEnd: appLanguage === 'he' ? 0 : 12 }}
-          >
-            <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
-          </Pressable>
+        <View className="flex-row items-center">
+          {appLanguage === 'he' ? (
+            <>
+              <Pressable
+                onPress={() => {
+                  // Give haptic feedback before toggling (so user feels it if enabling)
+                  if (!hapticsEnabled) {
+                    impactMedium();
+                  }
+                  setHapticsEnabled(!hapticsEnabled);
+                }}
+                className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
+                style={{ marginEnd: 12 }}
+              >
+                <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
+              </Pressable>
+              <View className="flex-1">
+              </View>
+            </>
+          ) : (
+            <>
+              <View className="flex-1">
+              </View>
+              <Pressable
+                onPress={() => {
+                  // Give haptic feedback before toggling (so user feels it if enabling)
+                  if (!hapticsEnabled) {
+                    impactMedium();
+                  }
+                  setHapticsEnabled(!hapticsEnabled);
+                }}
+                className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
+                style={{ marginStart: 12 }}
+              >
+                <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
+              </Pressable>
+            </>
+          )}
         </View>
       </View>
 
