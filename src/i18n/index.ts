@@ -831,7 +831,7 @@ export const resources = {
       },
       dashboard: {
         greeting: 'שלום, {{name}}!',
-        apartmentFallback: 'דירת שותפים',
+        apartmentFallback: 'רומיז',
         actionShopping: 'קניות',
         actionAddExpense: 'הוסף הוצאה',
         cardMyBalance: 'היתרה שלי',
