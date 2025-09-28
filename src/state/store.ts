@@ -201,7 +201,7 @@ export const useStore = create<AppState>()(
         };
         const apartment: Apartment = {
           id: uuidv4(),
-          name: 'דירת שותפים',
+          name: 'רומיז',
           invite_code: code,
           members: [user],
           createdAt: new Date(),

@@ -1,5 +1,5 @@
 export const APP_VERSION = '1.0.0';
-export const APP_NAME = 'דירת שותפים';
+export const APP_NAME = 'רומיז';
 
 export const EXPENSE_CATEGORIES = {
   groceries: 'מכולת',
