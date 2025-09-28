@@ -221,17 +221,17 @@ User: ${currentUser?.name || 'Unknown'}
         <AppSettingsSection />
         {/* Apartment Details */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold mb-4">{t('dashboard.apartmentFallback')}</Text>
+          <ThemedText className="text-lg font-semibold mb-4" style={themed.textPrimary}>{t('dashboard.apartmentFallback')}</ThemedText>
 
           <View className="mb-4">
-            <Text className="text-sm mb-1">{t('welcome.aptName')}</Text>
-            <Text className="text-lg font-medium">{currentApartment.name}</Text>
+            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptName')}</ThemedText>
+            <ThemedText className="text-lg font-medium" style={themed.textPrimary}>{currentApartment.name}</ThemedText>
           </View>
 
           <View className="mb-1">
-            <Text className="text-sm mb-1">{t('welcome.aptCode')}</Text>
-            <View className="flex-row items-center justify-between p-3 rounded-xl">
-              <Text className="text-lg font-mono font-bold">{currentApartment.invite_code}</Text>
+            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
+            <View className="flex-row items-center justify-between p-3 rounded-xl bg-gray-50" style={{ backgroundColor: themed.borderColor.borderColor + '20' }}>
+              <ThemedText className="text-lg font-mono font-bold" style={themed.textPrimary}>{currentApartment.invite_code}</ThemedText>
               <View className="flex-row">
                 <Pressable onPress={handleCopyCode} className="bg-blue-100 p-2 rounded-lg ml-2">
                   <Ionicons name="copy-outline" size={20} color="#007AFF" />
@@ -242,7 +242,7 @@ User: ${currentUser?.name || 'Unknown'}
               </View>
             </View>
           </View>
-          {copied && <Text className="text-xs text-green-600 mt-1">{t('common.success')}</Text>}
+          {copied && <ThemedText className="text-xs text-green-600 mt-1">{t('common.success')}</ThemedText>}
 
           <ThemedText className="text-xs mt-2" style={themed.textSecondary}>{t('settings.feedbackTitle')}</ThemedText>
         </ThemedCard>
