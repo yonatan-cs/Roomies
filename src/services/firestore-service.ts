@@ -1103,6 +1103,53 @@ export class FirestoreService {
   }
 
   /**
+   * Safely update user profile/device fields allowed by security rules
+   * Only the following fields are permitted here:
+   *  - fcm_token, device_type, last_seen, last_active, device_info,
+   *    push_enabled, display_name, photo_url, photoURL, email, locale
+   */
+  async updateUserSafeProfileFields(
+    userId: string,
+    userData: Partial<{
+      fcm_token: string
+      device_type: string
+      last_seen: string
+      last_active: string
+      device_info: any
+      push_enabled: boolean
+      display_name: string
+      photo_url: string
+      photoURL: string
+      email: string
+      locale: string
+    }>
+  ): Promise<any> {
+    const allowedKeys = new Set([
+      'fcm_token',
+      'device_type',
+      'last_seen',
+      'last_active',
+      'device_info',
+      'push_enabled',
+      'display_name',
+      'photo_url',
+      'photoURL',
+      'email',
+      'locale',
+    ]);
+
+    const filteredEntries = Object.entries(userData).filter(([k, v]) => allowedKeys.has(k) && v !== undefined);
+    if (filteredEntries.length === 0) {
+      console.log('updateUserSafeProfileFields: nothing to update');
+      return;
+    }
+
+    const filteredData = Object.fromEntries(filteredEntries) as Record<string, any>;
+    const updateMaskFields = Object.keys(filteredData);
+    return this.updateDocument(COLLECTIONS.USERS, userId, filteredData, updateMaskFields);
+  }
+
+  /**
    * Delete a specific field from user document
    */
   async deleteUserField(userId: string, fieldName: string): Promise<void> {
