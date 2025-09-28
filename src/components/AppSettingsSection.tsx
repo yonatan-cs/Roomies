@@ -67,7 +67,7 @@ export default function AppSettingsSection() {
           <Ionicons name="phone-portrait" size={18} color="#6b7280" />
         </View>
         
-        <View style={{ alignItems: appLanguage === 'he' ? 'flex-start' : 'flex-end' }}>
+        <View style={{ alignItems: 'flex-start' }}>
           <Pressable
             onPress={() => {
               // Give haptic feedback before toggling (so user feels it if enabling)
