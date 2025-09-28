@@ -3924,11 +3924,11 @@ export class FirestoreService {
   // Idempotent checklist seeding configuration
   private readonly CHECKLIST_TEMPLATE_VERSION = 1;
   private readonly DEFAULT_CHECKLIST_TITLES: string[] = [
-    'ניקוי מטבח',
-    'שטיפת רצפות',
-    'ניקוי שירותים',
-    'פינוי אשפה',
-    'אבק רהיטים',
+    'cleaning.defaultTasks.kitchen',
+    'cleaning.defaultTasks.floors',
+    'cleaning.defaultTasks.bathroom',
+    'cleaning.defaultTasks.garbage',
+    'cleaning.defaultTasks.dusting',
   ];
 
   private slugifyChecklistTitle(input: string): string {
