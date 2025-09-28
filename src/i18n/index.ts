@@ -487,7 +487,7 @@ export const resources = {
   },
   he: {
     translation: {
-      appName: 'דירת שותפים',
+      appName: 'רומיז',
       common: {
         loading: 'טוען...',
         cancel: 'ביטול',
