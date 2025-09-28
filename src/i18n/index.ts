@@ -118,13 +118,19 @@ export const resources = {
           cannotUpdateName: 'Cannot update name',
           cannotOpenEmail: 'Cannot open email application',
           cannotRemoveMember: 'Cannot remove member',
+          cannotRemoveMemberReason: 'Cannot remove {{name}} because {{reason}}. Close debts and try again.',
           cannotCheckRemoval: 'Cannot check if member can be removed',
           memberRemovedSuccess: '{{name}} removed from apartment successfully',
           cannotRemoveMemberError: 'Cannot remove member',
           cannotDeleteTask: 'Cannot delete task',
           cannotAddTask: 'Cannot add task',
+          taskAddedSuccess: 'Task added successfully!',
           cannotSignOut: 'Cannot sign out',
-          cannotLeaveApartment: 'Cannot leave apartment'
+          cannotLeaveApartment: 'Cannot leave apartment',
+          testNotificationSuccess: 'Success',
+          testNotificationSent: 'Test notification sent!',
+          testNotificationError: 'Error',
+          testNotificationFailed: 'Failed to send test notification'
         },
         emailSubject: 'Feedback - Roomies',
         joinApartmentTitle: 'Join shared apartment',
@@ -140,7 +146,10 @@ export const resources = {
         confirmLeaveText: 'Yes, leave apartment',
         cancelText: 'Cancel',
         removeMemberTitle: 'Remove member',
-        confirmRemoveText: 'Yes, remove member'
+        confirmRemoveText: 'Yes, remove member',
+        testNotificationButton: 'Test Push Notifications',
+        shareMessage: 'Join our shared apartment!\nApartment name: {{apartmentName}}\nInvite code: {{inviteCode}}',
+        emailBody: 'Problem description / suggestion:\n\n\nDevice: {{device}}\nApp version: {{appVersion}}\nUser: {{userName}}\n\n'
       },
       cleaning: {
         loading: 'Loading cleaning data...',
@@ -177,6 +186,13 @@ export const resources = {
           processing: 'Processing...',
           errorTitle: 'Error',
           understood: 'Got it'
+        },
+        defaultTasks: {
+          kitchen: 'Kitchen cleaning',
+          floors: 'Floor mopping',
+          bathroom: 'Bathroom cleaning',
+          garbage: 'Garbage disposal',
+          dusting: 'Furniture dusting'
         }
       },
       shopping: {
@@ -291,7 +307,15 @@ export const resources = {
         expenseNamePlaceholder: 'e.g. Groceries, Electricity...',
         additionalDetailsPlaceholder: 'Additional details...',
         addExpenseButton: 'Add expense',
-        addingExpenseButton: 'Adding expense...'
+        addingExpenseButton: 'Adding expense...',
+        categories: {
+          groceries: 'Groceries',
+          utilities: 'Utilities',
+          rent: 'Rent',
+          cleaning: 'Cleaning',
+          internet: 'Internet',
+          other: 'Other'
+        }
       },
       addExpense: {
         loading: 'Loading...',
@@ -355,6 +379,8 @@ export const resources = {
         cardMyBalance: 'My balance',
         comesToYou: 'You are owed',
         youOwe: 'You owe',
+        youOweTo: 'You owe {{name}}',
+        owesYou: '{{name}} owes you',
         cleaningTurn: 'Cleaning turn',
         yourTurn: "It's your turn!",
         theirTurn: 'Their turn',
@@ -367,6 +393,15 @@ export const resources = {
         noDebtsData: 'No debts data available',
         quickLook: 'Quick glance',
         shareTitle: 'Apartment activity summary',
+        shareTextHeader: '📊 Apartment activity summary - {{timeRange}}',
+        shareTextTotalExpenses: '💰 Total expenses: {{amount}}',
+        shareTextKingOfExpenses: '👑 King of expenses: {{name}} ({{amount}})',
+        shareTextShoppingKing: '🛒 Shopping champion: {{name}} ({{count}} items)',
+        shareTextCleaningKing: '🧹 Cleaning champion: {{name}} ({{count}} cleanings)',
+        shareTextBiggestExpense: '💸 Biggest expense: {{amount}} ({{title}})',
+        shareTextFooter: '📱 Sent from our app!',
+        percentageOfTotal: '({{percentage}}% of total)',
+        itemsCount: '{{count}} items',
         timeRange: 'Time range',
         allTime: 'All time',
         thisYear: 'This year',
@@ -600,13 +635,19 @@ export const resources = {
           cannotUpdateName: 'לא ניתן לעדכן את השם',
           cannotOpenEmail: 'לא ניתן לפתוח את אפליקציית המייל',
           cannotRemoveMember: 'לא ניתן להסיר שותף',
+          cannotRemoveMemberReason: 'אי אפשר להסיר את {{name}} כי {{reason}}. סגרו חובות ואז נסו שוב.',
           cannotCheckRemoval: 'לא ניתן לבדוק אם ניתן להסיר את השותף',
           memberRemovedSuccess: '{{name}} הוסר מהדירה בהצלחה',
           cannotRemoveMemberError: 'לא ניתן להסיר את השותף',
           cannotDeleteTask: 'לא ניתן למחוק את המשימה',
           cannotAddTask: 'לא ניתן להוסיף את המשימה',
+          taskAddedSuccess: 'המשימה נוספה בהצלחה!',
           cannotSignOut: 'לא ניתן להתנתק',
-          cannotLeaveApartment: 'לא ניתן לעזוב את הדירה'
+          cannotLeaveApartment: 'לא ניתן לעזוב את הדירה',
+          testNotificationSuccess: 'הצלחה',
+          testNotificationSent: 'הודעת בדיקה נשלחה!',
+          testNotificationError: 'שגיאה',
+          testNotificationFailed: 'שליחת הודעת הבדיקה נכשלה'
         },
         emailSubject: 'משוב - Roomies',
         joinApartmentTitle: 'הצטרפות לדירת שותפים',
@@ -622,7 +663,10 @@ export const resources = {
         confirmLeaveText: 'כן, עזוב דירה',
         cancelText: 'ביטול',
         removeMemberTitle: 'הסרת שותף',
-        confirmRemoveText: 'כן, הסר שותף'
+        confirmRemoveText: 'כן, הסר שותף',
+        testNotificationButton: 'בדיקת הודעות Push',
+        shareMessage: 'הצטרף לדירת השותפים שלנו!\nשם הדירה: {{apartmentName}}\nקוד הצטרפות: {{inviteCode}}',
+        emailBody: 'תיאור הבעיה / ההצעה:\n\n\nDevice: {{device}}\nApp version: {{appVersion}}\nUser: {{userName}}\n\n'
       },
       cleaning: {
         loading: 'טוען נתוני ניקיון...',
@@ -659,6 +703,13 @@ export const resources = {
           processing: 'מעבד...',
           errorTitle: 'שגיאה',
           understood: 'הבנתי'
+        },
+        defaultTasks: {
+          kitchen: 'ניקוי מטבח',
+          floors: 'שטיפת רצפות',
+          bathroom: 'ניקוי שירותים',
+          garbage: 'פינוי אשפה',
+          dusting: 'אבק רהיטים'
         }
       },
       shopping: {
@@ -773,7 +824,15 @@ export const resources = {
         expenseNamePlaceholder: 'למשל: קניות, חשבון חשמל...',
         additionalDetailsPlaceholder: 'פרטים נוספים...',
         addExpenseButton: 'הוסף הוצאה',
-        addingExpenseButton: 'מוסיף הוצאה...'
+        addingExpenseButton: 'מוסיף הוצאה...',
+        categories: {
+          groceries: 'מכולת',
+          utilities: 'שירותים',
+          rent: 'שכירות',
+          cleaning: 'ניקיון',
+          internet: 'אינטרנט',
+          other: 'אחר'
+        }
       },
       addExpense: {
         loading: 'טוען...',
@@ -837,6 +896,8 @@ export const resources = {
         cardMyBalance: 'היתרה שלי',
         comesToYou: 'מגיע לך',
         youOwe: 'אתה חייב',
+        youOweTo: 'אתה חייב ל{{name}}',
+        owesYou: '{{name}} חייב לך',
         cleaningTurn: 'תור ניקיון',
         yourTurn: 'התור שלך!',
         theirTurn: 'התור שלו/שלה',
@@ -849,6 +910,15 @@ export const resources = {
         noDebtsData: 'אין נתוני חובות זמינים',
         quickLook: 'מבט מהיר',
         shareTitle: 'סיכום פעילות הדירה',
+        shareTextHeader: '📊 סיכום פעילות הדירה - {{timeRange}}',
+        shareTextTotalExpenses: '💰 סך הוצאות: {{amount}}',
+        shareTextKingOfExpenses: '👑 מלך ההוצאות: {{name}} ({{amount}})',
+        shareTextShoppingKing: '🛒 אלוף הקניות: {{name}} ({{count}} פריטים)',
+        shareTextCleaningKing: '🧹 אלוף הניקיון: {{name}} ({{count}} ניקיונות)',
+        shareTextBiggestExpense: '💸 ההוצאה הכי גדולה: {{amount}} ({{title}})',
+        shareTextFooter: '📱 נשלח מהאפליקציה שלנו!',
+        percentageOfTotal: '({{percentage}}% מהסך)',
+        itemsCount: '{{count}} פריטים',
         timeRange: 'טווח זמן',
         allTime: 'כל הזמן',
         thisYear: 'השנה',
