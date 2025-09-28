@@ -70,19 +70,8 @@ export default function App() {
   // ברירת מחדל ליישור טקסטים לפי השפה (עברית → ימין), מבלי לפגוע ב־text-center מקומי
   useEffect(() => {
     const isRTL = appLanguage === 'he';
-    // Ensure the app does NOT mirror layout globally. Only change text alignment.
-    try {
-      const hadRTL = I18nManager.isRTL;
-      I18nManager.allowRTL(false);
-      if (hadRTL) {
-        // Turn off mirroring at the native layer and reload in dev to apply immediately
-        I18nManager.forceRTL(false);
-        if (__DEV__) {
-          const { DevSettings } = require('react-native');
-          DevSettings.reload();
-        }
-      }
-    } catch {}
+    // Use RTL-aware styles (marginStart/marginEnd) and I18nManager.isRTL
+    // Do NOT use I18nManager.forceRTL or allowRTL to avoid global layout mirroring
 
     // הגדרת ברירת מחדל ל־Text
     (Text as any).defaultProps = {

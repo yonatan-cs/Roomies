@@ -15,6 +15,7 @@ import {
   Keyboard,
   Animated,
   Dimensions,
+  StyleSheet,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -90,6 +91,7 @@ function useKeyboardLift() {
 }
 
 export default function DashboardScreen() {
+  const { theme, activeScheme } = useTheme();
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
@@ -682,7 +684,7 @@ export default function DashboardScreen() {
             className="w-10 h-10 rounded-full items-center justify-center"
             style={themed.surfaceBg}
           >
-            <Ionicons name="person-outline" size={20} color="#6b7280" />
+            <Ionicons name="person-outline" size={20} color={theme.colors.text.secondary} />
           </Pressable>
         </View>
         <ThemedText style={themed.textSecondary}>
@@ -744,7 +746,7 @@ export default function DashboardScreen() {
           >
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
-                <Ionicons name="wallet-outline" size={20} color="#6b7280" />
+                <Ionicons name="wallet-outline" size={20} color={theme.colors.text.secondary} />
                 <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cardMyBalance')}</ThemedText>
               </View>
               <ThemedText className={cn(
@@ -773,7 +775,7 @@ export default function DashboardScreen() {
           >
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
-                <Ionicons name="brush-outline" size={20} color="#6b7280" />
+                <Ionicons name="brush-outline" size={20} color={theme.colors.text.secondary} />
                 <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cleaningTurn')}</ThemedText>
               </View>
               <ThemedText className="text-lg font-bold">
@@ -802,7 +804,7 @@ export default function DashboardScreen() {
           >
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
-                <Ionicons name="basket-outline" size={20} color="#6b7280" />
+                <Ionicons name="basket-outline" size={20} color={theme.colors.text.secondary} />
                 <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.toBuy')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
@@ -825,7 +827,7 @@ export default function DashboardScreen() {
           >
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
-                <Ionicons name="people-outline" size={20} color="#6b7280" />
+                <Ionicons name="people-outline" size={20} color={theme.colors.text.secondary} />
                 <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.roommates')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
@@ -965,9 +967,10 @@ export default function DashboardScreen() {
             <View className="flex-row items-center justify-between mb-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
-                className="w-10 h-10 rounded-full items-center justify-center bg-gray-100"
+                className="w-10 h-10 rounded-full items-center justify-center"
+                style={themed.surfaceBg}
               >
-                <Ionicons name="arrow-forward" size={24} color="#374151" />
+                <Ionicons name="arrow-forward" size={24} color={themed.textSecondary.color} />
               </Pressable>
               
               <ThemedText className="text-2xl font-bold">
@@ -980,7 +983,10 @@ export default function DashboardScreen() {
 
           <ScrollView className="flex-1 px-6 py-6">
             {/* Time Range Filter */}
-            <ThemedCard className="rounded-2xl p-4 mb-6 shadow-sm">
+            <ThemedCard 
+              className="rounded-2xl p-4 mb-6 shadow-sm"
+              style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+            >
               <ThemedText className="text-sm mb-3" style={themed.textSecondary}>{t('dashboard.timeRange')}</ThemedText>
               <View className="flex-row gap-2">
                 {[
@@ -996,8 +1002,9 @@ export default function DashboardScreen() {
                       "flex-1 py-2 px-3 rounded-lg",
                       timeRange === option.key 
                         ? "bg-blue-500" 
-                        : "bg-gray-100"
+                        : ""
                     )}
+                    style={timeRange !== option.key ? themed.surfaceBg : undefined}
                   >
                     <ThemedText className={cn(
                       "text-center text-sm font-medium",
@@ -1016,7 +1023,10 @@ export default function DashboardScreen() {
             <View className="space-y-4">
               {/* Total Spent & King of Expenses */}
               <View className="flex-row gap-4">
-                <ThemedCard className="flex-1 rounded-2xl p-6 shadow-sm">
+                <ThemedCard 
+                  className="flex-1 rounded-2xl p-6 shadow-sm"
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.totalExpenses')}</ThemedText>
                   <Text className="text-2xl font-bold text-blue-600 mb-1">
                     {formatCurrency(highlightsStats.totalExpenses)}
@@ -1028,7 +1038,10 @@ export default function DashboardScreen() {
                   </ThemedText>
                 </ThemedCard>
                 
-                <ThemedCard className="flex-1 rounded-2xl p-6 shadow-sm">
+                <ThemedCard 
+                  className="flex-1 rounded-2xl p-6 shadow-sm"
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.kingOfExpenses')}</ThemedText>
                   {highlightsStats.kingOfExpenses ? (
                     <>
@@ -1053,101 +1066,117 @@ export default function DashboardScreen() {
 
               {/* Cleanings Done & Shopping King */}
               <View className="flex-row gap-4">
-                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.cleaningsDone')}</Text>
+                <ThemedCard 
+                  className="flex-1 rounded-2xl p-6 shadow-sm"
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                >
+                  <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.cleaningsDone')}</ThemedText>
                   <Text className="text-2xl font-bold text-green-600 mb-1">
                     {cleaningStats ? cleaningCount : '—'}
                   </Text>
                   {cleaningStats && highlightsStats.cleaningKing ? (
                     <>
-                      <Text className="text-sm text-gray-600">
+                      <ThemedText className="text-sm" style={themed.textSecondary}>
                         {t('dashboard.champion')}: {getUserName(highlightsStats.cleaningKing.userId)}
-                      </Text>
-                      <Text className="text-xs text-gray-400">
+                      </ThemedText>
+                      <ThemedText className="text-xs" style={themed.textSecondary}>
                         {highlightsStats.cleaningKing.count} {t('dashboard.dustCrusher')}
-                      </Text>
+                      </ThemedText>
                     </>
                   ) : cleaningStats ? (
-                    <Text className="text-xs text-gray-400">{t('dashboard.noChampion')}</Text>
+                    <ThemedText className="text-xs" style={themed.textSecondary}>{t('dashboard.noChampion')}</ThemedText>
                   ) : (
-                    <Text className="text-xs text-gray-400">{t('dashboard.loading')}</Text>
+                    <ThemedText className="text-xs" style={themed.textSecondary}>{t('dashboard.loading')}</ThemedText>
                   )}
-                </View>
+                </ThemedCard>
                 
-                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.shoppingChampion')}</Text>
+                <ThemedCard 
+                  className="flex-1 rounded-2xl p-6 shadow-sm"
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                >
+                  <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.shoppingChampion')}</ThemedText>
                   {highlightsStats.shoppingKing ? (
                     <>
                       <Text className="text-lg font-bold text-orange-600 mb-1">
                         {getUserName(highlightsStats.shoppingKing.userId)}
                       </Text>
-                      <Text className="text-sm text-gray-600">
+                      <ThemedText className="text-sm" style={themed.textSecondary}>
                         {highlightsStats.shoppingKing.count} פריטים
-                      </Text>
-                      <Text className="text-xs text-gray-400">
+                      </ThemedText>
+                      <ThemedText className="text-xs" style={themed.textSecondary}>
                         {t('dashboard.shopLikeNoTomorrow')}
-                      </Text>
+                      </ThemedText>
                     </>
                   ) : (
-                    <Text className="text-gray-500">{t('dashboard.noData')}</Text>
+                    <ThemedText style={themed.textSecondary}>{t('dashboard.noData')}</ThemedText>
                   )}
-                </View>
+                </ThemedCard>
               </View>
 
               {/* Biggest Expense & Average */}
               <View className="flex-row gap-4">
-                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">
+                <ThemedCard 
+                  className="flex-1 rounded-2xl p-6 shadow-sm"
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                >
+                  <ThemedText className="text-sm mb-2" style={themed.textSecondary}>
                     {t('dashboard.biggestExpense', { range: timeRange === '30days' ? '(30)' : 
                       timeRange === 'month' ? `(${t('dashboard.thisMonth')})` :
                       timeRange === 'year' ? `(${t('dashboard.thisYear')})` : `(${t('dashboard.allTime')})` })}
-                  </Text>
+                  </ThemedText>
                   {highlightsStats.biggestExpenseLast30Days ? (
                     <>
                       <Text className="text-lg font-bold text-red-600 mb-1">
                         {formatCurrency(highlightsStats.biggestExpenseLast30Days.amount)}
                       </Text>
-                      <Text className="text-sm text-gray-600">
+                      <ThemedText className="text-sm" style={themed.textSecondary}>
                         {highlightsStats.biggestExpenseLast30Days.title}
-                      </Text>
+                      </ThemedText>
                     </>
                   ) : (
-                    <Text className="text-gray-500">{t('dashboard.noExpensesLastMonth')}</Text>
+                    <ThemedText style={themed.textSecondary}>{t('dashboard.noExpensesLastMonth')}</ThemedText>
                   )}
-                </View>
+                </ThemedCard>
                 
-                <View className="flex-1 bg-white rounded-2xl p-6 shadow-sm">
-                  <Text className="text-sm text-gray-500 mb-2">{t('dashboard.avgPerMember')}</Text>
+                <ThemedCard 
+                  className="flex-1 rounded-2xl p-6 shadow-sm"
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                >
+                  <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.avgPerMember')}</ThemedText>
                   <Text className="text-lg font-bold text-purple-600 mb-1">
                     {formatCurrency(highlightsStats.averagePerMember)}
                   </Text>
-                  <Text className="text-xs text-gray-400">{t('dashboard.perMonth')}</Text>
-                </View>
+                  <ThemedText className="text-xs" style={themed.textSecondary}>{t('dashboard.perMonth')}</ThemedText>
+                </ThemedCard>
               </View>
             </View>
 
             {/* No Data State */}
             {highlightsStats.totalExpenses === 0 && (
-              <View className="bg-white rounded-2xl p-8 items-center shadow-sm mt-6">
-                <Ionicons name="stats-chart-outline" size={64} color="#6b7280" />
-                <Text className="text-lg font-medium text-gray-900 mt-4 mb-2">
+              <ThemedCard 
+                className="rounded-2xl p-8 items-center shadow-sm mt-6"
+                style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+              >
+                <Ionicons name="stats-chart-outline" size={64} color={themed.textSecondary.color} />
+                <ThemedText className="text-lg font-medium mt-4 mb-2">
                   {t('dashboard.noData')}
-                </Text>
-                  <Text className="text-gray-600 text-center">
-                    {t('dashboard.startShoppingCleaning')}
-                  </Text>
-              </View>
+                </ThemedText>
+                <ThemedText className="text-center" style={themed.textSecondary}>
+                  {t('dashboard.startShoppingCleaning')}
+                </ThemedText>
+              </ThemedCard>
             )}
 
             {/* Action Buttons */}
             <View className="flex-row mt-8 gap-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
-                className="flex-1 bg-gray-100 py-4 px-6 rounded-xl"
+                className="flex-1 py-4 px-6 rounded-xl"
+                style={themed.surfaceBg}
               >
-                <Text className="text-gray-700 font-medium text-center">
+                <ThemedText className="font-medium text-center" style={themed.textSecondary}>
                   {t('dashboard.close')}
-                </Text>
+                </ThemedText>
               </Pressable>
               
               <Pressable
@@ -1261,9 +1290,23 @@ export default function DashboardScreen() {
               <View className="flex-row gap-3">
                 <Pressable
                   onPress={() => setShowAddExpenseModal(false)}
-                  className="flex-1 bg-gray-100 py-3 px-4 rounded-xl"
+                  className="flex-1 py-3 px-4 rounded-xl"
+                  style={[
+                    { backgroundColor: '#f3f4f6' }, // Keep light mode exactly the same
+                    activeScheme === 'dark' && { 
+                      backgroundColor: theme.colors.card, 
+                      borderColor: theme.colors.border, 
+                      borderWidth: StyleSheet.hairlineWidth 
+                    }
+                  ]}
                 >
-                  <Text className="text-gray-700 font-medium text-center">
+                  <Text 
+                    className="font-medium text-center"
+                    style={[
+                      { color: '#374151' }, // Keep light mode exactly the same
+                      activeScheme === 'dark' && { color: theme.colors.text.primary }
+                    ]}
+                  >
                     {t('expenseEdit.cancel')}
                   </Text>
                 </Pressable>
