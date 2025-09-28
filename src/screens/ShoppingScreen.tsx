@@ -18,7 +18,7 @@ import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
-import { success, impactMedium } from '../utils/haptics';
+import { success, impactMedium, selection, impactLight, warning } from '../utils/haptics';
 import { getDisplayName } from '../utils/userDisplay';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
@@ -304,6 +304,7 @@ export default function ShoppingScreen() {
         <Pressable
           onPress={() => {
             if (item.purchased) {
+              impactLight(); // Haptic feedback for item details
               setSelectedItemId(item.id);
               setShowItemDetailsModal(true);
             }
@@ -367,7 +368,10 @@ export default function ShoppingScreen() {
         </Pressable>
 
         <Pressable
-          onPress={() => handleRemoveItem(item.id)}
+          onPress={() => {
+            warning(); // Haptic feedback for remove item
+            handleRemoveItem(item.id);
+          }}
           className="p-2"
           disabled={isRemovingItem === item.id || isPurchasingItem === item.id}
         >
@@ -414,7 +418,10 @@ export default function ShoppingScreen() {
         <ThemedText style={themed.textSecondary} className="text-base mb-3 text-center">{t('shopping.priorityFilter')}</ThemedText>
         <View className="flex-row justify-center space-x-2">
           <Pressable
-            onPress={() => setSelectedPriorityFilter('all')}
+            onPress={() => {
+              selection(); // Haptic feedback for filter selection
+              setSelectedPriorityFilter('all');
+            }}
             className={cn('px-4 py-2 rounded-lg border-2', selectedPriorityFilter === 'all' ? 'bg-blue-500 border-blue-500' : '')}
             style={selectedPriorityFilter !== 'all' ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
           >
@@ -424,7 +431,10 @@ export default function ShoppingScreen() {
           {PRIORITIES.map(priority => (
             <Pressable
               key={priority.key}
-              onPress={() => setSelectedPriorityFilter(priority.key as any)}
+              onPress={() => {
+                selection(); // Haptic feedback for filter selection
+                setSelectedPriorityFilter(priority.key as any);
+              }}
               className={cn(
                 'px-4 py-2 rounded-lg border-2 flex-row items-center',
                 selectedPriorityFilter === priority.key ? 'bg-blue-500 border-blue-500' : ''
@@ -442,7 +452,10 @@ export default function ShoppingScreen() {
 
       {/* Add New Item Button */}
       <View className="mx-6 mt-4">
-        <Pressable onPress={() => setShowAddModal(true)} className="bg-blue-500 py-4 px-6 rounded-2xl shadow-sm">
+        <Pressable onPress={() => {
+          impactMedium(); // Haptic feedback for add new item
+          setShowAddModal(true);
+        }} className="bg-blue-500 py-4 px-6 rounded-2xl shadow-sm">
           <View className="flex-row items-center justify-center">
             <Ionicons name="add-circle-outline" size={24} color="white" />
             <Text className="text-white font-semibold text-lg mr-2">{t('shopping.addNewItem')}</Text>
@@ -478,7 +491,10 @@ export default function ShoppingScreen() {
             <Ionicons name="filter-outline" size={64} color="#6b7280" />
             <ThemedText className="text-lg font-medium mt-4 mb-2">{t('shopping.noItemsWithPriority')}</ThemedText>
             <ThemedText style={themed.textSecondary} className="text-center">{t('shopping.noItemsWithPriority')}</ThemedText>
-            <Pressable onPress={() => setSelectedPriorityFilter('all')} className="bg-blue-500 py-3 px-6 rounded-xl mt-4">
+            <Pressable onPress={() => {
+              selection(); // Haptic feedback for show all filter
+              setSelectedPriorityFilter('all');
+            }} className="bg-blue-500 py-3 px-6 rounded-xl mt-4">
               <Text className="text-white font-medium text-center">{t('shopping.showAll')}</Text>
             </Pressable>
           </ThemedCard>
@@ -615,6 +631,7 @@ export default function ShoppingScreen() {
               <View className="flex-row space-x-3">
                 <Pressable
                   onPress={() => {
+                    impactLight(); // Haptic feedback for cancel action
                     Keyboard.dismiss();
                     setShowAddModal(false);
                     setNewItemName('');
@@ -870,6 +887,7 @@ export default function ShoppingScreen() {
                   <View className="flex-row space-x-3 mt-6">
                     <Pressable
                       onPress={() => {
+                        impactLight(); // Haptic feedback for close modal
                         setShowItemDetailsModal(false);
                         setSelectedItemId(null);
                       }}

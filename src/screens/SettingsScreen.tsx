@@ -10,7 +10,7 @@ import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
-import { success } from '../utils/haptics';
+import { success, impactMedium, impactLight, warning, selection } from '../utils/haptics';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -93,6 +93,7 @@ export default function SettingsScreen() {
     try {
       await Clipboard.setStringAsync(currentApartment.invite_code);
       setCopied(true);
+      success(); // Haptic feedback for successful copy
       setTimeout(() => setCopied(false), 1500);
     } catch (error) {
       setCopied(false);
@@ -102,6 +103,7 @@ export default function SettingsScreen() {
   const handleShareCode = async () => {
     if (!currentApartment) return;
     try {
+      impactMedium(); // Haptic feedback for share action
       await Share.share({
         message: `הצטרף לדירת השותפים שלנו!\nשם הדירה: ${currentApartment.name}\nקוד הצטרפות: ${currentApartment.invite_code}`,
         title: t('settings.joinApartmentTitle'),
@@ -110,10 +112,12 @@ export default function SettingsScreen() {
   };
 
   const handleLeaveApartment = () => {
+    warning(); // Haptic feedback for leave apartment action
     setConfirmLeaveVisible(true);
   };
 
   const handleSendFeedback = () => {
+    impactMedium(); // Haptic feedback for send feedback action
     const to = 'yonatan.cs23@gmail.com';
     const subject = encodeURIComponent(t('settings.emailSubject'));
     const body = encodeURIComponent(`תיאור הבעיה / ההצעה:
@@ -189,6 +193,7 @@ User: ${currentUser?.name || 'Unknown'}
 
   const handleTestNotification = async () => {
     try {
+      impactMedium(); // Haptic feedback for test notification
       await firebaseNotificationService.sendTestNotification();
       Alert.alert('✅ Success', 'Test notification sent!');
     } catch (error) {
@@ -252,7 +257,10 @@ User: ${currentUser?.name || 'Unknown'}
               {t('dashboard.roommates')} ({currentApartment.members.length})
             </ThemedText>
             <Pressable 
-              onPress={refreshApartmentMembers}
+              onPress={() => {
+                impactLight(); // Haptic feedback for refresh action
+                refreshApartmentMembers();
+              }}
               className="bg-blue-100 p-2 rounded-lg"
             >
               <Ionicons name="refresh" size={20} color="#007AFF" />
@@ -279,7 +287,10 @@ User: ${currentUser?.name || 'Unknown'}
                 ) : member.id !== currentUser.id ? (
                   <View className="relative">
                     <Pressable
-                      onPress={() => handleMemberOptionsPress(member)}
+                      onPress={() => {
+                        selection(); // Haptic feedback for member options
+                        handleMemberOptionsPress(member);
+                      }}
                       className="p-2"
                     >
                       <Ionicons name="ellipsis-horizontal" size={20} color="#9ca3af" />
@@ -289,7 +300,10 @@ User: ${currentUser?.name || 'Unknown'}
                     {showMemberOptions === member.id && (
                       <View className="absolute top-10 right-0 rounded-lg shadow-lg z-10 min-w-[120px]" style={{ backgroundColor: '#ffffff', ...themed.borderColor }}>
                         <Pressable
-                          onPress={() => handleRemoveMemberPress(member)}
+                          onPress={() => {
+                            warning(); // Haptic feedback for remove member action
+                            handleRemoveMemberPress(member);
+                          }}
                           className="px-4 py-3 border-b"
                           style={themed.borderColor}
                         >
@@ -322,11 +336,15 @@ User: ${currentUser?.name || 'Unknown'}
                   onSubmitEditing={() => Keyboard.dismiss()}
                 />
                 <View className="flex-row mr-3">
-                  <Pressable onPress={handleSaveName} className={"p-2 rounded-lg ml-2 " + (newName.trim() ? 'bg-green-100' : 'bg-gray-100')}>
+                  <Pressable onPress={() => {
+                    impactMedium(); // Haptic feedback for save action
+                    handleSaveName();
+                  }} className={"p-2 rounded-lg ml-2 " + (newName.trim() ? 'bg-green-100' : 'bg-gray-100')}>
                     <Ionicons name="checkmark" size={20} color={newName.trim() ? '#10b981' : '#9ca3af'} />
                   </Pressable>
                   <Pressable
                     onPress={() => {
+                      impactLight(); // Haptic feedback for cancel action
                       setEditingName(false);
                       setNewName(getDisplayName(currentUser));
                     }}
@@ -337,7 +355,10 @@ User: ${currentUser?.name || 'Unknown'}
                 </View>
               </View>
             ) : (
-              <Pressable onPress={() => setEditingName(true)} className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
+              <Pressable onPress={() => {
+                impactLight(); // Haptic feedback for edit action
+                setEditingName(true);
+              }} className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
                 <ThemedText className="text-base" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
                 <Ionicons name="pencil-outline" size={20} color="#6b7280" />
               </Pressable>
@@ -362,7 +383,10 @@ User: ${currentUser?.name || 'Unknown'}
               return (
                 <Pressable
                   key={days}
-                  onPress={() => setCleaningIntervalDays(days)}
+                  onPress={() => {
+                    selection(); // Haptic feedback for schedule selection
+                    setCleaningIntervalDays(days);
+                  }}
                   className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
                   <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{label}</ThemedText>
@@ -379,7 +403,10 @@ User: ${currentUser?.name || 'Unknown'}
               return (
                 <Pressable
                   key={dayIndex}
-                  onPress={() => setCleaningAnchorDow(dayIndex)}
+                  onPress={() => {
+                    selection(); // Haptic feedback for day selection
+                    setCleaningAnchorDow(dayIndex);
+                  }}
                   className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
                   <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
@@ -424,6 +451,7 @@ User: ${currentUser?.name || 'Unknown'}
                   <View className="flex-row ml-2">
                     <Pressable
                       onPress={() => {
+                        impactLight(); // Haptic feedback for edit task
                         setEditingChoreId(item.id);
                         setEditingChoreName(item.title);
                       }}
@@ -434,6 +462,7 @@ User: ${currentUser?.name || 'Unknown'}
                     <Pressable 
                       onPress={async () => {
                         if (deletingChoreId) return; // Prevent multiple clicks
+                        warning(); // Haptic feedback for delete task
                         setDeletingChoreId(item.id);
                         try {
                           await removeChecklistItem(item.id);
@@ -457,6 +486,7 @@ User: ${currentUser?.name || 'Unknown'}
                 ) : (
                   <Pressable
                     onPress={() => {
+                      impactLight(); // Haptic feedback for cancel edit
                       setEditingChoreId(null);
                       setEditingChoreName('');
                     }}
@@ -500,6 +530,7 @@ User: ${currentUser?.name || 'Unknown'}
             <Pressable
               onPress={async () => {
                 if (!newChore.trim()) return;
+                impactMedium(); // Haptic feedback for add task action
                 setIsAddingChore(true);
                 try {
                   await addChecklistItem(newChore.trim());
@@ -569,6 +600,7 @@ User: ${currentUser?.name || 'Unknown'}
           <Pressable 
             onPress={async () => {
               try {
+                warning(); // Haptic feedback for sign out action
                 await firebaseAuth.signOut();
                 // Clear local state
                 useStore.setState({
