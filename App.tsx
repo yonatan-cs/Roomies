@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme, DarkTheme, Theme as NavTheme } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, Text, TextInput } from "react-native";
+import { View, Text, TextInput, I18nManager } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 import { navigationRef } from "./src/navigation/navigationRef";
@@ -70,6 +70,17 @@ export default function App() {
   // ברירת מחדל ליישור טקסטים לפי השפה (עברית → ימין), מבלי לפגוע ב־text-center מקומי
   useEffect(() => {
     const isRTL = appLanguage === 'he';
+    // Ensure the app does NOT mirror layout globally. We only change text alignment.
+    // If mirroring had previously been enabled, disable it here without forcing a reload.
+    try {
+      if (I18nManager.isRTL) {
+        I18nManager.allowRTL(false);
+        // Note: forceRTL(false) typically requires app reload to fully apply; we avoid forcing reload here.
+        // We rely on non-mirrored layout + per-text alignment below to keep UI stable.
+      } else {
+        I18nManager.allowRTL(false);
+      }
+    } catch {}
 
     // הגדרת ברירת מחדל ל־Text
     (Text as any).defaultProps = {
