@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
-import { isTurnCompletedForCurrentCycle, getCurrentCycle } from '../utils/dateUtils';
+import { isTurnCompletedForCurrentCycleWithSettings, getCurrentCycleWithSettings } from '../utils/dateUtils';
 import ConfirmModal from '../components/ConfirmModal';
 import { User } from '../types';
 import { Screen } from '../components/Screen';
@@ -64,7 +64,7 @@ export default function CleaningScreen() {
   // Check if turn is completed for current cycle
   useEffect(() => {
     if (currentUser && cleaningTask && checklistItems.length > 0 && isMyCleaningTurn) {
-      const isCompleted = isTurnCompletedForCurrentCycle({
+      const isCompleted = isTurnCompletedForCurrentCycleWithSettings({
         uid: currentUser.id,
         task: {
           assigned_at: cleaningTask.assigned_at || null,
@@ -77,7 +77,8 @@ export default function CleaningScreen() {
           completed: item.completed,
           completed_by: item.completed_by,
           completed_at: item.completed_at,
-        }))
+        })),
+        cleaningSettings,
       });
       setTurnCompleted(isCompleted);
     } else {
@@ -132,11 +133,11 @@ export default function CleaningScreen() {
 
     // Check if turn is already completed for current cycle
     if (turnCompleted && cleaningTask) {
-      const { cycleEnd } = getCurrentCycle({
+      const { cycleEnd } = getCurrentCycleWithSettings({
         assigned_at: cleaningTask.assigned_at || null,
         frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
         dueDate: cleaningTask.dueDate ? cleaningTask.dueDate.toISOString() : null,
-      });
+      }, cleaningSettings);
       // Show success message with next turn date
       setErrorMessage(t('cleaning.youCompleted') + ' ' + t('cleaning.untilDate', { date: cycleEnd.toLocaleDateString() }));
       return;
@@ -246,11 +247,11 @@ export default function CleaningScreen() {
     }
     
     try {
-      // Calculate due date from assigned_at instead of using stale dueDate field
-      const { cycleEnd } = getCurrentCycle({
+      // Calculate due date aligned to anchor day
+      const { cycleEnd } = getCurrentCycleWithSettings({
         assigned_at: cleaningTask.assigned_at || null,
         frequency_days: cleaningSettings.intervalDays,
-      });
+      }, cleaningSettings);
       return new Date() > cycleEnd;
     } catch (error) {
       return false;
@@ -370,11 +371,11 @@ export default function CleaningScreen() {
             })()}
 
             {(() => {
-              // Calculate due date from assigned_at instead of using stale dueDate field
-              const { cycleEnd } = getCurrentCycle({
+              // Calculate due date aligned to anchor day
+              const { cycleEnd } = getCurrentCycleWithSettings({
                 assigned_at: cleaningTask.assigned_at || null,
                 frequency_days: cleaningSettings.intervalDays,
-              });
+              }, cleaningSettings);
               const overdue = new Date() > cycleEnd;
               return (
                 <ThemedText className={cn('text-sm mb-4', overdue ? 'text-red-600' : '')} style={!overdue ? themed.textSecondary : undefined}>
