@@ -423,10 +423,7 @@ export default function CleaningScreen() {
               return (
                 <View 
                   key={item.id} 
-                  className={cn(
-                    "flex-row items-center py-3 px-3 rounded-xl mb-2",
-                    isRTL ? "flex-row-reverse" : "flex-row"
-                  )}
+                  className="flex-row items-center py-3 px-3 rounded-xl mb-2"
                   style={themed.surfaceBg}
                 >
                   <View 
@@ -512,10 +509,7 @@ export default function CleaningScreen() {
               return (
                 <View 
                   key={`${cycleKey}-${item.id}`} 
-                  className={cn(
-                    "flex-row items-center py-4 px-3 rounded-xl mb-3",
-                    isRTL ? "flex-row-reverse" : "flex-row"
-                  )} 
+                  className="flex-row items-center py-4 px-3 rounded-xl mb-3"
                   style={themed.surfaceBg}
                 >
                   <Pressable 
@@ -555,7 +549,7 @@ export default function CleaningScreen() {
                     )} 
                     style={isCompleted ? themed.textSecondary : undefined}
                   >
-                    {item.title}
+                    {item.template_key ? t(item.title) : item.title}
                   </ThemedText>
                 </View>
               );
