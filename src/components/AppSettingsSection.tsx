@@ -3,7 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { useTranslation } from 'react-i18next';
-import { selection } from '../utils/haptics';
+import { selection, impactMedium } from '../utils/haptics';
 import { ThemeSetting } from '../theme/theme-settings';
 import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedCard } from '../theme/components/ThemedCard';
@@ -16,6 +16,8 @@ export default function AppSettingsSection() {
   const setAppLanguage = useStore(s => s.setAppLanguage);
   const themeSetting = useStore(s => s.themeSetting);
   const setThemeSetting = useStore(s => s.setThemeSetting);
+  const hapticsEnabled = useStore(s => s.hapticsEnabled);
+  const setHapticsEnabled = useStore(s => s.setHapticsEnabled);
   const themed = useThemedStyles(tk => ({
     textSecondary: { color: tk.colors.text.secondary },
     buttonText: { color: tk.colors.text.primary },
@@ -54,6 +56,38 @@ export default function AppSettingsSection() {
             className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
           >
             <ThemedText className={appLanguage === 'en' ? 'text-white' : ''} style={appLanguage !== 'en' ? themed.buttonText : undefined}>{t('settings.english')}</ThemedText>
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Haptics Section */}
+      <View className="mb-6">
+        <View className="flex-row items-center justify-between mb-3">
+          <ThemedText className="text-base font-medium">{t('settings.haptics')}</ThemedText>
+          <Ionicons name="phone-portrait" size={18} color="#6b7280" />
+        </View>
+        
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1">
+            <ThemedText className="text-sm" style={{ 
+              textAlign: appLanguage === 'he' ? 'right' : 'left',
+              color: themed.textSecondary.color 
+            }}>
+              {t('settings.hapticsDescription')}
+            </ThemedText>
+          </View>
+          <Pressable
+            onPress={() => {
+              // Give haptic feedback before toggling (so user feels it if enabling)
+              if (!hapticsEnabled) {
+                impactMedium();
+              }
+              setHapticsEnabled(!hapticsEnabled);
+            }}
+            className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
+            style={{ marginStart: appLanguage === 'he' ? 12 : 0, marginEnd: appLanguage === 'he' ? 0 : 12 }}
+          >
+            <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
           </Pressable>
         </View>
       </View>
