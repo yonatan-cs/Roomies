@@ -10,7 +10,7 @@ import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
-import { selection, impactMedium, success } from '../utils/haptics';
+import { success } from '../utils/haptics';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
@@ -20,8 +20,6 @@ import { firebaseNotificationService } from '../services/firebase-notification-s
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
-  const hapticsEnabled = useStore(s => s.hapticsEnabled);
-  const setHapticsEnabled = useStore(s => s.setHapticsEnabled);
   const {
     currentUser,
     currentApartment,
@@ -221,28 +219,6 @@ User: ${currentUser?.name || 'Unknown'}
       >
         {/* App Settings Section */}
         <AppSettingsSection />
-
-        {/* Haptics Setting */}
-        <ThemedCard className="rounded-2xl p-6 mb-6">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-1">
-              <Text className="text-lg font-semibold" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.haptics')}</Text>
-              <Text className="text-sm mt-1" style={{ textAlign: appLanguage === 'he' ? 'right' : 'left' }}>{t('settings.hapticsDescription')}</Text>
-            </View>
-            <Pressable
-              onPress={() => {
-                // Give haptic feedback before toggling (so user feels it if enabling)
-                if (!hapticsEnabled) {
-                  impactMedium();
-                }
-                setHapticsEnabled(!hapticsEnabled);
-              }}
-              className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
-            >
-              <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
-            </Pressable>
-          </View>
-        </ThemedCard>
         {/* Apartment Details */}
         <ThemedCard className="rounded-2xl p-6 mb-6">
           <Text className="text-lg font-semibold mb-4">{t('dashboard.apartmentFallback')}</Text>
