@@ -49,54 +49,73 @@ export default function WelcomeScreen() {
     try {
       console.log('Checking user session...');
       const authUser = await firebaseAuth.restoreUserSession();
-      if (authUser) {
-        console.log('Auth user found, waiting for auth to stabilize...');
-        // Wait a moment for authentication to be fully ready
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        console.log('Getting user data...');
-        // Get user data from Firestore
-        const userData = await firestoreService.getUser(authUser.localId);
-        if (userData) {
-          console.log('User data found, getting current apartment...');
-          // Get user's current apartment based on membership
+
+      if (!authUser) {
+        console.log('No authenticated user, showing Auth screen');
+        setInitializing(false);
+        return;
+      }
+
+      console.log('Auth user found, waiting for auth to stabilize...');
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Load minimal user profile first and stop blocking UI
+      console.log('Getting user data...');
+      const userData = await firestoreService.getUser(authUser.localId);
+      if (!userData) {
+        console.log('User doc not found yet — creating minimal session user');
+      }
+
+      const baseUser = {
+        id: authUser.localId,
+        email: authUser.email,
+        name: userData?.full_name,
+        display_name: userData?.display_name || userData?.full_name,
+        phone: userData?.phone,
+        current_apartment_id: undefined as string | undefined,
+      };
+
+      // Set user immediately so UI can proceed to Join/Create if needed
+      setCurrentUser(baseUser);
+      setInitializing(false);
+
+      // In background, try to find user's apartment and update state if found
+      (async () => {
+        try {
+          console.log('Background: resolving current apartment for user...');
           const currentApartment = await firestoreService.getUserCurrentApartment(authUser.localId);
-          console.log('Current apartment from Firestore:', currentApartment);
-          
-          const user = {
-            id: authUser.localId,
-            email: authUser.email,
-            name: userData.full_name,
-            display_name: userData.display_name || userData.full_name,
-            phone: userData.phone,
-            current_apartment_id: currentApartment?.id,
-          };
-          setCurrentUser(user);
-          
-          // If user has apartment, set it in local state
+          console.log('Background: apartment lookup result:', currentApartment);
+
           if (currentApartment) {
+            // Update user with apartment id
+            useStore.setState(state => ({
+              currentUser: state.currentUser ? { ...state.currentUser, current_apartment_id: currentApartment.id } : state.currentUser,
+            }));
+
             console.log('Setting apartment in local state:', {
               id: currentApartment.id,
               name: currentApartment.name,
               invite_code: currentApartment.invite_code,
             });
-            
-            // Update local apartment state
+
             useStore.setState({
               currentApartment: {
                 id: currentApartment.id,
                 name: currentApartment.name,
                 invite_code: currentApartment.invite_code,
-                members: [], // Will be loaded separately if needed
+                members: [],
                 createdAt: new Date(),
               }
             });
+          } else {
+            console.log('no apartment for profile');
           }
+        } catch (bgErr) {
+          console.warn('Background apartment resolution failed:', bgErr);
         }
-      }
+      })();
     } catch (error) {
       console.error('Session restore error:', error);
-    } finally {
       setInitializing(false);
     }
   };
