@@ -36,8 +36,6 @@ export function Screen({
             padding: withPadding ? 16 : 0, 
             flexGrow: 1,
             alignItems: 'stretch',
-            // Force LTR layout regardless of language, to match English orientation
-            direction: 'ltr' as any,
           }}
           keyboardShouldPersistTaps="handled" // לחיצה מחוץ לאלמנטי הקלט תסגור מקלדת
           showsVerticalScrollIndicator={false}
@@ -46,7 +44,7 @@ export function Screen({
           {children}
         </ScrollView>
       ) : (
-        <ThemedView style={{ flex: 1, padding: withPadding ? 16 : 0, alignItems: 'stretch', direction: 'ltr' as any }}>
+        <ThemedView style={{ flex: 1, padding: withPadding ? 16 : 0, alignItems: 'stretch' }}>
           {children}
         </ThemedView>
       )}
