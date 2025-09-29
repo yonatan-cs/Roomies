@@ -255,6 +255,7 @@ export default function WelcomeScreen() {
   const handleAuthSuccess = async (user: any) => {
     setCurrentUser(user);
     setMode('select');
+    setInitializing(false);
   };
 
   const handleCreateApartment = async () => {
