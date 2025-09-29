@@ -279,8 +279,53 @@ export default function WelcomeScreen() {
   };
 
   const handleAuthSuccess = async (user: any) => {
+    console.log('🎉 WelcomeScreen: Auth success, setting user and checking apartment...');
     setCurrentUser(user);
-    // New users often don't have apartment yet; ensure immediate UI readiness
+    
+    // For new users, we still need to check if they have an apartment
+    // This handles the case where a user might have been added to an apartment
+    // between registration and login
+    try {
+      console.log('🔍 WelcomeScreen: Checking for existing apartment after auth success...');
+      const currentApartment = await fetchWithRetry(
+        () => firestoreService.getUserCurrentApartment(user.id),
+        2, // Fewer retries for new users
+        300
+      );
+      
+      if (currentApartment && isValidApartmentId(currentApartment.id)) {
+        console.log('✅ WelcomeScreen: Found existing apartment after auth success:', currentApartment.id);
+        
+        // Update user with apartment id
+        useStore.setState(state => ({
+          currentUser: state.currentUser ? { 
+            ...state.currentUser, 
+            current_apartment_id: currentApartment.id 
+          } : state.currentUser,
+        }));
+
+        // Set apartment in local state
+        useStore.setState({
+          currentApartment: {
+            id: currentApartment.id,
+            name: currentApartment.name,
+            invite_code: currentApartment.invite_code,
+            members: [],
+            createdAt: new Date(),
+          }
+        });
+        
+        console.log('🏠 WelcomeScreen: User has apartment, will navigate to apartment screen');
+        // The AppNavigator will handle navigation to apartment screen
+        setInitializing(false);
+        return;
+      }
+    } catch (error) {
+      console.log('📭 WelcomeScreen: No apartment found or error checking apartment:', error);
+    }
+    
+    // No apartment found - show join/create options
+    console.log('📭 WelcomeScreen: No apartment found, showing join/create options');
     setInitializing(false);
     setMode('select');
   };
