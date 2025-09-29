@@ -373,6 +373,13 @@ export const useStore = create<AppState>()(
 
       loadShoppingItems: async () => {
         try {
+          // Fast exit if no apartment
+          const state = get();
+          if (!state.currentUser?.current_apartment_id && !state.currentApartment?.id) {
+            console.log('loadShoppingItems: no apartment id — skipping network call');
+            return;
+          }
+          
           const shoppingData = await firestoreService.getShoppingItems();
           
           const shoppingItems: ShoppingItem[] = shoppingData.map((item: any) => ({
@@ -483,6 +490,13 @@ export const useStore = create<AppState>()(
 
       loadCleaningTask: async () => {
         try {
+          // Fast exit if no apartment
+          const state = get();
+          if (!state.currentUser?.current_apartment_id && !state.currentApartment?.id) {
+            console.log('loadCleaningTask: no apartment id — skipping network call');
+            return;
+          }
+          
           const cleaningTaskData = await firestoreService.getCleaningTask();
           if (cleaningTaskData) {
             const state = get();
@@ -864,6 +878,13 @@ export const useStore = create<AppState>()(
 
       refreshApartmentMembers: async () => {
         try {
+          // Fast exit if no apartment
+          const state = get();
+          if (!state.currentUser?.current_apartment_id && !state.currentApartment?.id) {
+            console.log('refreshApartmentMembers: no apartment id — skipping network call');
+            return;
+          }
+          
           console.log('🔄 Refreshing apartment members...');
           
           // Get complete apartment data using the new reliable method

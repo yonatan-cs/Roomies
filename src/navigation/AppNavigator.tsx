@@ -88,6 +88,7 @@ export default function AppNavigator() {
   // Check if user has an apartment on mount and when apartment state changes
   useEffect(() => {
     const checkApartmentAccess = async () => {
+      console.log('🚪 AppNavigator: Starting apartment check...');
       setIsCheckingApartment(true);
       try {
         if (currentUser?.id) {
@@ -102,22 +103,29 @@ export default function AppNavigator() {
           if (!currentUser.current_apartment_id && !currentApartment?.id) {
             console.log('📭 AppNavigator: No apartment detected for user – routing to Welcome');
             setHasApartment(false);
+
+            // חשוב: אל תמתין לטעינות תלויות בדירה — כבה מייד את בדיקת הניווט
+            setIsCheckingApartment(false);
+
+            // מפנה מיידית ל-Welcome / JoinCreate
+            console.log('✅ AppNavigator: Early return - no apartment, routing to Welcome immediately');
+            return;
           } else {
-            // Try to get apartment context
+            // קיימת דירה — נטפל בהרגיל
             const apartmentContext = await getApartmentContext();
             console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
             setHasApartment(true);
-          }
-          
-          // Trigger initial data refresh
-          try {
-            await Promise.all([
-              useStore.getState().refreshApartmentMembers?.(),
-              useStore.getState().loadShoppingItems?.(),
-              useStore.getState().loadCleaningTask?.(),
-            ]);
-          } catch (refreshError) {
-            console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
+
+            // רק כאן נבצע את ה־refresh התלויות-דירה (כי יש דירה ממשית)
+            try {
+              await Promise.all([
+                useStore.getState().refreshApartmentMembers?.(),
+                useStore.getState().loadShoppingItems?.(),
+                useStore.getState().loadCleaningTask?.(),
+              ]);
+            } catch (refreshError) {
+              console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
+            }
           }
         } else {
           console.log('📭 AppNavigator: No current user');
