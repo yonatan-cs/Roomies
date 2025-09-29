@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -145,17 +146,24 @@ export default function AppNavigator() {
 
   // Show loading while checking apartment access
   if (isCheckingApartment) {
-    return null; // Or a loading screen
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={{ marginTop: 16, color: '#666' }}>טוען...</Text>
+      </View>
+    );
   }
 
-  // Show welcome screen if no user or no apartment
-  const showWelcome = !currentUser || !hasApartment || !currentApartment;
+  // Show welcome screen if no user or no apartment (require valid apartment id explicitly)
+  const hasValidApartmentId = !!currentApartment?.id || !!currentUser?.current_apartment_id;
+  const showWelcome = !currentUser || !hasValidApartmentId || !hasApartment;
   
   console.log('🚪 AppNavigator: Navigation decision:', {
     showWelcome,
     hasUser: !!currentUser,
     hasApartment,
     hasCurrentApartment: !!currentApartment,
+    hasValidApartmentId,
     userId: currentUser?.id,
     apartmentId: currentApartment?.id
   });
