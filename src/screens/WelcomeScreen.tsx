@@ -46,6 +46,8 @@ export default function WelcomeScreen() {
     let stopped = false;
     let attempts = 0;
     let timeoutId: any;
+    let consecutiveNoToken = 0;
+    const MAX_NO_TOKEN = 3;
     
     const tick = async () => {
       if (stopped) return;
@@ -67,7 +69,25 @@ export default function WelcomeScreen() {
             return;
           }
         }
-      } catch (e) {
+      } catch (e: any) {
+        const code = e?.code || e?.message;
+        if (code === 'NO_ID_TOKEN') {
+          consecutiveNoToken++;
+          console.warn(`WelcomeScreen: NO_ID_TOKEN (attempt ${consecutiveNoToken})`);
+          if (consecutiveNoToken >= MAX_NO_TOKEN) {
+            stopped = true;
+            setInitializing(false);
+            // Route to Auth by resetting the selection screen (AuthScreen is rendered when no current user)
+            setCurrentUser(undefined as any);
+            setMode('select');
+            return;
+          }
+          const base = Math.pow(consecutiveNoToken, 2) * 500;
+          const jitter = Math.floor(Math.random() * 300);
+          const backoff = Math.min(base + jitter, 5000);
+          timeoutId = setTimeout(tick, backoff);
+          return;
+        }
         console.warn('poll: fetch error', e);
       }
       
@@ -254,8 +274,9 @@ export default function WelcomeScreen() {
 
   const handleAuthSuccess = async (user: any) => {
     setCurrentUser(user);
-    setMode('select');
+    // New users often don't have apartment yet; ensure immediate UI readiness
     setInitializing(false);
+    setMode('select');
   };
 
   const handleCreateApartment = async () => {

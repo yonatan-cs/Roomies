@@ -5,6 +5,7 @@
 
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState } from 'react-native';
 import { AUTH_ENDPOINTS } from './firebase-config';
 
 // Types for authentication responses
@@ -74,9 +75,16 @@ export class FirebaseAuthService {
   // Safe secure-store getter that swallows errors like "User interaction is not allowed"
   private async safeGetSecureItem(key: string): Promise<string | null> {
     try {
-      return await SecureStore.getItemAsync(key);
-    } catch (err) {
-      console.warn('safeGetSecureItem failed for', key, err);
+      // Prefer AFTER_FIRST_UNLOCK to avoid requiring biometric interaction in background flows
+      const value = await SecureStore.getItemAsync(key, { keychainAccessible: (SecureStore as any).AFTER_FIRST_UNLOCK } as any);
+      return value;
+    } catch (err: any) {
+      const message = err?.message || String(err);
+      console.warn(`safeGetSecureItem failed for ${key}`, { 
+        errMessage: message, 
+        appState: AppState.currentState,
+        isUserInteractionError: message.includes('User interaction is not allowed')
+      });
       return null;
     }
   }
@@ -127,6 +135,10 @@ export class FirebaseAuthService {
       // Store tokens securely
       await this.storeUserTokens(authUser);
       this.currentUser = authUser;
+      
+      // Update in-memory cache
+      const { setInMemoryIdToken } = await import('./firestore-service');
+      setInMemoryIdToken(authUser.idToken);
 
       return authUser;
     } catch (error) {
@@ -170,6 +182,10 @@ export class FirebaseAuthService {
       // Store tokens securely
       await this.storeUserTokens(authUser);
       this.currentUser = authUser;
+      
+      // Update in-memory cache
+      const { setInMemoryIdToken } = await import('./firestore-service');
+      setInMemoryIdToken(authUser.idToken);
 
       return authUser;
     } catch (error) {
@@ -216,15 +232,14 @@ export class FirebaseAuthService {
         throw new Error('No refresh token available');
       }
 
+      // Use x-www-form-urlencoded as required by Secure Token API
+      const body = `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`;
       const response = await fetch(AUTH_ENDPOINTS.REFRESH_TOKEN, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({
-          grant_type: 'refresh_token',
-          refresh_token: refreshToken,
-        }),
+        body,
       });
 
       const data = await response.json();
@@ -233,9 +248,30 @@ export class FirebaseAuthService {
         throw this.handleAuthError(data);
       }
 
-      // Store new tokens
-      await SecureStore.setItemAsync(STORAGE_KEYS.ID_TOKEN, data.id_token);
-      await SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, data.refresh_token);
+      // Store new tokens with AFTER_FIRST_UNLOCK accessibility for background access
+      const opts = { keychainAccessible: (SecureStore as any).AFTER_FIRST_UNLOCK } as any;
+      await SecureStore.setItemAsync(STORAGE_KEYS.ID_TOKEN, data.id_token, opts);
+      await SecureStore.setItemAsync(STORAGE_KEYS.REFRESH_TOKEN, data.refresh_token, opts);
+      
+      // Update in-memory cache
+      const { setInMemoryIdToken } = await import('./firestore-service');
+      setInMemoryIdToken(data.id_token);
+
+      // Schedule pre-refresh at 70% of token lifetime to avoid hitting NO_ID_TOKEN
+      const expiresInSec = Number(data.expires_in) || 3600; // Default to 1 hour if not provided
+      const refreshBeforeMs = Math.max(30_000, expiresInSec * 1000 * 0.7); // At least 30s, or 70% of lifetime
+      
+      setTimeout(async () => {
+        try {
+          console.log('🔄 Pre-refreshing token before expiry...');
+          await this.refreshToken();
+          console.log('✅ Pre-refresh completed successfully');
+        } catch (error) {
+          console.warn('⚠️ Pre-refresh failed (will retry on next request):', error);
+        }
+      }, refreshBeforeMs);
+      
+      console.log(`⏰ Scheduled pre-refresh in ${Math.round(refreshBeforeMs / 1000)}s`);
 
       return data.id_token;
     } catch (error) {
@@ -253,11 +289,18 @@ export class FirebaseAuthService {
       // SecureStore may throw if user interaction is not allowed
       let idToken = await this.safeGetSecureItem(STORAGE_KEYS.ID_TOKEN);
       if (!idToken) {
-        // Optional: fallback to AsyncStorage in dev flows
+        // Try to refresh immediately when token is missing but refresh_token may be present
         try {
-          idToken = await AsyncStorage.getItem(STORAGE_KEYS.ID_TOKEN);
+          console.log('🔄 No ID token found. Attempting refresh via refresh_token...');
+          idToken = await this.refreshToken();
         } catch (e) {
-          console.warn('AsyncStorage fallback for ID token failed', e);
+          console.warn('Immediate token refresh failed:', e);
+          // Optional: fallback to AsyncStorage in dev flows
+          try {
+            idToken = await AsyncStorage.getItem(STORAGE_KEYS.ID_TOKEN);
+          } catch (e2) {
+            console.warn('AsyncStorage fallback for ID token failed', e2);
+          }
         }
       }
       console.log('🔑 Stored ID token:', idToken ? `Present (${idToken.substring(0, 20)}...)` : 'NULL');
@@ -326,6 +369,10 @@ export class FirebaseAuthService {
       await SecureStore.deleteItemAsync(STORAGE_KEYS.USER_EMAIL);
       
       this.currentUser = null;
+      
+      // Clear in-memory token cache
+      const { setInMemoryIdToken } = await import('./firestore-service');
+      setInMemoryIdToken(null);
     } catch (error) {
       console.error('Sign out error:', error);
       throw error;
