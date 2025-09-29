@@ -144,7 +144,20 @@ export default function AppNavigator() {
     checkApartmentAccess();
   }, [currentUser?.id, currentUser?.current_apartment_id, currentApartment?.id]); // Listen to apartment changes
 
-  // Show loading while checking apartment access
+  // Determine routing based on presence of a valid apartment id
+  const hasValidApartmentId = !!currentApartment?.id || !!currentUser?.current_apartment_id;
+  const showWelcome = !currentUser || !hasValidApartmentId;
+
+  // If we already know there's no apartment, route to Welcome immediately (avoid indefinite spinner)
+  if (!currentUser || !hasValidApartmentId) {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      </Stack.Navigator>
+    );
+  }
+
+  // Optional loading while verifying apartment access for users who do have an apartment id
   if (isCheckingApartment) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
@@ -153,10 +166,6 @@ export default function AppNavigator() {
       </View>
     );
   }
-
-  // Show welcome screen if no user or no apartment (require valid apartment id explicitly)
-  const hasValidApartmentId = !!currentApartment?.id || !!currentUser?.current_apartment_id;
-  const showWelcome = !currentUser || !hasValidApartmentId || !hasApartment;
   
   console.log('🚪 AppNavigator: Navigation decision:', {
     showWelcome,
@@ -170,30 +179,24 @@ export default function AppNavigator() {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {showWelcome ? (
-        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      ) : (
-        <>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen 
-            name="AddExpense" 
-            component={AddExpenseScreen}
-            options={{ 
-              presentation: 'modal',
-              headerShown: true,
-              title: t('budget.addExpense'),
-              headerTitleAlign: 'center'
-            }}
-          />
-          <Stack.Screen 
-            name="GroupDebts" 
-            component={GroupDebtsScreen}
-            options={{ 
-              headerShown: false
-            }}
-          />
-        </>
-      )}
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen 
+        name="AddExpense" 
+        component={AddExpenseScreen}
+        options={{ 
+          presentation: 'modal',
+          headerShown: true,
+          title: t('budget.addExpense'),
+          headerTitleAlign: 'center'
+        }}
+      />
+      <Stack.Screen 
+        name="GroupDebts" 
+        component={GroupDebtsScreen}
+        options={{ 
+          headerShown: false
+        }}
+      />
     </Stack.Navigator>
   );
 }
