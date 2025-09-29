@@ -908,16 +908,16 @@ export const useStore = create<AppState>()(
           });
           
           // Also update the cleaning queue if there's an active task
-          const state = get();
-          if (state.cleaningTask) {
+          const currentState = get();
+          if (currentState.cleaningTask) {
             const newQueue = completeApartmentData.members.map((m: User) => m.id);
             if (newQueue.length > 0) {
-              const currentTurn = state.cleaningTask.user_id || state.cleaningTask.currentTurn || '';
+              const currentTurn = currentState.cleaningTask.user_id || currentState.cleaningTask.currentTurn || '';
               const safeCurrent = currentTurn || '';
               const nextTurn = newQueue.includes(safeCurrent) ? safeCurrent : newQueue[0];
               set({
                 cleaningTask: {
-                  ...state.cleaningTask,
+                  ...currentState.cleaningTask,
                   user_id: nextTurn,
                   currentTurn: nextTurn,
                   queue: newQueue,
