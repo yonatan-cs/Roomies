@@ -72,6 +72,11 @@ export interface ChecklistItem {
   completed_at?: string | null; // ISO timestamp
   order?: number | null;
   created_at?: string | null; // ISO timestamp
+  // New fields for default tasks support
+  template_key?: string | null; // Translation key for default tasks
+  is_default?: boolean; // Whether this is a default task
+  user_modified?: boolean; // Whether user has modified this task
+  created_from_default_version?: number; // Version of default template when created
 }
 
 export interface CleaningTaskCompletion {

@@ -15,6 +15,7 @@ import { getDisplayName } from '../utils/userDisplay';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { getTaskLabel } from '../utils/taskLabel';
 
 
 export default function CleaningScreen() {
@@ -444,7 +445,7 @@ export default function CleaningScreen() {
                       isRTL ? 'text-right' : 'text-left'
                     )}
                   >
-                    {item.title}
+                    {getTaskLabel(item)}
                   </ThemedText>
                   {item.completed && item.completed_by && (
                     <Text className={cn("text-xs text-green-600", isRTL ? "mr-2" : "ml-2")}>
@@ -550,7 +551,7 @@ export default function CleaningScreen() {
                     )} 
                     style={isCompleted ? themed.textSecondary : undefined}
                   >
-                    {item.template_key ? t(item.title) : item.title}
+                    {getTaskLabel(item)}
                   </ThemedText>
                 </View>
               );
