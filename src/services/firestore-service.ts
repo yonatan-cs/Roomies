@@ -303,6 +303,14 @@ export interface FirestoreResponse {
  */
 export class FirestoreService {
   private static instance: FirestoreService;
+  // In-memory cache to avoid frequent SecureStore reads and concurrent refresh bursts
+  private inMemoryIdToken: string | null = null;
+  private refreshInProgress: Promise<string | null> | null = null;
+
+  // Public method to manage in-memory token cache
+  setInMemoryIdToken(token: string | null) {
+    this.inMemoryIdToken = token;
+  }
 
   private constructor() {}
 
@@ -328,8 +336,8 @@ export class FirestoreService {
         return;
       }
       
-      // Wait 100ms before checking again
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait 150ms before checking again
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
     
     console.log('⏰ Auth wait timeout reached');
@@ -339,25 +347,33 @@ export class FirestoreService {
   /**
    * Get authenticated headers for requests
    */
-  private async getAuthHeaders(): Promise<HeadersInit> {
+  private async getAuthHeaders(): Promise<HeadersInit | null> {
     console.log('🔐 Getting auth headers...');
     
-    // Wait for authentication to be ready
+    // Wait for authentication to be ready (initial try)
     await this.waitForAuth();
-    
-    // Check current user first
-    const currentUser = await firebaseAuth.getCurrentUser();
-    console.log('🧑‍💻 Current user:', currentUser ? `${currentUser.localId} (${currentUser.email})` : 'NULL');
-    
-    let idToken = await firebaseAuth.getCurrentIdToken();
-    console.log('🔑 ID Token:', idToken ? `Present (${idToken.substring(0, 20)}...)` : 'MISSING');
-    
+
+    // Fast path from memory
+    let idToken: string | null = this.inMemoryIdToken;
+    if (!idToken) {
+      // Avoid concurrent refresh storms: keep one outstanding request
+      if (!this.refreshInProgress) {
+        this.refreshInProgress = (async () => {
+          try {
+            const token = await firebaseAuth.getCurrentIdToken();
+            if (token) this.inMemoryIdToken = token;
+            return token;
+          } finally {
+            this.refreshInProgress = null;
+          }
+        })();
+      }
+      idToken = await this.refreshInProgress;
+    }
+
     if (!idToken) {
       console.error('❌ Authentication failed: No ID token available');
-      console.error('🔍 Debug info:');
-      console.error('  - Current user object:', currentUser);
-      console.error('  - This usually means the user needs to sign in again');
-      throw new Error('User not authenticated - Please sign in again');
+      return null;
     }
     
     // Check if token is expired and try to refresh if needed
@@ -373,10 +389,11 @@ export class FirestoreService {
           try {
             const newToken = await firebaseAuth.refreshToken();
             idToken = newToken;
+            this.inMemoryIdToken = newToken;
             console.log('✅ Token refreshed successfully');
           } catch (refreshError) {
             console.error('❌ Token refresh failed:', refreshError);
-            throw new Error('Token expired and refresh failed - Please sign in again');
+            return null;
           }
         }
       }
@@ -424,7 +441,7 @@ export class FirestoreService {
       
     } catch (tokenError) {
       console.error('❌ Token validation error:', tokenError);
-      throw new Error('Invalid authentication token - Please sign in again');
+      throw new Error('INVALID_ID_TOKEN');
     }
 
     const headers = {
@@ -642,6 +659,11 @@ export class FirestoreService {
       console.log(`🆔 Document ID:`, documentId || 'auto-generated');
       
       const headers = await this.getAuthHeaders();
+      if (!headers) {
+        const err: any = new Error('NO_ID_TOKEN');
+        err.code = 'NO_ID_TOKEN';
+        throw err;
+      }
       let url = `${FIRESTORE_BASE_URL}/${collectionName}`;
       
       if (documentId) {
@@ -696,6 +718,11 @@ export class FirestoreService {
       console.log(`📖 Getting document: ${collectionName}/${documentId}`);
       
       const headers = await this.getAuthHeaders();
+      if (!headers) {
+        const err: any = new Error('NO_ID_TOKEN');
+        err.code = 'NO_ID_TOKEN';
+        throw err;
+      }
       const url = `${FIRESTORE_BASE_URL}/${collectionName}/${documentId}`;
       
       console.log('🌐 Request URL:', url);
@@ -761,6 +788,11 @@ export class FirestoreService {
       console.log(`📂 Attempting to read collection: ${collectionName}`);
       
       const headers = await this.getAuthHeaders();
+      if (!headers) {
+        const err: any = new Error('NO_ID_TOKEN');
+        err.code = 'NO_ID_TOKEN';
+        throw err;
+      }
       const url = `${FIRESTORE_BASE_URL}/${collectionName}`;
       console.log(`🌐 Request URL: ${url}`);
 
@@ -832,6 +864,11 @@ export class FirestoreService {
   async updateDocument(collectionName: string, documentId: string, data: any, updateMaskFields?: string[]): Promise<any> {
     try {
       const headers = await this.getAuthHeaders();
+      if (!headers) {
+        const err: any = new Error('NO_ID_TOKEN');
+        err.code = 'NO_ID_TOKEN';
+        throw err;
+      }
       let url = `${FIRESTORE_BASE_URL}/${collectionName}/${documentId}`;
       
       // Add updateMask to URL if specified
@@ -889,6 +926,11 @@ export class FirestoreService {
   async deleteDocument(collectionName: string, documentId: string): Promise<void> {
     try {
       const headers = await this.getAuthHeaders();
+      if (!headers) {
+        const err: any = new Error('NO_ID_TOKEN');
+        err.code = 'NO_ID_TOKEN';
+        throw err;
+      }
       const url = `${FIRESTORE_BASE_URL}/${collectionName}/${documentId}`;
 
       const response = await fetch(url, {
@@ -912,6 +954,11 @@ export class FirestoreService {
   async queryCollection(collectionName: string, field: string, operator: string, value: any): Promise<any[]> {
     try {
       const headers = await this.getAuthHeaders();
+      if (!headers) {
+        const err: any = new Error('NO_ID_TOKEN');
+        err.code = 'NO_ID_TOKEN';
+        throw err;
+      }
       const url = `${FIRESTORE_BASE_URL}:runQuery`;
 
       // Convert value to Firestore format
@@ -966,9 +1013,15 @@ export class FirestoreService {
       console.log('🧪 Testing Firebase connection...');
       
       // Test 1: Check if we can get auth headers
-      let authHeaders;
+      let authHeaders: HeadersInit | null;
       try {
         authHeaders = await this.getAuthHeaders();
+        if (!authHeaders) {
+          return {
+            success: false,
+            details: { step: 'authentication', error: 'NO_ID_TOKEN', recommendation: 'User needs to sign in again' }
+          } as any;
+        }
         console.log('✅ Authentication test passed');
       } catch (authError: any) {
         console.error('❌ Authentication test failed:', authError);
@@ -1155,6 +1208,11 @@ export class FirestoreService {
   async deleteUserField(userId: string, fieldName: string): Promise<void> {
     try {
       const headers = await this.getAuthHeaders();
+      if (!headers) {
+        const err: any = new Error('NO_ID_TOKEN');
+        err.code = 'NO_ID_TOKEN';
+        throw err;
+      }
       const url = `${FIRESTORE_BASE_URL}/${COLLECTIONS.USERS}/${userId}?updateMask.fieldPaths=${encodeURIComponent(fieldName)}`;
 
       const requestBody = {
@@ -5025,5 +5083,10 @@ export class FirestoreService {
 
 // Export singleton instance
 export const firestoreService = FirestoreService.getInstance();
+
+// Export function to manage in-memory token cache
+export function setInMemoryIdToken(token: string | null) {
+  firestoreService.setInMemoryIdToken(token);
+}
 
 

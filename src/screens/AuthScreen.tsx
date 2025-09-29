@@ -169,6 +169,14 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       };
 
       await firestoreService.createUser(userData);
+      
+      // Ensure auth is stabilized and token is present before proceeding
+      try {
+        // best-effort small wait + force token refresh via firebaseAuth service
+        await new Promise(resolve => setTimeout(resolve, 300));
+        // try to obtain/refresh token via service (errors are logged inside)
+        await firebaseAuth.getCurrentIdToken();
+      } catch (_) {}
 
       // Combine auth and user data
       const user = {
@@ -177,6 +185,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         name: fullName.trim(),
         display_name: fullName.trim(),
         phone: phone.trim(),
+        current_apartment_id: undefined as any,
       };
 
       Alert.alert(
