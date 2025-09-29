@@ -17,6 +17,7 @@ import GroupDebtsScreen from '../screens/GroupDebtsScreen';
 import { useStore } from '../state/store';
 import { getApartmentContext } from '../services/firestore-service';
 import { useTranslation } from 'react-i18next';
+import { isValidApartmentId, validateApartmentIdWithLogging, safeNavigate } from '../utils/navigation-helpers';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -100,9 +101,16 @@ export default function AppNavigator() {
             localApartmentName: currentApartment?.name
           });
           
-          // If user has no apartment yet, don't call getApartmentContext; show Welcome
-          if (!currentUser.current_apartment_id && !currentApartment?.id) {
-            console.log('📭 AppNavigator: No apartment detected for user – routing to Welcome');
+          // Check if user has valid apartment ID using enhanced validation
+          const apartmentIdValidation = validateApartmentIdWithLogging(
+            currentUser.current_apartment_id, 
+            'AppNavigator'
+          );
+          
+          // If user has no valid apartment ID, route to Welcome immediately
+          if (!apartmentIdValidation.isValid && !currentApartment?.id) {
+            console.log('📭 AppNavigator: No valid apartment ID detected for user – routing to Welcome');
+            console.log('📭 AppNavigator: Validation reason:', apartmentIdValidation.reason);
             setHasApartment(false);
             setIsCheckingApartment(false);
             console.log('✅ AppNavigator: Early return - no apartment, routing to Welcome immediately');
@@ -145,7 +153,7 @@ export default function AppNavigator() {
   }, [currentUser?.id, currentUser?.current_apartment_id, currentApartment?.id]); // Listen to apartment changes
 
   // Determine routing based on presence of a valid apartment id
-  const hasValidApartmentId = !!currentApartment?.id || !!currentUser?.current_apartment_id;
+  const hasValidApartmentId = !!currentApartment?.id || isValidApartmentId(currentUser?.current_apartment_id);
   const showWelcome = !currentUser || !hasValidApartmentId;
 
   // If we already know there's no apartment, route to Welcome immediately (avoid indefinite spinner)
