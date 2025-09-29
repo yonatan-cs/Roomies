@@ -22,6 +22,7 @@ import { firestoreService } from '../services/firestore-service';
 import { useTranslation } from 'react-i18next';
 import { Screen } from '../components/Screen';
 import { getDisplayName } from '../utils/userDisplay';
+import { isValidApartmentId, fetchWithRetry, validateUserSession, safeNavigate } from '../utils/navigation-helpers';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -141,35 +142,36 @@ export default function WelcomeScreen() {
   }, [initializing]);
 
   const checkUserSession = async (): Promise<(() => void) | undefined> => {
-    console.log('Checking user session...');
-    // small timeout wrapper so restoreUserSession לא תיתקע לנצח
-    const withTimeout = <T,>(p: Promise<T>, ms = 5000) =>
-      Promise.race([
-        p,
-        new Promise<T>((_, rej) => setTimeout(() => rej(new Error('restoreUserSession timeout')), ms))
-      ]);
-
+    console.log('🔐 WelcomeScreen: Checking user session...');
+    
     try {
-      const authUser = await withTimeout(firebaseAuth.restoreUserSession(), 7000);
-      console.log('restoreUserSession result:', authUser);
+      // Enhanced user session validation with retry logic
+      const sessionValidation = await validateUserSession(
+        () => firebaseAuth.getCurrentUser(),
+        () => firebaseAuth.getCurrentIdToken()
+      );
 
-      if (!authUser) {
-        console.log('No authenticated user, showing Auth screen');
+      if (!sessionValidation.isValid) {
+        console.log('🔐 WelcomeScreen: No valid session, showing Auth screen');
+        console.log('🔐 WelcomeScreen: Validation error:', sessionValidation.error);
         setInitializing(false);
         return;
       }
 
-      console.log('Auth user found, creating minimal local session...');
-      // small stabilization pause
-      await new Promise(resolve => setTimeout(resolve, 200));
+      const authUser = sessionValidation.user;
+      console.log('✅ WelcomeScreen: Valid session found, creating user session...');
 
-      // try/catch around getUser so errors there לא יפסיקו המשך הזרימה
+      // Enhanced user data fetching with retry
       let userData = null;
       try {
-        console.log('Getting user data...');
-        userData = await firestoreService.getUser(authUser.localId);
+        console.log('📋 WelcomeScreen: Fetching user data with retry...');
+        userData = await fetchWithRetry(
+          () => firestoreService.getUser(authUser.localId),
+          3,
+          300
+        );
       } catch (e) {
-        console.warn('getUser failed (will continue with minimal user):', e);
+        console.warn('⚠️ WelcomeScreen: getUser failed (will continue with minimal user):', e);
       }
 
       const baseUser = {
@@ -183,26 +185,33 @@ export default function WelcomeScreen() {
 
       // Set user immediately so UI can proceed to Join/Create if needed
       setCurrentUser(baseUser);
-      // Make sure UI is not stuck on "initializing"
       setInitializing(false);
-      console.log('WelcomeScreen: setInitializing(false)');
-      // Ensure user sees choice screen
+      console.log('✅ WelcomeScreen: User session created, showing select mode');
       setMode('select');
 
       // Background: resolve apartment without blocking UI
       (async () => {
         try {
-          console.log('Background: resolving current apartment for user...');
-          const currentApartment = await firestoreService.getUserCurrentApartment(authUser.localId);
-          console.log('Background: apartment lookup result:', currentApartment);
+          console.log('🏠 WelcomeScreen: Resolving current apartment for user...');
+          const currentApartment = await fetchWithRetry(
+            () => firestoreService.getUserCurrentApartment(authUser.localId),
+            3,
+            500
+          );
+          console.log('🏠 WelcomeScreen: Apartment lookup result:', currentApartment);
 
-          if (currentApartment) {
-            // update user with apartment id
+          if (currentApartment && isValidApartmentId(currentApartment.id)) {
+            console.log('✅ WelcomeScreen: Valid apartment found, updating user state...');
+            
+            // Update user with apartment id
             useStore.setState(state => ({
-              currentUser: state.currentUser ? { ...state.currentUser, current_apartment_id: currentApartment.id } : state.currentUser,
+              currentUser: state.currentUser ? { 
+                ...state.currentUser, 
+                current_apartment_id: currentApartment.id 
+              } : state.currentUser,
             }));
 
-            console.log('Setting apartment in local state:', {
+            console.log('🏠 WelcomeScreen: Setting apartment in local state:', {
               id: currentApartment.id,
               name: currentApartment.name,
               invite_code: currentApartment.invite_code,
@@ -218,15 +227,12 @@ export default function WelcomeScreen() {
               }
             });
           } else {
-            console.log('no apartment for profile — routing user to Join/Create');
-            // Explicitly ensure UI shows join/create path
-            // If you want to open the "join" tab directly: setMode('join')
-            // but keep default 'select' so user can pick
+            console.log('📭 WelcomeScreen: No valid apartment found — user stays on Join/Create');
             setMode('select');
           }
         } catch (bgErr) {
-          console.warn('Background apartment resolution failed:', bgErr);
-          // keep user on select so they can continue
+          console.warn('⚠️ WelcomeScreen: Background apartment resolution failed:', bgErr);
+          console.log('📭 WelcomeScreen: Keeping user on select mode due to error');
           setMode('select');
         }
       })();
