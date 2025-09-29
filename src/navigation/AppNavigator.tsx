@@ -103,20 +103,18 @@ export default function AppNavigator() {
           if (!currentUser.current_apartment_id && !currentApartment?.id) {
             console.log('📭 AppNavigator: No apartment detected for user – routing to Welcome');
             setHasApartment(false);
-
-            // חשוב: אל תמתין לטעינות תלויות בדירה — כבה מייד את בדיקת הניווט
             setIsCheckingApartment(false);
-
-            // מפנה מיידית ל-Welcome / JoinCreate
             console.log('✅ AppNavigator: Early return - no apartment, routing to Welcome immediately');
             return;
-          } else {
-            // קיימת דירה — נטפל בהרגיל
+          }
+          
+          // User has apartment - handle normally
+          try {
             const apartmentContext = await getApartmentContext();
             console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
             setHasApartment(true);
 
-            // רק כאן נבצע את ה־refresh התלויות-דירה (כי יש דירה ממשית)
+            // Load apartment-dependent data only when we have a real apartment
             try {
               await Promise.all([
                 useStore.getState().refreshApartmentMembers?.(),
@@ -126,6 +124,9 @@ export default function AppNavigator() {
             } catch (refreshError) {
               console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
             }
+          } catch (apartmentError) {
+            console.log('📭 AppNavigator: Error getting apartment context:', apartmentError);
+            setHasApartment(false);
           }
         } else {
           console.log('📭 AppNavigator: No current user');
