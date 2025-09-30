@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { Screen } from '../components/Screen';
 import { getDisplayName } from '../utils/userDisplay';
 import { isValidApartmentId, fetchWithRetry, validateUserSession, safeNavigate } from '../utils/navigation-helpers';
+import { changeAppLanguage } from '../utils/changeLanguage';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -40,7 +41,7 @@ export default function WelcomeScreen() {
   const [initializing, setInitializing] = useState(true);
   const [timedOut, setTimedOut] = useState(false);
 
-  const { setCurrentUser, createApartment, joinApartment } = useStore();
+  const { setCurrentUser, createApartment, joinApartment, appLanguage, setAppLanguage } = useStore();
 
   // Enhanced polling utility with backoff and limits
   const startUserPoll = (uid: string, onFound: (userDoc: any) => void, opts = { intervalMs: 2500, maxAttempts: 40 }) => {
@@ -542,11 +543,26 @@ export default function WelcomeScreen() {
     // User is authenticated, show apartment options
     return (
       <Screen withPadding={true} scroll={false}>
+        {/* Language toggle */}
+        <Pressable
+          onPress={() => {
+            const newLang = appLanguage === 'he' ? 'en' : 'he';
+            setAppLanguage(newLang);
+            changeAppLanguage(newLang);
+          }}
+          className="absolute p-2 rounded-full"
+          style={{ right: 16, top: 60, ...themed.surfaceBg }}
+          accessibilityRole="button"
+          accessibilityLabel={t('settings.language')}
+        >
+          <Ionicons name="language" size={22} color="#111827" />
+        </Pressable>
+
         <View className="flex-1 justify-center">
           <View className="items-center mb-12">
             <Ionicons name="home" size={80} color="#007AFF" />
             <ThemedText className="text-3xl font-bold mt-4 text-center">
-              {t('welcome.hello', { name: getDisplayName(currentUser) })}
+              {t('welcome.hello')}
             </ThemedText>
             <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>
               {t('welcome.subtitle')}
