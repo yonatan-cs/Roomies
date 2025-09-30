@@ -43,8 +43,8 @@ export default function WelcomeScreen() {
 
   const { setCurrentUser, createApartment, joinApartment, appLanguage, setAppLanguage } = useStore();
 
-  // Enhanced polling utility with backoff and limits
-  const startUserPoll = (uid: string, onFound: (userDoc: any) => void, opts = { intervalMs: 2500, maxAttempts: 40 }) => {
+  // Enhanced polling utility with backoff and limits (REDUCED FREQUENCY to save Firestore reads)
+  const startUserPoll = (uid: string, onFound: (userDoc: any) => void, opts = { intervalMs: 5000, maxAttempts: 20 }) => {
     let stopped = false;
     let attempts = 0;
     let timeoutId: any;
