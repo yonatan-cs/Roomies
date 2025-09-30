@@ -89,67 +89,82 @@ export default function AppNavigator() {
 
   // Check if user has an apartment on mount and when apartment state changes
   useEffect(() => {
-    const checkApartmentAccess = async () => {
-      console.log('🚪 AppNavigator: Starting apartment check...');
-      setIsCheckingApartment(true);
-      try {
-        if (currentUser?.id) {
-          console.log('🔍 AppNavigator: Checking apartment access for user:', currentUser.id);
-          console.log('🔍 AppNavigator: Current apartment state:', {
-            currentApartmentId: currentUser.current_apartment_id,
-            localApartmentId: currentApartment?.id,
-            localApartmentName: currentApartment?.name
-          });
-          
-          // Check if user has valid apartment ID using enhanced validation
-          const apartmentIdValidation = validateApartmentIdWithLogging(
-            currentUser.current_apartment_id, 
-            'AppNavigator'
-          );
-          
-          // If user has no valid apartment ID, route to Welcome immediately
-          if (!apartmentIdValidation.isValid && !currentApartment?.id) {
-            console.log('📭 AppNavigator: No valid apartment ID detected for user – routing to Welcome');
-            console.log('📭 AppNavigator: Validation reason:', apartmentIdValidation.reason);
-            setHasApartment(false);
-            setIsCheckingApartment(false);
-            console.log('✅ AppNavigator: Early return - no apartment, routing to Welcome immediately');
-            return;
-          }
-          
-          // User has apartment - handle normally
-          try {
-            const apartmentContext = await getApartmentContext();
-            console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
-            setHasApartment(true);
+    let cancelled = false;
 
-            // Load apartment-dependent data only when we have a real apartment
-            try {
-              await Promise.all([
-                useStore.getState().refreshApartmentMembers?.(),
-                useStore.getState().loadShoppingItems?.(),
-                useStore.getState().loadCleaningTask?.(),
-              ]);
-            } catch (refreshError) {
-              console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
-            }
-          } catch (apartmentError) {
-            console.log('📭 AppNavigator: Error getting apartment context:', apartmentError);
-            setHasApartment(false);
-          }
-        } else {
-          console.log('📭 AppNavigator: No current user');
+    const checkApartmentAccess = async () => {
+      // אין משתמש? אל תעשה כלום
+      if (!currentUser) {
+        console.log('📭 AppNavigator: No current user');
+        setHasApartment(false);
+        setIsCheckingApartment(false);
+        return;
+      }
+
+      // אם המשתמש חדש / אין apartment_id -> דלג על הבדיקה
+      if (!currentUser.current_apartment_id) {
+        console.log('👤 AppNavigator: No apartment_id on user — skipping apartment check (will show Create/Join).', {
+          uid: currentUser.id,
+          hasLocalApartment: !!currentApartment?.id
+        });
+
+        // ודא שהסטייט הרלוונטי מתעדכן נכון:
+        setHasApartment(false);
+        setIsCheckingApartment(false);
+        return;
+      }
+
+      // יש apartment_id — המשך בבדיקה הרגילה
+      try {
+        setIsCheckingApartment(true);
+        console.log('🚪 AppNavigator: Starting apartment check for', currentUser.current_apartment_id);
+        
+        console.log('🔍 AppNavigator: Current apartment state:', {
+          currentApartmentId: currentUser.current_apartment_id,
+          localApartmentId: currentApartment?.id,
+          localApartmentName: currentApartment?.name
+        });
+        
+        // Check if user has valid apartment ID using enhanced validation
+        const apartmentIdValidation = validateApartmentIdWithLogging(
+          currentUser.current_apartment_id, 
+          'AppNavigator'
+        );
+        
+        // If user has no valid apartment ID, route to Welcome immediately
+        if (!apartmentIdValidation.isValid && !currentApartment?.id) {
+          console.log('📭 AppNavigator: No valid apartment ID detected for user – routing to Welcome');
+          console.log('📭 AppNavigator: Validation reason:', apartmentIdValidation.reason);
           setHasApartment(false);
+          if (!cancelled) setIsCheckingApartment(false);
+          return;
         }
-      } catch (error) {
-        console.log('📭 AppNavigator: User has no apartment or error:', error);
+        
+        // User has apartment - handle normally
+        const apartmentContext = await getApartmentContext();
+        console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
+        setHasApartment(true);
+
+        // Load apartment-dependent data only when we have a real apartment
+        try {
+          await Promise.all([
+            useStore.getState().refreshApartmentMembers?.(),
+            useStore.getState().loadShoppingItems?.(),
+            useStore.getState().loadCleaningTask?.(),
+          ]);
+        } catch (refreshError) {
+          console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
+        }
+      } catch (apartmentError) {
+        console.log('📭 AppNavigator: Error getting apartment context:', apartmentError);
         setHasApartment(false);
       } finally {
-        setIsCheckingApartment(false);
+        if (!cancelled) setIsCheckingApartment(false);
       }
     };
 
     checkApartmentAccess();
+
+    return () => { cancelled = true; };
   }, [currentUser?.id, currentUser?.current_apartment_id, currentApartment?.id]); // Listen to apartment changes
 
   // Determine routing based on presence of a valid apartment id
