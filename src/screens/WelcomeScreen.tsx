@@ -280,12 +280,7 @@ export default function WelcomeScreen() {
   };
 
   const handleAuthSuccess = async (user: any) => {
-    console.log('🎉 WelcomeScreen: Auth success, setting user and checking apartment...', {
-      userId: user.id,
-      userEmail: user.email,
-      hasApartmentId: !!user.current_apartment_id
-    });
-    
+    console.log('🎉 WelcomeScreen: Auth success, setting user and checking apartment...');
     setCurrentUser(user);
     
     // For new users, we still need to check if they have an apartment
@@ -300,10 +295,7 @@ export default function WelcomeScreen() {
       );
       
       if (currentApartment && isValidApartmentId(currentApartment.id)) {
-        console.log('✅ WelcomeScreen: Found existing apartment after auth success:', {
-          apartmentId: currentApartment.id,
-          apartmentName: currentApartment.name
-        });
+        console.log('✅ WelcomeScreen: Found existing apartment after auth success:', currentApartment.id);
         
         // Update user with apartment id
         useStore.setState(state => ({
@@ -325,7 +317,6 @@ export default function WelcomeScreen() {
         });
         
         console.log('🏠 WelcomeScreen: User has apartment, will navigate to apartment screen');
-        console.log('🏠 WelcomeScreen: AppNavigator should detect apartment_id and navigate to MainTabs');
         // The AppNavigator will handle navigation to apartment screen
         setInitializing(false);
         return;
@@ -336,7 +327,6 @@ export default function WelcomeScreen() {
     
     // No apartment found - show join/create options
     console.log('📭 WelcomeScreen: No apartment found, showing join/create options');
-    console.log('📭 WelcomeScreen: AppNavigator should detect no apartment_id and show Welcome screen');
     setInitializing(false);
     setMode('select');
   };
@@ -567,12 +557,12 @@ export default function WelcomeScreen() {
         >
           <Ionicons name="language" size={22} color="#111827" />
         </Pressable>
-
+        
         <View className="flex-1 justify-center">
           <View className="items-center mb-12">
             <Ionicons name="home" size={80} color="#007AFF" />
             <ThemedText className="text-3xl font-bold mt-4 text-center">
-              {t('welcome.hello')}
+              {t('welcome.hello', { name: getDisplayName(currentUser) })}
             </ThemedText>
             <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>
               {t('welcome.subtitle')}
