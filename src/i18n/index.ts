@@ -494,8 +494,8 @@ export const resources = {
         support: 'Having issues? Contact support'
       },
       welcome: {
-        hello: 'Welcome to Romiz',
-        subtitle: 'Smart shared living',
+        hello: 'Hello {{name}}!',
+        subtitle: 'Welcome to Romiz',
         createApt: 'Create new apartment',
         joinApt: 'Join existing apartment',
         signOut: 'Sign out',
@@ -1012,8 +1012,8 @@ export const resources = {
         support: 'נתקלת בבעיה? צור קשר עם התמיכה'
       },
       welcome: {
-        hello: 'ברוך הבא לרומיז',
-        subtitle: 'ניהול חכם לחיים משותפים',
+        hello: 'שלום {{name}}!',
+        subtitle: 'ברוך הבא לרומיז',
         createApt: 'יצירת דירה חדשה',
         joinApt: 'הצטרפות לדירה קיימת',
         signOut: 'התנתק',
