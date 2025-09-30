@@ -280,7 +280,12 @@ export default function WelcomeScreen() {
   };
 
   const handleAuthSuccess = async (user: any) => {
-    console.log('🎉 WelcomeScreen: Auth success, setting user and checking apartment...');
+    console.log('🎉 WelcomeScreen: Auth success, setting user and checking apartment...', {
+      userId: user.id,
+      userEmail: user.email,
+      hasApartmentId: !!user.current_apartment_id
+    });
+    
     setCurrentUser(user);
     
     // For new users, we still need to check if they have an apartment
@@ -295,7 +300,10 @@ export default function WelcomeScreen() {
       );
       
       if (currentApartment && isValidApartmentId(currentApartment.id)) {
-        console.log('✅ WelcomeScreen: Found existing apartment after auth success:', currentApartment.id);
+        console.log('✅ WelcomeScreen: Found existing apartment after auth success:', {
+          apartmentId: currentApartment.id,
+          apartmentName: currentApartment.name
+        });
         
         // Update user with apartment id
         useStore.setState(state => ({
@@ -317,6 +325,7 @@ export default function WelcomeScreen() {
         });
         
         console.log('🏠 WelcomeScreen: User has apartment, will navigate to apartment screen');
+        console.log('🏠 WelcomeScreen: AppNavigator should detect apartment_id and navigate to MainTabs');
         // The AppNavigator will handle navigation to apartment screen
         setInitializing(false);
         return;
@@ -327,6 +336,7 @@ export default function WelcomeScreen() {
     
     // No apartment found - show join/create options
     console.log('📭 WelcomeScreen: No apartment found, showing join/create options');
+    console.log('📭 WelcomeScreen: AppNavigator should detect no apartment_id and show Welcome screen');
     setInitializing(false);
     setMode('select');
   };
