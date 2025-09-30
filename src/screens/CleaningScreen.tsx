@@ -88,11 +88,10 @@ export default function CleaningScreen() {
     }
   }, [currentUser, cleaningTask, checklistItems, isMyCleaningTurn]);
 
-  // Load checklist data when screen comes into focus (for live updates)
+  // Load checklist data when screen comes into focus (OPTIMIZED to reduce Firestore reads)
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
-      let pollInterval: NodeJS.Timeout | null = null;
       
       const loadData = async () => {
         if (isActive) {
@@ -103,22 +102,14 @@ export default function CleaningScreen() {
       // Load data immediately
       loadData();
 
-      // Smart polling: only poll when it's not my turn (to see live updates from others)
-      if (!isMyCleaningTurn && checklistItems.length > 0) {
-        pollInterval = setInterval(() => {
-          if (isActive) {
-            loadCleaningChecklist();
-          }
-        }, 5000); // Poll every 5 seconds when watching others
-      }
+      // REMOVED: Smart polling to reduce Firestore reads
+      // Polling every 5 seconds was causing excessive reads
+      // Now only loads data on focus, not continuously
 
       return () => {
         isActive = false;
-        if (pollInterval) {
-          clearInterval(pollInterval);
-        }
       };
-    }, [loadCleaningChecklist, isMyCleaningTurn, checklistItems.length])
+    }, []) // REMOVED dependencies to prevent unnecessary re-runs
   );
 
   // Use the unified turn check from the store
@@ -198,11 +189,8 @@ export default function CleaningScreen() {
       success(); // Success haptic for completing cleaning turn
       setShowConfirmDone(false);
       setTurnCompleted(true); // Mark as completed locally
-      // Reload data to get fresh state
-      await Promise.all([
-        loadCleaningChecklist(),
-        checkOverdueTasks()
-      ]);
+      // Reload data to get fresh state (OPTIMIZED to reduce Firestore reads)
+      await loadCleaningChecklist();
     } catch (error) {
       console.error('Error finishing turn:', error);
       setErrorMessage(t('common.error'));
@@ -214,10 +202,8 @@ export default function CleaningScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadCleaningChecklist(),
-        checkOverdueTasks()
-      ]);
+      // Only load checklist data on refresh to reduce Firestore reads
+      await loadCleaningChecklist();
     } catch (error) {
       console.error('Error refreshing:', error);
     } finally {

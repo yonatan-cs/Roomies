@@ -136,62 +136,58 @@ export default function DashboardScreen() {
     addExpense
   } = useStore();
 
-  // Load all data from Firestore when component mounts
+  // Load all data from Firestore when component mounts (OPTIMIZED to reduce reads)
   useEffect(() => {
     const loadAllData = async () => {
       try {
         console.log('🔄 Dashboard: Loading all data from Firestore...');
         
-        // Load apartment members
+        // Load apartment members only if needed
         if (currentApartment) {
           await refreshApartmentMembers();
         }
         
-        // Load expenses, debt settlements, shopping items, cleaning task, checklist, and stats
+        // Load only essential data on mount - other data loads on focus
         await Promise.all([
           loadExpenses(),
           loadDebtSettlements(),
-          loadShoppingItems(),
-          loadCleaningTask(),
-          loadCleaningChecklist(),
-          loadCleaningStats(),
         ]);
 
         // Backfill cleaning stats if needed (one-time migration)
         await backfillCleaningStats();
         
-        console.log('✅ Dashboard: All data loaded successfully');
+        console.log('✅ Dashboard: Essential data loaded successfully');
       } catch (error) {
         console.error('❌ Dashboard: Error loading data:', error);
       }
     };
 
     loadAllData();
-  }, [currentApartment?.id]); // Reload when apartment changes
+  }, [currentApartment?.id]); // Only reload when apartment actually changes
 
-  // Refresh data when screen comes into focus + light polling
+  // Refresh data when screen comes into focus (OPTIMIZED to reduce Firestore reads)
   useFocusEffect(useCallback(() => {
     const refreshData = async () => {
       try {
         console.log('🔄 Dashboard: Refreshing data on focus...');
+        // Load additional data that wasn't loaded on mount
         await Promise.all([
-          loadExpenses(),
-          loadDebtSettlements(),
-          refreshApartmentMembers(),
+          loadShoppingItems(),
+          loadCleaningTask(),
+          loadCleaningChecklist(),
+          loadCleaningStats(),
         ]);
-        console.log('✅ Dashboard: Data refreshed successfully');
+        console.log('✅ Dashboard: Additional data loaded successfully');
       } catch (error) {
         console.error('❌ Dashboard: Error refreshing data:', error);
       }
     };
 
-    // Initial refresh when screen comes into focus
+    // Load additional data when screen comes into focus
     refreshData();
 
-    // Set up light polling every 15 seconds while screen is focused
-    timerRef.current = setInterval(() => {
-      refreshData();
-    }, 15000);
+    // REMOVED: Polling every 15 seconds to reduce Firestore reads
+    // This was causing excessive reads - now only refreshes on focus
 
     return () => {
       if (timerRef.current) {
@@ -199,7 +195,7 @@ export default function DashboardScreen() {
         timerRef.current = null;
       }
     };
-  }, [loadExpenses, loadDebtSettlements, refreshApartmentMembers]));
+  }, [])); // REMOVED dependencies to prevent unnecessary re-runs
 
   const balances = useMemo(() => getBalances(), [expenses, debtSettlements]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
@@ -1020,7 +1016,7 @@ export default function DashboardScreen() {
             {/* Time Range Filter */}
             <ThemedCard 
               className="rounded-2xl p-4 mb-6 shadow-sm"
-              style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+              style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
             >
               <ThemedText className="text-sm mb-3" style={themed.textSecondary}>{t('dashboard.timeRange')}</ThemedText>
               <View className="flex-row gap-2">
@@ -1060,7 +1056,7 @@ export default function DashboardScreen() {
               <View className="flex-row gap-4">
                 <ThemedCard 
                   className="flex-1 rounded-2xl p-6 shadow-sm"
-                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.totalExpenses')}</ThemedText>
                   <Text className="text-2xl font-bold text-blue-600 mb-1">
@@ -1075,7 +1071,7 @@ export default function DashboardScreen() {
                 
                 <ThemedCard 
                   className="flex-1 rounded-2xl p-6 shadow-sm"
-                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.kingOfExpenses')}</ThemedText>
                   {highlightsStats.kingOfExpenses ? (
@@ -1103,7 +1099,7 @@ export default function DashboardScreen() {
               <View className="flex-row gap-4">
                 <ThemedCard 
                   className="flex-1 rounded-2xl p-6 shadow-sm"
-                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.cleaningsDone')}</ThemedText>
                   <Text className="text-2xl font-bold text-green-600 mb-1">
@@ -1116,7 +1112,7 @@ export default function DashboardScreen() {
                 
                 <ThemedCard 
                   className="flex-1 rounded-2xl p-6 shadow-sm"
-                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.shoppingChampion')}</ThemedText>
                   {highlightsStats.shoppingKing ? (
@@ -1141,7 +1137,7 @@ export default function DashboardScreen() {
               <View className="flex-row gap-4">
                 <ThemedCard 
                   className="flex-1 rounded-2xl p-6 shadow-sm"
-                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>
                     {t('dashboard.biggestExpense', { range: timeRange === '30days' ? '(30)' : 
@@ -1164,7 +1160,7 @@ export default function DashboardScreen() {
                 
                 <ThemedCard 
                   className="flex-1 rounded-2xl p-6 shadow-sm"
-                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                  style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.avgPerMember')}</ThemedText>
                   <Text className="text-lg font-bold text-purple-600 mb-1">
@@ -1179,7 +1175,7 @@ export default function DashboardScreen() {
             {highlightsStats.totalExpenses === 0 && (
               <ThemedCard 
                 className="rounded-2xl p-8 items-center shadow-sm mt-6"
-                style={activeScheme === 'dark' ? { borderColor: theme.colors.border, borderWidth: StyleSheet.hairlineWidth } : undefined}
+                style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
               >
                 <Ionicons name="stats-chart-outline" size={64} color={themed.textSecondary.color} />
                 <ThemedText className="text-lg font-medium mt-4 mb-2">
@@ -1322,7 +1318,7 @@ export default function DashboardScreen() {
                     { backgroundColor: '#f3f4f6' }, // Keep light mode exactly the same
                     activeScheme === 'dark' && { 
                       backgroundColor: theme.colors.card, 
-                      borderColor: theme.colors.border, 
+                      borderColor: theme.colors.border.primary, 
                       borderWidth: StyleSheet.hairlineWidth 
                     }
                   ]}

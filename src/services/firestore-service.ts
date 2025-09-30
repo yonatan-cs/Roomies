@@ -781,11 +781,11 @@ export class FirestoreService {
   }
 
   /**
-   * Get all documents in a collection
+   * Get all documents in a collection (with limit to prevent excessive reads)
    */
-  async getCollection(collectionName: string): Promise<any[]> {
+  async getCollection(collectionName: string, limit: number = 100): Promise<any[]> {
     try {
-      console.log(`📂 Attempting to read collection: ${collectionName}`);
+      console.log(`📂 Attempting to read collection: ${collectionName} (limit: ${limit})`);
       
       const headers = await this.getAuthHeaders();
       if (!headers) {
@@ -793,12 +793,22 @@ export class FirestoreService {
         err.code = 'NO_ID_TOKEN';
         throw err;
       }
-      const url = `${FIRESTORE_BASE_URL}/${collectionName}`;
+      
+      // Use structured query with limit instead of direct collection access
+      const queryBody = {
+        structuredQuery: {
+          from: [{ collectionId: collectionName }],
+          limit: limit
+        }
+      };
+      
+      const url = `${FIRESTORE_BASE_URL}:runQuery`;
       console.log(`🌐 Request URL: ${url}`);
 
       const response = await fetch(url, {
-        method: 'GET',
+        method: 'POST',
         headers,
+        body: JSON.stringify(queryBody),
       });
 
       console.log(`📊 Response status: ${response.status} (${response.statusText})`);
@@ -831,15 +841,18 @@ export class FirestoreService {
         throw new Error(`Failed to get collection '${collectionName}': ${responseData.error?.message || 'Unknown error'}`);
       }
 
-      if (!responseData.documents) {
+      if (!responseData || !Array.isArray(responseData)) {
         console.log(`📁 Collection '${collectionName}' exists but is empty`);
         return [];
       }
 
-      const documents = responseData.documents.map((doc: FirestoreDocument) => ({
-        id: this.extractDocumentId(doc.name),
-        ...this.fromFirestoreFormat(doc.fields)
-      }));
+      // Process structured query response
+      const documents = responseData
+        .filter(item => item.document)
+        .map((item: any) => ({
+          id: this.extractDocumentId(item.document.name),
+          ...this.fromFirestoreFormat(item.document.fields)
+        }));
       
       console.log(`✅ Successfully retrieved ${documents.length} documents from '${collectionName}'`);
       return documents;
