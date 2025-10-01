@@ -181,7 +181,7 @@ export default function WelcomeScreen() {
         name: userData?.full_name,
         display_name: userData?.display_name || userData?.full_name,
         phone: userData?.phone,
-        current_apartment_id: undefined as string | undefined,
+        current_apartment_id: null as string | null, // Explicitly null for new users
       };
 
       // Set user immediately so UI can proceed to Join/Create if needed
