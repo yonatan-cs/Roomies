@@ -84,7 +84,9 @@ export default function AppNavigator() {
   const { i18n, t } = useTranslation();
   const currentUser = useStore(state => state.currentUser);
   const currentApartment = useStore(state => state.currentApartment);
-  const [isCheckingApartment, setIsCheckingApartment] = useState(true);
+  // Start with false to avoid showing loading screen unnecessarily
+  // Will be set to true only when actually checking apartment access
+  const [isCheckingApartment, setIsCheckingApartment] = useState(false);
   const [hasApartment, setHasApartment] = useState(false);
 
   // Check if user has an apartment on mount and when apartment state changes
