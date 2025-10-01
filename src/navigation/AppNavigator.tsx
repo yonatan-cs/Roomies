@@ -84,8 +84,6 @@ export default function AppNavigator() {
   const { i18n, t } = useTranslation();
   const currentUser = useStore(state => state.currentUser);
   const currentApartment = useStore(state => state.currentApartment);
-  // Start with false to avoid showing loading screen unnecessarily
-  // Will be set to true only when actually checking apartment access
   const [isCheckingApartment, setIsCheckingApartment] = useState(false);
   const [hasApartment, setHasApartment] = useState(false);
 
@@ -182,8 +180,8 @@ export default function AppNavigator() {
     );
   }
 
-  // Optional loading while verifying apartment access for users who do have an apartment id
-  if (isCheckingApartment) {
+  // Only show loading for users who have apartment_id but we're still verifying access
+  if (isCheckingApartment && currentUser?.current_apartment_id) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
         <ActivityIndicator size="large" color="#007AFF" />
