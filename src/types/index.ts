@@ -5,7 +5,7 @@ export interface User {
   email: string;
   phone?: string;
   avatar?: string;
-  current_apartment_id?: string;
+  current_apartment_id: string | null; // Explicitly null for new users, string for users with apartment
 }
 
 export interface Apartment {

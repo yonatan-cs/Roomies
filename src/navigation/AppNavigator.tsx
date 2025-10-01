@@ -24,6 +24,35 @@ const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   const { t } = useTranslation();
+  const currentUser = useStore(state => state.currentUser);
+  const currentApartment = useStore(state => state.currentApartment);
+
+  // Load apartment-dependent data when MainTabs mounts
+  useEffect(() => {
+    if (currentUser && currentApartment?.id) {
+      console.log('🏠 MainTabs: Loading apartment data for', currentApartment.id);
+      
+      // Load apartment-dependent data
+      const loadApartmentData = async () => {
+        try {
+          await Promise.all([
+            useStore.getState().refreshApartmentMembers?.(),
+            useStore.getState().loadShoppingItems?.(),
+            useStore.getState().loadCleaningTask?.(),
+            useStore.getState().loadExpenses?.(),
+            useStore.getState().loadDebtSettlements?.(),
+            useStore.getState().loadCleaningChecklist?.(),
+          ]);
+          console.log('✅ MainTabs: Apartment data loaded successfully');
+        } catch (error) {
+          console.log('⚠️ MainTabs: Some apartment data failed to load:', error);
+        }
+      };
+
+      loadApartmentData();
+    }
+  }, [currentUser?.id, currentApartment?.id]);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -84,94 +113,15 @@ export default function AppNavigator() {
   const { i18n, t } = useTranslation();
   const currentUser = useStore(state => state.currentUser);
   const currentApartment = useStore(state => state.currentApartment);
-  const [isCheckingApartment, setIsCheckingApartment] = useState(false);
-  const [hasApartment, setHasApartment] = useState(false);
-
-  // Check if user has an apartment on mount and when apartment state changes
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkApartmentAccess = async () => {
-      // אין משתמש? אל תעשה כלום
-      if (!currentUser) {
-        console.log('📭 AppNavigator: No current user');
-        setHasApartment(false);
-        setIsCheckingApartment(false);
-        return;
-      }
-
-      // אם המשתמש חדש / אין apartment_id -> דלג על הבדיקה
-      if (!currentUser.current_apartment_id) {
-        console.log('👤 AppNavigator: No apartment_id on user — skipping apartment check (will show Create/Join).', {
-          uid: currentUser.id,
-          hasLocalApartment: !!currentApartment?.id
-        });
-
-        // ודא שהסטייט הרלוונטי מתעדכן נכון:
-        setHasApartment(false);
-        setIsCheckingApartment(false);
-        return;
-      }
-
-      // יש apartment_id — המשך בבדיקה הרגילה
-      try {
-        setIsCheckingApartment(true);
-        console.log('🚪 AppNavigator: Starting apartment check for', currentUser.current_apartment_id);
-        
-        console.log('🔍 AppNavigator: Current apartment state:', {
-          currentApartmentId: currentUser.current_apartment_id,
-          localApartmentId: currentApartment?.id,
-          localApartmentName: currentApartment?.name
-        });
-        
-        // Check if user has valid apartment ID using enhanced validation
-        const apartmentIdValidation = validateApartmentIdWithLogging(
-          currentUser.current_apartment_id, 
-          'AppNavigator'
-        );
-        
-        // If user has no valid apartment ID, route to Welcome immediately
-        if (!apartmentIdValidation.isValid && !currentApartment?.id) {
-          console.log('📭 AppNavigator: No valid apartment ID detected for user – routing to Welcome');
-          console.log('📭 AppNavigator: Validation reason:', apartmentIdValidation.reason);
-          setHasApartment(false);
-          if (!cancelled) setIsCheckingApartment(false);
-          return;
-        }
-        
-        // User has apartment - handle normally
-        const apartmentContext = await getApartmentContext();
-        console.log('✅ AppNavigator: User has apartment:', apartmentContext.aptId);
-        setHasApartment(true);
-
-        // Load apartment-dependent data only when we have a real apartment
-        try {
-          await Promise.all([
-            useStore.getState().refreshApartmentMembers?.(),
-            useStore.getState().loadShoppingItems?.(),
-            useStore.getState().loadCleaningTask?.(),
-          ]);
-        } catch (refreshError) {
-          console.log('⚠️ AppNavigator: Some data refresh failed:', refreshError);
-        }
-      } catch (apartmentError) {
-        console.log('📭 AppNavigator: Error getting apartment context:', apartmentError);
-        setHasApartment(false);
-      } finally {
-        if (!cancelled) setIsCheckingApartment(false);
-      }
-    };
-
-    checkApartmentAccess();
-
-    return () => { cancelled = true; };
-  }, [currentUser?.id, currentUser?.current_apartment_id, currentApartment?.id]); // Listen to apartment changes
 
   // Determine routing based on presence of a valid apartment id
-  const hasValidApartmentId = !!currentApartment?.id || isValidApartmentId(currentUser?.current_apartment_id);
+  // Check for null/undefined apartment_id (new users) or invalid apartment_id
+  const aptId = currentUser?.current_apartment_id;
+  const hasValidApartmentId = !!currentApartment?.id || 
+    (typeof aptId === 'string' && aptId.trim().length > 0 && isValidApartmentId(aptId));
   const showWelcome = !currentUser || !hasValidApartmentId;
 
-  // If we already know there's no apartment, route to Welcome immediately (avoid indefinite spinner)
+  // If we already know there's no apartment, route to Welcome immediately
   if (!currentUser || !hasValidApartmentId) {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -179,21 +129,10 @@ export default function AppNavigator() {
       </Stack.Navigator>
     );
   }
-
-  // Only show loading for users who have apartment_id but we're still verifying access
-  if (isCheckingApartment && currentUser?.current_apartment_id) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{ marginTop: 16, color: '#666' }}>טוען...</Text>
-      </View>
-    );
-  }
   
   console.log('🚪 AppNavigator: Navigation decision:', {
     showWelcome,
     hasUser: !!currentUser,
-    hasApartment,
     hasCurrentApartment: !!currentApartment,
     hasValidApartmentId,
     userId: currentUser?.id,

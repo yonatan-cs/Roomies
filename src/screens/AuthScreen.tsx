@@ -185,7 +185,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         name: fullName.trim(),
         display_name: fullName.trim(),
         phone: phone.trim(),
-        current_apartment_id: undefined as any,
+        current_apartment_id: null, // Explicitly null for new users
       };
 
       Alert.alert(
