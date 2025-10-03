@@ -87,15 +87,32 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       // Get user data from Firestore
-      const userData = await firestoreService.getUser(authUser.localId);
+      let userData = null;
+      try {
+        userData = await firestoreService.getUser(authUser.localId);
+      } catch (error) {
+        console.warn('⚠️ Login: getUser failed, continuing with minimal user data:', error);
+        // Don't fail login if user data fetch fails - continue with minimal data
+      }
       
       if (!userData) {
-        // User doesn't exist in Firestore, this shouldn't happen
-        throw new Error(t('auth.errors.userDataNotFound'));
+        // User doesn't exist in Firestore or fetch failed, create minimal user data
+        console.log('📋 Login: Creating minimal user data for user:', authUser.localId);
+        userData = {
+          full_name: authUser.displayName || authUser.email?.split('@')[0] || 'User',
+          display_name: authUser.displayName || authUser.email?.split('@')[0] || 'User',
+          phone: null,
+        };
       }
 
-      // Get user's current apartment based on membership
-      const currentApartment = await firestoreService.getUserCurrentApartment(authUser.localId);
+      // Get user's current apartment based on membership (don't fail if this fails)
+      let currentApartment = null;
+      try {
+        currentApartment = await firestoreService.getUserCurrentApartment(authUser.localId);
+      } catch (error) {
+        console.warn('⚠️ Login: getUserCurrentApartment failed, continuing without apartment:', error);
+        // Don't fail login if apartment fetch fails
+      }
 
       // Combine auth and user data
       const user = {
@@ -170,14 +187,6 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
       await firestoreService.createUser(userData);
       
-      // Ensure auth is stabilized and token is present before proceeding
-      try {
-        // best-effort small wait + force token refresh via firebaseAuth service
-        await new Promise(resolve => setTimeout(resolve, 300));
-        // try to obtain/refresh token via service (errors are logged inside)
-        await firebaseAuth.getCurrentIdToken();
-      } catch (_) {}
-
       // Combine auth and user data
       const user = {
         id: authUser.localId,
@@ -188,17 +197,66 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         current_apartment_id: null, // Explicitly null for new users
       };
 
-      // Auto-continue immediately to avoid blocking on Alert button
+      // Call onAuthSuccess immediately to prevent timeout issues
       try {
+        console.log('🎉 Registration successful, calling onAuthSuccess immediately...');
+        console.log('🎉 User data being passed:', { id: user.id, email: user.email, current_apartment_id: user.current_apartment_id });
+        console.log('🎉 onAuthSuccess function type:', typeof onAuthSuccess);
+        console.log('🎉 onAuthSuccess function:', onAuthSuccess);
+        
         onAuthSuccess(user);
-      } catch (_) {}
+        console.log('✅ onAuthSuccess called successfully');
+      } catch (error) {
+        console.error('❌ Error in onAuthSuccess:', error);
+        console.error('❌ Error stack:', error.stack);
+        // Don't let errors prevent the registration flow from completing
+        console.log('🔄 Registration completed with fallback - user will be directed to apartment selection');
+        
+        // Fallback: Try to set the user directly in the store and navigate
+        try {
+          console.log('🔄 Attempting fallback navigation...');
+          // Import the store and set user directly
+          const { useStore } = await import('../state/store');
+          useStore.getState().setCurrentUser(user);
+          console.log('✅ Fallback: User set in store');
+        } catch (fallbackError) {
+          console.error('❌ Fallback also failed:', fallbackError);
+        }
+      }
+
+      // Additional fallback: Force navigation after a short delay
+      setTimeout(async () => {
+        console.log('🔄 Additional fallback: Checking if user is set...');
+        try {
+          const { useStore } = await import('../state/store');
+          const currentUser = useStore.getState().currentUser;
+          if (currentUser) {
+            console.log('✅ Additional fallback: User found in store, navigation should work');
+          } else {
+            console.log('❌ Additional fallback: No user in store, setting user...');
+            useStore.getState().setCurrentUser(user);
+          }
+        } catch (error) {
+          console.error('❌ Additional fallback failed:', error);
+        }
+      }, 500);
+
+      // Ensure auth is stabilized after onAuthSuccess (non-blocking)
+      setTimeout(async () => {
+        try {
+          await firebaseAuth.getCurrentIdToken();
+        } catch (_) {}
+      }, 100);
 
       // Show informational alert (non-blocking for navigation)
-      Alert.alert(
-        t('auth.errors.registerSuccessTitle'),
-        t('auth.errors.registerSuccessBody'),
-        [{ text: t('common.ok') }]
-      );
+      // Use setTimeout to ensure the alert doesn't block the async flow
+      setTimeout(() => {
+        Alert.alert(
+          t('auth.errors.registerSuccessTitle'),
+          t('auth.errors.registerSuccessBody'),
+          [{ text: t('common.ok') }]
+        );
+      }, 100);
     } catch (error: any) {
       console.error('Registration error:', error);
       setRegisterError(error.message || t('common.error'));
@@ -474,6 +532,40 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             {registerError && (
               <View className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
                 <Text className="text-red-600 text-center">{registerError}</Text>
+                
+                {/* Show helpful action for email exists error */}
+                {registerError.includes('כתובת האימייל כבר קיימת במערכת') && (
+                  <View className="mt-3">
+                    <Text className="text-gray-600 text-center text-sm mb-3">
+                      This email is already registered. Would you like to:
+                    </Text>
+                    <View className="space-y-2">
+                      <Pressable
+                        onPress={() => {
+                          setTab('login');
+                          setRegisterError(null);
+                          setLoginError(null);
+                        }}
+                        className="bg-blue-500 py-2 px-4 rounded-lg"
+                      >
+                        <Text className="text-white text-center font-medium">
+                          Sign in instead
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          setRegisterError(null);
+                          setRegisterEmail('');
+                        }}
+                        className="bg-gray-200 py-2 px-4 rounded-lg"
+                      >
+                        <Text className="text-gray-700 text-center font-medium">
+                          Use different email
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
               </View>
             )}
 
