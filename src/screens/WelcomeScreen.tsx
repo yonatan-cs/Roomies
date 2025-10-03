@@ -39,9 +39,46 @@ export default function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  
+  // Debug function to track initializing state changes
+  const debugSetInitializing = (value: boolean, source: string) => {
+    console.log(`🔍 setInitializing(${value}) called from: ${source}`);
+    setInitializing(value);
+  };
   const [timedOut, setTimedOut] = useState(false);
+  const [isNewUserRegistration, setIsNewUserRegistration] = useState(false);
 
-  const { setCurrentUser, createApartment, joinApartment, appLanguage, setAppLanguage } = useStore();
+  const { setCurrentUser, createApartment, joinApartment, appLanguage, setAppLanguage, setDisableFirestoreForNewUsers } = useStore();
+
+  // Debug useEffect to track initializing state changes
+  useEffect(() => {
+    console.log(`🔍 initializing state changed to: ${initializing}`);
+    console.log(`🔍 Current state values:`, {
+      initializing,
+      mode,
+      isNewUserRegistration,
+      disableFirestoreForNewUsers: useStore.getState().disableFirestoreForNewUsers,
+      currentUser: !!useStore.getState().currentUser
+    });
+  }, [initializing, mode, isNewUserRegistration]);
+
+  // Additional useEffect to detect when user is set externally (from AuthScreen fallback)
+  useEffect(() => {
+    const currentUser = useStore.getState().currentUser;
+    if (currentUser && initializing && !isNewUserRegistration) {
+      console.log('🔍 External user detected, forcing navigation to join/create screen');
+      console.log('🔍 User data:', { id: currentUser.id, email: currentUser.email, current_apartment_id: currentUser.current_apartment_id });
+      
+      if (!currentUser.current_apartment_id) {
+        console.log('🔍 New user detected externally, setting up...');
+        setIsNewUserRegistration(true);
+        setDisableFirestoreForNewUsers(true);
+        useStore.setState({ currentApartment: undefined });
+        debugSetInitializing(false, 'external user detection');
+        setMode('select');
+      }
+    }
+  }, [useStore.getState().currentUser, initializing, isNewUserRegistration]);
 
   // Enhanced polling utility with backoff and limits (REDUCED FREQUENCY to save Firestore reads)
   const startUserPoll = (uid: string, onFound: (userDoc: any) => void, opts = { intervalMs: 5000, maxAttempts: 20 }) => {
@@ -118,10 +155,16 @@ export default function WelcomeScreen() {
 
   // Check for existing user session on component mount
   useEffect(() => {
+    // Skip checkUserSession for new user registrations to avoid Firestore quota issues
+    if (isNewUserRegistration || useStore.getState().disableFirestoreForNewUsers) {
+      console.log('👤 WelcomeScreen: Skipping checkUserSession useEffect for new user registration');
+      return;
+    }
+    
     let cleanup: (() => void) | undefined;
     (async () => { cleanup = await checkUserSession(); })();
     return () => { cleanup?.(); };
-  }, []);
+  }, [isNewUserRegistration]);
 
   // fallback timeout — if initialization takes too long, fall back to Auth
   useEffect(() => {
@@ -130,9 +173,15 @@ export default function WelcomeScreen() {
       return;
     }
 
-    const TIMEOUT_MS = 2000; // 2s
+    // Don't timeout for new user registrations to avoid interfering with the flow
+    if (isNewUserRegistration || useStore.getState().disableFirestoreForNewUsers) {
+      console.log('👤 WelcomeScreen: Skipping timeout for new user registration');
+      return;
+    }
+
+    const TIMEOUT_MS = 5000; // Increased to 5s to give more time
     const timer = setTimeout(() => {
-      console.warn('WelcomeScreen: initialization timeout (>10s). Falling back to Auth screen.');
+      console.warn('WelcomeScreen: initialization timeout (>5s). Falling back to Auth screen.');
       setTimedOut(true);
       setInitializing(false);
       setCurrentUser(undefined as any);
@@ -140,10 +189,19 @@ export default function WelcomeScreen() {
     }, TIMEOUT_MS);
 
     return () => clearTimeout(timer);
-  }, [initializing]);
+  }, [initializing, isNewUserRegistration]);
 
   const checkUserSession = async (): Promise<(() => void) | undefined> => {
+    console.log('🔐 WelcomeScreen: checkUserSession called!');
     console.log('🔐 WelcomeScreen: Checking user session...');
+    console.log('🔐 WelcomeScreen: isNewUserRegistration:', isNewUserRegistration);
+    console.log('🔐 WelcomeScreen: disableFirestoreForNewUsers:', useStore.getState().disableFirestoreForNewUsers);
+    
+    // Skip Firestore operations for new user registrations to avoid quota issues
+    if (isNewUserRegistration || useStore.getState().disableFirestoreForNewUsers) {
+      console.log('👤 WelcomeScreen: Skipping checkUserSession for new user registration');
+      return;
+    }
     
     try {
       // Enhanced user session validation with retry logic
@@ -155,24 +213,22 @@ export default function WelcomeScreen() {
       if (!sessionValidation.isValid) {
         console.log('🔐 WelcomeScreen: No valid session, showing Auth screen');
         console.log('🔐 WelcomeScreen: Validation error:', sessionValidation.error);
-        setInitializing(false);
+        debugSetInitializing(false, 'checkUserSession - no valid session');
         return;
       }
 
       const authUser = sessionValidation.user;
       console.log('✅ WelcomeScreen: Valid session found, creating user session...');
 
-      // Enhanced user data fetching with retry
+      // Try to fetch user data, but don't retry to avoid quota issues
       let userData = null;
       try {
-        console.log('📋 WelcomeScreen: Fetching user data with retry...');
-        userData = await fetchWithRetry(
-          () => firestoreService.getUser(authUser.localId),
-          3,
-          300
-        );
+        console.log('📋 WelcomeScreen: Fetching user data...');
+        userData = await firestoreService.getUser(authUser.localId);
+        console.log('✅ WelcomeScreen: User data fetched successfully');
       } catch (e) {
         console.warn('⚠️ WelcomeScreen: getUser failed (will continue with minimal user):', e);
+        // Don't retry to avoid quota issues - continue with minimal user data
       }
 
       const baseUser = {
@@ -186,11 +242,22 @@ export default function WelcomeScreen() {
 
       // Set user immediately so UI can proceed to Join/Create if needed
       setCurrentUser(baseUser);
+      
+      // Clear any existing apartment state to ensure AppNavigator routes correctly
+      useStore.setState({ currentApartment: undefined });
+      
       setInitializing(false);
       console.log('✅ WelcomeScreen: User session created, showing select mode');
       setMode('select');
 
-      // Background: resolve apartment without blocking UI
+      // For new users (those with null current_apartment_id), skip background apartment resolution
+      // to avoid Firestore quota issues and unnecessary API calls
+      if (!userData?.current_apartment_id) {
+        console.log('👤 WelcomeScreen: New user detected, skipping background apartment resolution and polling');
+        return;
+      }
+
+      // Background: resolve apartment without blocking UI (only for existing users)
       (async () => {
         try {
           console.log('🏠 WelcomeScreen: Resolving current apartment for user...');
@@ -236,39 +303,40 @@ export default function WelcomeScreen() {
           console.log('📭 WelcomeScreen: Keeping user on select mode due to error');
           setMode('select');
         }
-      })();
 
-      // Attach enhanced polling listener to auto-advance when user gains apartment
-      let stopPolling: (() => void) | undefined;
-      try {
-        stopPolling = startUserPoll(authUser.localId, async (userDoc) => {
-          console.log('poll: found apartment in user doc:', userDoc);
-          const aptId = userDoc.current_apartment_id || userDoc.apartment?.id;
-          if (aptId) {
-            try {
-              const apartment = await firestoreService.getApartment(aptId);
-              // Use functional updates for safer state management
-              useStore.setState(state => ({
-                currentUser: state.currentUser ? { ...state.currentUser, current_apartment_id: aptId } : state.currentUser,
-                currentApartment: {
-                  id: apartment.id,
-                  name: apartment.name,
-                  invite_code: apartment.invite_code,
-                  members: [],
-                  createdAt: new Date(),
-                }
-              }));
-              console.log('poll: apartment assigned, updating store');
-            } catch (e) {
-              console.warn('poll: failed to load apartment', e);
+        // Attach enhanced polling listener to auto-advance when user gains apartment
+        // Only for existing users who might be added to apartments
+        let stopPolling: (() => void) | undefined;
+        try {
+          stopPolling = startUserPoll(authUser.localId, async (userDoc) => {
+            console.log('poll: found apartment in user doc:', userDoc);
+            const aptId = userDoc.current_apartment_id || userDoc.apartment?.id;
+            if (aptId) {
+              try {
+                const apartment = await firestoreService.getApartment(aptId);
+                // Use functional updates for safer state management
+                useStore.setState(state => ({
+                  currentUser: state.currentUser ? { ...state.currentUser, current_apartment_id: aptId } : state.currentUser,
+                  currentApartment: {
+                    id: apartment.id,
+                    name: apartment.name,
+                    invite_code: apartment.invite_code,
+                    members: [],
+                    createdAt: new Date(),
+                  }
+                }));
+                console.log('poll: apartment assigned, updating store');
+              } catch (e) {
+                console.warn('poll: failed to load apartment', e);
+              }
             }
-          }
-        });
-      } catch (e) {
-        console.warn('Could not start user poll', e);
-      }
-
-      return stopPolling;
+          });
+        } catch (e) {
+          console.warn('Could not start user poll', e);
+        }
+        
+        return stopPolling;
+      })();
 
     } catch (error) {
       console.error('Session restore error:', error);
@@ -279,56 +347,89 @@ export default function WelcomeScreen() {
     }
   };
 
-  const handleAuthSuccess = async (user: any) => {
+  const handleAuthSuccess = (user: any) => {
+    console.log('🎉 WelcomeScreen: handleAuthSuccess called!');
     console.log('🎉 WelcomeScreen: Auth success, setting user and checking apartment...');
+    console.log('🎉 WelcomeScreen: User data:', { id: user.id, email: user.email, current_apartment_id: user.current_apartment_id });
+    
     setCurrentUser(user);
     
-    // For new users, we still need to check if they have an apartment
-    // This handles the case where a user might have been added to an apartment
-    // between registration and login
-    try {
-      console.log('🔍 WelcomeScreen: Checking for existing apartment after auth success...');
-      const currentApartment = await fetchWithRetry(
-        () => firestoreService.getUserCurrentApartment(user.id),
-        2, // Fewer retries for new users
-        300
-      );
+    // For new users (those with null current_apartment_id), skip ALL Firestore operations
+    // to avoid quota issues and unnecessary API calls
+    if (!user.current_apartment_id) {
+      console.log('👤 WelcomeScreen: New user detected (no apartment_id), skipping ALL Firestore operations');
+      console.log('📭 WelcomeScreen: Directing new user to join/create apartment screen');
       
-      if (currentApartment && isValidApartmentId(currentApartment.id)) {
-        console.log('✅ WelcomeScreen: Found existing apartment after auth success:', currentApartment.id);
-        
-        // Update user with apartment id
-        useStore.setState(state => ({
-          currentUser: state.currentUser ? { 
-            ...state.currentUser, 
-            current_apartment_id: currentApartment.id 
-          } : state.currentUser,
-        }));
-
-        // Set apartment in local state
-        useStore.setState({
-          currentApartment: {
-            id: currentApartment.id,
-            name: currentApartment.name,
-            invite_code: currentApartment.invite_code,
-            members: [],
-            createdAt: new Date(),
-          }
-        });
-        
-        console.log('🏠 WelcomeScreen: User has apartment, will navigate to apartment screen');
-        // The AppNavigator will handle navigation to apartment screen
-        setInitializing(false);
-        return;
-      }
-    } catch (error) {
-      console.log('📭 WelcomeScreen: No apartment found or error checking apartment:', error);
+      // Set all flags and states immediately
+      setIsNewUserRegistration(true);
+      setDisableFirestoreForNewUsers(true);
+      useStore.setState({ currentApartment: undefined });
+      
+      console.log('✅ WelcomeScreen: Setting initializing to false for new user');
+      debugSetInitializing(false, 'handleAuthSuccess - new user');
+      setMode('select');
+      console.log('✅ WelcomeScreen: New user setup completed');
+      
+      // Force a re-render by updating a dummy state
+      setTimeout(() => {
+        console.log('🔄 WelcomeScreen: Force re-render after 100ms');
+        debugSetInitializing(false, 'handleAuthSuccess - force re-render');
+      }, 100);
+      
+      return;
     }
     
-    // No apartment found - show join/create options
-    console.log('📭 WelcomeScreen: No apartment found, showing join/create options');
-    setInitializing(false);
-    setMode('select');
+    // For existing users, check if they have an apartment
+    // This handles the case where a user might have been added to an apartment
+    // between registration and login
+    (async () => {
+      try {
+        console.log('🔍 WelcomeScreen: Checking for existing apartment after auth success...');
+        const currentApartment = await fetchWithRetry(
+          () => firestoreService.getUserCurrentApartment(user.id),
+          2, // Fewer retries for existing users
+          300
+        );
+        
+        if (currentApartment && isValidApartmentId(currentApartment.id)) {
+          console.log('✅ WelcomeScreen: Found existing apartment after auth success:', currentApartment.id);
+          
+          // Update user with apartment id
+          useStore.setState(state => ({
+            currentUser: state.currentUser ? { 
+              ...state.currentUser, 
+              current_apartment_id: currentApartment.id 
+            } : state.currentUser,
+          }));
+
+          // Set apartment in local state
+          useStore.setState({
+            currentApartment: {
+              id: currentApartment.id,
+              name: currentApartment.name,
+              invite_code: currentApartment.invite_code,
+              members: [],
+              createdAt: new Date(),
+            }
+          });
+          
+          console.log('🏠 WelcomeScreen: User has apartment, will navigate to apartment screen');
+          // The AppNavigator will handle navigation to apartment screen
+          setInitializing(false);
+          return;
+        }
+      } catch (error) {
+        console.log('📭 WelcomeScreen: No apartment found or error checking apartment:', error);
+        // Don't let Firestore errors prevent users from reaching the join/create screen
+        // This handles cases like quota exceeded, network issues, etc.
+      }
+      
+      // No apartment found - show join/create options
+      // This is the expected flow for new users after registration
+      console.log('📭 WelcomeScreen: No apartment found, showing join/create options');
+      setInitializing(false);
+      setMode('select');
+    })();
   };
 
   const handleCreateApartment = async () => {
@@ -382,6 +483,9 @@ export default function WelcomeScreen() {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('Apartment creation completed successfully');
+      
+      // Reset the Firestore disable flag since user now has an apartment
+      setDisableFirestoreForNewUsers(false);
       
     } catch (error: any) {
       console.error('Create apartment error:', error);
@@ -452,6 +556,9 @@ export default function WelcomeScreen() {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('🎉 Apartment join process completed successfully!');
+      
+      // Reset the Firestore disable flag since user now has an apartment
+      setDisableFirestoreForNewUsers(false);
       
     } catch (error: any) {
       console.error('❌ Join apartment error:', error);

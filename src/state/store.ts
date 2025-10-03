@@ -167,6 +167,11 @@ export const useStore = create<AppState>()(
 
       // Checklist state (Firestore-based)
       checklistItems: [],
+      
+      // Flag to disable Firestore operations for new users (to avoid quota issues)
+      disableFirestoreForNewUsers: false,
+      setDisableFirestoreForNewUsers: (disable) => set({ disableFirestoreForNewUsers: disable }),
+      
       // Language setter
       setAppLanguage: (lang) => set({ appLanguage: lang }),
       // Theme setter
