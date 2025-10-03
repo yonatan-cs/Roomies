@@ -188,10 +188,16 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         current_apartment_id: null, // Explicitly null for new users
       };
 
+      // Auto-continue immediately to avoid blocking on Alert button
+      try {
+        onAuthSuccess(user);
+      } catch (_) {}
+
+      // Show informational alert (non-blocking for navigation)
       Alert.alert(
         t('auth.errors.registerSuccessTitle'),
         t('auth.errors.registerSuccessBody'),
-        [{ text: t('auth.errors.continue'), onPress: () => onAuthSuccess(user) }]
+        [{ text: t('common.ok') }]
       );
     } catch (error: any) {
       console.error('Registration error:', error);
