@@ -604,8 +604,9 @@ export default function SettingsScreen() {
             onPress={async () => {
               try {
                 warning(); // Haptic feedback for sign out action
-                await firebaseAuth.signOut();
-                // Clear local state
+                console.log('🚪 Signing out user...');
+                
+                // Clear local state first to immediately trigger navigation
                 useStore.setState({
                   currentUser: undefined,
                   currentApartment: undefined,
@@ -613,7 +614,12 @@ export default function SettingsScreen() {
                   expenses: [],
                   shoppingItems: [],
                   checklistItems: [],
+                  disableFirestoreForNewUsers: false, // Reset Firestore flag
                 });
+                
+                // Then perform actual sign out
+                await firebaseAuth.signOut();
+                console.log('✅ Sign out completed successfully');
               } catch (error) {
                 console.error('Sign out error:', error);
                 Alert.alert(t('common.error'), t('settings.alerts.cannotSignOut'));
