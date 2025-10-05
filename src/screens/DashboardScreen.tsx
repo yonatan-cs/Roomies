@@ -685,7 +685,7 @@ export default function DashboardScreen() {
 
   return (
     <View className="flex-1" style={themed.backgroundBg}>
-      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-2">
           <ThemedText className="text-2xl font-bold">
             {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
@@ -995,7 +995,7 @@ export default function DashboardScreen() {
       >
         <ThemedView className="flex-1" style={themed.surfaceBg}>
           {/* Header */}
-          <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
+          <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}

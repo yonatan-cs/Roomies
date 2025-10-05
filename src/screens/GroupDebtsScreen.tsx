@@ -270,7 +270,7 @@ export default function GroupDebtsScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       {/* Header */}
-      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-4">
           <Pressable
             onPress={() => navigation.goBack()}
