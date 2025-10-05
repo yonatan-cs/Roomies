@@ -15,6 +15,7 @@ import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { firebaseNotificationService } from '../services/firebase-notification-service';
+import { getTaskLabel } from '../utils/taskLabel';
 
 
 export default function SettingsScreen() {
@@ -448,7 +449,7 @@ export default function SettingsScreen() {
                     }}
                   />
                 ) : (
-                  <ThemedText className="flex-1 text-base">{item.title}</ThemedText>
+                  <ThemedText className="flex-1 text-base">{getTaskLabel(item)}</ThemedText>
                 )}
                 {!isEditing ? (
                   <View className="flex-row ml-2">
@@ -456,7 +457,7 @@ export default function SettingsScreen() {
                       onPress={() => {
                         impactLight(); // Haptic feedback for edit task
                         setEditingChoreId(item.id);
-                        setEditingChoreName(item.title);
+                        setEditingChoreName(getTaskLabel(item));
                       }}
                       className="p-2"
                     >
@@ -664,7 +665,7 @@ export default function SettingsScreen() {
             if (currentUser) {
               setCurrentUser({ 
                 ...currentUser, 
-                current_apartment_id: undefined 
+                current_apartment_id: null 
               });
             }
             
