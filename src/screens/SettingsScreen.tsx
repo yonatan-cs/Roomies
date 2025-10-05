@@ -71,6 +71,7 @@ export default function SettingsScreen() {
     borderColor: { borderColor: tk.colors.border.primary },
     inputBg: { backgroundColor: tk.colors.card },
     inputText: { color: tk.colors.text.primary },
+    buttonText: { color: '#111827' }, // Always dark for unselected buttons
   }));
 
   const handleSaveName = async () => {
@@ -396,7 +397,7 @@ export default function SettingsScreen() {
                   }}
                   className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textPrimary : undefined}>{label}</ThemedText>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : undefined}>{label}</ThemedText>
                 </Pressable>
               );
             })}
@@ -416,7 +417,7 @@ export default function SettingsScreen() {
                   }}
                   className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textPrimary : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
                 </Pressable>
               );
             })}
