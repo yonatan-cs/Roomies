@@ -94,6 +94,7 @@ export default function BudgetScreen() {
   const navigation = useNavigation<NavigationProp>();
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
+    backgroundBg: { backgroundColor: tk.colors.background },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
   }));
@@ -331,7 +332,7 @@ export default function BudgetScreen() {
   }
 
   return (
-    <ThemedView className="flex-1" style={themed.surfaceBg}>
+    <ThemedView className="flex-1" style={themed.backgroundBg}>
       <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-center mb-4 relative">
           <ThemedText className="text-2xl font-bold text-center">{t('budget.title')}</ThemedText>
