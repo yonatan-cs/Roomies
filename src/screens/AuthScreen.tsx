@@ -42,7 +42,10 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
+    textPrimary: { color: tk.colors.text.primary },
     borderColor: { borderColor: tk.colors.border.primary },
+    inputBg: { backgroundColor: tk.colors.card },
+    inputText: { color: tk.colors.text.primary },
   }));
 
   // Login form state
@@ -312,7 +315,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             style={tab === 'login' ? { backgroundColor: '#ffffff' } : undefined}
             onPress={() => setTab('login')}
           >
-            <ThemedText className={`font-semibold ${tab === 'login' ? 'text-blue-600' : ''}`} style={tab === 'login' ? undefined : themed.textSecondary}>{t('auth.loginTab')}</ThemedText>
+            <ThemedText className="font-semibold" style={tab === 'login' ? { color: '#111827' } : themed.textPrimary}>{t('auth.loginTab')}</ThemedText>
             {tab === 'login' && (
               <View className="h-0.5 bg-blue-600 w-10 mt-2 rounded-full" />
             )}
@@ -322,7 +325,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             style={tab === 'register' ? { backgroundColor: '#ffffff' } : undefined}
             onPress={() => setTab('register')}
           >
-            <ThemedText className={`font-semibold ${tab === 'register' ? 'text-green-600' : ''}`} style={tab === 'register' ? undefined : themed.textSecondary}>{t('auth.registerTab')}</ThemedText>
+            <ThemedText className="font-semibold" style={tab === 'register' ? { color: '#111827' } : themed.textPrimary}>{t('auth.registerTab')}</ThemedText>
             {tab === 'register' && (
               <View className="h-0.5 bg-green-600 w-10 mt-2 rounded-full" />
             )}
@@ -340,7 +343,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 onChangeText={setLoginEmail}
                 placeholder={t('auth.emailPlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
+                style={[themed.borderColor, themed.inputBg, themed.inputText]}
                 textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -348,6 +351,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 editable={!loginLoading}
                 returnKeyType="next"
                 blurOnSubmit={false}
+                placeholderTextColor={themed.textSecondary.color}
               />
             </View>
 
@@ -360,7 +364,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   onChangeText={setLoginPassword}
                   placeholder={t('auth.passwordPlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base pr-12"
-                  style={themed.borderColor}
+                  style={[themed.borderColor, themed.inputBg, themed.inputText]}
                   textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showLoginPassword}
                   autoCapitalize="none"
@@ -368,6 +372,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   editable={!loginLoading}
                   returnKeyType="done"
                   onSubmitEditing={handleLogin}
+                  placeholderTextColor={themed.textSecondary.color}
                 />
                 <Pressable
                   onPress={() => setShowLoginPassword(!showLoginPassword)}
@@ -378,7 +383,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   <Ionicons 
                     name={showLoginPassword ? "eye-off" : "eye"} 
                     size={24} 
-                    color="#666" 
+                    color={themed.textSecondary.color} 
                   />
                 </Pressable>
               </View>
@@ -421,12 +426,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 onChangeText={setFullName}
                 placeholder={t('auth.fullNamePlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
+                style={[themed.borderColor, themed.inputBg, themed.inputText]}
                 textAlign={isRTL ? 'right' : 'left'}
                 autoCapitalize="words"
                 editable={!registerLoading}
                 returnKeyType="next"
                 blurOnSubmit={false}
+                placeholderTextColor={themed.textSecondary.color}
               />
             </View>
 
@@ -438,7 +444,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 onChangeText={setRegisterEmail}
                 placeholder={t('auth.emailPlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
+                style={[themed.borderColor, themed.inputBg, themed.inputText]}
                 textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -446,6 +452,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 editable={!registerLoading}
                 returnKeyType="next"
                 blurOnSubmit={false}
+                placeholderTextColor={themed.textSecondary.color}
               />
             </View>
 
@@ -457,8 +464,9 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 onChangeText={setPhone}
                 placeholder={t('auth.phonePlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
+                style={[themed.borderColor, themed.inputBg, themed.inputText]}
                 textAlign={isRTL ? 'right' : 'left'}
+                placeholderTextColor={themed.textSecondary.color}
               />
             </View>
 
@@ -471,7 +479,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   onChangeText={setRegisterPassword}
                   placeholder={t('auth.passwordPlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base pr-12"
-                  style={themed.borderColor}
+                  style={[themed.borderColor, themed.inputBg, themed.inputText]}
                   textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showRegisterPassword}
                   autoCapitalize="none"
@@ -479,6 +487,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   editable={!registerLoading}
                   returnKeyType="next"
                   blurOnSubmit={false}
+                  placeholderTextColor={themed.textSecondary.color}
                 />
                 <Pressable
                   onPress={() => setShowRegisterPassword(!showRegisterPassword)}
@@ -489,7 +498,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   <Ionicons 
                     name={showRegisterPassword ? "eye-off" : "eye"} 
                     size={24} 
-                    color="#666" 
+                    color={themed.textSecondary.color} 
                   />
                 </Pressable>
               </View>
@@ -504,7 +513,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   onChangeText={setConfirmPassword}
                   placeholder={t('auth.confirmPasswordPlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base pr-12"
-                  style={themed.borderColor}
+                  style={[themed.borderColor, themed.inputBg, themed.inputText]}
                   textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
@@ -512,6 +521,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   editable={!registerLoading}
                   returnKeyType="done"
                   onSubmitEditing={handleRegister}
+                  placeholderTextColor={themed.textSecondary.color}
                 />
                 <Pressable
                   onPress={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -522,7 +532,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                   <Ionicons 
                     name={showConfirmPassword ? "eye-off" : "eye"} 
                     size={24} 
-                    color="#666" 
+                    color={themed.textSecondary.color} 
                   />
                 </Pressable>
               </View>
