@@ -63,51 +63,65 @@ async function beginTransactionWithRefresh(): Promise<{ transactionId: string; r
 }
 
 // --- Firestore REST value builders (STRICT) ---
+
+// 1. Check if already a valid FirestoreValue
+function isFirestoreValue(v: any): v is FirestoreValue {
+  if (!v || typeof v !== 'object') return false;
+  return (
+    'stringValue' in v ||
+    'integerValue' in v ||
+    'doubleValue' in v ||
+    'booleanValue' in v ||
+    'nullValue' in v ||
+    'timestampValue' in v ||
+    'arrayValue' in v ||
+    'mapValue' in v
+  );
+}
+
+// 2. Convert raw JS value to FirestoreValue
+function toFirestoreValue(v: any): FirestoreValue {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (isFirestoreValue(v)) return v; // Already converted — return as is
+  const t = typeof v;
+  if (t === 'string') return { stringValue: v };
+  if (t === 'boolean') return { booleanValue: v };
+  if (t === 'number') {
+    return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  }
+  if (v instanceof Date) return { timestampValue: v.toISOString() };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(toFirestoreValue) } };
+  if (t === 'object') {
+    const fields: Record<string, FirestoreValue> = {};
+    for (const [k, val] of Object.entries(v)) {
+      fields[k] = toFirestoreValue(val);
+    }
+    return { mapValue: { fields } };
+  }
+  throw new Error('unsupported type for Firestore conversion: ' + typeof v);
+}
+
+// 3. F.map implementation that handles already-converted values
+function fmap(obj: Record<string, any>): FirestoreValue {
+  const fields: Record<string, FirestoreValue> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    // If value is already FirestoreValue — don't wrap again
+    if (isFirestoreValue(v)) {
+      fields[k] = v;
+    } else {
+      fields[k] = toFirestoreValue(v);
+    }
+  }
+  return { mapValue: { fields } };
+}
+
 const F = {
   str: (v: string) => ({ stringValue: String(v) }),
   bool: (v: boolean) => ({ booleanValue: !!v }),
   int: (n: number) => ({ integerValue: String(Math.trunc(n)) }), // חייב מחרוזת!
   ts: (d: Date | string) => ({ timestampValue: (d instanceof Date ? d : new Date(d)).toISOString() }),
   arrStr: (a: string[]) => ({ arrayValue: { values: a.map(s => ({ stringValue: String(s) })) } }),
-  map: (obj: Record<string, any>): FirestoreValue => ({ 
-    mapValue: { 
-      fields: Object.fromEntries(
-        Object.entries(obj).map(([key, value]): [string, FirestoreValue] => {
-          // Check if value is already a FirestoreValue (has one of the Firestore value types)
-          if (typeof value === 'object' && value !== null && 
-              ('stringValue' in value || 'integerValue' in value || 'doubleValue' in value || 
-               'booleanValue' in value || 'timestampValue' in value || 'arrayValue' in value || 
-               'mapValue' in value || 'nullValue' in value)) {
-            return [key, value as FirestoreValue];
-          }
-          
-          // Convert raw values to proper Firestore format
-          if (typeof value === 'string') return [key, { stringValue: value }];
-          if (typeof value === 'number') {
-            return [key, Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value }];
-          }
-          if (typeof value === 'boolean') return [key, { booleanValue: value }];
-          if (value instanceof Date) return [key, { timestampValue: value.toISOString() }];
-          if (Array.isArray(value)) {
-            return [key, { arrayValue: { values: value.map(v => {
-              if (typeof v === 'string') return { stringValue: v };
-              if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-              if (typeof v === 'boolean') return { booleanValue: v };
-              if (v instanceof Date) return { timestampValue: v.toISOString() };
-              return { stringValue: String(v) }; // fallback
-            }) } }];
-          }
-          if (typeof value === 'object' && value !== null) {
-            // Recursively convert nested objects
-            return [key, F.map(value)];
-          }
-          if (value === null) return [key, { nullValue: null }];
-          // Fallback to string
-          return [key, { stringValue: String(value) }];
-        })
-      ) 
-    } 
-  }),
+  map: fmap,
 };
 
 function H(idToken: string) {
@@ -4187,9 +4201,7 @@ export class FirestoreService {
       const url = `${statsUrl}?` + 
         fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
       
-      console.log('📊 Creating initial stats with URL:', url);
-      console.log('📋 Initial stats body:', JSON.stringify(createBody, null, 2));
-      console.log('🔍 perUser field structure:', JSON.stringify(createBody.fields.perUser, null, 2));
+      console.log('📊 Creating initial stats for user:', userId);
       
       const res = await fetch(url, {
         method: 'PATCH',
