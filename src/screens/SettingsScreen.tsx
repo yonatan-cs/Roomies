@@ -398,7 +398,7 @@ export default function SettingsScreen() {
                   }}
                   className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : undefined}>{label}</ThemedText>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : { color: '#ffffff' }}>{label}</ThemedText>
                 </Pressable>
               );
             })}
@@ -418,7 +418,7 @@ export default function SettingsScreen() {
                   }}
                   className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : { color: '#ffffff' }}>{t(`days.${dayIndex}`)}</ThemedText>
                 </Pressable>
               );
             })}
