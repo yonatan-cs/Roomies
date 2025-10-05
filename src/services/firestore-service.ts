@@ -69,10 +69,42 @@ const F = {
   int: (n: number) => ({ integerValue: String(Math.trunc(n)) }), // חייב מחרוזת!
   ts: (d: Date | string) => ({ timestampValue: (d instanceof Date ? d : new Date(d)).toISOString() }),
   arrStr: (a: string[]) => ({ arrayValue: { values: a.map(s => ({ stringValue: String(s) })) } }),
-  map: (obj: Record<string, any>) => ({ 
+  map: (obj: Record<string, any>): FirestoreValue => ({ 
     mapValue: { 
       fields: Object.fromEntries(
-        Object.entries(obj).map(([key, value]) => [key, value])
+        Object.entries(obj).map(([key, value]): [string, FirestoreValue] => {
+          // Check if value is already a FirestoreValue (has one of the Firestore value types)
+          if (typeof value === 'object' && value !== null && 
+              ('stringValue' in value || 'integerValue' in value || 'doubleValue' in value || 
+               'booleanValue' in value || 'timestampValue' in value || 'arrayValue' in value || 
+               'mapValue' in value || 'nullValue' in value)) {
+            return [key, value as FirestoreValue];
+          }
+          
+          // Convert raw values to proper Firestore format
+          if (typeof value === 'string') return [key, { stringValue: value }];
+          if (typeof value === 'number') {
+            return [key, Number.isInteger(value) ? { integerValue: String(value) } : { doubleValue: value }];
+          }
+          if (typeof value === 'boolean') return [key, { booleanValue: value }];
+          if (value instanceof Date) return [key, { timestampValue: value.toISOString() }];
+          if (Array.isArray(value)) {
+            return [key, { arrayValue: { values: value.map(v => {
+              if (typeof v === 'string') return { stringValue: v };
+              if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+              if (typeof v === 'boolean') return { booleanValue: v };
+              if (v instanceof Date) return { timestampValue: v.toISOString() };
+              return { stringValue: String(v) }; // fallback
+            }) } }];
+          }
+          if (typeof value === 'object' && value !== null) {
+            // Recursively convert nested objects
+            return [key, F.map(value)];
+          }
+          if (value === null) return [key, { nullValue: null }];
+          // Fallback to string
+          return [key, { stringValue: String(value) }];
+        })
       ) 
     } 
   }),
@@ -4157,6 +4189,7 @@ export class FirestoreService {
       
       console.log('📊 Creating initial stats with URL:', url);
       console.log('📋 Initial stats body:', JSON.stringify(createBody, null, 2));
+      console.log('🔍 perUser field structure:', JSON.stringify(createBody.fields.perUser, null, 2));
       
       const res = await fetch(url, {
         method: 'PATCH',
