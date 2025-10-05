@@ -383,10 +383,10 @@ export default function CleaningScreen() {
                   onPress={handleMarkCleaned}
                   disabled={turnCompleted || getCompletionPercentage() !== 100 || isFinishingTurn}
                   loadingText={t('cleaning.processing')}
-                  variant={getCompletionPercentage() === 100 ? 'success' : 'secondary'}
+                  variant={getCompletionPercentage() === 100 ? 'success' : 'primary'}
                   className={cn(
                     'py-3 px-8 rounded-xl', 
-                    turnCompleted ? 'bg-gray-400' : (getCompletionPercentage() === 100 ? 'bg-green-500' : 'bg-gray-300')
+                    turnCompleted ? 'bg-gray-400' : (getCompletionPercentage() === 100 ? 'bg-green-500' : 'bg-gray-600')
                   )}
                 />
               </>
@@ -511,8 +511,8 @@ export default function CleaningScreen() {
                     )}
                     style={[
                       isDisabled ? { 
-                        backgroundColor: '#e5e7eb', 
-                        borderColor: '#e5e7eb',
+                        backgroundColor: '#6b7280', 
+                        borderColor: '#6b7280',
                         shadowOpacity: 0
                       } : !isCompleted ? {
                         backgroundColor: '#f3f4f6',
