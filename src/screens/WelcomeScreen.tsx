@@ -155,6 +155,15 @@ export default function WelcomeScreen() {
 
   // Check for existing user session on component mount
   useEffect(() => {
+    // If no user is present (e.g., after sign out), immediately show auth screen
+    const currentUser = useStore.getState().currentUser;
+    if (!currentUser) {
+      console.log('👤 WelcomeScreen: No user present, immediately showing auth screen');
+      debugSetInitializing(false, 'no user present');
+      setMode('select');
+      return;
+    }
+    
     // Skip checkUserSession for new user registrations to avoid Firestore quota issues
     if (isNewUserRegistration || useStore.getState().disableFirestoreForNewUsers) {
       console.log('👤 WelcomeScreen: Skipping checkUserSession useEffect for new user registration');
@@ -170,6 +179,13 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (!initializing) {
       setTimedOut(false);
+      return;
+    }
+
+    // If no user is present, don't start timeout - we should already be showing auth screen
+    const currentUser = useStore.getState().currentUser;
+    if (!currentUser) {
+      console.log('👤 WelcomeScreen: No user present, skipping timeout');
       return;
     }
 
