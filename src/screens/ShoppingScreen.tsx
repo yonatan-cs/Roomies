@@ -436,7 +436,7 @@ export default function ShoppingScreen() {
             className={cn('px-4 py-2 rounded-lg border-2', selectedPriorityFilter === 'all' ? 'bg-blue-500 border-blue-500' : '')}
             style={selectedPriorityFilter !== 'all' ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
           >
-            <ThemedText className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : '')} style={selectedPriorityFilter !== 'all' ? themed.buttonText : undefined}>{t('shopping.all')}</ThemedText>
+            <ThemedText className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : '')} style={selectedPriorityFilter !== 'all' ? themed.buttonText : { color: '#ffffff' }}>{t('shopping.all')}</ThemedText>
           </Pressable>
 
           {PRIORITIES.map(priority => (
@@ -453,7 +453,7 @@ export default function ShoppingScreen() {
               style={selectedPriorityFilter !== priority.key ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
             >
               <Ionicons name={priority.icon as any} size={16} color={selectedPriorityFilter === priority.key ? 'white' : priority.color} />
-              <ThemedText className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : '')} style={selectedPriorityFilter !== priority.key ? themed.buttonText : undefined}>
+              <ThemedText className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : '')} style={selectedPriorityFilter !== priority.key ? themed.buttonText : { color: '#ffffff' }}>
                 {priority.label}
               </ThemedText>
             </Pressable>
