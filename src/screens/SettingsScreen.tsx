@@ -72,6 +72,7 @@ export default function SettingsScreen() {
     inputBg: { backgroundColor: tk.colors.card },
     inputText: { color: tk.colors.text.primary },
     buttonText: { color: '#111827' }, // Always dark for unselected buttons
+    nameDisplayBg: { backgroundColor: tk.colors.surface },
   }));
 
   const handleSaveName = async () => {
@@ -366,7 +367,7 @@ export default function SettingsScreen() {
               <Pressable onPress={() => {
                 impactLight(); // Haptic feedback for edit action
                 setEditingName(true);
-              }} className="flex-row items-center justify-between bg-gray-50 p-3 rounded-xl">
+              }} className="flex-row items-center justify-between p-3 rounded-xl" style={themed.nameDisplayBg}>
                 <ThemedText className="text-base" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
                 <Ionicons name="pencil-outline" size={20} color="#6b7280" />
               </Pressable>
