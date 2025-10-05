@@ -46,7 +46,7 @@ export default function AppSettingsSection() {
             }}
             className={`px-3 py-2 rounded-xl mr-2 ${appLanguage === 'he' ? 'bg-blue-500' : 'bg-gray-100'}`}
           >
-            <ThemedText className={appLanguage === 'he' ? 'text-white' : ''} style={appLanguage !== 'he' ? themed.buttonText : undefined}>{t('settings.hebrew')}</ThemedText>
+            <ThemedText className={appLanguage === 'he' ? 'text-white' : ''} style={appLanguage !== 'he' ? themed.buttonText : { color: '#ffffff' }}>{t('settings.hebrew')}</ThemedText>
           </Pressable>
           <Pressable
             onPress={() => {
@@ -56,7 +56,7 @@ export default function AppSettingsSection() {
             }}
             className={`px-3 py-2 rounded-xl ${appLanguage === 'en' ? 'bg-blue-500' : 'bg-gray-100'}`}
           >
-            <ThemedText className={appLanguage === 'en' ? 'text-white' : ''} style={appLanguage !== 'en' ? themed.buttonText : undefined}>{t('settings.english')}</ThemedText>
+            <ThemedText className={appLanguage === 'en' ? 'text-white' : ''} style={appLanguage !== 'en' ? themed.buttonText : { color: '#ffffff' }}>{t('settings.english')}</ThemedText>
           </Pressable>
         </View>
       </View>
@@ -100,7 +100,7 @@ export default function AppSettingsSection() {
               }}
               className={`px-3 py-2 rounded-xl mr-2 mb-2 ${themeSetting === theme ? 'bg-blue-500' : 'bg-gray-100'}`}
             >
-              <ThemedText className={themeSetting === theme ? 'text-white' : ''} style={themeSetting !== theme ? themed.buttonText : undefined}>
+              <ThemedText className={themeSetting === theme ? 'text-white' : ''} style={themeSetting !== theme ? themed.buttonText : { color: '#ffffff' }}>
                 {t(`settings.theme.${theme}`)}
               </ThemedText>
             </Pressable>
