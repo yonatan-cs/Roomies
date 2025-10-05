@@ -414,7 +414,7 @@ export default function ShoppingScreen() {
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
         <ThemedText className="text-2xl font-bold text-center mb-4">{t('shopping.title')}</ThemedText>
         <ThemedText style={themed.textSecondary} className="text-center">
           {t('shopping.itemsToBuy', { count: pendingItems.length })}

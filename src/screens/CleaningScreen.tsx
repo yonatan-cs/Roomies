@@ -319,7 +319,7 @@ export default function CleaningScreen() {
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
         <ThemedText className="text-2xl font-bold text-center mb-2">{t('cleaning.title')}</ThemedText>
         <ThemedText className="text-center" style={themed.textSecondary}>{currentApartment.name}</ThemedText>
         <View className="flex-row items-center justify-center mt-2">

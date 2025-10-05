@@ -732,7 +732,7 @@ export default function WelcomeScreen() {
 
   return (
     <Screen withPadding={true} keyboardVerticalOffset={0}>
-      <View className="pt-16 pb-8">
+      <View className="pt-20 pb-8">
         <Pressable onPress={() => setMode('select')} className="flex-row items-center mb-6">
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
           <Text className="text-blue-500 text-lg mr-2">{t('welcome.back')}</Text>

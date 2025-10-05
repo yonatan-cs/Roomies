@@ -73,7 +73,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
 
   return (
     <Screen withPadding={true} keyboardVerticalOffset={0}>
-          <View className="pt-16 pb-8">
+          <View className="pt-20 pb-8">
             {/* Back Button */}
             <Pressable 
               onPress={onBack} 

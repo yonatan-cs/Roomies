@@ -290,7 +290,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
   return (
     <Screen withPadding={true} keyboardVerticalOffset={0}>
-      <View className="pt-16 pb-8">
+      <View className="pt-20 pb-8">
         {/* Language toggle */}
         <Pressable
           onPress={() => setAppLanguage(appLanguage === 'he' ? 'en' : 'he')}
