@@ -4211,10 +4211,14 @@ export class FirestoreService {
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        console.error('Firestore createInitialCleaningStats error:', res.status, text);
+        console.error('❌ Firestore createInitialCleaningStats error:', res.status, text);
+        console.error('🔗 URL was:', url);
+        console.error('📋 Body was:', JSON.stringify(createBody, null, 2));
         console.warn('⚠️ Failed to create initial cleaning stats');
       } else {
         console.log('✅ Initial cleaning stats created successfully');
+        const result = await res.json().catch(() => null);
+        console.log('📄 Created document:', result?.name || 'unknown');
       }
     } catch (error) {
       console.error('Error creating initial cleaning stats:', error);
