@@ -97,6 +97,7 @@ export default function DashboardScreen() {
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
+    backgroundBg: { backgroundColor: tk.colors.background },
   }));
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
@@ -683,7 +684,7 @@ export default function DashboardScreen() {
   };
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1" style={themed.backgroundBg}>
       <ThemedCard className="px-6 pt-16 pb-6 shadow-sm">
         <View className="flex-row items-center justify-between mb-2">
           <ThemedText className="text-2xl font-bold">

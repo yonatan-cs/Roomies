@@ -24,6 +24,7 @@ export default function CleaningScreen() {
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
+    cardBg: { backgroundColor: tk.colors.card },
   }));
   const appLanguage = useStore(s => s.appLanguage);
   const [showNotYourTurn, setShowNotYourTurn] = useState(false);
@@ -382,6 +383,7 @@ export default function CleaningScreen() {
                   onPress={handleMarkCleaned}
                   disabled={turnCompleted || getCompletionPercentage() !== 100 || isFinishingTurn}
                   loadingText={t('cleaning.processing')}
+                  variant={getCompletionPercentage() === 100 ? 'success' : 'secondary'}
                   className={cn(
                     'py-3 px-8 rounded-xl', 
                     turnCompleted ? 'bg-gray-400' : (getCompletionPercentage() === 100 ? 'bg-green-500' : 'bg-gray-300')
@@ -412,15 +414,15 @@ export default function CleaningScreen() {
                 <View 
                   key={item.id} 
                   className="flex-row items-center py-3 px-3 rounded-xl mb-2"
-                  style={themed.surfaceBg}
+                  style={themed.cardBg}
                 >
                   <View 
                     className={cn(
                       'w-7 h-7 rounded-full border-2 items-center justify-center',
-                      item.completed ? 'bg-green-500 border-green-500' : 'bg-gray-100 border-gray-300',
+                      item.completed ? 'bg-green-500 border-green-500' : '',
                       isRTL ? 'ml-3' : 'mr-3'
                     )} 
-                    style={!item.completed ? themed.borderColor : undefined}
+                    style={!item.completed ? { backgroundColor: '#f3f4f6', ...themed.borderColor } : undefined}
                   >
                     {item.completed && <Ionicons name="checkmark" size={14} color="white" />}
                   </View>
@@ -498,13 +500,13 @@ export default function CleaningScreen() {
                 <View 
                   key={`${cycleKey}-${item.id}`} 
                   className="flex-row items-center py-4 px-3 rounded-xl mb-3"
-                  style={themed.surfaceBg}
+                  style={themed.cardBg}
                 >
                   <Pressable 
                     onPress={() => !isDisabled && handleToggleTask(item.id, !isCompleted)} 
                     className={cn(
                       'w-8 h-8 rounded-full border-2 items-center justify-center shadow-sm',
-                      isDisabled ? '' : (isCompleted ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'),
+                      isDisabled ? '' : (isCompleted ? 'bg-green-500 border-green-500' : ''),
                       isRTL ? 'ml-3' : 'mr-3'
                     )}
                     style={[
@@ -512,6 +514,13 @@ export default function CleaningScreen() {
                         backgroundColor: '#e5e7eb', 
                         borderColor: '#e5e7eb',
                         shadowOpacity: 0
+                      } : !isCompleted ? {
+                        backgroundColor: '#f3f4f6',
+                        borderColor: '#d1d5db',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowRadius: 2,
+                        elevation: 2,
                       } : {
                         shadowColor: '#000',
                         shadowOffset: { width: 0, height: 1 },
