@@ -4190,9 +4190,9 @@ export class FirestoreService {
       const createBody = {
         fields: {
           totalCleans: F.int(1),
-          perUser: F.map({
-            [userId]: F.int(1)
-          }),
+          perUser: F.map(
+            userId ? { [userId]: F.int(1) } : {}
+          ),
           lastUpdated: F.ts(new Date()),
         }
       };
@@ -4302,7 +4302,8 @@ export class FirestoreService {
         await this.createInitialCleaningStats(cleaningTask.last_completed_by);
       } else {
         console.log('📊 No existing cleaning data found, initializing with 0');
-        await this.createInitialCleaningStats('');
+        // Don't create stats if no user data available
+        console.log('⚠️ Skipping stats creation - no user data available');
       }
     } catch (error) {
       console.error('Error backfilling cleaning stats:', error);
