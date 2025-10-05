@@ -72,7 +72,7 @@ export default function SettingsScreen() {
     inputBg: { backgroundColor: tk.colors.card },
     inputText: { color: tk.colors.text.primary },
     buttonText: { color: '#111827' }, // Always dark for unselected buttons
-    nameDisplayBg: { backgroundColor: tk.colors.surface },
+    nameDisplayBg: { backgroundColor: tk.colors.card },
   }));
 
   const handleSaveName = async () => {
