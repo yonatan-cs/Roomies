@@ -802,6 +802,10 @@ export const useStore = create<AppState>()(
             get().loadCleaningChecklist(),
             get().loadCleaningStats(),
           ]);
+          
+          // Verify stats were updated
+          const updatedStats = get().cleaningStats;
+          console.log('✅ Cleaning turn finished. Updated stats:', updatedStats);
         } catch (error) {
           console.error('Error finishing cleaning turn:', error);
           throw error;
@@ -811,6 +815,7 @@ export const useStore = create<AppState>()(
       loadCleaningStats: async () => {
         try {
           const stats = await firestoreService.getCleaningStats();
+          console.log('📊 Loaded cleaning stats:', stats);
           set({ cleaningStats: stats });
         } catch (error) {
           console.error('Error loading cleaning stats:', error);
