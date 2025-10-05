@@ -208,7 +208,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         console.log('✅ onAuthSuccess called successfully');
       } catch (error) {
         console.error('❌ Error in onAuthSuccess:', error);
-        console.error('❌ Error stack:', error.stack);
+        console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace available');
         // Don't let errors prevent the registration flow from completing
         console.log('🔄 Registration completed with fallback - user will be directed to apartment selection');
         
