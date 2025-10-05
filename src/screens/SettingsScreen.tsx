@@ -69,6 +69,8 @@ export default function SettingsScreen() {
     textPrimary: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
+    inputBg: { backgroundColor: tk.colors.card },
+    inputText: { color: tk.colors.text.primary },
   }));
 
   const handleSaveName = async () => {
@@ -333,11 +335,12 @@ export default function SettingsScreen() {
                   value={newName}
                   onChangeText={setNewName}
                   className="flex-1 border rounded-xl px-4 py-3 text-base"
-                  style={themed.borderColor}
+                  style={[themed.borderColor, themed.inputBg, themed.inputText]}
                   textAlign="right"
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={() => Keyboard.dismiss()}
+                  placeholderTextColor={themed.textSecondary.color}
                 />
                 <View className="flex-row mr-3">
                   <Pressable onPress={() => {
@@ -393,7 +396,7 @@ export default function SettingsScreen() {
                   }}
                   className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{label}</ThemedText>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textPrimary : undefined}>{label}</ThemedText>
                 </Pressable>
               );
             })}
@@ -413,7 +416,7 @@ export default function SettingsScreen() {
                   }}
                   className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
                 >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textSecondary : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
+                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.textPrimary : undefined}>{t(`days.${dayIndex}`)}</ThemedText>
                 </Pressable>
               );
             })}
@@ -434,7 +437,7 @@ export default function SettingsScreen() {
                     value={editingChoreName}
                     onChangeText={setEditingChoreName}
                     className="flex-1 border rounded-xl px-3 py-2 text-base"
-                    style={themed.borderColor}
+                    style={[themed.borderColor, themed.inputBg, themed.inputText]}
                     textAlign="right"
                     returnKeyType="done"
                     onSubmitEditing={() => {
@@ -447,6 +450,7 @@ export default function SettingsScreen() {
                       }
                       Keyboard.dismiss();
                     }}
+                    placeholderTextColor={themed.textSecondary.color}
                   />
                 ) : (
                   <ThemedText className="flex-1 text-base">{getTaskLabel(item)}</ThemedText>
@@ -509,7 +513,7 @@ export default function SettingsScreen() {
               onChangeText={setNewChore}
               placeholder={t('settings.addNewTaskPlaceholder')}
               className="flex-1 border rounded-xl px-4 py-3 text-base"
-              style={themed.borderColor}
+              style={[themed.borderColor, themed.inputBg, themed.inputText]}
               textAlign="right"
               onSubmitEditing={async () => {
                 if (!newChore.trim()) return;
@@ -530,6 +534,7 @@ export default function SettingsScreen() {
               }}
               returnKeyType="done"
               editable={!isAddingChore}
+              placeholderTextColor={themed.textSecondary.color}
             />
             <Pressable
               onPress={async () => {

@@ -21,6 +21,7 @@ export default function AppSettingsSection() {
   const themed = useThemedStyles(tk => ({
     textSecondary: { color: tk.colors.text.secondary },
     buttonText: { color: tk.colors.text.primary },
+    buttonTextSelected: { color: '#ffffff' },
   }));
 
   return (

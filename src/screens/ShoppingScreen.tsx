@@ -83,6 +83,7 @@ export default function ShoppingScreen() {
   const { theme } = useTheme();
   const themed = useThemedStyles(tk => ({
     textSecondary: { color: tk.colors.text.secondary },
+    textPrimary: { color: tk.colors.text.primary },
     surfaceBg: { backgroundColor: tk.colors.surface },
     borderColor: { borderColor: tk.colors.border.primary },
   }));
@@ -434,7 +435,7 @@ export default function ShoppingScreen() {
             className={cn('px-4 py-2 rounded-lg border-2', selectedPriorityFilter === 'all' ? 'bg-blue-500 border-blue-500' : '')}
             style={selectedPriorityFilter !== 'all' ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
           >
-            <ThemedText className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : '')} style={selectedPriorityFilter !== 'all' ? themed.textSecondary : undefined}>{t('shopping.all')}</ThemedText>
+            <ThemedText className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : '')} style={selectedPriorityFilter !== 'all' ? themed.textPrimary : undefined}>{t('shopping.all')}</ThemedText>
           </Pressable>
 
           {PRIORITIES.map(priority => (
@@ -451,7 +452,7 @@ export default function ShoppingScreen() {
               style={selectedPriorityFilter !== priority.key ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
             >
               <Ionicons name={priority.icon as any} size={16} color={selectedPriorityFilter === priority.key ? 'white' : priority.color} />
-              <ThemedText className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : '')} style={selectedPriorityFilter !== priority.key ? themed.textSecondary : undefined}>
+              <ThemedText className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : '')} style={selectedPriorityFilter !== priority.key ? themed.textPrimary : undefined}>
                 {priority.label}
               </ThemedText>
             </Pressable>
