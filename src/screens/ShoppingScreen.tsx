@@ -86,6 +86,7 @@ export default function ShoppingScreen() {
     textPrimary: { color: tk.colors.text.primary },
     surfaceBg: { backgroundColor: tk.colors.surface },
     borderColor: { borderColor: tk.colors.border.primary },
+    buttonText: { color: '#111827' }, // Always dark for unselected buttons
   }));
   const [newItemName, setNewItemName] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -435,7 +436,7 @@ export default function ShoppingScreen() {
             className={cn('px-4 py-2 rounded-lg border-2', selectedPriorityFilter === 'all' ? 'bg-blue-500 border-blue-500' : '')}
             style={selectedPriorityFilter !== 'all' ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
           >
-            <ThemedText className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : '')} style={selectedPriorityFilter !== 'all' ? themed.textPrimary : undefined}>{t('shopping.all')}</ThemedText>
+            <ThemedText className={cn('text-sm font-medium', selectedPriorityFilter === 'all' ? 'text-white' : '')} style={selectedPriorityFilter !== 'all' ? themed.buttonText : undefined}>{t('shopping.all')}</ThemedText>
           </Pressable>
 
           {PRIORITIES.map(priority => (
@@ -452,7 +453,7 @@ export default function ShoppingScreen() {
               style={selectedPriorityFilter !== priority.key ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
             >
               <Ionicons name={priority.icon as any} size={16} color={selectedPriorityFilter === priority.key ? 'white' : priority.color} />
-              <ThemedText className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : '')} style={selectedPriorityFilter !== priority.key ? themed.textPrimary : undefined}>
+              <ThemedText className={cn('text-sm font-medium mr-1', selectedPriorityFilter === priority.key ? 'text-white' : '')} style={selectedPriorityFilter !== priority.key ? themed.buttonText : undefined}>
                 {priority.label}
               </ThemedText>
             </Pressable>
@@ -611,7 +612,7 @@ export default function ShoppingScreen() {
                           'text-sm font-medium mt-1 text-center',
                           newItemPriority === priority.key ? priority.color : ''
                         )}
-                        style={newItemPriority !== priority.key ? themed.textSecondary : undefined}
+                        style={newItemPriority !== priority.key ? themed.buttonText : undefined}
                       >
                         {priority.label}
                       </ThemedText>

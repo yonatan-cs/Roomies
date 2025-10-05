@@ -36,6 +36,9 @@ export default function ExpenseRow({
     title: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
+    amount: { color: tk.colors.text.primary },
+    date: { color: tk.colors.text.secondary },
+    description: { color: tk.colors.text.secondary },
   }));
 
   const confirmDelete = () => {
@@ -111,10 +114,10 @@ export default function ExpenseRow({
     <ThemedCard style={[styles.row, { borderWidth: 1, ...themed.borderColor }]}>
       <View style={styles.content}>
         <View style={styles.titleContainer}>
-          <ThemedText style={[styles.title]}>{item.title}</ThemedText>
-          <ThemedText style={[styles.date]}>{formatDate(item.date)}</ThemedText>
+          <ThemedText style={[styles.title, themed.title]}>{item.title}</ThemedText>
+          <ThemedText style={[styles.date, themed.date]}>{formatDate(item.date)}</ThemedText>
           {item.description && (
-            <ThemedText style={styles.description}>{item.description}</ThemedText>
+            <ThemedText style={[styles.description, themed.description]}>{item.description}</ThemedText>
           )}
           {isParticipant && (
             <ThemedText style={[
@@ -127,10 +130,10 @@ export default function ExpenseRow({
         </View>
         
         <View style={styles.amountContainer}>
-          <ThemedText style={styles.amount}>{formatCurrency(item.amount)}</ThemedText>
-          <ThemedText style={styles.payer}>{t('expenseRow.paidBy', { name: getUserName(item.paidBy) })}</ThemedText>
+          <ThemedText style={[styles.amount, themed.amount]}>{formatCurrency(item.amount)}</ThemedText>
+          <ThemedText style={[styles.payer, themed.textSecondary]}>{t('expenseRow.paidBy', { name: getUserName(item.paidBy) })}</ThemedText>
           {item.participants.length > 1 && (
-            <ThemedText style={styles.participants}>
+            <ThemedText style={[styles.participants, themed.textSecondary]}>
               {t('expenseRow.participants', { count: item.participants.length, amount: formatCurrency(personalShare) })}
             </ThemedText>
           )}

@@ -20,7 +20,7 @@ export default function AppSettingsSection() {
   const setHapticsEnabled = useStore(s => s.setHapticsEnabled);
   const themed = useThemedStyles(tk => ({
     textSecondary: { color: tk.colors.text.secondary },
-    buttonText: { color: tk.colors.text.primary },
+    buttonText: { color: '#111827' }, // Always dark for unselected buttons
     buttonTextSelected: { color: '#ffffff' },
   }));
 
