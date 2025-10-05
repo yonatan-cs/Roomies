@@ -4103,7 +4103,9 @@ export class FirestoreService {
     console.log('✅ Cleaning task updated successfully');
 
     // Update cleaning statistics counters
+    console.log('🔄 Updating cleaning stats after task completion...');
     await this.updateCleaningStats(uid);
+    console.log('✅ Cleaning stats update completed');
 
     return await res.json();
   }
@@ -4148,6 +4150,7 @@ export class FirestoreService {
       
       console.log('📊 Updating cleaning stats with atomic increment:', url);
       console.log('📋 Stats update body:', JSON.stringify(updateBody, null, 2));
+      console.log('👤 User ID for stats update:', userId);
       
       const res = await fetch(url, {
         method: 'PATCH',
@@ -4159,16 +4162,42 @@ export class FirestoreService {
         const text = await res.text().catch(() => '');
         console.error('Firestore updateCleaningStats error:', res.status, text);
         
-        // If document doesn't exist, try to create it first
-        if (res.status === 404) {
-          console.log('📊 Stats document doesn\'t exist, creating with initial values...');
-          await this.createInitialCleaningStats(userId);
+      // If document doesn't exist, try to create it first
+      if (res.status === 404) {
+        console.log('📊 Stats document doesn\'t exist, creating with initial values...');
+        await this.createInitialCleaningStats(userId);
+        // Try to update again after creating
+        console.log('🔄 Retrying stats update after creating document...');
+        const retryRes = await fetch(url, {
+          method: 'PATCH',
+          headers: H(idToken),
+          body: JSON.stringify(updateBody),
+        });
+        if (!retryRes.ok) {
+          console.error('❌ Retry failed:', retryRes.status, await retryRes.text().catch(() => ''));
         } else {
-          // Don't throw error here - stats update failure shouldn't break cleaning completion
-          console.warn('⚠️ Failed to update cleaning stats, but cleaning was completed successfully');
+          console.log('✅ Stats updated successfully after retry');
+          // Verify the retry worked
+          try {
+            const retryStats = await this.getCleaningStats();
+            console.log('📊 Verified retry stats:', retryStats);
+          } catch (verifyError) {
+            console.warn('⚠️ Could not verify retry stats:', verifyError);
+          }
         }
       } else {
+        // Don't throw error here - stats update failure shouldn't break cleaning completion
+        console.warn('⚠️ Failed to update cleaning stats, but cleaning was completed successfully');
+      }
+      } else {
         console.log('✅ Cleaning stats updated successfully with atomic increment');
+        // Verify the update worked by getting the stats
+        try {
+          const updatedStats = await this.getCleaningStats();
+          console.log('📊 Verified updated stats:', updatedStats);
+        } catch (verifyError) {
+          console.warn('⚠️ Could not verify stats update:', verifyError);
+        }
       }
     } catch (error) {
       console.error('Error updating cleaning stats:', error);
@@ -4202,6 +4231,7 @@ export class FirestoreService {
         fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
       
       console.log('📊 Creating initial stats for user:', userId);
+      console.log('📋 Create body:', JSON.stringify(createBody, null, 2));
       
       const res = await fetch(url, {
         method: 'PATCH',
@@ -4257,9 +4287,10 @@ export class FirestoreService {
     
     const data = await res.json();
     console.log('✅ Cleaning stats retrieved successfully');
+    console.log('📊 Raw stats data:', JSON.stringify(data, null, 2));
     
     // Convert Firestore format to our format
-    return {
+    const convertedStats = {
       totalCleans: data.fields?.totalCleans?.integerValue ? parseInt(data.fields.totalCleans.integerValue) : 0,
       perUser: data.fields?.perUser?.mapValue?.fields ? 
         Object.fromEntries(
@@ -4268,9 +4299,12 @@ export class FirestoreService {
             value.integerValue ? parseInt(value.integerValue) : 0
           ])
         ) : {},
-      lastUpdated: data.fields?.lastUpdated?.timestampValue ? 
+      lastUpdated: data.fields?.lastUpdated?.timestampValue ?
         new Date(data.fields.lastUpdated.timestampValue) : null,
     };
+    
+    console.log('📊 Converted stats:', convertedStats);
+    return convertedStats;
   }
 
   /**

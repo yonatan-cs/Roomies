@@ -1192,8 +1192,7 @@ export default function DashboardScreen() {
             <View className="flex-row mt-8 gap-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
-                className="flex-1 py-4 px-6 rounded-xl"
-                style={themed.surfaceBg}
+                className="flex-1 bg-gray-100 py-4 px-6 rounded-xl"
               >
                 <ThemedText className="font-medium text-center" style={themed.textSecondary}>
                   {t('dashboard.close')}
