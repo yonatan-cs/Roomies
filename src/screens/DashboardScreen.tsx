@@ -98,6 +98,7 @@ export default function DashboardScreen() {
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
     backgroundBg: { backgroundColor: tk.colors.background },
+    closeButtonBg: { backgroundColor: tk.colors.surface },
   }));
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
@@ -1192,7 +1193,8 @@ export default function DashboardScreen() {
             <View className="flex-row mt-8 gap-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
-                className="flex-1 bg-gray-100 py-4 px-6 rounded-xl"
+                className="flex-1 py-4 px-6 rounded-xl"
+                style={themed.closeButtonBg}
               >
                 <ThemedText className="font-medium text-center" style={themed.textSecondary}>
                   {t('dashboard.close')}
