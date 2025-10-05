@@ -4807,10 +4807,13 @@ export class FirestoreService {
         fields: {
           title: { stringValue: title },
           completed: { booleanValue: false },
+          completed_at: { nullValue: null },
+          completed_by: { nullValue: null },
           order: order !== undefined ? { integerValue: String(order) } : { nullValue: null },
           created_at: { timestampValue: nowIso },
           apartment_id: { stringValue: aptId },
-          // cleaning_task_id removed - not needed since path contains taskId
+          cleaning_task_id: { stringValue: aptId },
+          template_key: { nullValue: null }, // Custom tasks don't have template_key
         }
       };
 
@@ -4831,8 +4834,11 @@ export class FirestoreService {
         id: doc.name.split("/").pop()!,
         title,
         completed: false,
+        completed_at: null,
+        completed_by: null,
         order: order || null,
         created_at: nowIso,
+        template_key: null, // Custom tasks don't have template_key
       };
     } catch (error) {
       console.error("Error adding checklist item:", error);

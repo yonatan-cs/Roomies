@@ -55,6 +55,10 @@ interface AppState {
   appLanguage: 'he' | 'en';
   setAppLanguage: (lang: 'he' | 'en') => void;
 
+  // Firestore control
+  disableFirestoreForNewUsers: boolean;
+  setDisableFirestoreForNewUsers: (disable: boolean) => void;
+
   // Theme
   themeSetting: ThemeSetting;
   setThemeSetting: (setting: ThemeSetting) => void;
@@ -203,6 +207,7 @@ export const useStore = create<AppState>()(
           id: uuidv4(),
           name: userName,
           email: '', // Required field
+          current_apartment_id: null, // Required field
         };
         const apartment: Apartment = {
           id: uuidv4(),
