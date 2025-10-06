@@ -24,6 +24,7 @@ import { Screen } from '../components/Screen';
 import { getDisplayName } from '../utils/userDisplay';
 import { isValidApartmentId, fetchWithRetry, validateUserSession, safeNavigate } from '../utils/navigation-helpers';
 import { changeAppLanguage } from '../utils/changeLanguage';
+import { absEnd } from '../utils/rtl';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
@@ -674,7 +675,7 @@ export default function WelcomeScreen() {
             changeAppLanguage(newLang);
           }}
           className="absolute p-2 rounded-full"
-          style={{ right: 16, top: 60, ...themed.surfaceBg }}
+          style={{ ...absEnd(16), top: 60, ...themed.surfaceBg }}
           accessibilityRole="button"
           accessibilityLabel={t('settings.language')}
         >
