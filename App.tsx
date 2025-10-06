@@ -2,7 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme, DarkTheme, Theme as NavTheme } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, Text, TextInput, I18nManager } from "react-native";
+import { View, Text, TextInput } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 import { navigationRef } from "./src/navigation/navigationRef";
@@ -13,6 +13,7 @@ import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
 import { configureReanimatedLogger } from 'react-native-reanimated';
 import { firebaseNotificationService } from './src/services/firebase-notification-service';
+import { isRTL } from './src/utils/rtl';
 
 // Configure Reanimated logger to disable strict mode warnings
 configureReanimatedLogger({
@@ -63,22 +64,24 @@ export default function App() {
     initializeFirebaseNotifications();
   }, [currentUser?.id]);
 
-  // ברירת מחדל ליישור טקסטים לפי השפה (עברית → ימין), מבלי לפגוע ב־text-center מקומי
+  // RTL text alignment based on language without using forceRTL
   useEffect(() => {
-    const isRTL = appLanguage === 'he';
-    // Use RTL-aware styles (marginStart/marginEnd) and I18nManager.isRTL
-    // Do NOT use I18nManager.forceRTL or allowRTL to avoid global layout mirroring
-
-    // הגדרת ברירת מחדל ל־Text
+    // Apply default text alignment for all Text and TextInput components
+    // This ensures Hebrew text aligns right without breaking layouts
     (Text as any).defaultProps = {
       ...((Text as any).defaultProps || {}),
-      style: [{ textAlign: isRTL ? 'right' : 'left' }],
+      style: [{
+        textAlign: isRTL ? 'right' : 'left',
+        writingDirection: isRTL ? 'rtl' : 'ltr',
+      }],
     };
 
-    // הגדרת ברירת מחדל ל־TextInput
     (TextInput as any).defaultProps = {
       ...((TextInput as any).defaultProps || {}),
-      style: [{ textAlign: isRTL ? 'right' : 'left' }],
+      style: [{
+        textAlign: isRTL ? 'right' : 'left',
+        writingDirection: isRTL ? 'rtl' : 'ltr',
+      }],
     };
   }, [appLanguage]);
 

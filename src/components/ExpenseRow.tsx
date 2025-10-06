@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    marginLeft: 12,
+    marginStart: 12,
   },
   title: {
     fontSize: 16,
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   debtSettlementIcon: {
-    marginRight: 10,
+    marginEnd: 10,
   },
   debtSettlementTextContainer: {
     flex: 1,

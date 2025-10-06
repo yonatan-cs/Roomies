@@ -25,6 +25,7 @@ import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { absEnd } from '../utils/rtl';
 
 interface AuthScreenProps {
   onAuthSuccess: (user: any) => void;
@@ -295,7 +296,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
         <Pressable
           onPress={() => setAppLanguage(appLanguage === 'he' ? 'en' : 'he')}
           className="absolute p-2 rounded-full"
-          style={{ right: 16, top: 60, ...themed.surfaceBg }}
+          style={{ ...absEnd(16), top: 60, ...themed.surfaceBg }}
           accessibilityRole="button"
           accessibilityLabel={t('settings.language')}
         >
