@@ -11,6 +11,7 @@ import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { useTranslation } from 'react-i18next';
 import { impactLight, success } from '../utils/haptics';
+import { useIsRTL } from '../hooks/useIsRTL';
 import { getDisplayName } from '../utils/userDisplay';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
@@ -20,6 +21,7 @@ import { getTaskLabel } from '../utils/taskLabel';
 
 export default function CleaningScreen() {
   const { t } = useTranslation();
+  const isRTL = useIsRTL();
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
@@ -320,8 +322,8 @@ export default function CleaningScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <ThemedText className="text-2xl font-bold text-center mb-2">{t('cleaning.title')}</ThemedText>
-        <ThemedText className="text-center" style={themed.textSecondary}>{currentApartment.name}</ThemedText>
+        <Text style={{ textAlign: 'center' }} className="text-2xl font-bold mb-2 w-full">{t('cleaning.title')}</Text>
+        <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="w-full">{currentApartment.name}</Text>
         <View className="flex-row items-center justify-center mt-2">
           <View className="px-3 py-1 rounded-full" style={themed.surfaceBg}>
             <ThemedText className="text-sm" style={themed.textSecondary}>
@@ -348,7 +350,7 @@ export default function CleaningScreen() {
               <Ionicons name="person" size={32} color={isMyTurn ? '#007AFF' : '#6b7280'} />
             </View>
 
-            <ThemedText className="text-xl font-semibold mb-1">
+            <ThemedText className="text-xl font-semibold mb-1 flex-1">
               {getDisplayName(currentApartment.members.find((m) => m.id === (cleaningTask as any).user_id)) || t('cleaning.unknownUser')}
             </ThemedText>
 
@@ -453,11 +455,17 @@ export default function CleaningScreen() {
             // אם יש רק שותף אחד בדירה - הוא תמיד בתור
             if (currentApartment?.members.length === 1) {
               return (
-                <View className="flex-row items-center py-3">
+                <View 
+                  className="items-center py-3"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center'
+                  }}
+                >
                   <View className="bg-blue-100 w-10 h-10 rounded-full items-center justify-center">
                     <Text className="text-blue-600 font-medium">1</Text>
                   </View>
-                  <ThemedText className="text-base mr-3">{getDisplayName(currentApartment.members[0])}</ThemedText>
+                  <ThemedText className="text-base flex-1" style={{ marginStart: isRTL ? 0 : 12, marginEnd: isRTL ? 12 : 0 }}>{getDisplayName(currentApartment.members[0])}</ThemedText>
                   <Text className="text-blue-600 text-sm">{t('cleaning.alwaysInTurn')}</Text>
                 </View>
               );
@@ -471,11 +479,18 @@ export default function CleaningScreen() {
               const user = currentApartment.members.find((m) => m.id === userId);
               if (!user) return null;
               return (
-                <View key={user.id} className="flex-row items-center py-3">
+                <View 
+                  key={user.id} 
+                  className="items-center py-3"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center'
+                  }}
+                >
                   <View className="w-10 h-10 rounded-full items-center justify-center" style={themed.surfaceBg}>
                     <ThemedText style={themed.textSecondary} className="font-medium">{i + 2}</ThemedText>
                   </View>
-                  <ThemedText className="text-base mr-3">{getDisplayName(user)}</ThemedText>
+                  <ThemedText className="text-base flex-1" style={{ marginStart: isRTL ? 0 : 12, marginEnd: isRTL ? 12 : 0 }}>{getDisplayName(user)}</ThemedText>
                 </View>
               );
             });
@@ -486,7 +501,7 @@ export default function CleaningScreen() {
         {isMyTurn && (
           <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
-              <ThemedText className="text-lg font-semibold">{t('cleaning.tasksList')}</ThemedText>
+              <ThemedText className="text-lg font-semibold flex-1">{t('cleaning.tasksList')}</ThemedText>
             </View>
 
             {checklistItems.map((item) => {
@@ -579,7 +594,7 @@ export default function CleaningScreen() {
             <View className="flex-row items-center py-2">
               <Ionicons name="brush" size={16} color="#10b981" />
               <View className="mr-3">
-                <ThemedText>{cleaningTask.last_completed_by ? (getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) || t('cleaning.unknownUser')) : t('cleaning.unknownUser')}</ThemedText>
+                <ThemedText className="flex-1">{cleaningTask.last_completed_by ? (getDisplayName(currentApartment.members.find((m) => m.id === cleaningTask.last_completed_by)) || t('cleaning.unknownUser')) : t('cleaning.unknownUser')}</ThemedText>
                 <ThemedText className="text-sm" style={themed.textSecondary}>
                   {new Date(cleaningTask.last_completed_at).toLocaleString()}
                 </ThemedText>
@@ -593,7 +608,7 @@ export default function CleaningScreen() {
                 <View key={history.id} className="flex-row items-center py-2">
                   <Ionicons name="brush" size={16} color="#10b981" />
                   <View className="mr-3">
-                    <ThemedText>{getDisplayName(user) || t('cleaning.unknownUser')}</ThemedText>
+                    <ThemedText className="flex-1">{getDisplayName(user) || t('cleaning.unknownUser')}</ThemedText>
                     <ThemedText className="text-sm" style={themed.textSecondary}>{new Date(history.cleanedAt).toLocaleString()}</ThemedText>
                   </View>
                 </View>
