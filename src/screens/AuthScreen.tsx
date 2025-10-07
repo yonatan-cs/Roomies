@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,7 @@ import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
+import { AppTextInput } from '../components/AppTextInput';
 import ForgotPasswordScreen from './ForgotPasswordScreen';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../state/store';
@@ -339,13 +339,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             {/* Email Input (emphasized, calm) */}
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.email')}</ThemedText>
-              <TextInput
+              <AppTextInput
                 value={loginEmail}
                 onChangeText={setLoginEmail}
                 placeholder={t('auth.emailPlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
                 style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -360,13 +359,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.password')}</ThemedText>
               <View className="relative">
-                <TextInput
+                <AppTextInput
                   value={loginPassword}
                   onChangeText={setLoginPassword}
                   placeholder={t('auth.passwordPlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base pr-12"
                   style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                  textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showLoginPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -396,13 +394,13 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
               className="self-end"
               disabled={loginLoading}
             >
-              <Text className="text-blue-600 text-base">{t('auth.forgotPassword')}</Text>
+              <ThemedText className="text-blue-600 text-base">{t('auth.forgotPassword')}</ThemedText>
             </Pressable>
 
             {/* Error Message */}
             {loginError && (
               <View className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
-                <Text className="text-red-600 text-center">{loginError}</Text>
+                <ThemedText className="text-red-600 text-center">{loginError}</ThemedText>
               </View>
             )}
 
@@ -422,13 +420,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             {/* Full Name Input (emphasized, calm) */}
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.fullName')}</ThemedText>
-              <TextInput
+              <AppTextInput
                 value={fullName}
                 onChangeText={setFullName}
                 placeholder={t('auth.fullNamePlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
                 style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                textAlign={isRTL ? 'right' : 'left'}
                 autoCapitalize="words"
                 editable={!registerLoading}
                 returnKeyType="next"
@@ -440,13 +437,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             {/* Email Input */}
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.email')} *</ThemedText>
-              <TextInput
+              <AppTextInput
                 value={registerEmail}
                 onChangeText={setRegisterEmail}
                 placeholder={t('auth.emailPlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
                 style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                textAlign={isRTL ? 'right' : 'left'}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -475,13 +471,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.password')} *</ThemedText>
               <View className="relative">
-                <TextInput
+                <AppTextInput
                   value={registerPassword}
                   onChangeText={setRegisterPassword}
                   placeholder={t('auth.passwordPlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base pr-12"
                   style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                  textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showRegisterPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -509,13 +504,12 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.confirmPassword')}</ThemedText>
               <View className="relative">
-                <TextInput
+                <AppTextInput
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder={t('auth.confirmPasswordPlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base pr-12"
                   style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                  textAlign={isRTL ? 'right' : 'left'}
                   secureTextEntry={!showConfirmPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -542,14 +536,14 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             {/* Error Message */}
             {registerError && (
               <View className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
-                <Text className="text-red-600 text-center">{registerError}</Text>
+                <ThemedText className="text-red-600 text-center">{registerError}</ThemedText>
                 
                 {/* Show helpful action for email exists error */}
                 {registerError.includes('כתובת האימייל כבר קיימת במערכת') && (
                   <View className="mt-3">
-                    <Text className="text-gray-600 text-center text-sm mb-3">
+                    <ThemedText className="text-gray-600 text-center text-sm mb-3">
                       This email is already registered. Would you like to:
-                    </Text>
+                    </ThemedText>
                     <View className="space-y-2">
                       <Pressable
                         onPress={() => {
@@ -559,9 +553,9 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                         }}
                         className="bg-blue-500 py-2 px-4 rounded-lg"
                       >
-                        <Text className="text-white text-center font-medium">
+                        <ThemedText className="text-white text-center font-medium">
                           Sign in instead
-                        </Text>
+                        </ThemedText>
                       </Pressable>
                       <Pressable
                         onPress={() => {
@@ -570,9 +564,9 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                         }}
                         className="bg-gray-200 py-2 px-4 rounded-lg"
                       >
-                        <Text className="text-gray-700 text-center font-medium">
+                        <ThemedText className="text-gray-700 text-center font-medium">
                           Use different email
-                        </Text>
+                        </ThemedText>
                       </Pressable>
                     </View>
                   </View>

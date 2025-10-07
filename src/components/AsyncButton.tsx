@@ -1,8 +1,9 @@
 import React from 'react';
-import { Pressable, Text, ActivityIndicator } from 'react-native';
+import { Pressable, ActivityIndicator } from 'react-native';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import { useTranslation } from 'react-i18next';
 import { impactMedium, warning } from '../utils/haptics';
+import { ThemedText } from '../theme/components/ThemedText';
 
 type Props = {
   title: string;
@@ -116,9 +117,9 @@ export function AsyncButton({
       })}
     >
       {loading && <ActivityIndicator size="small" color={variant === 'secondary' ? '#6b7280' : 'white'} />}
-      <Text className={`${getTextColor()} ${getTextSize()} font-semibold text-center`}>
+      <ThemedText className={`${getTextColor()} ${getTextSize()} font-semibold text-center`}>
         {loading ? (loadingText || t('common.loading')) : title}
-      </Text>
+      </ThemedText>
     </Pressable>
   );
 }

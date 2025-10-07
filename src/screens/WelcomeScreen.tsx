@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
@@ -13,6 +12,7 @@ import {
 } from 'react-native';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
+import { AppTextInput } from '../components/AppTextInput';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
@@ -632,7 +632,7 @@ export default function WelcomeScreen() {
               }}
               className="py-3 px-6 rounded-xl bg-blue-500 mb-3"
             >
-              <Text className="text-white font-medium">נסה שוב</Text>
+              <ThemedText className="text-white font-medium">נסה שוב</ThemedText>
             </Pressable>
 
             <Pressable
@@ -644,7 +644,7 @@ export default function WelcomeScreen() {
               }}
               className="py-3 px-6 rounded-xl bg-gray-200"
             >
-              <Text className="text-black font-medium">חזור למסך התחברות</Text>
+              <ThemedText className="text-black font-medium">חזור למסך התחברות</ThemedText>
             </Pressable>
           </View>
         )}
@@ -699,7 +699,7 @@ export default function WelcomeScreen() {
               className="bg-blue-500 py-4 px-6 rounded-xl flex-row items-center justify-center"
             >
               <Ionicons name="add-circle-outline" size={24} color="white" />
-              <Text className="text-white text-lg font-semibold mr-2">{t('welcome.createApt')}</Text>
+              <ThemedText className="text-white text-lg font-semibold mr-2">{t('welcome.createApt')}</ThemedText>
             </Pressable>
 
             <Pressable
@@ -708,7 +708,7 @@ export default function WelcomeScreen() {
               style={themed.surfaceBg}
             >
               <Ionicons name="people-outline" size={24} color="#007AFF" />
-              <Text className="text-blue-500 text-lg font-semibold mr-2">{t('welcome.joinApt')}</Text>
+              <ThemedText className="text-blue-500 text-lg font-semibold mr-2">{t('welcome.joinApt')}</ThemedText>
             </Pressable>
 
             <Pressable
@@ -723,7 +723,7 @@ export default function WelcomeScreen() {
               className="bg-red-100 py-3 px-6 rounded-xl flex-row items-center justify-center mt-8"
             >
               <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              <Text className="text-red-500 text-base font-medium mr-2">{t('welcome.signOut')}</Text>
+              <ThemedText className="text-red-500 text-base font-medium mr-2">{t('welcome.signOut')}</ThemedText>
             </Pressable>
           </View>
         </View>
@@ -736,7 +736,7 @@ export default function WelcomeScreen() {
       <View className="pt-20 pb-8">
         <Pressable onPress={() => setMode('select')} className="flex-row items-center mb-6">
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
-          <Text className="text-blue-500 text-lg mr-2">{t('welcome.back')}</Text>
+          <ThemedText className="text-blue-500 text-lg mr-2">{t('welcome.back')}</ThemedText>
         </Pressable>
 
         <ThemedText className="text-2xl font-bold text-center mb-8">
@@ -747,13 +747,12 @@ export default function WelcomeScreen() {
           {mode === 'create' && (
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('welcome.aptName')}</ThemedText>
-              <TextInput
+              <AppTextInput
                 value={apartmentName}
                 onChangeText={setApartmentName}
                 placeholder={t('welcome.aptNamePh')}
                 className="border rounded-xl px-4 py-3 text-base"
                 style={themed.borderColor}
-                textAlign="right"
                 editable={!loading}
               />
             </View>
@@ -762,13 +761,12 @@ export default function WelcomeScreen() {
           {mode === 'join' && (
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
-              <TextInput
+              <AppTextInput
                 value={joinCode}
                 onChangeText={setJoinCode}
                 placeholder={t('welcome.aptCodePh')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
-                textAlign="center"
+                style={[themed.borderColor, { textAlign: 'center' }]}
                 autoCapitalize="characters"
                 maxLength={6}
                 editable={!loading}
@@ -778,7 +776,7 @@ export default function WelcomeScreen() {
         </View>
 
         {error && (
-          <Text className="text-red-600 text-center mt-4">{error}</Text>
+          <ThemedText className="text-red-600 text-center mt-4">{error}</ThemedText>
         )}
 
         <Pressable
@@ -791,9 +789,9 @@ export default function WelcomeScreen() {
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <Text className="text-white text-lg font-semibold text-center">
+            <ThemedText className="text-white text-lg font-semibold text-center">
               {mode === 'create' ? t('welcome.primaryCreate') : t('welcome.primaryJoin')}
-            </Text>
+            </ThemedText>
           )}
         </Pressable>
       </View>

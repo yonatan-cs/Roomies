@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   KeyboardAvoidingView,
   Platform,
@@ -16,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { firebaseAuth } from '../services/firebase-auth';
 import { Screen } from '../components/Screen';
 import { AsyncButton } from '../components/AsyncButton';
+import { AppTextInput } from '../components/AppTextInput';
 import { useTranslation } from 'react-i18next';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
@@ -81,7 +81,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
               disabled={loading}
             >
               <Ionicons name="arrow-back" size={24} color="#007AFF" />
-              <Text className="text-blue-500 text-lg mr-2">{t('forgot.back')}</Text>
+              <ThemedText className="text-blue-500 text-lg mr-2">{t('forgot.back')}</ThemedText>
             </Pressable>
 
             {/* Header */}
@@ -94,13 +94,12 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
             {/* Email Input */}
             <View>
               <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('forgot.email')}</ThemedText>
-              <TextInput
+              <AppTextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder={t('forgot.emailPh')}
                 className="border rounded-xl px-4 py-3 text-base"
                 style={themed.borderColor}
-                textAlign="right"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -113,7 +112,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
             {/* Error Message */}
             {error && (
               <View className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
-                <Text className="text-red-600 text-center">{error}</Text>
+                <ThemedText className="text-red-600 text-center">{error}</ThemedText>
               </View>
             )}
 
@@ -122,7 +121,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
               <View className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
                 <View className="flex-row items-center justify-center">
                   <Ionicons name="checkmark-circle" size={24} color="#10B981" />
-                  <Text className="text-green-600 text-center mr-2">{t('forgot.sentTitle')}</Text>
+                  <ThemedText className="text-green-600 text-center mr-2">{t('forgot.sentTitle')}</ThemedText>
                 </View>
               </View>
             )}
@@ -138,7 +137,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
 
             {/* Info Text */}
             <View className="mt-8 p-4 bg-blue-50 rounded-xl">
-              <Text className="text-blue-800 text-center text-sm leading-6">{t('forgot.info')}</Text>
+              <ThemedText className="text-blue-800 text-center text-sm leading-6">{t('forgot.info')}</ThemedText>
             </View>
 
             {/* Contact Support */}
