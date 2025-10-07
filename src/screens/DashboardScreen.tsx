@@ -16,6 +16,7 @@ import {
   Animated,
   Dimensions,
   StyleSheet,
+  I18nManager,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -687,7 +688,13 @@ export default function DashboardScreen() {
   return (
     <View className="flex-1" style={themed.backgroundBg}>
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <View className="flex-row items-center justify-between mb-2">
+        <View 
+          className="items-center justify-between mb-2"
+          style={{ 
+            flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center'
+          }}
+        >
           <ThemedText className="text-2xl font-bold flex-1">
             {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
           </ThemedText>
@@ -895,9 +902,9 @@ export default function DashboardScreen() {
             elevation: 3,
           }}
         >
-          <ThemedText className="text-lg font-semibold mb-4 text-center w-full">
+          <Text style={{ textAlign: 'center' }} className="text-lg font-semibold mb-4 w-full">
             {t('dashboard.myDebts')}
-          </ThemedText>
+          </Text>
           
           {myBalance && myBalance.owed && myBalance.owes && (
             <View>
@@ -932,32 +939,32 @@ export default function DashboardScreen() {
               ))}
 
               {Object.keys(myBalance.owed).length === 0 && Object.keys(myBalance.owes).length === 0 && (
-                <ThemedText className="text-center py-4 w-full" style={themed.textSecondary}>
+                <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="py-4 w-full">
                   {t('dashboard.allCleared')}
-                </ThemedText>
+                </Text>
               )}
 
               <Pressable
                 onPress={() => navigation.navigate('Budget')}
                 className="bg-blue-100 py-2 px-4 rounded-xl mt-3"
               >
-                <ThemedText className="text-center font-medium w-full" style={{ color: '#1d4ed8' }}>
+                <Text style={{ textAlign: 'center', color: '#1d4ed8' }} className="font-medium w-full">
                   {t('dashboard.showAll')}
-                </ThemedText>
+                </Text>
               </Pressable>
             </View>
           )}
 
           {myBalance && (!myBalance.owed || !myBalance.owes) && (
-            <ThemedText className="text-center py-4 w-full" style={themed.textSecondary}>
+            <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="py-4 w-full">
               {t('dashboard.loadingDebts')}
-            </ThemedText>
+            </Text>
           )}
 
           {!myBalance && (
-            <ThemedText className="text-center py-4 w-full" style={themed.textSecondary}>
+            <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="py-4 w-full">
               {t('dashboard.noDebtsData')}
-            </ThemedText>
+            </Text>
           )}
         </ThemedCard>
 
@@ -1006,9 +1013,9 @@ export default function DashboardScreen() {
                 <Ionicons name="arrow-forward" size={24} color={themed.textSecondary.color} />
               </Pressable>
               
-              <ThemedText className="text-2xl font-bold flex-1 text-center w-full">
+              <Text style={{ textAlign: 'center' }} className="text-2xl font-bold flex-1 w-full">
                 {t('dashboard.highlightsTitle')}
-              </ThemedText>
+              </Text>
             </View>
           </ThemedCard>
 
@@ -1037,9 +1044,9 @@ export default function DashboardScreen() {
                     )}
                     style={timeRange !== option.key ? themed.surfaceBg : undefined}
                   >
-                    <ThemedText className="text-center text-sm font-medium w-full" style={timeRange === option.key ? { color: '#ffffff' } : themed.textSecondary}>
+                    <Text style={{ textAlign: 'center', color: timeRange === option.key ? '#ffffff' : themed.textSecondary.color }} className="text-sm font-medium w-full">
                       {option.label}
-                    </ThemedText>
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -1176,9 +1183,9 @@ export default function DashboardScreen() {
                 <ThemedText className="text-lg font-medium mt-4 mb-2">
                   {t('dashboard.noData')}
                 </ThemedText>
-                <ThemedText className="text-center w-full" style={themed.textSecondary}>
+                <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="w-full">
                   {t('dashboard.startShoppingCleaning')}
-                </ThemedText>
+                </Text>
               </ThemedCard>
             )}
 
@@ -1189,18 +1196,18 @@ export default function DashboardScreen() {
                 className="flex-1 py-4 px-6 rounded-xl"
                 style={themed.closeButtonBg}
               >
-                <ThemedText className="font-medium text-center w-full" style={themed.textSecondary}>
+                <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="font-medium w-full">
                   {t('dashboard.close')}
-                </ThemedText>
+                </Text>
               </Pressable>
               
               <Pressable
                 onPress={shareHighlights}
                 className="flex-1 bg-blue-500 py-4 px-6 rounded-xl"
               >
-                <ThemedText className="font-medium text-center w-full" style={{ color: '#ffffff' }}>
+                <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium w-full">
                   {t('dashboard.share')}
-                </ThemedText>
+                </Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -1221,9 +1228,9 @@ export default function DashboardScreen() {
               style={[{ width: '100%', maxWidth: 400 }, addExpenseLift.animatedStyle]}
             >
               <View className="bg-white rounded-2xl p-6">
-              <ThemedText className="text-xl font-semibold text-gray-900 mb-6 text-center w-full">
+              <Text style={{ textAlign: 'center' }} className="text-xl font-semibold text-gray-900 mb-6 w-full">
                 {t('dashboard.actionAddExpense')}
-              </ThemedText>
+              </Text>
 
               {/* Expense Title */}
               <View className="mb-6">
@@ -1318,15 +1325,15 @@ export default function DashboardScreen() {
                     }
                   ]}
                 >
-                  <ThemedText 
-                    className="font-medium text-center w-full"
+                  <Text 
                     style={[
-                      { color: '#374151' }, // Keep light mode exactly the same
+                      { textAlign: 'center', color: '#374151' }, // Keep light mode exactly the same
                       activeScheme === 'dark' && { color: theme.colors.text.primary }
                     ]}
+                    className="font-medium w-full"
                   >
                     {t('expenseEdit.cancel')}
-                  </ThemedText>
+                  </Text>
                 </Pressable>
                 
                 <AsyncButton
