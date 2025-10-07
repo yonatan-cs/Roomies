@@ -5,7 +5,7 @@ import { useIsRTL } from '../../hooks/useIsRTL';
 
 // English-only comments
 // A thin wrapper that applies default text color and RTL alignment only if caller didn't set them
-export function ThemedText({ style, ...rest }: TextProps) {
+export function ThemedText({ style, className, ...rest }: TextProps & { className?: string }) {
   const { theme } = useTheme();
   const isRTL = useIsRTL();
   
@@ -25,7 +25,7 @@ export function ThemedText({ style, ...rest }: TextProps) {
   const hasColor = styleArray.some((s) => s && (s as TextStyle).color != null);
   const hasTextAlign = styleArray.some((s) => s && (s as TextStyle).textAlign != null);
 
-  return <Text style={[!hasColor && base.text, !hasTextAlign && base.text, style]} {...rest} />;
+  return <Text className={className} style={[!hasColor && base.text, !hasTextAlign && base.text, style]} {...rest} />;
 }
 
 

@@ -687,7 +687,10 @@ export default function DashboardScreen() {
   return (
     <View className="flex-1" style={themed.backgroundBg}>
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <View className="flex-row items-center mb-2">
+        <View className="flex-row items-center justify-between mb-2">
+          <ThemedText className="text-2xl font-bold flex-1">
+            {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
+          </ThemedText>
           <Pressable
             onPress={() => {
               impactLight(); // Haptic feedback for settings navigation
@@ -698,9 +701,6 @@ export default function DashboardScreen() {
           >
             <Ionicons name="person-outline" size={20} color={theme.colors.text.secondary} />
           </Pressable>
-          <ThemedText className="text-2xl font-bold flex-1 text-center">
-            {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
-          </ThemedText>
         </View>
         <ThemedText style={themed.textSecondary}>
           {currentApartment?.name || t('dashboard.apartmentFallback')}
@@ -726,7 +726,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="basket-outline" size={22} color="white" />
-              <ThemedText className="text-white font-medium text-base" style={{ marginStart: 8, color: 'white' }}>{t('dashboard.actionShopping')}</ThemedText>
+              <ThemedText className="font-medium text-base" style={{ marginStart: 8, color: '#ffffff' }}>{t('dashboard.actionShopping')}</ThemedText>
             </View>
           </Pressable>
           
@@ -746,7 +746,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="add-circle-outline" size={22} color="white" />
-              <ThemedText className="text-white font-medium text-base" style={{ marginStart: 8, color: 'white' }}>{t('dashboard.actionAddExpense')}</ThemedText>
+              <ThemedText className="font-medium text-base" style={{ marginStart: 8, color: '#ffffff' }}>{t('dashboard.actionAddExpense')}</ThemedText>
             </View>
           </Pressable>
         </View>
@@ -771,7 +771,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="wallet-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cardMyBalance')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cardMyBalance')}</ThemedText>
               </View>
               <ThemedText className={cn(
                 "text-2xl font-bold",
@@ -803,7 +803,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="brush-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cleaningTurn')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cleaningTurn')}</ThemedText>
               </View>
               <ThemedText className="text-lg font-bold">
                 {getDisplayName(currentTurnUser) || t('common.unknown')}
@@ -835,7 +835,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="basket-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.toBuy')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.toBuy')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
                 {pendingShoppingItems.length}
@@ -861,7 +861,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="people-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.roommates')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.roommates')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
                 {currentApartment?.members.length || 0}
@@ -875,9 +875,9 @@ export default function DashboardScreen() {
                       index > 0 && "-mr-1"
                     )}
                   >
-                    <Text className="text-xs text-blue-700 font-medium">
+                    <ThemedText className="text-xs text-blue-700 font-medium">
                       {getUserDisplayInfo(member).initial}
-                    </Text>
+                    </ThemedText>
                   </View>
                 ))}
               </View>
@@ -895,7 +895,7 @@ export default function DashboardScreen() {
             elevation: 3,
           }}
         >
-          <ThemedText className="text-lg font-semibold mb-4 text-center">
+          <ThemedText className="text-lg font-semibold mb-4 text-center w-full">
             {t('dashboard.myDebts')}
           </ThemedText>
           
@@ -910,9 +910,9 @@ export default function DashboardScreen() {
                   <ThemedText style={themed.textSecondary}>
                     {t('dashboard.owesYou', { name: getUserName(userId) })}
                   </ThemedText>
-                  <Text className="text-green-600 font-medium">
+                  <ThemedText className="font-medium" style={{ color: '#16a34a' }}>
                     {formatCurrency(amount)}
-                  </Text>
+                  </ThemedText>
                 </View>
               ))}
               
@@ -925,14 +925,14 @@ export default function DashboardScreen() {
                   <ThemedText style={themed.textSecondary}>
                     {t('dashboard.youOweTo', { name: getUserName(userId) })}
                   </ThemedText>
-                  <Text className="text-red-600 font-medium">
+                  <ThemedText className="font-medium" style={{ color: '#dc2626' }}>
                     {formatCurrency(amount)}
-                  </Text>
+                  </ThemedText>
                 </View>
               ))}
 
               {Object.keys(myBalance.owed).length === 0 && Object.keys(myBalance.owes).length === 0 && (
-                <ThemedText className="text-center py-4" style={themed.textSecondary}>
+                <ThemedText className="text-center py-4 w-full" style={themed.textSecondary}>
                   {t('dashboard.allCleared')}
                 </ThemedText>
               )}
@@ -941,21 +941,21 @@ export default function DashboardScreen() {
                 onPress={() => navigation.navigate('Budget')}
                 className="bg-blue-100 py-2 px-4 rounded-xl mt-3"
               >
-                <Text className="text-blue-700 text-center font-medium">
+                <ThemedText className="text-center font-medium w-full" style={{ color: '#1d4ed8' }}>
                   {t('dashboard.showAll')}
-                </Text>
+                </ThemedText>
               </Pressable>
             </View>
           )}
 
           {myBalance && (!myBalance.owed || !myBalance.owes) && (
-            <ThemedText className="text-center py-4" style={themed.textSecondary}>
+            <ThemedText className="text-center py-4 w-full" style={themed.textSecondary}>
               {t('dashboard.loadingDebts')}
             </ThemedText>
           )}
 
           {!myBalance && (
-            <ThemedText className="text-center py-4" style={themed.textSecondary}>
+            <ThemedText className="text-center py-4 w-full" style={themed.textSecondary}>
               {t('dashboard.noDebtsData')}
             </ThemedText>
           )}
@@ -978,7 +978,7 @@ export default function DashboardScreen() {
             }}
           >
             <View className="flex-row items-center">
-              <ThemedText className="text-lg font-semibold text-white" style={{ marginStart: 8, color: 'white' }}>
+              <ThemedText className="text-lg font-semibold" style={{ marginStart: 8, color: '#ffffff' }}>
                 {t('dashboard.quickLook')}
               </ThemedText>
               <ThemedText className="text-xl">🔍</ThemedText>
@@ -1006,7 +1006,7 @@ export default function DashboardScreen() {
                 <Ionicons name="arrow-forward" size={24} color={themed.textSecondary.color} />
               </Pressable>
               
-              <ThemedText className="text-2xl font-bold flex-1 text-center">
+              <ThemedText className="text-2xl font-bold flex-1 text-center w-full">
                 {t('dashboard.highlightsTitle')}
               </ThemedText>
             </View>
@@ -1037,12 +1037,7 @@ export default function DashboardScreen() {
                     )}
                     style={timeRange !== option.key ? themed.surfaceBg : undefined}
                   >
-                    <ThemedText className={cn(
-                      "text-center text-sm font-medium",
-                      timeRange === option.key 
-                        ? "text-white" 
-                        : ""
-                    )} style={timeRange !== option.key ? themed.textSecondary : undefined}>
+                    <ThemedText className="text-center text-sm font-medium w-full" style={timeRange === option.key ? { color: '#ffffff' } : themed.textSecondary}>
                       {option.label}
                     </ThemedText>
                   </Pressable>
@@ -1059,9 +1054,9 @@ export default function DashboardScreen() {
                   style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.totalExpenses')}</ThemedText>
-                  <Text className="text-2xl font-bold text-blue-600 mb-1">
+                  <ThemedText className="text-2xl font-bold mb-1" style={{ color: '#2563eb' }}>
                     {formatCurrency(highlightsStats.totalExpenses)}
-                  </Text>
+                  </ThemedText>
                   <ThemedText className="text-xs" style={themed.textSecondary}>
                     ({timeRange === 'all' ? t('dashboard.allTime') : 
                       timeRange === 'year' ? t('dashboard.thisYear') :
@@ -1076,9 +1071,9 @@ export default function DashboardScreen() {
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.kingOfExpenses')}</ThemedText>
                   {highlightsStats.kingOfExpenses ? (
                     <>
-                      <Text className="text-lg font-bold text-yellow-600 mb-1">
+                      <ThemedText className="text-lg font-bold mb-1" style={{ color: '#ca8a04' }}>
                         {getUserName(highlightsStats.kingOfExpenses.userId)}
-                      </Text>
+                      </ThemedText>
                       <ThemedText className="text-sm" style={themed.textSecondary}>
                         {formatCurrency(highlightsStats.kingOfExpenses.amount)}
                       </ThemedText>
@@ -1102,9 +1097,9 @@ export default function DashboardScreen() {
                   style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.cleaningsDone')}</ThemedText>
-                  <Text className="text-2xl font-bold text-green-600 mb-1">
+                  <ThemedText className="text-2xl font-bold mb-1" style={{ color: '#16a34a' }}>
                     {cleaningStats ? cleaningCount : '—'}
-                  </Text>
+                  </ThemedText>
                   <ThemedText className="text-xs" style={themed.textSecondary}>
                     {t('dashboard.totalCleaningsCounter')}
                   </ThemedText>
@@ -1117,9 +1112,9 @@ export default function DashboardScreen() {
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.shoppingChampion')}</ThemedText>
                   {highlightsStats.shoppingKing ? (
                     <>
-                      <Text className="text-lg font-bold text-orange-600 mb-1">
+                      <ThemedText className="text-lg font-bold mb-1" style={{ color: '#ea580c' }}>
                         {getUserName(highlightsStats.shoppingKing.userId)}
-                      </Text>
+                      </ThemedText>
                       <ThemedText className="text-sm" style={themed.textSecondary}>
                         {t('dashboard.itemsCount', { count: highlightsStats.shoppingKing.count })}
                       </ThemedText>
@@ -1146,9 +1141,9 @@ export default function DashboardScreen() {
                   </ThemedText>
                   {highlightsStats.biggestExpenseLast30Days ? (
                     <>
-                      <Text className="text-lg font-bold text-red-600 mb-1">
+                      <ThemedText className="text-lg font-bold mb-1" style={{ color: '#dc2626' }}>
                         {formatCurrency(highlightsStats.biggestExpenseLast30Days.amount)}
-                      </Text>
+                      </ThemedText>
                       <ThemedText className="text-sm" style={themed.textSecondary}>
                         {highlightsStats.biggestExpenseLast30Days.title}
                       </ThemedText>
@@ -1163,9 +1158,9 @@ export default function DashboardScreen() {
                   style={activeScheme === 'dark' ? { borderColor: theme.colors.border.primary, borderWidth: StyleSheet.hairlineWidth } : undefined}
                 >
                   <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('dashboard.avgPerMember')}</ThemedText>
-                  <Text className="text-lg font-bold text-purple-600 mb-1">
+                  <ThemedText className="text-lg font-bold mb-1" style={{ color: '#9333ea' }}>
                     {formatCurrency(highlightsStats.averagePerMember)}
-                  </Text>
+                  </ThemedText>
                   <ThemedText className="text-xs" style={themed.textSecondary}>{t('dashboard.perMonth')}</ThemedText>
                 </ThemedCard>
               </View>
@@ -1181,7 +1176,7 @@ export default function DashboardScreen() {
                 <ThemedText className="text-lg font-medium mt-4 mb-2">
                   {t('dashboard.noData')}
                 </ThemedText>
-                <ThemedText className="text-center" style={themed.textSecondary}>
+                <ThemedText className="text-center w-full" style={themed.textSecondary}>
                   {t('dashboard.startShoppingCleaning')}
                 </ThemedText>
               </ThemedCard>
@@ -1194,7 +1189,7 @@ export default function DashboardScreen() {
                 className="flex-1 py-4 px-6 rounded-xl"
                 style={themed.closeButtonBg}
               >
-                <ThemedText className="font-medium text-center" style={themed.textSecondary}>
+                <ThemedText className="font-medium text-center w-full" style={themed.textSecondary}>
                   {t('dashboard.close')}
                 </ThemedText>
               </Pressable>
@@ -1203,9 +1198,9 @@ export default function DashboardScreen() {
                 onPress={shareHighlights}
                 className="flex-1 bg-blue-500 py-4 px-6 rounded-xl"
               >
-                <Text className="text-white font-medium text-center">
+                <ThemedText className="font-medium text-center w-full" style={{ color: '#ffffff' }}>
                   {t('dashboard.share')}
-                </Text>
+                </ThemedText>
               </Pressable>
             </View>
           </ScrollView>
@@ -1226,13 +1221,13 @@ export default function DashboardScreen() {
               style={[{ width: '100%', maxWidth: 400 }, addExpenseLift.animatedStyle]}
             >
               <View className="bg-white rounded-2xl p-6">
-              <ThemedText className="text-xl font-semibold text-gray-900 mb-6 text-center">
+              <ThemedText className="text-xl font-semibold text-gray-900 mb-6 text-center w-full">
                 {t('dashboard.actionAddExpense')}
               </ThemedText>
 
               {/* Expense Title */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.expenseName')}</Text>
+                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.expenseName')}</ThemedText>
                 <TextInput
                   value={expenseTitle}
                   onChangeText={setExpenseTitle}
@@ -1248,7 +1243,7 @@ export default function DashboardScreen() {
 
               {/* Amount */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.amount')}</Text>
+                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.amount')}</ThemedText>
                 <NumericInput
                   value={expenseAmount}
                   onChangeText={setExpenseAmount}
@@ -1263,7 +1258,7 @@ export default function DashboardScreen() {
 
               {/* Participants */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.participants')}</Text>
+                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.participants')}</ThemedText>
                 <View className="flex-row flex-wrap">
                   {currentApartment?.members.map((member) => (
                     <Pressable
@@ -1276,14 +1271,14 @@ export default function DashboardScreen() {
                           : "bg-white border-gray-300"
                       )}
                     >
-                      <Text className={cn(
+                      <ThemedText className={cn(
                         "text-sm font-medium",
                         selectedParticipants.includes(member.id)
                           ? "text-white"
                           : "text-gray-700"
                       )}>
                         {getDisplayName(member)}
-                      </Text>
+                      </ThemedText>
                     </Pressable>
                   ))}
                 </View>
@@ -1291,7 +1286,7 @@ export default function DashboardScreen() {
 
               {/* Description */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('expenseEdit.description')}</Text>
+                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.description')}</ThemedText>
                 <TextInput
                   value={expenseDescription}
                   onChangeText={setExpenseDescription}
@@ -1323,15 +1318,15 @@ export default function DashboardScreen() {
                     }
                   ]}
                 >
-                  <Text 
-                    className="font-medium text-center"
+                  <ThemedText 
+                    className="font-medium text-center w-full"
                     style={[
                       { color: '#374151' }, // Keep light mode exactly the same
                       activeScheme === 'dark' && { color: theme.colors.text.primary }
                     ]}
                   >
                     {t('expenseEdit.cancel')}
-                  </Text>
+                  </ThemedText>
                 </Pressable>
                 
                 <AsyncButton
