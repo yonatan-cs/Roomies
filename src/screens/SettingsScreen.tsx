@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, ScrollView, Share, Alert, Linking, Platform, Keyboard } from 'react-native';
+import { View, Text, Pressable, ScrollView, Share, Alert, Linking, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import * as Clipboard from 'expo-clipboard';
 import ConfirmModal from '../components/ConfirmModal';
 import AppSettingsSection from '../components/AppSettingsSection';
+import { AppTextInput } from '../components/AppTextInput';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
@@ -21,10 +22,12 @@ import { getTaskLabel } from '../utils/taskLabel';
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);
+  const currency = useStore(s => s.currency);
   const {
     currentUser,
     currentApartment,
     setCurrentUser,
+    setCurrency,
     cleaningSettings,
     setCleaningIntervalDays,
     setCleaningAnchorDow,
@@ -278,9 +281,9 @@ export default function SettingsScreen() {
             <View key={member.id} className="mb-4">
               <View className="flex-row items-center">
                 <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
-                  <Text className="text-blue-700 font-semibold text-lg">
+                  <ThemedText className="text-blue-700 font-semibold text-lg">
                     {getUserDisplayInfo(member).initial}
-                  </Text>
+                  </ThemedText>
                 </View>
                 <View className="mr-3 flex-1">
                   <ThemedText className="font-medium">
@@ -315,7 +318,7 @@ export default function SettingsScreen() {
                           className="px-4 py-3 border-b"
                           style={themed.borderColor}
                         >
-                          <Text className="text-red-600 font-medium">{t('settings.removeMember')}</Text>
+                          <ThemedText className="text-red-600 font-medium">{t('settings.removeMember')}</ThemedText>
                         </Pressable>
                       </View>
                     )}
@@ -333,12 +336,11 @@ export default function SettingsScreen() {
             <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('settings.fullName')}</ThemedText>
             {editingName ? (
               <View className="flex-row items-center">
-                <TextInput
+                <AppTextInput
                   value={newName}
                   onChangeText={setNewName}
                   className="flex-1 border rounded-xl px-4 py-3 text-base"
                   style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                  textAlign="right"
                   autoFocus
                   returnKeyType="done"
                   onSubmitEditing={() => Keyboard.dismiss()}
@@ -435,12 +437,11 @@ export default function SettingsScreen() {
             return (
               <View key={item.id} className="flex-row items-center py-2">
                 {isEditing ? (
-                  <TextInput
+                  <AppTextInput
                     value={editingChoreName}
                     onChangeText={setEditingChoreName}
                     className="flex-1 border rounded-xl px-3 py-2 text-base"
                     style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                    textAlign="right"
                     returnKeyType="done"
                     onSubmitEditing={() => {
                       if (editingChoreName.trim()) {
@@ -510,13 +511,12 @@ export default function SettingsScreen() {
           })}
 
           <View className="flex-row items-center mt-4">
-            <TextInput
+            <AppTextInput
               value={newChore}
               onChangeText={setNewChore}
               placeholder={t('settings.addNewTaskPlaceholder')}
               className="flex-1 border rounded-xl px-4 py-3 text-base"
               style={[themed.borderColor, themed.inputBg, themed.inputText]}
-              textAlign="right"
               onSubmitEditing={async () => {
                 if (!newChore.trim()) return;
                 setIsAddingChore(true);
@@ -571,9 +571,9 @@ export default function SettingsScreen() {
           {/* Success Message */}
           {showSuccessMessage && (
             <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
-              <Text className="text-green-800 text-center font-medium">
+              <ThemedText className="text-green-800 text-center font-medium">
                 ✅ {t('settings.alerts.taskAddedSuccess')}
-              </Text>
+              </ThemedText>
             </View>
           )}
         </ThemedCard>
@@ -590,7 +590,7 @@ export default function SettingsScreen() {
             onPress={handleTestNotification}
             className="bg-purple-500 py-3 px-6 rounded-xl mb-3"
           >
-            <Text className="text-white font-semibold text-center">🧪 {t('settings.testNotificationButton')}</Text>
+            <ThemedText className="text-white font-semibold text-center">🧪 {t('settings.testNotificationButton')}</ThemedText>
           </Pressable>
           
           <Pressable 
@@ -599,14 +599,14 @@ export default function SettingsScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="mail-outline" size={20} color="white" className="ml-2" />
-              <Text className="text-white font-semibold text-center"> {t('settings.feedbackCta')} </Text>
+              <ThemedText className="text-white font-semibold text-center"> {t('settings.feedbackCta')} </ThemedText>
             </View>
           </Pressable>
         </ThemedCard>
 
         {/* Danger Zone */}
         <ThemedCard className="rounded-2xl p-6 shadow-sm border-2 border-red-100">
-          <Text className="text-lg font-semibold text-red-600 mb-4">{t('settings.dangerZone')}</Text>
+          <ThemedText className="text-lg font-semibold text-red-600 mb-4">{t('settings.dangerZone')}</ThemedText>
           
           <Pressable 
             onPress={async () => {
@@ -635,11 +635,11 @@ export default function SettingsScreen() {
             }}
             className="bg-orange-500 py-3 px-6 rounded-xl mb-3"
           >
-            <Text className="text-white font-semibold text-center">{t('settings.signOut')}</Text>
+            <ThemedText className="text-white font-semibold text-center">{t('settings.signOut')}</ThemedText>
           </Pressable>
           
           <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
-            <Text className="text-white font-semibold text-center">{t('settings.leaveApartment')}</Text>
+            <ThemedText className="text-white font-semibold text-center">{t('settings.leaveApartment')}</ThemedText>
           </Pressable>
           <ThemedText className="text-xs text-center mt-2" style={themed.textSecondary}>{t('settings.actionWillRemove')}</ThemedText>
         </ThemedCard>

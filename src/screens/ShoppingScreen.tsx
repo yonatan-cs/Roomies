@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   ScrollView,
   Alert,
@@ -17,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
+import { AppTextInput } from '../components/AppTextInput';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import { success, impactMedium, selection, impactLight, warning } from '../utils/haptics';
@@ -337,9 +337,9 @@ export default function ShoppingScreen() {
                     size={12}
                     color={PRIORITIES.find(p => p.key === item.priority)?.color}
                   />
-                  <Text className={cn('text-xs font-medium mr-1', PRIORITIES.find(p => p.key === item.priority)?.color)}>
+                  <ThemedText className={cn('text-xs font-medium mr-1', PRIORITIES.find(p => p.key === item.priority)?.color)}>
                     {PRIORITIES.find(p => p.key === item.priority)?.label}
-                  </Text>
+                  </ThemedText>
                 </View>
               )}
             </View>
@@ -349,7 +349,7 @@ export default function ShoppingScreen() {
             <View className="mt-2 flex-row items-center space-x-2">
               <View className="bg-orange-100 px-2 py-1 rounded-lg flex-row items-center">
                 <Ionicons name="list-outline" size={12} color="#f97316" />
-                <Text className="text-xs font-medium text-orange-700 mr-1">{t('shopping.quantity', { qty: item.quantity })}</Text>
+                <ThemedText className="text-xs font-medium text-orange-700 mr-1">{t('shopping.quantity', { qty: item.quantity })}</ThemedText>
               </View>
             </View>
           )}
@@ -358,7 +358,7 @@ export default function ShoppingScreen() {
             <View className="mt-2 flex-row items-center space-x-2">
               <View className="bg-indigo-100 px-2 py-1 rounded-lg flex-row items-center">
                 <Ionicons name="chatbubble-outline" size={12} color="#6366f1" />
-                <Text className="text-sm text-indigo-700 mr-1 italic">{item.notes}</Text>
+                <ThemedText className="text-sm text-indigo-700 mr-1 italic">{item.notes}</ThemedText>
               </View>
             </View>
           )}
@@ -366,7 +366,7 @@ export default function ShoppingScreen() {
           {item.purchased && (
             <View className="flex-row items-center mt-2">
               <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-              <Text className="text-sm text-green-600 mr-2">{t('shopping.purchasedBy', { name: getUserName(item.purchasedBy!), price: item.purchasePrice ? ` • ${t('shopping.shekel')}${item.purchasePrice}` : '' })}</Text>
+              <ThemedText className="text-sm text-green-600 mr-2">{t('shopping.purchasedBy', { name: getUserName(item.purchasedBy!), price: item.purchasePrice ? ` • ${t('shopping.shekel')}${item.purchasePrice}` : '' })}</ThemedText>
             </View>
           )}
         </Pressable>
@@ -402,7 +402,7 @@ export default function ShoppingScreen() {
           className="mt-4 py-2 px-4 rounded-xl"
           style={{ backgroundColor: '#3b82f6' }}
         >
-          <Text className="text-white font-medium">{t('welcome.joinApt')}</Text>
+          <ThemedText className="text-white font-medium">{t('welcome.joinApt')}</ThemedText>
         </Pressable>
       </View>
     );
@@ -419,7 +419,7 @@ export default function ShoppingScreen() {
         <ThemedText style={themed.textSecondary} className="text-center">
           {t('shopping.itemsToBuy', { count: pendingItems.length })}
           {selectedPriorityFilter !== 'all' && (
-            <Text className="text-blue-600 font-medium">{' '}• {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}</Text>
+            <ThemedText className="text-blue-600 font-medium">{' '}• {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}</ThemedText>
           )}
         </ThemedText>
       </ThemedCard>
@@ -469,7 +469,7 @@ export default function ShoppingScreen() {
         }} className="bg-blue-500 py-4 px-6 rounded-2xl shadow-sm">
           <View className="flex-row items-center justify-center">
             <Ionicons name="add-circle-outline" size={24} color="white" />
-            <Text className="text-white font-semibold text-lg mr-2">{t('shopping.addNewItem')}</Text>
+            <ThemedText className="text-white font-semibold text-lg mr-2">{t('shopping.addNewItem')}</ThemedText>
           </View>
         </Pressable>
       </View>
@@ -487,9 +487,9 @@ export default function ShoppingScreen() {
             <ThemedText className="text-lg font-semibold mb-4">
               {t('shopping.toBuy')}
               {selectedPriorityFilter !== 'all' && (
-                <Text className="text-blue-600 font-medium text-base">
+                <ThemedText className="text-blue-600 font-medium text-base">
                   {' '}({t('shopping.priorityLabel')}: {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label})
-                </Text>
+                </ThemedText>
               )}
             </ThemedText>
             <FlatList data={pendingItems} renderItem={renderShoppingItem} keyExtractor={item => item.id} scrollEnabled={false} />
@@ -506,7 +506,7 @@ export default function ShoppingScreen() {
               selection(); // Haptic feedback for show all filter
               setSelectedPriorityFilter('all');
             }} className="bg-blue-500 py-3 px-6 rounded-xl mt-4">
-              <Text className="text-white font-medium text-center">{t('shopping.showAll')}</Text>
+              <ThemedText className="text-white font-medium text-center">{t('shopping.showAll')}</ThemedText>
             </Pressable>
           </ThemedCard>
         )}
@@ -556,13 +556,12 @@ export default function ShoppingScreen() {
               {/* Item Name */}
               <View className="mb-6">
                 <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('shopping.addModal.itemName')}</ThemedText>
-                <TextInput
+                <AppTextInput
                   value={newItemName}
                   onChangeText={setNewItemName}
                   placeholder={t('shopping.addModal.itemNamePh')}
                   className="border rounded-xl px-4 py-3 text-base"
                   style={themed.borderColor}
-                  textAlign="right"
                   autoFocus
                   returnKeyType="next"
                   onSubmitEditing={Keyboard.dismiss}
@@ -573,12 +572,12 @@ export default function ShoppingScreen() {
               {/* Quantity */}
               <View className="mb-6">
                 <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('shopping.addModal.quantity')}</ThemedText>
-                <TextInput
+                <AppTextInput
                   value={newItemQuantity}
                   onChangeText={setNewItemQuantity}
                   placeholder="1"
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                  textAlign="center"
+                  style={{ textAlign: 'center' }}
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
@@ -623,13 +622,12 @@ export default function ShoppingScreen() {
 
               {/* Notes */}
               <View className="mb-6">
-                <Text className="text-gray-700 text-base mb-2">{t('shopping.addModal.notes')}</Text>
-                <TextInput
+                <ThemedText className="text-gray-700 text-base mb-2">{t('shopping.addModal.notes')}</ThemedText>
+                <AppTextInput
                   value={newItemNotes}
                   onChangeText={setNewItemNotes}
                   placeholder={t('shopping.addModal.notesPh')}
                   className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                  textAlign="right"
                   multiline
                   numberOfLines={3}
                   returnKeyType="done"
@@ -653,7 +651,7 @@ export default function ShoppingScreen() {
                   className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                   disabled={isAddingItem}
                 >
-                  <Text className="text-gray-700 font-medium text-center">{t('shopping.addModal.cancel')}</Text>
+                  <ThemedText className="text-gray-700 font-medium text-center">{t('shopping.addModal.cancel')}</ThemedText>
                 </Pressable>
 
                 <Pressable
@@ -666,9 +664,9 @@ export default function ShoppingScreen() {
                 >
                   <View className="flex-row items-center justify-center">
                     {isAddingItem ? (<Ionicons name="hourglass" size={20} color="white" />) : (<Ionicons name="add" size={20} color="white" />)}
-                    <Text className="text-white font-medium text-center mr-2">
+                    <ThemedText className="text-white font-medium text-center mr-2">
                       {isAddingItem ? t('shopping.addModal.adding') : t('shopping.addModal.add')}
-                    </Text>
+                    </ThemedText>
                   </View>
                 </Pressable>
               </View>
@@ -684,39 +682,38 @@ export default function ShoppingScreen() {
             <Animated.View onLayout={purchaseLift.onLayoutCard} style={[{ width: '100%', maxWidth: 400 }, purchaseLift.animatedStyle]}>
               <View className="bg-white rounded-2xl p-6">
                 <Pressable onPress={Keyboard.dismiss}>
-                  <Text className="text-xl font-semibold text-gray-900 mb-4 text-center">{t('shopping.purchaseModal.title')}</Text>
+                  <ThemedText className="text-xl font-semibold text-gray-900 mb-4 text-center">{t('shopping.purchaseModal.title')}</ThemedText>
                 </Pressable>
 
                 {/* Price */}
                 <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">
-                    {t('shopping.purchaseModal.price')} <Text className="text-red-500">*</Text>
-                  </Text>
+                  <ThemedText className="text-gray-700 text-base mb-2">
+                    {t('shopping.purchaseModal.price')} <ThemedText className="text-red-500">*</ThemedText>
+                  </ThemedText>
                   <View className="flex-row items-center">
-                    <TextInput
+                    <AppTextInput
                       value={purchasePrice}
                       onChangeText={setPurchasePrice}
                       placeholder={t('shopping.purchaseModal.pricePlaceholder')}
                       className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
                       keyboardType="numeric"
-                      textAlign="center"
+                      style={{ textAlign: 'center' }}
                       returnKeyType="next"
                       onSubmitEditing={Keyboard.dismiss}
                       blurOnSubmit={false}
                     />
-                    <Text className="text-gray-700 text-lg mr-3">{t('shopping.shekel')}</Text>
+                    <ThemedText className="text-gray-700 text-lg mr-3">{t('shopping.shekel')}</ThemedText>
                   </View>
                 </View>
 
                 {/* Note */}
                 <View className="mb-6">
-                  <Text className="text-gray-700 text-base mb-2">{t('shopping.purchaseModal.note')}</Text>
-                  <TextInput
+                  <ThemedText className="text-gray-700 text-base mb-2">{t('shopping.purchaseModal.note')}</ThemedText>
+                  <AppTextInput
                     value={purchaseNote}
                     onChangeText={setPurchaseNote}
                     placeholder={t('shopping.additionalDetailsPlaceholder')}
                     className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                    textAlign="right"
                     multiline
                     numberOfLines={3}
                     returnKeyType="done"
@@ -728,7 +725,7 @@ export default function ShoppingScreen() {
                 {/* Participants */}
                 {purchasePrice.trim() && (
                   <View className="mb-4">
-                    <Text className="text-gray-700 text-base mb-3 text-center">{t('shopping.purchaseModal.whoParticipates')}</Text>
+                    <ThemedText className="text-gray-700 text-base mb-3 text-center">{t('shopping.purchaseModal.whoParticipates')}</ThemedText>
                     <View className={cn('space-y-2', (currentApartment?.members?.length || 0) > 5 && 'max-h-40')}>
                       <ScrollView showsVerticalScrollIndicator={false}>
                         {currentApartment?.members.map(member => (
@@ -745,9 +742,9 @@ export default function ShoppingScreen() {
                               selectedParticipants.includes(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
                             )}
                           >
-                            <Text className={cn('font-medium', selectedParticipants.includes(member.id) ? 'text-blue-700' : 'text-gray-700')}>
+                            <ThemedText className={cn('font-medium', selectedParticipants.includes(member.id) ? 'text-blue-700' : 'text-gray-700')}>
                               {member.name} {member.id === currentUser?.id && t('shopping.youLabel')}
-                            </Text>
+                            </ThemedText>
                             <View
                               className={cn(
                                 'w-5 h-5 rounded-full border-2 items-center justify-center',
@@ -761,11 +758,11 @@ export default function ShoppingScreen() {
                       </ScrollView>
                     </View>
 
-                    <Text className="text-xs text-gray-500 text-center mt-2">{t('shopping.purchaseModal.splitNote')}</Text>
+                    <ThemedText className="text-xs text-gray-500 text-center mt-2">{t('shopping.purchaseModal.splitNote')}</ThemedText>
                   </View>
                 )}
 
-                <Text className="text-sm text-gray-500 text-center mb-4">{t('shopping.purchaseModal.budgetHintWithPrice')}</Text>
+                <ThemedText className="text-sm text-gray-500 text-center mb-4">{t('shopping.purchaseModal.budgetHintWithPrice')}</ThemedText>
 
                 {/* Footer buttons */}
                 <View className="flex-row space-x-3">
@@ -781,7 +778,7 @@ export default function ShoppingScreen() {
                     }}
                     className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                   >
-                    <Text className="text-gray-700 font-medium text-center">{t('shopping.purchaseModal.cancel')}</Text>
+                    <ThemedText className="text-gray-700 font-medium text-center">{t('shopping.purchaseModal.cancel')}</ThemedText>
                   </Pressable>
 
                   <Pressable
@@ -795,10 +792,10 @@ export default function ShoppingScreen() {
                     {isPurchasingItem === selectedItemId ? (
                       <View className="flex-row items-center justify-center">
                         <Ionicons name="hourglass" size={20} color="white" />
-                        <Text className="text-white font-medium text-center mr-2">{t('shopping.purchaseModal.adding')}</Text>
+                        <ThemedText className="text-white font-medium text-center mr-2">{t('shopping.purchaseModal.adding')}</ThemedText>
                       </View>
                     ) : (
-                      <Text className="text-white font-medium text-center">{t('shopping.purchaseModal.confirm')}</Text>
+                      <ThemedText className="text-white font-medium text-center">{t('shopping.purchaseModal.confirm')}</ThemedText>
                     )}
                   </Pressable>
                 </View>
@@ -812,7 +809,7 @@ export default function ShoppingScreen() {
       {showItemDetailsModal && selectedItemId && (
         <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
           <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('shopping.detailsModal.title')}</Text>
+            <ThemedText className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('shopping.detailsModal.title')}</ThemedText>
 
             {(() => {
               const item = shoppingItems.find(i => i.id === selectedItemId);
@@ -821,17 +818,17 @@ export default function ShoppingScreen() {
               return (
                 <View className="space-y-5">
                   <View className="bg-gray-50 p-4 rounded-xl">
-                    <Text className="text-gray-600 text-sm mb-2 text-center">{t('shopping.detailsModal.itemName')}</Text>
-                    <Text className="text-gray-900 font-semibold text-lg text-center">{item?.name || ''}</Text>
+                    <ThemedText className="text-gray-600 text-sm mb-2 text-center">{t('shopping.detailsModal.itemName')}</ThemedText>
+                    <ThemedText className="text-gray-900 font-semibold text-lg text-center">{item?.name || ''}</ThemedText>
                   </View>
 
                   <View className="bg-blue-50 p-4 rounded-xl">
                     <View className="flex-row items-center justify-center mb-2">
                       <Ionicons name="person-add-outline" size={16} color="#3b82f6" />
-                      <Text className="text-blue-700 text-sm font-medium mr-2">{t('shopping.detailsModal.addedBy')}</Text>
+                      <ThemedText className="text-blue-700 text-sm font-medium mr-2">{t('shopping.detailsModal.addedBy')}</ThemedText>
                     </View>
-                    <Text className="text-blue-900 font-medium text-center">{getUserName(item?.addedBy || '')}</Text>
-                    <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item?.addedAt || new Date())}</Text>
+                    <ThemedText className="text-blue-900 font-medium text-center">{getUserName(item?.addedBy || '')}</ThemedText>
+                    <ThemedText className="text-blue-600 text-sm text-center mt-1">{formatDate(item?.addedAt || new Date())}</ThemedText>
                   </View>
 
                   {item?.priority && (
@@ -842,11 +839,11 @@ export default function ShoppingScreen() {
                           size={16}
                           color={PRIORITIES.find(p => p.key === item.priority)?.color}
                         />
-                        <Text className="text-purple-700 text-sm font-medium mr-2">{t('shopping.detailsModal.priority')}</Text>
+                        <ThemedText className="text-purple-700 text-sm font-medium mr-2">{t('shopping.detailsModal.priority')}</ThemedText>
                       </View>
-                      <Text className="text-purple-900 font-medium text-center">
+                      <ThemedText className="text-purple-900 font-medium text-center">
                         {PRIORITIES.find(p => p.key === item.priority)?.label}
-                      </Text>
+                      </ThemedText>
                     </View>
                   )}
 
@@ -854,9 +851,9 @@ export default function ShoppingScreen() {
                     <View className="bg-orange-50 p-4 rounded-xl">
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="list-outline" size={16} color="#f97316" />
-                        <Text className="text-orange-700 text-sm font-medium mr-2">{t('shopping.detailsModal.quantity')}</Text>
+                        <ThemedText className="text-orange-700 text-sm font-medium mr-2">{t('shopping.detailsModal.quantity')}</ThemedText>
                       </View>
-                      <Text className="text-orange-900 font-bold text-xl text-center">{item.quantity}</Text>
+                      <ThemedText className="text-orange-900 font-bold text-xl text-center">{item.quantity}</ThemedText>
                     </View>
                   )}
 
@@ -864,9 +861,9 @@ export default function ShoppingScreen() {
                     <View className="bg-indigo-50 p-4 rounded-xl">
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="chatbubble-outline" size={16} color="#6366f1" />
-                        <Text className="text-indigo-700 text-sm font-medium mr-2">{t('shopping.detailsModal.notes')}</Text>
+                        <ThemedText className="text-indigo-700 text-sm font-medium mr-2">{t('shopping.detailsModal.notes')}</ThemedText>
                       </View>
-                      <Text className="text-indigo-900 text-center">{item.notes}</Text>
+                      <ThemedText className="text-indigo-900 text-center">{item.notes}</ThemedText>
                     </View>
                   )}
 
@@ -875,11 +872,11 @@ export default function ShoppingScreen() {
                       <View className="bg-green-50 p-4 rounded-xl">
                         <View className="flex-row items-center justify-center mb-2">
                           <Ionicons name="checkmark-circle-outline" size={16} color="#10b981" />
-                          <Text className="text-green-700 text-sm font-medium mr-2">{t('shopping.purchasedByLabel')}</Text>
+                          <ThemedText className="text-green-700 text-sm font-medium mr-2">{t('shopping.purchasedByLabel')}</ThemedText>
                         </View>
-                        <Text className="text-green-900 font-medium text-center">{getUserName(item?.purchasedBy || '')}</Text>
+                        <ThemedText className="text-green-900 font-medium text-center">{getUserName(item?.purchasedBy || '')}</ThemedText>
                         {item?.purchasedAt && (
-                          <Text className="text-blue-600 text-sm text-center mt-1">{formatDate(item.purchasedAt)}</Text>
+                          <ThemedText className="text-blue-600 text-sm text-center mt-1">{formatDate(item.purchasedAt)}</ThemedText>
                         )}
                       </View>
 
@@ -887,9 +884,9 @@ export default function ShoppingScreen() {
                         <View className="bg-yellow-50 p-4 rounded-xl">
                           <View className="flex-row items-center justify-center mb-2">
                             <Ionicons name="cash-outline" size={16} color="#eab308" />
-                            <Text className="text-yellow-700 text-sm font-medium mr-2">{t('shopping.priceLabel')}</Text>
+                            <ThemedText className="text-yellow-700 text-sm font-medium mr-2">{t('shopping.priceLabel')}</ThemedText>
                           </View>
-                          <Text className="text-yellow-900 font-bold text-xl text-center">₪{item.purchasePrice}</Text>
+                          <ThemedText className="text-yellow-900 font-bold text-xl text-center">₪{item.purchasePrice}</ThemedText>
                         </View>
                       )}
                     </>
@@ -904,7 +901,7 @@ export default function ShoppingScreen() {
                       }}
                       className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                     >
-                      <Text className="text-gray-700 font-medium text-center">{t('shopping.detailsModal.close')}</Text>
+                      <ThemedText className="text-gray-700 font-medium text-center">{t('shopping.detailsModal.close')}</ThemedText>
                     </Pressable>
 
                     <Pressable
@@ -915,10 +912,10 @@ export default function ShoppingScreen() {
                       {isRepurchasingItem === selectedItemId ? (
                         <View className="flex-row items-center justify-center">
                           <Ionicons name="hourglass" size={20} color="white" />
-                          <Text className="text-white font-medium text-center mr-2">{t('shopping.detailsModal.adding')}</Text>
+                          <ThemedText className="text-white font-medium text-center mr-2">{t('shopping.detailsModal.adding')}</ThemedText>
                         </View>
                       ) : (
-                        <Text className="text-white font-medium text-center">{t('shopping.detailsModal.repurchase')}</Text>
+                        <ThemedText className="text-white font-medium text-center">{t('shopping.detailsModal.repurchase')}</ThemedText>
                       )}
                     </Pressable>
                   </View>

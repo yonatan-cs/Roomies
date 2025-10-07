@@ -55,6 +55,10 @@ interface AppState {
   appLanguage: 'he' | 'en';
   setAppLanguage: (lang: 'he' | 'en') => void;
 
+  // Currency
+  currency: 'ILS' | 'USD';
+  setCurrency: (currency: 'ILS' | 'USD') => void;
+
   // Firestore control
   disableFirestoreForNewUsers: boolean;
   setDisableFirestoreForNewUsers: (disable: boolean) => void;
@@ -163,6 +167,9 @@ export const useStore = create<AppState>()(
       // Language (default Hebrew to match current UI)
       appLanguage: 'he',
 
+      // Currency (default ILS - Shekel)
+      currency: 'ILS',
+
       // Theme (default system)
       themeSetting: DEFAULT_THEME_SETTING,
 
@@ -178,6 +185,9 @@ export const useStore = create<AppState>()(
       
       // Language setter
       setAppLanguage: (lang) => set({ appLanguage: lang }),
+
+      // Currency setter
+      setCurrency: (currency) => set({ currency }),
       // Theme setter
       setThemeSetting: (setting) => set({ themeSetting: setting }),
       // Haptics setter
@@ -1513,6 +1523,7 @@ export const useStore = create<AppState>()(
         currentUser: state.currentUser,
         currentApartment: state.currentApartment,
         appLanguage: state.appLanguage,
+        currency: state.currency,
         themeSetting: state.themeSetting,
         hapticsEnabled: state.hapticsEnabled,
         cleaningTask: state.cleaningTask,

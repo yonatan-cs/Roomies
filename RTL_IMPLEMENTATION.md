@@ -2,7 +2,7 @@
 
 ## Overview
 
-This application now has comprehensive RTL (Right-to-Left) support for Hebrew without using `I18nManager.forceRTL`, which prevents layout-breaking side effects.
+This application now has comprehensive RTL (Right-to-Left) support for Hebrew using component-based RTL awareness without `I18nManager.forceRTL`, which prevents layout-breaking side effects.
 
 ## What Was Implemented
 
@@ -21,62 +21,135 @@ A comprehensive set of helper functions for RTL-aware layouts:
 - **`marginStart(value)`** / **`marginEnd(value)`**: RTL-aware margins
 - **`paddingStart(value)`** / **`paddingEnd(value)`**: RTL-aware padding
 
-### 2. **App.tsx Global Configuration**
+### 2. **Dynamic RTL Hook** (`src/hooks/useIsRTL.ts`)
 
-Updated to set default text alignment for all `Text` and `TextInput` components:
+New hook that provides dynamic RTL detection:
 
 ```typescript
-// Automatically applied to all Text and TextInput
+// Responds to language changes in real-time
+const isRTL = useIsRTL(); // true when i18n.language === 'he'
+```
+
+This ensures RTL detection updates immediately when language changes, unlike static imports.
+
+### 3. **Enhanced ThemedText Component** (`src/theme/components/ThemedText.tsx`)
+
+Updated ThemedText to automatically apply RTL text alignment:
+
+```typescript
+// Automatically applied to all ThemedText components
 {
   textAlign: isRTL ? 'right' : 'left',
   writingDirection: isRTL ? 'rtl' : 'ltr',
 }
 ```
 
-This ensures Hebrew text aligns right by default without breaking layouts or requiring `forceRTL`.
+This ensures Hebrew text aligns right by default while preserving existing color theming logic and allowing style prop overrides.
 
-### 3. **Fixed Components**
+### 4. **AppTextInput Component** (`src/components/AppTextInput.tsx`)
 
-#### ExpenseRow.tsx
-- Replaced `marginLeft: 12` → `marginStart: 12`
-- Replaced `marginRight: 10` → `marginEnd: 10`
+New RTL-aware TextInput wrapper that:
 
-#### WelcomeScreen.tsx & AuthScreen.tsx
-- Fixed absolute positioning of language toggle button
-- Changed from `{ right: 16, top: 60 }` to `{ ...absEnd(16), top: 60 }`
+- Applies proper `textAlign` and `writingDirection` based on RTL
+- Adds `textAlignVertical="top"` for Android multiline inputs
+- Preserves TextInput selection on Android to prevent cursor jumps
+- Preserves all TextInput props and forwards them
+- Supports style prop override for special cases (centered inputs)
 
-### 4. **Verified Components**
+### 5. **Hebrew Formatting Utilities** (`src/utils/hebrewFormatting.ts`)
 
-Searched and verified no remaining `marginLeft`, `marginRight`, `paddingLeft`, or `paddingRight` hardcoded values that would break RTL layouts.
+New utilities for proper Hebrew number and date formatting:
 
-## How to Use RTL Utilities
+- `formatCurrency()` - Uses Intl.NumberFormat for proper RTL currency display
+- `formatDate()` - Uses Intl.DateTimeFormat for proper RTL date display
+- `formatNumber()` - Uses Intl.NumberFormat for proper RTL number display
+- Hook versions (`useFormatCurrency()`, etc.) that automatically detect RTL
+
+### 4. **Screen Migration Completed**
+
+All screens have been migrated to use RTL-aware components:
+
+- **Auth Flow**: AuthScreen, WelcomeScreen, ForgotPasswordScreen
+- **Settings Screen**: All TextInput and Text components
+- **Shopping Screen**: All modals, forms, and display components
+- **Cleaning Screen**: Already using ThemedText
+- **Dashboard & Budget Screens**: Already using ThemedText
+- **AddExpense & GroupDebts Screens**: Already using ThemedText
+
+### 5. **Component Updates**
+
+- **AsyncButton**: Updated to use ThemedText for RTL button labels
+- **All other components**: Already using ThemedText or AppTextInput
+
+### 6. **Removed Ineffective Code**
+
+- Removed global `defaultProps` approach from `App.tsx` (lines 67-86)
+- This approach was unreliable and has been replaced by component-based RTL support
+
+## How to Use RTL Components
 
 ### For Text Components
 
 ```typescript
-import { rtlText, rtlTextCenter } from '../utils/rtl';
+import { ThemedText } from '../theme/components/ThemedText';
 
-// Right-aligned in Hebrew, left-aligned in English
-<Text style={rtlText()}>שלום / Hello</Text>
+// Automatically RTL-aware - right-aligned in Hebrew, left-aligned in English
+<ThemedText>שלום / Hello</ThemedText>
 
-// Always centered, but respects writing direction
-<Text style={rtlTextCenter()}>Centered Text</Text>
-
-// With additional styles
-<Text style={rtlText({ fontSize: 16, fontWeight: 'bold' })}>
+// With additional styles (RTL alignment is preserved)
+<ThemedText style={{ fontSize: 16, fontWeight: 'bold' }}>
   Styled Text
-</Text>
+</ThemedText>
+
+// Override alignment when needed (e.g., centered text)
+<ThemedText style={{ textAlign: 'center' }}>
+  Centered Text
+</ThemedText>
 ```
 
 ### For TextInput Components
 
 ```typescript
-import { rtlTextInput } from '../utils/rtl';
+import { AppTextInput } from '../components/AppTextInput';
 
-<TextInput
-  style={rtlTextInput({ fontSize: 16 })}
+// Automatically RTL-aware with proper cursor positioning
+<AppTextInput
   placeholder="Enter text..."
+  style={{ fontSize: 16 }}
 />
+
+// Override alignment when needed (e.g., centered inputs)
+<AppTextInput
+  placeholder="Join code"
+  style={{ textAlign: 'center' }}
+/>
+
+// Multiline inputs with proper Android support
+<AppTextInput
+  placeholder="Enter notes..."
+  multiline
+  numberOfLines={3}
+/>
+```
+
+### For Number and Date Formatting
+
+```typescript
+import { useFormatCurrency, useFormatDate, useFormatNumber } from '../utils/hebrewFormatting';
+
+function MyComponent() {
+  const formatCurrency = useFormatCurrency();
+  const formatDate = useFormatDate();
+  const formatNumber = useFormatNumber();
+
+  return (
+    <View>
+      <ThemedText>{formatCurrency(1234.56)}</ThemedText>
+      <ThemedText>{formatDate(new Date())}</ThemedText>
+      <ThemedText>{formatNumber(1234567)}</ThemedText>
+    </View>
+  );
+}
 ```
 
 ### For Row Layouts
@@ -133,7 +206,25 @@ import { marginStart, marginEnd, paddingStart, paddingEnd } from '../utils/rtl';
 
 ### ✅ DO
 
-1. **Use `marginStart`/`marginEnd` instead of `marginLeft`/`marginRight`**
+1. **Use ThemedText for all user-facing text**
+   ```typescript
+   // Good - automatically RTL-aware
+   <ThemedText>שלום עולם</ThemedText>
+   
+   // Bad - not RTL-aware
+   <Text>שלום עולם</Text>
+   ```
+
+2. **Use AppTextInput for all text inputs**
+   ```typescript
+   // Good - automatically RTL-aware with proper cursor positioning
+   <AppTextInput placeholder="הכנס טקסט" />
+   
+   // Bad - not RTL-aware
+   <TextInput placeholder="הכנס טקסט" />
+   ```
+
+3. **Use `marginStart`/`marginEnd` instead of `marginLeft`/`marginRight`**
    ```typescript
    // Good
    style={{ marginStart: 12 }}
@@ -142,16 +233,7 @@ import { marginStart, marginEnd, paddingStart, paddingEnd } from '../utils/rtl';
    style={{ marginLeft: 12 }}
    ```
 
-2. **Use RTL utility functions for text alignment**
-   ```typescript
-   // Good
-   <Text style={rtlText()}>Hello</Text>
-   
-   // Bad (will default left in Hebrew)
-   <Text>Hello</Text>
-   ```
-
-3. **Use `absStart()`/`absEnd()` for absolute positioning**
+4. **Use `absStart()`/`absEnd()` for absolute positioning**
    ```typescript
    // Good
    style={{ position: 'absolute', ...absEnd(16) }}
@@ -160,7 +242,7 @@ import { marginStart, marginEnd, paddingStart, paddingEnd } from '../utils/rtl';
    style={{ position: 'absolute', right: 16 }}
    ```
 
-4. **Flip directional icons in RTL**
+5. **Flip directional icons in RTL**
    ```typescript
    // Good
    <Ionicons name="arrow-forward" style={flipIcon()} />
@@ -174,11 +256,14 @@ import { marginStart, marginEnd, paddingStart, paddingEnd } from '../utils/rtl';
 1. **Don't use `I18nManager.forceRTL()` or `I18nManager.allowRTL()`**
    - These require native reloads and break layouts globally
 
-2. **Don't hardcode left/right values**
+2. **Don't use raw `Text` or `TextInput` components**
+   - Always use `ThemedText` and `AppTextInput` for RTL support
+
+3. **Don't hardcode left/right values**
    - Use start/end or RTL utilities instead
 
-3. **Don't ignore writing direction for mixed content**
-   - Always include both `textAlign` and `writingDirection` for proper rendering of mixed Hebrew/English/numbers
+4. **Don't ignore writing direction for mixed content**
+   - ThemedText and AppTextInput automatically handle this
 
 ## Testing RTL
 
@@ -264,12 +349,23 @@ import { marginStart, marginEnd, paddingStart, paddingEnd } from '../utils/rtl';
 
 ## Summary
 
-The app now has comprehensive RTL support that:
-- ✅ Aligns Hebrew text to the right
-- ✅ Positions icons and buttons correctly
-- ✅ Handles mixed content (Hebrew + English + numbers)
-- ✅ Works without native reloads
-- ✅ Doesn't break existing layouts
+The app now has comprehensive RTL support using a component-based approach that:
+- ✅ Aligns Hebrew text to the right automatically via ThemedText
+- ✅ Positions TextInput cursors correctly via AppTextInput
+- ✅ Handles mixed content (Hebrew + English + numbers) with writingDirection
+- ✅ Works without native reloads or forceRTL
+- ✅ Doesn't break existing layouts or icon positions
 - ✅ Is maintainable and extensible
+- ✅ Provides consistent RTL behavior across all screens
 
-All critical RTL issues have been resolved. The app is now fully usable in Hebrew with proper text alignment and layout direction.
+### Implementation Status
+
+- ✅ **Foundation**: Enhanced ThemedText and created AppTextInput
+- ✅ **Auth Flow**: AuthScreen, WelcomeScreen, ForgotPasswordScreen migrated
+- ✅ **Settings**: All TextInput and Text components migrated
+- ✅ **Shopping**: All modals, forms, and display components migrated
+- ✅ **Other Screens**: Already using ThemedText (Cleaning, Dashboard, Budget, etc.)
+- ✅ **Components**: AsyncButton and all other components updated
+- ✅ **Documentation**: Updated with new component-based approach
+
+All critical RTL issues have been resolved. The app is now fully usable in Hebrew with proper text alignment and maintains all existing functionality.

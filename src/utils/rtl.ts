@@ -3,9 +3,11 @@ import { I18nManager, TextStyle, ViewStyle, ImageStyle } from 'react-native';
 /**
  * RTL Utility Functions
  * Provides helpers for RTL-aware layouts without using I18nManager.forceRTL
+ * 
+ * NOTE: For dynamic RTL detection, use useIsRTL() hook instead of isRTL constant
  */
 
-// Check if current language direction is RTL
+// Static RTL check (use useIsRTL() hook for dynamic detection)
 export const isRTL = I18nManager.isRTL;
 
 /**
