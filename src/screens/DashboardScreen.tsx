@@ -33,6 +33,8 @@ import { impactMedium, impactLight, selection } from '../utils/haptics';
 import { AsyncButton } from '../components/AsyncButton';
 import { NumericInput } from '../components/NumericInput';
 import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
+import i18n from '../i18n';
 
 type RootStackParamList = {
   Settings: undefined;
@@ -95,6 +97,15 @@ function useKeyboardLift() {
 
 export default function DashboardScreen() {
   const { theme, activeScheme } = useTheme();
+  const isRTL = useIsRTL();
+  
+  // Debug: Check RTL status
+  console.log('Dashboard RTL Debug:', { 
+    isRTL, 
+    I18nManagerIsRTL: I18nManager.isRTL,
+    language: i18n.language 
+  });
+  
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
@@ -691,7 +702,7 @@ export default function DashboardScreen() {
         <View 
           className="items-center justify-between mb-2"
           style={{ 
-            flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
             alignItems: 'center'
           }}
         >
@@ -776,9 +787,15 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
-              <View className="flex-row items-center mb-2">
+              <View 
+                className="items-center mb-2"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 <Ionicons name="wallet-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cardMyBalance')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }]}>{t('dashboard.cardMyBalance')}</ThemedText>
               </View>
               <ThemedText className={cn(
                 "text-2xl font-bold",
@@ -808,9 +825,15 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
-              <View className="flex-row items-center mb-2">
+              <View 
+                className="items-center mb-2"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 <Ionicons name="brush-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cleaningTurn')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }]}>{t('dashboard.cleaningTurn')}</ThemedText>
               </View>
               <ThemedText className="text-lg font-bold">
                 {getDisplayName(currentTurnUser) || t('common.unknown')}
@@ -840,9 +863,15 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
-              <View className="flex-row items-center mb-2">
+              <View 
+                className="items-center mb-2"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 <Ionicons name="basket-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.toBuy')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }]}>{t('dashboard.toBuy')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
                 {pendingShoppingItems.length}
@@ -866,20 +895,32 @@ export default function DashboardScreen() {
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
-              <View className="flex-row items-center mb-2">
+              <View 
+                className="items-center mb-2"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 <Ionicons name="people-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.roommates')}</ThemedText>
+                <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }]}>{t('dashboard.roommates')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
                 {currentApartment?.members.length || 0}
               </ThemedText>
-              <View className="flex-row mt-1">
+              <View 
+                className="mt-1"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 {currentApartment?.members.slice(0, 3).map((member, index) => (
                   <View 
                     key={member.id}
                     className={cn(
                       "w-5 h-5 bg-blue-100 rounded-full items-center justify-center",
-                      index > 0 && "-mr-1"
+                      index > 0 && (isRTL ? "-ml-1" : "-mr-1")
                     )}
                   >
                     <ThemedText className="text-xs text-blue-700 font-medium">
@@ -984,8 +1025,14 @@ export default function DashboardScreen() {
               elevation: 8,
             }}
           >
-            <View className="flex-row items-center">
-              <ThemedText className="text-lg font-semibold" style={{ marginStart: 8, color: '#ffffff' }}>
+            <View 
+              className="items-center"
+              style={{ 
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center'
+              }}
+            >
+              <ThemedText className="text-lg font-semibold" style={{ marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0, color: '#ffffff' }}>
                 {t('dashboard.quickLook')}
               </ThemedText>
               <ThemedText className="text-xl">🔍</ThemedText>
