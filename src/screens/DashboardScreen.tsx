@@ -687,10 +687,7 @@ export default function DashboardScreen() {
   return (
     <View className="flex-1" style={themed.backgroundBg}>
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <View className="flex-row items-center justify-between mb-2">
-          <ThemedText className="text-2xl font-bold">
-            {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
-          </ThemedText>
+        <View className="flex-row items-center mb-2">
           <Pressable
             onPress={() => {
               impactLight(); // Haptic feedback for settings navigation
@@ -701,6 +698,9 @@ export default function DashboardScreen() {
           >
             <Ionicons name="person-outline" size={20} color={theme.colors.text.secondary} />
           </Pressable>
+          <ThemedText className="text-2xl font-bold flex-1 text-center">
+            {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
+          </ThemedText>
         </View>
         <ThemedText style={themed.textSecondary}>
           {currentApartment?.name || t('dashboard.apartmentFallback')}
@@ -726,7 +726,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="basket-outline" size={22} color="white" />
-              <Text className="text-white font-medium ml-2 text-base">{t('dashboard.actionShopping')}</Text>
+              <ThemedText className="text-white font-medium text-base" style={{ marginStart: 8, color: 'white' }}>{t('dashboard.actionShopping')}</ThemedText>
             </View>
           </Pressable>
           
@@ -746,7 +746,7 @@ export default function DashboardScreen() {
           >
             <View className="flex-row items-center">
               <Ionicons name="add-circle-outline" size={22} color="white" />
-              <Text className="text-white font-medium ml-2 text-base">{t('dashboard.actionAddExpense')}</Text>
+              <ThemedText className="text-white font-medium text-base" style={{ marginStart: 8, color: 'white' }}>{t('dashboard.actionAddExpense')}</ThemedText>
             </View>
           </Pressable>
         </View>
@@ -771,7 +771,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="wallet-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cardMyBalance')}</ThemedText>
+                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cardMyBalance')}</ThemedText>
               </View>
               <ThemedText className={cn(
                 "text-2xl font-bold",
@@ -803,7 +803,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="brush-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.cleaningTurn')}</ThemedText>
+                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.cleaningTurn')}</ThemedText>
               </View>
               <ThemedText className="text-lg font-bold">
                 {getDisplayName(currentTurnUser) || t('common.unknown')}
@@ -835,7 +835,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="basket-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.toBuy')}</ThemedText>
+                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.toBuy')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
                 {pendingShoppingItems.length}
@@ -861,7 +861,7 @@ export default function DashboardScreen() {
             <ThemedCard className="p-4 rounded-2xl">
               <View className="flex-row items-center mb-2">
                 <Ionicons name="people-outline" size={20} color={theme.colors.text.secondary} />
-                <ThemedText className="text-sm ml-2" style={themed.textSecondary}>{t('dashboard.roommates')}</ThemedText>
+                <ThemedText className="text-sm" style={[themed.textSecondary, { marginStart: 8 }]}>{t('dashboard.roommates')}</ThemedText>
               </View>
               <ThemedText className="text-2xl font-bold">
                 {currentApartment?.members.length || 0}
@@ -895,7 +895,7 @@ export default function DashboardScreen() {
             elevation: 3,
           }}
         >
-          <ThemedText className="text-lg font-semibold mb-4">
+          <ThemedText className="text-lg font-semibold mb-4 text-center">
             {t('dashboard.myDebts')}
           </ThemedText>
           
@@ -978,10 +978,10 @@ export default function DashboardScreen() {
             }}
           >
             <View className="flex-row items-center">
-              <Text className="text-lg font-semibold text-white ml-2">
+              <ThemedText className="text-lg font-semibold text-white" style={{ marginStart: 8, color: 'white' }}>
                 {t('dashboard.quickLook')}
-              </Text>
-              <Text className="text-xl">🔍</Text>
+              </ThemedText>
+              <ThemedText className="text-xl">🔍</ThemedText>
             </View>
           </Pressable>
         </View>
@@ -997,7 +997,7 @@ export default function DashboardScreen() {
         <ThemedView className="flex-1" style={themed.surfaceBg}>
           {/* Header */}
           <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-            <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center mb-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
                 className="w-10 h-10 rounded-full items-center justify-center"
@@ -1006,11 +1006,9 @@ export default function DashboardScreen() {
                 <Ionicons name="arrow-forward" size={24} color={themed.textSecondary.color} />
               </Pressable>
               
-              <ThemedText className="text-2xl font-bold">
-              {t('dashboard.highlightsTitle')}
+              <ThemedText className="text-2xl font-bold flex-1 text-center">
+                {t('dashboard.highlightsTitle')}
               </ThemedText>
-              
-              <View className="w-10" />
             </View>
           </ThemedCard>
 
@@ -1228,9 +1226,9 @@ export default function DashboardScreen() {
               style={[{ width: '100%', maxWidth: 400 }, addExpenseLift.animatedStyle]}
             >
               <View className="bg-white rounded-2xl p-6">
-              <Text className="text-xl font-semibold text-gray-900 mb-6 text-center">
+              <ThemedText className="text-xl font-semibold text-gray-900 mb-6 text-center">
                 {t('dashboard.actionAddExpense')}
-              </Text>
+              </ThemedText>
 
               {/* Expense Title */}
               <View className="mb-6">
