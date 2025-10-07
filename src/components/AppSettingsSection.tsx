@@ -18,6 +18,8 @@ export default function AppSettingsSection() {
   const setThemeSetting = useStore(s => s.setThemeSetting);
   const hapticsEnabled = useStore(s => s.hapticsEnabled);
   const setHapticsEnabled = useStore(s => s.setHapticsEnabled);
+  const currency = useStore(s => s.currency);
+  const setCurrency = useStore(s => s.setCurrency);
   const themed = useThemedStyles(tk => ({
     textSecondary: { color: tk.colors.text.secondary },
     buttonText: { color: '#111827' }, // Always dark for unselected buttons
@@ -80,6 +82,34 @@ export default function AppSettingsSection() {
             className={`w-12 h-7 rounded-full p-1 ${hapticsEnabled ? 'bg-blue-500' : 'bg-gray-300'}`}
           >
             <View className={`w-5 h-5 rounded-full transition-transform ${hapticsEnabled ? 'translate-x-5' : 'translate-x-0'}`} style={{ backgroundColor: '#ffffff' }} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Currency Section */}
+      <View className="mb-6">
+        <View className="flex-row items-center justify-between mb-3">
+          <ThemedText className="text-base font-medium">{t('settings.currency')}</ThemedText>
+          <Ionicons name="card-outline" size={18} color="#6b7280" />
+        </View>
+        <View className="flex-row">
+          <Pressable
+            onPress={() => {
+              selection();
+              setCurrency('ILS');
+            }}
+            className={`px-3 py-2 rounded-xl mr-2 ${currency === 'ILS' ? 'bg-blue-500' : 'bg-gray-100'}`}
+          >
+            <ThemedText className={currency === 'ILS' ? 'text-white' : ''} style={currency !== 'ILS' ? themed.buttonText : { color: '#ffffff' }}>{t('settings.currencyILS')}</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              selection();
+              setCurrency('USD');
+            }}
+            className={`px-3 py-2 rounded-xl ${currency === 'USD' ? 'bg-blue-500' : 'bg-gray-100'}`}
+          >
+            <ThemedText className={currency === 'USD' ? 'text-white' : ''} style={currency !== 'USD' ? themed.buttonText : { color: '#ffffff' }}>{t('settings.currencyUSD')}</ThemedText>
           </Pressable>
         </View>
       </View>

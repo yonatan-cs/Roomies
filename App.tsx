@@ -64,26 +64,8 @@ export default function App() {
     initializeFirebaseNotifications();
   }, [currentUser?.id]);
 
-  // RTL text alignment based on language without using forceRTL
-  useEffect(() => {
-    // Apply default text alignment for all Text and TextInput components
-    // This ensures Hebrew text aligns right without breaking layouts
-    (Text as any).defaultProps = {
-      ...((Text as any).defaultProps || {}),
-      style: [{
-        textAlign: isRTL ? 'right' : 'left',
-        writingDirection: isRTL ? 'rtl' : 'ltr',
-      }],
-    };
-
-    (TextInput as any).defaultProps = {
-      ...((TextInput as any).defaultProps || {}),
-      style: [{
-        textAlign: isRTL ? 'right' : 'left',
-        writingDirection: isRTL ? 'rtl' : 'ltr',
-      }],
-    };
-  }, [appLanguage]);
+  // RTL text alignment is now handled by ThemedText and AppTextInput components
+  // No need for global defaultProps which don't work reliably
 
   function ThemedRoot() {
     const { activeScheme, theme } = useTheme();
