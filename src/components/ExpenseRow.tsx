@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Expense } from '../types';
 import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 type Props = {
   item: Expense;
@@ -31,6 +32,7 @@ export default function ExpenseRow({
 }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const { t } = useTranslation();
+  const isRTL = useIsRTL();
   const themed = useThemedStyles(tk => ({
     row: { backgroundColor: tk.colors.card },
     title: { color: tk.colors.text.primary },
@@ -96,11 +98,27 @@ export default function ExpenseRow({
 
     return (
       <View style={styles.debtSettlementRow}>
-        <View style={styles.debtSettlementContent}>
+        <View 
+          style={[
+            styles.debtSettlementContent,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'flex-start'
+            }
+          ]}
+        >
           <View style={styles.debtSettlementIcon}>
             <Ionicons name="checkmark-circle" size={16} color="#6b7280" />
           </View>
-          <View style={styles.debtSettlementTextContainer}>
+          <View 
+            style={[
+              styles.debtSettlementTextContainer,
+              {
+                marginStart: isRTL ? 0 : 8,
+                marginEnd: isRTL ? 8 : 0
+              }
+            ]}
+          >
             <Text style={styles.debtSettlementTitle}>{item.title}</Text>
             <Text style={styles.debtSettlementMessage}>{displayMessage}</Text>
             <Text style={styles.debtSettlementDate}>{formatDate(item.date)}</Text>
@@ -112,8 +130,24 @@ export default function ExpenseRow({
 
   return (
     <ThemedCard style={[styles.row, { borderWidth: 1, ...themed.borderColor }]}>
-      <View style={styles.content}>
-        <View style={styles.titleContainer}>
+      <View 
+        style={[
+          styles.content,
+          {
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'flex-start'
+          }
+        ]}
+      >
+        <View 
+          style={[
+            styles.titleContainer,
+            {
+              marginStart: isRTL ? 0 : 12,
+              marginEnd: isRTL ? 12 : 0
+            }
+          ]}
+        >
           <ThemedText style={[styles.title, themed.title]}>{item.title}</ThemedText>
           <ThemedText style={[styles.date, themed.date]}>{formatDate(item.date)}</ThemedText>
           {item.description && (
@@ -129,7 +163,14 @@ export default function ExpenseRow({
           )}
         </View>
         
-        <View style={styles.amountContainer}>
+        <View 
+          style={[
+            styles.amountContainer,
+            {
+              alignItems: isRTL ? 'flex-start' : 'flex-end'
+            }
+          ]}
+        >
           <ThemedText style={[styles.amount, themed.amount]}>{formatCurrency(item.amount)}</ThemedText>
           <ThemedText style={[styles.payer, themed.textSecondary]}>{t('expenseRow.paidBy', { name: getUserName(item.paidBy) })}</ThemedText>
           {item.participants.length > 1 && (
@@ -141,10 +182,23 @@ export default function ExpenseRow({
       </View>
       
       {/* Action buttons at the bottom */}
-      <View style={styles.actionButtonsContainer}>
+      <View 
+        style={[
+          styles.actionButtonsContainer,
+          {
+            flexDirection: isRTL ? 'row-reverse' : 'row'
+          }
+        ]}
+      >
         <Pressable 
           onPress={handleEdit} 
-          style={styles.editButton} 
+          style={[
+            styles.editButton,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center'
+            }
+          ]} 
           accessibilityLabel={t('expenseEdit.title')}
         >
           <Ionicons name="pencil-outline" size={12} color="#2563eb" />
@@ -152,7 +206,14 @@ export default function ExpenseRow({
         </Pressable>
         <Pressable 
           onPress={confirmDelete} 
-          style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]} 
+          style={[
+            styles.deleteButton, 
+            isDeleting && styles.deleteButtonDisabled,
+            {
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center'
+            }
+          ]} 
           accessibilityLabel={t('expenseRow.delete')}
           disabled={isDeleting}
         >

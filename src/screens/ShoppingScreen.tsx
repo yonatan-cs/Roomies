@@ -18,6 +18,7 @@ import { cn } from '../utils/cn';
 import { Screen } from '../components/Screen';
 import { AppTextInput } from '../components/AppTextInput';
 import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 import { useNavigation } from '@react-navigation/native';
 import { success, impactMedium, selection, impactLight, warning } from '../utils/haptics';
 import { getDisplayName } from '../utils/userDisplay';
@@ -78,6 +79,7 @@ function useKeyboardLift() {
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
+  const isRTL = useIsRTL();
   const navigation = useNavigation<any>();
   const appLanguage = useStore(s => s.appLanguage);
   const { theme } = useTheme();
@@ -304,7 +306,14 @@ export default function ShoppingScreen() {
 
   const renderShoppingItem = ({ item }: { item: any }) => (
     <ThemedCard className={cn('rounded-xl p-4 mb-3 shadow-sm', item.purchased && '')}>
-      <View className="flex-row items-center justify-between">
+      <View 
+        className="items-center"
+        style={{ 
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}
+      >
         <Pressable
           onPress={() => {
             if (item.purchased) {
@@ -319,25 +328,44 @@ export default function ShoppingScreen() {
             {item.name}
           </ThemedText>
 
-          <View className="flex-row items-center mt-1">
-            <ThemedText className="text-sm">{t('shopping.addedByAt', { name: getUserName(item.addedBy), date: formatDate(item.addedAt) })}</ThemedText>
+          <View 
+            className="items-center mt-1"
+            style={{ 
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center'
+            }}
+          >
+            <ThemedText className="text-sm flex-1">{t('shopping.addedByAt', { name: getUserName(item.addedBy), date: formatDate(item.addedAt) })}</ThemedText>
           </View>
 
           {item.priority && (
-            <View className="mt-2 flex-row items-center space-x-2">
+            <View 
+              className="mt-2 items-center"
+              style={{ 
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center'
+              }}
+            >
               {PRIORITIES.find(p => p.key === item.priority) && (
                 <View
                   className={cn(
-                    'px-2 py-1 rounded-lg flex-row items-center',
+                    'px-2 py-1 rounded-lg',
                     PRIORITIES.find(p => p.key === item.priority)?.bgColor
                   )}
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center'
+                  }}
                 >
                   <Ionicons
                     name={PRIORITIES.find(p => p.key === item.priority)?.icon as any}
                     size={12}
                     color={PRIORITIES.find(p => p.key === item.priority)?.color}
                   />
-                  <ThemedText className={cn('text-xs font-medium mr-1', PRIORITIES.find(p => p.key === item.priority)?.color)}>
+                  <ThemedText 
+                    className={cn('text-xs font-medium', PRIORITIES.find(p => p.key === item.priority)?.color)}
+                    style={{ marginStart: isRTL ? 0 : 4, marginEnd: isRTL ? 4 : 0 }}
+                  >
                     {PRIORITIES.find(p => p.key === item.priority)?.label}
                   </ThemedText>
                 </View>
@@ -346,27 +374,72 @@ export default function ShoppingScreen() {
           )}
 
           {item.quantity && item.quantity > 1 && (
-            <View className="mt-2 flex-row items-center space-x-2">
-              <View className="bg-orange-100 px-2 py-1 rounded-lg flex-row items-center">
+            <View 
+              className="mt-2 items-center"
+              style={{ 
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center'
+              }}
+            >
+              <View 
+                className="bg-orange-100 px-2 py-1 rounded-lg"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 <Ionicons name="list-outline" size={12} color="#f97316" />
-                <ThemedText className="text-xs font-medium text-orange-700 mr-1">{t('shopping.quantity', { qty: item.quantity })}</ThemedText>
+                <ThemedText 
+                  className="text-xs font-medium text-orange-700"
+                  style={{ marginStart: isRTL ? 0 : 4, marginEnd: isRTL ? 4 : 0 }}
+                >
+                  {t('shopping.quantity', { qty: item.quantity })}
+                </ThemedText>
               </View>
             </View>
           )}
 
           {item.notes && item.notes.trim() && (
-            <View className="mt-2 flex-row items-center space-x-2">
-              <View className="bg-indigo-100 px-2 py-1 rounded-lg flex-row items-center">
+            <View 
+              className="mt-2 items-center"
+              style={{ 
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center'
+              }}
+            >
+              <View 
+                className="bg-indigo-100 px-2 py-1 rounded-lg"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 <Ionicons name="chatbubble-outline" size={12} color="#6366f1" />
-                <ThemedText className="text-sm text-indigo-700 mr-1 italic">{item.notes}</ThemedText>
+                <ThemedText 
+                  className="text-sm text-indigo-700 italic"
+                  style={{ marginStart: isRTL ? 0 : 4, marginEnd: isRTL ? 4 : 0 }}
+                >
+                  {item.notes}
+                </ThemedText>
               </View>
             </View>
           )}
 
           {item.purchased && (
-            <View className="flex-row items-center mt-2">
+            <View 
+              className="items-center mt-2"
+              style={{ 
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center'
+              }}
+            >
               <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-              <ThemedText className="text-sm text-green-600 mr-2">{t('shopping.purchasedBy', { name: getUserName(item.purchasedBy!), price: item.purchasePrice ? ` • ${t('shopping.shekel')}${item.purchasePrice}` : '' })}</ThemedText>
+              <ThemedText 
+                className="text-sm text-green-600"
+                style={{ marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }}
+              >
+                {t('shopping.purchasedBy', { name: getUserName(item.purchasedBy!), price: item.purchasePrice ? ` • ${t('shopping.shekel')}${item.purchasePrice}` : '' })}
+              </ThemedText>
             </View>
           )}
         </Pressable>
@@ -415,13 +488,13 @@ export default function ShoppingScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <ThemedText className="text-2xl font-bold text-center mb-4">{t('shopping.title')}</ThemedText>
-        <ThemedText style={themed.textSecondary} className="text-center">
+        <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="text-2xl font-bold mb-4 w-full">{t('shopping.title')}</Text>
+        <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="w-full">
           {t('shopping.itemsToBuy', { count: pendingItems.length })}
           {selectedPriorityFilter !== 'all' && (
-            <ThemedText className="text-blue-600 font-medium">{' '}• {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}</ThemedText>
+            <Text style={{ color: '#2563eb', fontWeight: '500' }}>{' '}• {PRIORITIES.find(p => p.key === selectedPriorityFilter)?.label}</Text>
           )}
-        </ThemedText>
+        </Text>
       </ThemedCard>
 
       {/* Priority Filter */}
@@ -469,7 +542,7 @@ export default function ShoppingScreen() {
         }} className="bg-blue-500 py-4 px-6 rounded-2xl shadow-sm">
           <View className="flex-row items-center justify-center">
             <Ionicons name="add-circle-outline" size={24} color="white" />
-            <ThemedText className="text-white font-semibold text-lg mr-2">{t('shopping.addNewItem')}</ThemedText>
+            <Text style={{ color: '#ffffff' }} className="font-semibold text-lg mr-2">{t('shopping.addNewItem')}</Text>
           </View>
         </Pressable>
       </View>
@@ -523,7 +596,7 @@ export default function ShoppingScreen() {
         {/* Purchased Items */}
         {purchasedItems.length > 0 && (
           <View className="mb-6">
-            <ThemedText className="text-lg font-semibold mb-4">{t('shopping.purchased')}</ThemedText>
+            <ThemedText className="text-lg font-semibold mb-4 flex-1">{t('shopping.purchased')}</ThemedText>
             <FlatList
               data={purchasedItems.slice().reverse().slice(0, 10)}
               renderItem={renderShoppingItem}
@@ -682,7 +755,7 @@ export default function ShoppingScreen() {
             <Animated.View onLayout={purchaseLift.onLayoutCard} style={[{ width: '100%', maxWidth: 400 }, purchaseLift.animatedStyle]}>
               <View className="bg-white rounded-2xl p-6">
                 <Pressable onPress={Keyboard.dismiss}>
-                  <ThemedText className="text-xl font-semibold text-gray-900 mb-4 text-center">{t('shopping.purchaseModal.title')}</ThemedText>
+                  <Text style={{ textAlign: 'center' }} className="text-xl font-semibold mb-4 w-full">{t('shopping.purchaseModal.title')}</Text>
                 </Pressable>
 
                 {/* Price */}
@@ -738,20 +811,25 @@ export default function ShoppingScreen() {
                               );
                             }}
                             className={cn(
-                              'flex-row items-center justify-between p-3 rounded-xl border mb-2',
+                              'items-center p-3 rounded-xl border mb-2',
                               selectedParticipants.includes(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
                             )}
+                            style={{ 
+                              flexDirection: isRTL ? 'row-reverse' : 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}
                           >
-                            <ThemedText className={cn('font-medium', selectedParticipants.includes(member.id) ? 'text-blue-700' : 'text-gray-700')}>
+                            <ThemedText className={cn('font-medium flex-1', selectedParticipants.includes(member.id) ? 'text-blue-700' : 'text-gray-700')}>
                               {member.name} {member.id === currentUser?.id && t('shopping.youLabel')}
                             </ThemedText>
                             <View
                               className={cn(
-                                'w-5 h-5 rounded-full border-2 items-center justify-center',
+                                'w-6 h-6 rounded-full border-2 items-center justify-center',
                                 selectedParticipants.includes(member.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
                               )}
                             >
-                              {selectedParticipants.includes(member.id) && <Ionicons name="checkmark" size={12} color="white" />}
+                              {selectedParticipants.includes(member.id) && <Ionicons name="checkmark" size={14} color="white" />}
                             </View>
                           </Pressable>
                         ))}
@@ -778,7 +856,7 @@ export default function ShoppingScreen() {
                     }}
                     className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
                   >
-                    <ThemedText className="text-gray-700 font-medium text-center">{t('shopping.purchaseModal.cancel')}</ThemedText>
+                    <Text style={{ textAlign: 'center' }} className="font-medium w-full">{t('shopping.purchaseModal.cancel')}</Text>
                   </Pressable>
 
                   <Pressable
@@ -792,10 +870,10 @@ export default function ShoppingScreen() {
                     {isPurchasingItem === selectedItemId ? (
                       <View className="flex-row items-center justify-center">
                         <Ionicons name="hourglass" size={20} color="white" />
-                        <ThemedText className="text-white font-medium text-center mr-2">{t('shopping.purchaseModal.adding')}</ThemedText>
+                        <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium mr-2 w-full">{t('shopping.purchaseModal.adding')}</Text>
                       </View>
                     ) : (
-                      <ThemedText className="text-white font-medium text-center">{t('shopping.purchaseModal.confirm')}</ThemedText>
+                      <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium w-full">{t('shopping.purchaseModal.confirm')}</Text>
                     )}
                   </Pressable>
                 </View>
@@ -808,8 +886,8 @@ export default function ShoppingScreen() {
       {/* Item Details Modal */}
       {showItemDetailsModal && selectedItemId && (
         <View className="absolute inset-0 bg-black/50 justify-center items-center px-6">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-sm">
-            <ThemedText className="text-xl font-semibold text-gray-900 mb-6 text-center">{t('shopping.detailsModal.title')}</ThemedText>
+          <ThemedCard className="rounded-2xl p-6 w-full max-w-sm">
+             <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="text-xl font-semibold mb-6 w-full">{t('shopping.detailsModal.title')}</Text>
 
             {(() => {
               const item = shoppingItems.find(i => i.id === selectedItemId);
@@ -817,76 +895,76 @@ export default function ShoppingScreen() {
 
               return (
                 <View className="space-y-5">
-                  <View className="bg-gray-50 p-4 rounded-xl">
-                    <ThemedText className="text-gray-600 text-sm mb-2 text-center">{t('shopping.detailsModal.itemName')}</ThemedText>
-                    <ThemedText className="text-gray-900 font-semibold text-lg text-center">{item?.name || ''}</ThemedText>
+                  <View className="p-4 rounded-xl" style={themed.surfaceBg}>
+                     <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="text-sm mb-2 w-full">{t('shopping.detailsModal.itemName')}</Text>
+                     <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-semibold text-lg w-full">{item?.name || ''}</Text>
                   </View>
 
-                  <View className="bg-blue-50 p-4 rounded-xl">
+                  <View className="p-4 rounded-xl" style={{ backgroundColor: theme.colors.primary + '15' }}>
                     <View className="flex-row items-center justify-center mb-2">
-                      <Ionicons name="person-add-outline" size={16} color="#3b82f6" />
-                      <ThemedText className="text-blue-700 text-sm font-medium mr-2">{t('shopping.detailsModal.addedBy')}</ThemedText>
-                    </View>
-                    <ThemedText className="text-blue-900 font-medium text-center">{getUserName(item?.addedBy || '')}</ThemedText>
-                    <ThemedText className="text-blue-600 text-sm text-center mt-1">{formatDate(item?.addedAt || new Date())}</ThemedText>
+                      <Ionicons name="person-add-outline" size={16} color={theme.colors.primary} />
+                       <Text style={{ color: theme.colors.primary }} className="text-sm font-medium mr-2">{t('shopping.detailsModal.addedBy')}</Text>
+                     </View>
+                     <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-medium w-full">{getUserName(item?.addedBy || '')}</Text>
+                     <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="text-sm mt-1 w-full">{formatDate(item?.addedAt || new Date())}</Text>
                   </View>
 
                   {item?.priority && (
-                    <View className="bg-purple-50 p-4 rounded-xl">
+                    <View className="p-4 rounded-xl" style={{ backgroundColor: theme.colors.secondary + '15' }}>
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons
                           name={PRIORITIES.find(p => p.key === item.priority)?.icon as any}
                           size={16}
                           color={PRIORITIES.find(p => p.key === item.priority)?.color}
                         />
-                        <ThemedText className="text-purple-700 text-sm font-medium mr-2">{t('shopping.detailsModal.priority')}</ThemedText>
-                      </View>
-                      <ThemedText className="text-purple-900 font-medium text-center">
-                        {PRIORITIES.find(p => p.key === item.priority)?.label}
-                      </ThemedText>
+                         <Text style={{ color: theme.colors.secondary }} className="text-sm font-medium mr-2">{t('shopping.detailsModal.priority')}</Text>
+                       </View>
+                       <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-medium w-full">
+                         {PRIORITIES.find(p => p.key === item.priority)?.label}
+                       </Text>
                     </View>
                   )}
 
                   {item?.quantity && item.quantity > 1 && (
-                    <View className="bg-orange-50 p-4 rounded-xl">
+                    <View className="p-4 rounded-xl" style={{ backgroundColor: '#f9731615' }}>
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="list-outline" size={16} color="#f97316" />
-                        <ThemedText className="text-orange-700 text-sm font-medium mr-2">{t('shopping.detailsModal.quantity')}</ThemedText>
-                      </View>
-                      <ThemedText className="text-orange-900 font-bold text-xl text-center">{item.quantity}</ThemedText>
+                         <Text style={{ color: '#f97316' }} className="text-sm font-medium mr-2">{t('shopping.detailsModal.quantity')}</Text>
+                       </View>
+                       <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-bold text-xl w-full">{item.quantity}</Text>
                     </View>
                   )}
 
                   {item?.notes && item.notes.trim() && (
-                    <View className="bg-indigo-50 p-4 rounded-xl">
+                    <View className="p-4 rounded-xl" style={{ backgroundColor: '#6366f115' }}>
                       <View className="flex-row items-center justify-center mb-2">
                         <Ionicons name="chatbubble-outline" size={16} color="#6366f1" />
-                        <ThemedText className="text-indigo-700 text-sm font-medium mr-2">{t('shopping.detailsModal.notes')}</ThemedText>
+                        <ThemedText className="text-sm font-medium mr-2" style={{ color: '#6366f1' }}>{t('shopping.detailsModal.notes')}</ThemedText>
                       </View>
-                      <ThemedText className="text-indigo-900 text-center">{item.notes}</ThemedText>
+                      <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="w-full">{item.notes}</Text>
                     </View>
                   )}
 
                   {item?.purchased && (
                     <>
-                      <View className="bg-green-50 p-4 rounded-xl">
+                      <View className="p-4 rounded-xl" style={{ backgroundColor: '#10b98115' }}>
                         <View className="flex-row items-center justify-center mb-2">
                           <Ionicons name="checkmark-circle-outline" size={16} color="#10b981" />
-                          <ThemedText className="text-green-700 text-sm font-medium mr-2">{t('shopping.purchasedByLabel')}</ThemedText>
+                          <ThemedText className="text-sm font-medium mr-2" style={{ color: '#10b981' }}>{t('shopping.purchasedByLabel')}</ThemedText>
                         </View>
-                        <ThemedText className="text-green-900 font-medium text-center">{getUserName(item?.purchasedBy || '')}</ThemedText>
+                        <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-medium w-full">{getUserName(item?.purchasedBy || '')}</Text>
                         {item?.purchasedAt && (
-                          <ThemedText className="text-blue-600 text-sm text-center mt-1">{formatDate(item.purchasedAt)}</ThemedText>
+                          <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="text-sm mt-1 w-full">{formatDate(item.purchasedAt)}</Text>
                         )}
                       </View>
 
                       {item?.purchasePrice && item.purchasePrice > 0 && (
-                        <View className="bg-yellow-50 p-4 rounded-xl">
+                        <View className="p-4 rounded-xl" style={{ backgroundColor: '#eab30815' }}>
                           <View className="flex-row items-center justify-center mb-2">
                             <Ionicons name="cash-outline" size={16} color="#eab308" />
-                            <ThemedText className="text-yellow-700 text-sm font-medium mr-2">{t('shopping.priceLabel')}</ThemedText>
+                            <ThemedText className="text-sm font-medium mr-2" style={{ color: '#eab308' }}>{t('shopping.priceLabel')}</ThemedText>
                           </View>
-                          <ThemedText className="text-yellow-900 font-bold text-xl text-center">₪{item.purchasePrice}</ThemedText>
+                          <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-bold text-xl w-full">₪{item.purchasePrice}</Text>
                         </View>
                       )}
                     </>
@@ -899,30 +977,31 @@ export default function ShoppingScreen() {
                         setShowItemDetailsModal(false);
                         setSelectedItemId(null);
                       }}
-                      className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                      className="py-3 px-4 rounded-xl mr-2"
+                      style={themed.surfaceBg}
                     >
-                      <ThemedText className="text-gray-700 font-medium text-center">{t('shopping.detailsModal.close')}</ThemedText>
+                       <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="font-medium text-sm w-full">{t('shopping.detailsModal.close')}</Text>
                     </Pressable>
 
                     <Pressable
                       onPress={() => selectedItemId && handleRepurchase(selectedItemId)}
                       disabled={isRepurchasingItem === selectedItemId}
-                      className="flex-1 bg-blue-500 py-3 px-4 rounded-xl"
+                      className="flex-1 bg-blue-500 py-3 px-3 rounded-xl"
                     >
                       {isRepurchasingItem === selectedItemId ? (
                         <View className="flex-row items-center justify-center">
                           <Ionicons name="hourglass" size={20} color="white" />
-                          <ThemedText className="text-white font-medium text-center mr-2">{t('shopping.detailsModal.adding')}</ThemedText>
+                          <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium mr-2 w-full">{t('shopping.detailsModal.adding')}</Text>
                         </View>
                       ) : (
-                        <ThemedText className="text-white font-medium text-center">{t('shopping.detailsModal.repurchase')}</ThemedText>
+                        <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium w-full">{t('shopping.detailsModal.repurchase')}</Text>
                       )}
                     </Pressable>
                   </View>
                 </View>
               );
             })()}
-          </View>
+          </ThemedCard>
         </View>
       )}
     </Screen>

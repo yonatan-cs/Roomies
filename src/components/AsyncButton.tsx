@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ActivityIndicator } from 'react-native';
+import { Pressable, ActivityIndicator, Text } from 'react-native';
 import { useAsyncAction } from '../hooks/useAsyncAction';
 import { useTranslation } from 'react-i18next';
 import { impactMedium, warning } from '../utils/haptics';
@@ -117,9 +117,15 @@ export function AsyncButton({
       })}
     >
       {loading && <ActivityIndicator size="small" color={variant === 'secondary' ? '#6b7280' : 'white'} />}
-      <ThemedText className={`${getTextColor()} ${getTextSize()} font-semibold text-center`}>
+      <Text 
+        style={{ 
+          color: variant === 'secondary' ? (isDisabled ? '#9ca3af' : '#374151') : '#ffffff',
+          textAlign: 'center'
+        }} 
+        className={`${getTextSize()} font-semibold`}
+      >
         {loading ? (loadingText || t('common.loading')) : title}
-      </ThemedText>
+      </Text>
     </Pressable>
   );
 }

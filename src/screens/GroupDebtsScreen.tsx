@@ -17,6 +17,7 @@ import { cn } from '../utils/cn';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 import { AsyncButton } from '../components/AsyncButton';
 import { getDisplayName } from '../utils/userDisplay';
 import { ThemedCard } from '../theme/components/ThemedCard';
@@ -32,6 +33,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function GroupDebtsScreen() {
   const { t } = useTranslation();
+  const isRTL = useIsRTL();
   const navigation = useNavigation<NavigationProp>();
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
@@ -288,8 +290,16 @@ export default function GroupDebtsScreen() {
         </View>
         
         {/* Simplification Toggle */}
-        <View className="flex-row items-center justify-between p-4 rounded-xl" style={themed.surfaceBg}>
-          <View>
+        <View 
+          className="items-center p-4 rounded-xl"
+          style={{ 
+            ...themed.surfaceBg,
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}
+        >
+          <View className="flex-1">
             <ThemedText className="font-medium">
               {t('debts.simplify')}
             </ThemedText>
@@ -323,9 +333,18 @@ export default function GroupDebtsScreen() {
             const isCurrentUser = balance.userId === currentUser.id;
             
             return (
-              <View key={balance.userId} className="flex-row justify-between items-center py-3 border-b last:border-b-0" style={themed.borderColor}>
+              <View 
+                key={balance.userId} 
+                className="items-center py-3 border-b last:border-b-0" 
+                style={{
+                  ...themed.borderColor,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
                 <ThemedText className={cn(
-                  "font-medium",
+                  "font-medium flex-1",
                   isCurrentUser ? "text-blue-700" : ""
                 )} style={!isCurrentUser ? themed.textSecondary : undefined}>
                   {getDisplayName(user)} {isCurrentUser && `(${t('common.you')})`}
@@ -369,7 +388,16 @@ export default function GroupDebtsScreen() {
             </View>
           ) : (
             allDebts.map((debt, index) => (
-              <View key={`${debt.fromUserId}-${debt.toUserId}-${index}`} className="flex-row items-center justify-between py-4 border-b last:border-b-0" style={themed.borderColor}>
+              <View 
+                key={`${debt.fromUserId}-${debt.toUserId}-${index}`} 
+                className="items-center py-4 border-b last:border-b-0" 
+                style={{
+                  ...themed.borderColor,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
                 <View className="flex-1">
                   <ThemedText className="font-medium">
                     {getUserName(debt.fromUserId)}
@@ -379,7 +407,13 @@ export default function GroupDebtsScreen() {
                   </ThemedText>
                 </View>
                 
-                <View className="flex-row items-center">
+                <View 
+                  className="items-center"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center'
+                  }}
+                >
                   <Text className="text-red-600 font-semibold text-lg mr-4">
                     {formatCurrency(debt.amount)}
                   </Text>
