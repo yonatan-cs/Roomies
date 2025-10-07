@@ -6,13 +6,7 @@ import {
   ScrollView,
   FlatList,
   Modal,
-  TextInput,
   Alert,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Animated,
-  Dimensions,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -22,13 +16,13 @@ import { cn } from '../utils/cn';
 import ExpenseRow from '../components/ExpenseRow';
 import ExpenseEditModal from '../components/ExpenseEditModal';
 import { Expense } from '../types';
-import { AsyncButton } from '../components/AsyncButton';
-import { NumericInput } from '../components/NumericInput';
+import AddExpenseModal from '../components/AddExpenseModal';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
-import { impactMedium, impactLight, warning, success } from '../utils/haptics';
+import { impactMedium, impactLight } from '../utils/haptics';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
 
@@ -39,57 +33,10 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
-function useKeyboardLift() {
-  const shift = useRef(new Animated.Value(0)).current;
-  const [cardH, setCardH] = useState(0);
-  const [cardY, setCardY] = useState(0);
-
-  useEffect(() => {
-    const winH = Dimensions.get('window').height;
-    const margin = 12; // מרווח קטן מתחת לכפתורים
-
-    const onShow = (e: any) => {
-      const kbH = e?.endCoordinates?.height ?? 0;
-      const cardBottom = cardY + cardH;
-      const overflow = cardBottom + kbH + margin - winH;
-      const needed = Math.max(0, overflow);
-      Animated.timing(shift, { toValue: needed, duration: 160, useNativeDriver: true }).start();
-    };
-    const onHide = () => {
-      Animated.timing(shift, { toValue: 0, duration: 160, useNativeDriver: true }).start();
-    };
-
-    const subShow = Platform.OS === 'ios'
-      ? Keyboard.addListener('keyboardWillShow', onShow)
-      : Keyboard.addListener('keyboardDidShow', onShow);
-    const subHide = Platform.OS === 'ios'
-      ? Keyboard.addListener('keyboardWillHide', onHide)
-      : Keyboard.addListener('keyboardDidHide', onHide);
-
-    return () => {
-      subShow?.remove?.();
-      subHide?.remove?.();
-    };
-  }, [cardH, cardY, shift]);
-
-  const onLayoutCard = (e: any) => {
-    const { height, y } = e.nativeEvent.layout;
-    setCardH(height);
-    setCardY(y);
-  };
-
-  // translateY למעלה (שלילי)
-  const animatedStyle = useMemo(
-    () => ({ transform: [{ translateY: Animated.multiply(shift, -1) as any }] }),
-    [shift]
-  );
-
-  return { animatedStyle, onLayoutCard };
-}
 
 export default function BudgetScreen() {
   const { t } = useTranslation();
+  const isRTL = useIsRTL();
   const appLanguage = useStore(s => s.appLanguage);
   const navigation = useNavigation<NavigationProp>();
   const themed = useThemedStyles(tk => ({
@@ -106,14 +53,6 @@ export default function BudgetScreen() {
   
   // Add Expense Modal State
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
-  const [expenseTitle, setExpenseTitle] = useState('');
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [expenseDescription, setExpenseDescription] = useState('');
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [isAddingExpense, setIsAddingExpense] = useState(false);
-  
-  // Keyboard lift hook for Add Expense modal
-  const addExpenseLift = useKeyboardLift();
   
   const { 
     expenses, 
@@ -124,8 +63,7 @@ export default function BudgetScreen() {
     getMonthlyExpenses,
     getTotalApartmentExpenses,
     loadDebtSettlements,
-    deleteExpense,
-    addExpense
+    deleteExpense
   } = useStore();
 
   // Load debt settlements on component mount
@@ -245,68 +183,6 @@ export default function BudgetScreen() {
     // The store will automatically update
   }, []);
 
-  // Initialize participants when modal opens
-  useEffect(() => {
-    if (showAddExpenseModal && currentApartment) {
-      setSelectedParticipants(currentApartment.members.map(m => m.id));
-    }
-  }, [showAddExpenseModal, currentApartment]);
-
-  // Handle Add Expense
-  const handleAddExpense = async () => {
-    if (!expenseTitle.trim()) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterTitle'));
-      return;
-    }
-
-    const numAmount = parseFloat(expenseAmount);
-    if (!numAmount || numAmount <= 0) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterValidAmount'));
-      return;
-    }
-
-    if (selectedParticipants.length === 0) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.selectParticipants'));
-      return;
-    }
-
-    if (!currentUser) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.userNotLoggedIn'));
-      return;
-    }
-
-    setIsAddingExpense(true);
-    try {
-      await addExpense({
-        title: expenseTitle.trim(),
-        amount: numAmount,
-        paidBy: currentUser.id,
-        participants: selectedParticipants,
-        category: 'other',
-        description: expenseDescription.trim() || undefined,
-      });
-
-      // Reset form and close modal
-      setExpenseTitle('');
-      setExpenseAmount('');
-      setExpenseDescription('');
-      setSelectedParticipants([]);
-      setShowAddExpenseModal(false);
-    } catch (error) {
-      console.error('Error adding expense:', error);
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.updateFailed'));
-    } finally {
-      setIsAddingExpense(false);
-    }
-  };
-
-  const toggleParticipant = (userId: string) => {
-    setSelectedParticipants(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
 
   const renderExpenseItem = ({ item: expense }: { item: any }) => {
     return (
@@ -420,15 +296,25 @@ export default function BudgetScreen() {
         </View>
         
         {/* Summary */}
-        <View className="flex-row justify-between">
+        <View 
+          className="justify-between"
+          style={{ 
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+            alignItems: 'flex-start'
+          }}
+        >
           <View>
-            <ThemedText className="text-sm" style={themed.textSecondary}>{t('budget.totalApartment')}</ThemedText>
+            <Text className="text-sm mb-2" style={{ color: themed.textSecondary.color }}>{t('budget.totalApartment')}</Text>
             <ThemedText className="text-xl font-bold">
               {formatCurrency(totalApartmentExpenses)}
             </ThemedText>
           </View>
-          <View className="items-end">
-            <ThemedText className="text-sm" style={themed.textSecondary}>{t('budget.yourShare')}</ThemedText>
+          <View 
+            style={{ 
+              alignItems: isRTL ? 'flex-start' : 'flex-end'
+            }}
+          >
+            <Text className="text-sm mb-2" style={{ color: themed.textSecondary.color }}>{t('budget.yourShare')}</Text>
             <Text className="text-xl font-bold text-blue-600">
               {formatCurrency(monthlyData.personalTotal)}
             </Text>
@@ -439,15 +325,29 @@ export default function BudgetScreen() {
       <ScrollView className="flex-1 px-6 py-6" contentContainerStyle={{ alignItems: 'stretch' }}>
         {/* Personal Balance Summary */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <View className="flex-row items-center justify-between mb-4">
-            <ThemedText className="text-lg font-semibold">{t('budget.myStatus')}</ThemedText>
+          <View 
+            className="items-center mb-4"
+            style={{ 
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <ThemedText className="text-lg font-semibold flex-1">{t('budget.myStatus')}</ThemedText>
             
             <Pressable
               onPress={() => navigation.navigate('GroupDebts')}
-              className="bg-blue-100 py-2 px-4 rounded-lg flex-row items-center"
+              className="bg-blue-100 py-2 px-4 rounded-lg"
+              style={{ 
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center'
+              }}
             >
               <Ionicons name="people-outline" size={16} color="#3b82f6" />
-              <Text className="text-blue-700 text-sm font-medium ml-2">
+              <Text 
+                className="text-blue-700 text-sm font-medium"
+                style={{ marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }}
+              >
                 {t('budget.showAllDebtsButton')}
               </Text>
             </Pressable>
@@ -529,131 +429,11 @@ export default function BudgetScreen() {
       />
 
       {/* Add Expense Modal */}
-      <Modal
+      <AddExpenseModal
         visible={showAddExpenseModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAddExpenseModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View className="flex-1 bg-black/50 justify-center items-center px-6">
-            <Animated.View
-              onLayout={addExpenseLift.onLayoutCard}
-              style={[{ width: '100%', maxWidth: 400 }, addExpenseLift.animatedStyle]}
-            >
-              <ThemedCard className="rounded-2xl p-6">
-              <ThemedText className="text-xl font-semibold mb-6 text-center">
-                {t('budget.addExpenseModal.title')}
-              </ThemedText>
-
-              {/* Expense Title */}
-              <View className="mb-6">
-                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.expenseName')}</ThemedText>
-                <TextInput
-                  value={expenseTitle}
-                  onChangeText={setExpenseTitle}
-                  placeholder={t('budget.expenseNamePlaceholder')}
-                  className="border rounded-xl px-4 py-3 text-base"
-                  style={themed.borderColor}
-                  textAlign="right"
-                  autoFocus
-                  returnKeyType="next"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit={false}
-                />
-              </View>
-
-              {/* Amount */}
-              <View className="mb-6">
-                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.amount')}</ThemedText>
-                <NumericInput
-                  value={expenseAmount}
-                  onChangeText={setExpenseAmount}
-                  placeholder="0"
-                  className="border rounded-xl px-4 py-3 text-base"
-                  style={themed.borderColor}
-                  textAlign="right"
-                  returnKeyType="next"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit={false}
-                />
-              </View>
-
-              {/* Participants */}
-              <View className="mb-6">
-                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.participants')}</ThemedText>
-                <View className="flex-row flex-wrap">
-                  {currentApartment?.members.map((member) => (
-                    <Pressable
-                      key={member.id}
-                      onPress={() => toggleParticipant(member.id)}
-                      className={cn(
-                        "mr-2 mb-2 px-4 py-2 rounded-xl border-2",
-                        selectedParticipants.includes(member.id)
-                          ? "bg-blue-500 border-blue-500"
-                          : ""
-                      )}
-                      style={!selectedParticipants.includes(member.id) ? { backgroundColor: '#ffffff', ...themed.borderColor } : undefined}
-                    >
-                      <ThemedText className={cn(
-                        "text-sm font-medium",
-                        selectedParticipants.includes(member.id)
-                          ? "text-white"
-                          : ""
-                      )} style={!selectedParticipants.includes(member.id) ? themed.textSecondary : undefined}>
-                        {getDisplayName(member)}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Description */}
-              <View className="mb-6">
-                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('budget.addExpenseModal.description')}</ThemedText>
-                <TextInput
-                  value={expenseDescription}
-                  onChangeText={setExpenseDescription}
-                  placeholder={t('budget.additionalDetailsPlaceholder')}
-                  className="border rounded-xl px-4 py-3 text-base"
-                  style={themed.borderColor}
-                  textAlign="right"
-                  multiline
-                  numberOfLines={3}
-                  returnKeyType="done"
-                  blurOnSubmit={true}
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
-
-              {/* Action Buttons */}
-              <View className="flex-row gap-3">
-                <Pressable
-                  onPress={() => {
-                    impactLight(); // Haptic feedback for cancel action
-                    setShowAddExpenseModal(false);
-                  }}
-                  className="flex-1 py-3 px-4 rounded-xl"
-                  style={themed.surfaceBg}
-                >
-                  <ThemedText className="font-medium text-center" style={themed.textSecondary}>
-                    {t('common.cancel')}
-                  </ThemedText>
-                </Pressable>
-                
-                <AsyncButton
-                  title={t('budget.addExpenseButton')}
-                  onPress={handleAddExpense}
-                  loadingText={t('budget.addingExpenseButton')}
-                  className="flex-1"
-                  disabled={isAddingExpense}
-                />
-              </View>
-              </ThemedCard>
-            </Animated.View>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+        onClose={() => setShowAddExpenseModal(false)}
+        title={t('budget.addExpenseModal.title')}
+      />
     </ThemedView>
   );
 }

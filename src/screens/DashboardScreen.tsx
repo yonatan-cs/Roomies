@@ -8,11 +8,7 @@ import {
   FlatList,
   Alert,
   Share,
-  TextInput,
-  KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
-  Keyboard,
   Animated,
   Dimensions,
   StyleSheet,
@@ -30,8 +26,7 @@ import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { impactMedium, impactLight, selection } from '../utils/haptics';
-import { AsyncButton } from '../components/AsyncButton';
-import { NumericInput } from '../components/NumericInput';
+import AddExpenseModal from '../components/AddExpenseModal';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
 import i18n from '../i18n';
@@ -46,54 +41,6 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
-function useKeyboardLift() {
-  const shift = useRef(new Animated.Value(0)).current;
-  const [cardH, setCardH] = useState(0);
-  const [cardY, setCardY] = useState(0);
-
-  useEffect(() => {
-    const winH = Dimensions.get('window').height;
-    const margin = 12; // מרווח קטן מתחת לכפתורים
-
-    const onShow = (e: any) => {
-      const kbH = e?.endCoordinates?.height ?? 0;
-      const cardBottom = cardY + cardH;
-      const overflow = cardBottom + kbH + margin - winH;
-      const needed = Math.max(0, overflow);
-      Animated.timing(shift, { toValue: needed, duration: 160, useNativeDriver: true }).start();
-    };
-    const onHide = () => {
-      Animated.timing(shift, { toValue: 0, duration: 160, useNativeDriver: true }).start();
-    };
-
-    const subShow = Platform.OS === 'ios'
-      ? Keyboard.addListener('keyboardWillShow', onShow)
-      : Keyboard.addListener('keyboardDidShow', onShow);
-    const subHide = Platform.OS === 'ios'
-      ? Keyboard.addListener('keyboardWillHide', onHide)
-      : Keyboard.addListener('keyboardDidHide', onHide);
-
-    return () => {
-      subShow?.remove?.();
-      subHide?.remove?.();
-    };
-  }, [cardH, cardY, shift]);
-
-  const onLayoutCard = (e: any) => {
-    const { height, y } = e.nativeEvent.layout;
-    setCardH(height);
-    setCardY(y);
-  };
-
-  // translateY למעלה (שלילי)
-  const animatedStyle = useMemo(
-    () => ({ transform: [{ translateY: Animated.multiply(shift, -1) as any }] }),
-    [shift]
-  );
-
-  return { animatedStyle, onLayoutCard };
-}
 
 export default function DashboardScreen() {
   const { theme, activeScheme } = useTheme();
@@ -121,14 +68,6 @@ export default function DashboardScreen() {
   
   // Add Expense Modal State
   const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
-  const [expenseTitle, setExpenseTitle] = useState('');
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [expenseDescription, setExpenseDescription] = useState('');
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [isAddingExpense, setIsAddingExpense] = useState(false);
-  
-  // Keyboard lift hook for Add Expense modal
-  const addExpenseLift = useKeyboardLift();
   
   const { 
     currentUser, 
@@ -146,8 +85,7 @@ export default function DashboardScreen() {
     loadCleaningChecklist,
     loadCleaningStats,
     cleaningStats,
-    backfillCleaningStats,
-    addExpense
+    backfillCleaningStats
   } = useStore();
 
   // Load all data from Firestore when component mounts (OPTIMIZED to reduce reads)
@@ -573,68 +511,6 @@ export default function DashboardScreen() {
   const currentTurnUser = getCurrentTurnUser();
   const isMyTurn = currentUser && cleaningTask && (cleaningTask as any).user_id === currentUser.id;
 
-  // Initialize participants when modal opens
-  useEffect(() => {
-    if (showAddExpenseModal && currentApartment) {
-      setSelectedParticipants(currentApartment.members.map(m => m.id));
-    }
-  }, [showAddExpenseModal, currentApartment]);
-
-  // Handle Add Expense
-  const handleAddExpense = async () => {
-    if (!expenseTitle.trim()) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.enterExpenseName'));
-      return;
-    }
-
-    const numAmount = parseFloat(expenseAmount);
-    if (!numAmount || numAmount <= 0) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.enterValidAmount'));
-      return;
-    }
-
-    if (selectedParticipants.length === 0) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.selectAtLeastOneParticipant'));
-      return;
-    }
-
-    if (!currentUser) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.userNotLoggedIn'));
-      return;
-    }
-
-    setIsAddingExpense(true);
-    try {
-      await addExpense({
-        title: expenseTitle.trim(),
-        amount: numAmount,
-        paidBy: currentUser.id,
-        participants: selectedParticipants,
-        category: 'other',
-        description: expenseDescription.trim() || undefined,
-      });
-
-      // Reset form and close modal
-      setExpenseTitle('');
-      setExpenseAmount('');
-      setExpenseDescription('');
-      setSelectedParticipants([]);
-      setShowAddExpenseModal(false);
-    } catch (error) {
-      console.error('Error adding expense:', error);
-      Alert.alert(t('common.error'), t('dashboard.alerts.cannotAddExpense'));
-    } finally {
-      setIsAddingExpense(false);
-    }
-  };
-
-  const toggleParticipant = (userId: string) => {
-    setSelectedParticipants(prev => 
-      prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
-    );
-  };
 
   // Share highlights function
   const shareHighlights = async () => {
@@ -916,14 +792,20 @@ export default function DashboardScreen() {
                 }}
               >
                 {currentApartment?.members.slice(0, 3).map((member, index) => (
-                  <View 
+                  <View
                     key={member.id}
                     className={cn(
-                      "w-5 h-5 bg-blue-100 rounded-full items-center justify-center",
-                      index > 0 && (isRTL ? "-ml-1" : "-mr-1")
+                      "w-5 h-5 rounded-full items-center justify-center",
+                      index > 0 && (isRTL ? "-ml-1" : "-mr-1"),
+                      activeScheme === 'dark' ? "bg-gray-700" : "bg-blue-100"
                     )}
                   >
-                    <ThemedText className="text-xs text-blue-700 font-medium">
+                    <ThemedText 
+                      className="text-xs font-medium"
+                      style={{ 
+                        color: activeScheme === 'dark' ? '#ffffff' : '#1d4ed8' 
+                      }}
+                    >
                       {getUserDisplayInfo(member).initial}
                     </ThemedText>
                   </View>
@@ -943,9 +825,9 @@ export default function DashboardScreen() {
             elevation: 3,
           }}
         >
-          <Text style={{ textAlign: 'center' }} className="text-lg font-semibold mb-4 w-full">
+          <ThemedText className="text-lg font-semibold mb-4" style={{ color: theme.colors.text.primary, textAlign: 'center' }}>
             {t('dashboard.myDebts')}
-          </Text>
+          </ThemedText>
           
           {myBalance && myBalance.owed && myBalance.owes && (
             <View>
@@ -954,8 +836,16 @@ export default function DashboardScreen() {
                 .filter(([_, amount]) => amount > 0)
                 .slice(0, 3)
                 .map(([userId, amount]) => (
-                <View key={`owed-${userId}`} className="flex-row justify-between items-center py-2">
-                  <ThemedText style={themed.textSecondary}>
+                <View 
+                  key={`owed-${userId}`} 
+                  className="items-center py-2"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <ThemedText className="flex-1" style={themed.textSecondary}>
                     {t('dashboard.owesYou', { name: getUserName(userId) })}
                   </ThemedText>
                   <ThemedText className="font-medium" style={{ color: '#16a34a' }}>
@@ -969,8 +859,16 @@ export default function DashboardScreen() {
                 .filter(([_, amount]) => amount > 0)
                 .slice(0, 3)
                 .map(([userId, amount]) => (
-                <View key={`owes-${userId}`} className="flex-row justify-between items-center py-2">
-                  <ThemedText style={themed.textSecondary}>
+                <View 
+                  key={`owes-${userId}`} 
+                  className="items-center py-2"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <ThemedText className="flex-1" style={themed.textSecondary}>
                     {t('dashboard.youOweTo', { name: getUserName(userId) })}
                   </ThemedText>
                   <ThemedText className="font-medium" style={{ color: '#dc2626' }}>
@@ -1262,140 +1160,11 @@ export default function DashboardScreen() {
       </Modal>
 
       {/* Add Expense Modal */}
-      <Modal
+      <AddExpenseModal
         visible={showAddExpenseModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowAddExpenseModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View className="flex-1 bg-black/50 justify-center items-center px-6">
-            <Animated.View
-              onLayout={addExpenseLift.onLayoutCard}
-              style={[{ width: '100%', maxWidth: 400 }, addExpenseLift.animatedStyle]}
-            >
-              <View className="bg-white rounded-2xl p-6">
-              <Text style={{ textAlign: 'center' }} className="text-xl font-semibold text-gray-900 mb-6 w-full">
-                {t('dashboard.actionAddExpense')}
-              </Text>
-
-              {/* Expense Title */}
-              <View className="mb-6">
-                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.expenseName')}</ThemedText>
-                <TextInput
-                  value={expenseTitle}
-                  onChangeText={setExpenseTitle}
-                  placeholder={t('budget.expenseNamePlaceholder')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                  textAlign="right"
-                  autoFocus
-                  returnKeyType="next"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit={false}
-                />
-              </View>
-
-              {/* Amount */}
-              <View className="mb-6">
-                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.amount')}</ThemedText>
-                <NumericInput
-                  value={expenseAmount}
-                  onChangeText={setExpenseAmount}
-                  placeholder="0"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                  textAlign="right"
-                  returnKeyType="next"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit={false}
-                />
-              </View>
-
-              {/* Participants */}
-              <View className="mb-6">
-                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.participants')}</ThemedText>
-                <View className="flex-row flex-wrap">
-                  {currentApartment?.members.map((member) => (
-                    <Pressable
-                      key={member.id}
-                      onPress={() => toggleParticipant(member.id)}
-                      className={cn(
-                        "mr-2 mb-2 px-4 py-2 rounded-xl border-2",
-                        selectedParticipants.includes(member.id)
-                          ? "bg-blue-500 border-blue-500"
-                          : "bg-white border-gray-300"
-                      )}
-                    >
-                      <ThemedText className={cn(
-                        "text-sm font-medium",
-                        selectedParticipants.includes(member.id)
-                          ? "text-white"
-                          : "text-gray-700"
-                      )}>
-                        {getDisplayName(member)}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-
-              {/* Description */}
-              <View className="mb-6">
-                <ThemedText className="text-gray-700 text-base mb-2">{t('expenseEdit.description')}</ThemedText>
-                <TextInput
-                  value={expenseDescription}
-                  onChangeText={setExpenseDescription}
-                  placeholder={t('budget.additionalDetailsPlaceholder')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                  textAlign="right"
-                  multiline
-                  numberOfLines={3}
-                  returnKeyType="done"
-                  blurOnSubmit={true}
-                  onSubmitEditing={() => Keyboard.dismiss()}
-                />
-              </View>
-
-              {/* Action Buttons */}
-              <View className="flex-row gap-3">
-                <Pressable
-                  onPress={() => {
-                    impactLight(); // Haptic feedback for cancel action
-                    setShowAddExpenseModal(false);
-                  }}
-                  className="flex-1 py-3 px-4 rounded-xl"
-                  style={[
-                    { backgroundColor: '#f3f4f6' }, // Keep light mode exactly the same
-                    activeScheme === 'dark' && { 
-                      backgroundColor: theme.colors.card, 
-                      borderColor: theme.colors.border.primary, 
-                      borderWidth: StyleSheet.hairlineWidth 
-                    }
-                  ]}
-                >
-                  <Text 
-                    style={[
-                      { textAlign: 'center', color: '#374151' }, // Keep light mode exactly the same
-                      activeScheme === 'dark' && { color: theme.colors.text.primary }
-                    ]}
-                    className="font-medium w-full"
-                  >
-                    {t('expenseEdit.cancel')}
-                  </Text>
-                </Pressable>
-                
-                <AsyncButton
-                  title={t('dashboard.actionAddExpense')}
-                  onPress={handleAddExpense}
-                  loadingText={t('addExpense.adding')}
-                  className="flex-1"
-                  disabled={isAddingExpense}
-                />
-              </View>
-              </View>
-            </Animated.View>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal>
+        onClose={() => setShowAddExpenseModal(false)}
+        title={t('dashboard.actionAddExpense')}
+      />
     </View>
   );
 }
