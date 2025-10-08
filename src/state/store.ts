@@ -103,7 +103,7 @@ interface AppState {
   setPreferredDay: (userId: string, dow?: number) => void; // undefined to clear
 
   // Actions - Expenses
-  addExpense: (expense: Omit<Expense, 'id' | 'date'>) => Promise<void>;
+  addExpense: (expense: Omit<Expense, 'id' | 'date'> & { date?: Date }) => Promise<void>;
   updateExpense: (expenseId: string, updates: Partial<Omit<Expense, 'id' | 'date'>>) => Promise<void>;
   deleteExpense: (expenseId: string) => Promise<void>;
   loadExpenses: () => Promise<void>;
@@ -245,6 +245,7 @@ export const useStore = create<AppState>()(
             participants: expense.participants,
             title: expense.title,
             note: expense.description,
+            createdAt: expense.date, // Pass the date
           });
 
           // Reload expenses from Firestore

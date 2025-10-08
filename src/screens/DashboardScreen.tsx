@@ -958,7 +958,7 @@ export default function DashboardScreen() {
                 <Ionicons name="arrow-forward" size={24} color={themed.textSecondary.color} />
               </Pressable>
               
-              <ThemedText style={{ textAlign: 'center' }} className="text-2xl font-bold flex-1 w-full">
+              <ThemedText style={{ textAlign: 'center' }} className="text-xl font-bold flex-1 w-full">
                 {t('dashboard.highlightsTitle')}
               </ThemedText>
             </View>
