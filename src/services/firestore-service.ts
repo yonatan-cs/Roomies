@@ -2916,6 +2916,7 @@ export class FirestoreService {
     participants: string[]; // UIDs
     title?: string;
     note?: string;
+    createdAt?: Date; // Optional date parameter
   }): Promise<any> {
     const { uid, idToken, aptId } = await getApartmentContext();
 
@@ -2928,7 +2929,7 @@ export class FirestoreService {
         category: payload.category ? { stringValue: payload.category } : undefined,
         title: payload.title ? { stringValue: payload.title } : undefined,
         note: payload.note ? { stringValue: payload.note } : undefined,
-        created_at: { timestampValue: new Date().toISOString() },
+        created_at: { timestampValue: (payload.createdAt || new Date()).toISOString() },
       },
     };
 

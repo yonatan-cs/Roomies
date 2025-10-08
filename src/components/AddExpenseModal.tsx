@@ -9,8 +9,10 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Animated,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
 import { getDisplayName } from '../utils/userDisplay';
@@ -103,6 +105,8 @@ export default function AddExpenseModal({
   const [expenseDescription, setExpenseDescription] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Keyboard lift hook for modal
   const keyboardLift = useKeyboardLift();
@@ -122,6 +126,8 @@ export default function AddExpenseModal({
       setExpenseDescription('');
       setSelectedParticipants([]);
       setIsAddingExpense(false);
+      setSelectedDate(new Date());
+      setShowDatePicker(false);
     }
   }, [visible]);
 
@@ -157,6 +163,7 @@ export default function AddExpenseModal({
         participants: selectedParticipants,
         category: 'other',
         description: expenseDescription.trim() || undefined,
+        date: selectedDate,
       });
 
       // Close modal and call success callback
@@ -187,6 +194,37 @@ export default function AddExpenseModal({
     setSelectedParticipants([]);
   };
 
+  // Format date for display
+  const formatDateDisplay = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDate = new Date(date);
+    compareDate.setHours(0, 0, 0, 0);
+    
+    if (compareDate.getTime() === today.getTime()) {
+      return t('addExpense.today');
+    }
+    
+    const locale = appLanguage === 'he' ? 'he-IL' : 'en-US';
+    return new Intl.DateTimeFormat(locale, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }).format(date);
+  };
+
+  // Handle date change from picker
+  const handleDateChange = (event: any, newDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (newDate) {
+      setSelectedDate(newDate);
+    }
+  };
+
+  const appLanguage = useStore(s => s.appLanguage);
+
   if (!currentUser || !currentApartment) {
     return null;
   }
@@ -212,40 +250,105 @@ export default function AddExpenseModal({
             placeholder={t('addExpense.expenseNamePh')}
             className="border rounded-xl px-4 py-3 text-base"
             style={themed.borderColor}
-            textAlign="right"
+            textAlign={isRTL ? 'right' : 'left'}
             returnKeyType="next"
             blurOnSubmit={false}
           />
         </View>
 
-        {/* Amount */}
+        {/* Amount and Date in one row */}
         <View className="mb-6">
-          <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
-            {t('addExpense.amount')}
-          </ThemedText>
           <View 
-            className="items-center"
+            className="gap-3 mb-2"
             style={{ 
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-              alignItems: 'center'
+              flexDirection: isRTL ? 'row-reverse' : 'row'
             }}
           >
-            <NumericInput
-              value={expenseAmount}
-              onChangeText={setExpenseAmount}
-              placeholder="0"
-              className="flex-1 border rounded-xl px-4 py-3 text-base"
-              style={themed.borderColor}
-              textAlign="center"
-            />
-            <ThemedText className="text-lg" style={[themed.textSecondary, isRTL ? { marginEnd: 12 } : { marginStart: 12 }]}>
-              {t('shopping.shekel')}
-            </ThemedText>
+            {/* Amount */}
+            <View className="flex-1">
+              <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
+                {t('addExpense.amount')}
+              </ThemedText>
+              <View 
+                className="items-center"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
+                <NumericInput
+                  value={expenseAmount}
+                  onChangeText={setExpenseAmount}
+                  placeholder="0"
+                  className="flex-1 border rounded-xl px-4 py-3 text-base"
+                  style={themed.borderColor}
+                  textAlign="center"
+                />
+                <ThemedText className="text-lg" style={[themed.textSecondary, isRTL ? { marginEnd: 8 } : { marginStart: 8 }]}>
+                  {t('shopping.shekel')}
+                </ThemedText>
+              </View>
+            </View>
+
+            {/* Date */}
+            <View className="flex-1">
+              <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
+                {t('addExpense.date')}
+              </ThemedText>
+              <Pressable
+                onPress={() => {
+                  impactLight();
+                  setShowDatePicker(true);
+                }}
+                className="border rounded-xl px-4 py-3"
+                style={themed.borderColor}
+              >
+                <View 
+                  className="items-center"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Ionicons 
+                    name="calendar-outline" 
+                    size={20} 
+                    color={theme.colors.text.secondary} 
+                    style={isRTL ? { marginStart: 8 } : { marginEnd: 8 }}
+                  />
+                  <ThemedText className="text-base">
+                    {formatDateDisplay(selectedDate)}
+                  </ThemedText>
+                </View>
+              </Pressable>
+            </View>
           </View>
+          
           {selectedParticipants.length > 0 && parseFloat(expenseAmount) > 0 && (
-            <ThemedText className="text-sm mt-2 text-center" style={themed.textSecondary}>
+            <ThemedText className="text-sm mt-1 text-center" style={themed.textSecondary}>
               {t('addExpense.perPerson', { amount: `${amountPerPerson.toFixed(2)}${t('shopping.shekel')}` })}
             </ThemedText>
+          )}
+          
+          {showDatePicker && (
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+              locale={appLanguage === 'he' ? 'he-IL' : 'en-US'}
+            />
+          )}
+          {showDatePicker && Platform.OS === 'ios' && (
+            <Pressable
+              onPress={() => setShowDatePicker(false)}
+              className="mt-2 py-2 px-4 rounded-xl bg-blue-500"
+            >
+              <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium w-full">
+                {t('common.ok')}
+              </Text>
+            </Pressable>
           )}
         </View>
 
@@ -338,7 +441,7 @@ export default function AddExpenseModal({
             placeholder={t('addExpense.descriptionPh')}
             className="border rounded-xl px-4 py-3 text-base"
             style={themed.borderColor}
-            textAlign="right"
+            textAlign={isRTL ? 'right' : 'left'}
             multiline
             numberOfLines={3}
             returnKeyType="done"
@@ -401,7 +504,7 @@ export default function AddExpenseModal({
                   placeholder={t('budget.expenseNamePlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base"
                   style={themed.borderColor}
-                  textAlign="right"
+                  textAlign={isRTL ? 'right' : 'left'}
                   autoFocus
                   returnKeyType="next"
                   onSubmitEditing={Keyboard.dismiss}
@@ -409,22 +512,86 @@ export default function AddExpenseModal({
                 />
               </View>
 
-              {/* Amount */}
+              {/* Amount and Date in one row */}
               <View className="mb-6">
-                <ThemedText className="text-base mb-2" style={themed.textSecondary}>
-                  {t('expenseEdit.amount')}
-                </ThemedText>
-                <NumericInput
-                  value={expenseAmount}
-                  onChangeText={setExpenseAmount}
-                  placeholder="0"
-                  className="border rounded-xl px-4 py-3 text-base"
-                  style={themed.borderColor}
-                  textAlign="right"
-                  returnKeyType="next"
-                  onSubmitEditing={Keyboard.dismiss}
-                  blurOnSubmit={false}
-                />
+                <View 
+                  className="gap-3"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row'
+                  }}
+                >
+                  {/* Amount */}
+                  <View className="flex-1">
+                    <ThemedText className="text-base mb-2" style={themed.textSecondary}>
+                      {t('expenseEdit.amount')}
+                    </ThemedText>
+                    <NumericInput
+                      value={expenseAmount}
+                      onChangeText={setExpenseAmount}
+                      placeholder="0"
+                      className="border rounded-xl px-4 py-3 text-base"
+                      style={themed.borderColor}
+                      textAlign={isRTL ? 'right' : 'left'}
+                      returnKeyType="next"
+                      onSubmitEditing={Keyboard.dismiss}
+                      blurOnSubmit={false}
+                    />
+                  </View>
+
+                  {/* Date */}
+                  <View className="flex-1">
+                    <ThemedText className="text-base mb-2" style={themed.textSecondary}>
+                      {t('addExpense.date')}
+                    </ThemedText>
+                    <Pressable
+                      onPress={() => {
+                        impactLight();
+                        setShowDatePicker(true);
+                      }}
+                      className="border rounded-xl px-4 py-3"
+                      style={themed.borderColor}
+                    >
+                      <View 
+                        className="items-center"
+                        style={{ 
+                          flexDirection: isRTL ? 'row-reverse' : 'row',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <Ionicons 
+                          name="calendar-outline" 
+                          size={20} 
+                          color={theme.colors.text.secondary} 
+                          style={isRTL ? { marginStart: 8 } : { marginEnd: 8 }}
+                        />
+                        <ThemedText className="text-base">
+                          {formatDateDisplay(selectedDate)}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  </View>
+                </View>
+                
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={selectedDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                    locale={appLanguage === 'he' ? 'he-IL' : 'en-US'}
+                  />
+                )}
+                {showDatePicker && Platform.OS === 'ios' && (
+                  <Pressable
+                    onPress={() => setShowDatePicker(false)}
+                    className="mt-2 py-2 px-4 rounded-xl bg-blue-500"
+                  >
+                    <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium w-full">
+                      {t('common.ok')}
+                    </Text>
+                  </Pressable>
+                )}
               </View>
 
               {/* Participants */}
@@ -475,7 +642,7 @@ export default function AddExpenseModal({
                   placeholder={t('budget.additionalDetailsPlaceholder')}
                   className="border rounded-xl px-4 py-3 text-base"
                   style={themed.borderColor}
-                  textAlign="right"
+                  textAlign={isRTL ? 'right' : 'left'}
                   multiline
                   numberOfLines={3}
                   returnKeyType="done"
