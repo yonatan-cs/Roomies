@@ -90,13 +90,23 @@ export default function SettingsScreen() {
     if (!newName.trim() || !currentUser) return;
     
     try {
+      console.log('💾 Saving profile name:', newName.trim());
+      
       // Update user name in Firestore (allowed field branch uses display_name)
       await firestoreService.updateUserSafeProfileFields(currentUser.id, {
         display_name: newName.trim(),
       });
       
-      // Update local state
-      setCurrentUser({ ...currentUser, name: newName.trim() });
+      // Update local state - use setState to preserve all fields and prevent unwanted re-renders
+      useStore.setState(state => ({
+        currentUser: state.currentUser ? {
+          ...state.currentUser,
+          name: newName.trim(),
+          display_name: newName.trim()
+        } : undefined
+      }));
+      
+      console.log('✅ Profile name saved successfully, staying on Settings screen');
       setEditingName(false);
     } catch (error: any) {
       console.error('Update name error:', error);

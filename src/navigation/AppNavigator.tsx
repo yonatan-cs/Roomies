@@ -111,18 +111,19 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const { i18n, t } = useTranslation();
-  const currentUser = useStore(state => state.currentUser);
+  // Subscribe only to the fields needed for routing to prevent unnecessary re-renders
+  const currentUserId = useStore(state => state.currentUser?.id);
+  const currentUserApartmentId = useStore(state => state.currentUser?.current_apartment_id);
   const currentApartment = useStore(state => state.currentApartment);
 
   // Determine routing based on presence of a valid apartment id
   // Check for null/undefined apartment_id (new users) or invalid apartment_id
-  const aptId = currentUser?.current_apartment_id;
   const hasValidApartmentId = !!currentApartment?.id || 
-    (typeof aptId === 'string' && aptId.trim().length > 0 && isValidApartmentId(aptId));
-  const showWelcome = !currentUser || !hasValidApartmentId;
+    (typeof currentUserApartmentId === 'string' && currentUserApartmentId.trim().length > 0 && isValidApartmentId(currentUserApartmentId));
+  const showWelcome = !currentUserId || !hasValidApartmentId;
 
   // If we already know there's no apartment, route to Welcome immediately
-  if (!currentUser || !hasValidApartmentId) {
+  if (!currentUserId || !hasValidApartmentId) {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
@@ -132,10 +133,10 @@ export default function AppNavigator() {
   
   console.log('🚪 AppNavigator: Navigation decision:', {
     showWelcome,
-    hasUser: !!currentUser,
+    hasUser: !!currentUserId,
     hasCurrentApartment: !!currentApartment,
     hasValidApartmentId,
-    userId: currentUser?.id,
+    userId: currentUserId,
     apartmentId: currentApartment?.id
   });
 
