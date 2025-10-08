@@ -1,7 +1,8 @@
 import React from 'react';
-import { TextInput, Platform, InputAccessoryView, Button, View } from 'react-native';
+import { Platform, InputAccessoryView, Button, View } from 'react-native';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { Keyboard } from 'react-native';
+import { AppTextInput } from './AppTextInput';
 
 type Props = {
   value: string;
@@ -31,7 +32,7 @@ export function NumericInput({
   if (Platform.OS === 'ios') {
     return (
       <>
-        <TextInput
+        <AppTextInput
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -60,9 +61,9 @@ export function NumericInput({
     );
   }
 
-  // Android - פשוט TextInput רגיל
+  // Android - use AppTextInput for consistency
   return (
-    <TextInput
+    <AppTextInput
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}

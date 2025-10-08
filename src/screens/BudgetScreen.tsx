@@ -432,7 +432,7 @@ export default function BudgetScreen() {
       <AddExpenseModal
         visible={showAddExpenseModal}
         onClose={() => setShowAddExpenseModal(false)}
-        title={t('budget.addExpenseModal.title')}
+        title={t('dashboard.actionAddExpense')}
       />
     </ThemedView>
   );

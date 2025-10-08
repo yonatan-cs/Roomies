@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   ScrollView,
   Alert,
@@ -18,11 +17,14 @@ import { Expense } from '../types';
 import { cn } from '../utils/cn';
 import { AsyncButton } from './AsyncButton';
 import { NumericInput } from './NumericInput';
+import { AppTextInput } from './AppTextInput';
 import { useTranslation } from 'react-i18next';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { useTheme } from '../theme/ThemeProvider';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 type Props = {
   visible: boolean;
@@ -33,11 +35,24 @@ type Props = {
 
 export default function ExpenseEditModal({ visible, expense, onClose, onSuccess }: Props) {
   const { t } = useTranslation();
+  const isRTL = useIsRTL();
+  const { theme } = useTheme();
   const { currentUser, currentApartment, updateExpense } = useStore();
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
+    backgroundBg: { backgroundColor: tk.colors.background },
+    cardBg: { backgroundColor: tk.colors.card },
+    textPrimary: { color: tk.colors.text.primary },
+    primaryColor: { color: tk.colors.primary },
+    primaryBg: { backgroundColor: tk.colors.primary },
+    successBg: { backgroundColor: tk.colors.status.success },
+    warningBg: { backgroundColor: tk.colors.status.warning },
+    warningBorder: { borderColor: tk.colors.status.warning },
+    warningText: { color: tk.colors.status.warning },
+    errorText: { color: tk.colors.status.error },
+    successText: { color: tk.colors.status.success },
   }));
 
   const [title, setTitle] = useState('');
@@ -229,7 +244,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
           {/* Header */}
           <View className="flex-row items-center justify-between px-6 py-4 border-b" style={themed.borderColor}>
             <Pressable onPress={onClose} className="p-2">
-              <Ionicons name="close" size={24} color="#374151" />
+              <Ionicons name="close" size={24} color={theme.colors.text.primary} />
             </Pressable>
             <ThemedText className="text-lg font-semibold">{t('expenseEdit.title')}</ThemedText>
             <View className="w-8" />
@@ -246,13 +261,12 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
               <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
                 {t('expenseEdit.expenseName')}
               </ThemedText>
-              <TextInput
+              <AppTextInput
                 value={title}
                 onChangeText={setTitle}
                 placeholder={t('expenseEdit.examplePlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
-                textAlign="right"
+                style={[themed.borderColor, themed.textPrimary, themed.cardBg]}
                 returnKeyType="next"
                 blurOnSubmit={false}
               />
@@ -268,7 +282,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                 onChangeText={setAmount}
                 placeholder="0.00"
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
+                style={[themed.borderColor, themed.textPrimary, themed.cardBg]}
                 textAlign="right"
               />
               {selectedParticipants.length > 0 && amount && (
@@ -280,16 +294,20 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
 
             {/* Participants */}
             <View className="mb-6">
-              <View className="flex-row items-center justify-between mb-3">
+              <View className="flex-row items-center justify-between mb-3" style={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}>
                 <ThemedText className="text-base font-medium" style={themed.textSecondary}>
                   {t('expenseEdit.participants')}
                 </ThemedText>
-                <View className="flex-row">
+                <View className="flex-row" style={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}>
                   <Pressable
                     onPress={selectAllParticipants}
-                    className="bg-blue-100 py-1 px-3 rounded-lg mr-2"
+                    className="py-1 px-3 rounded-lg"
+                    style={[
+                      { backgroundColor: theme.colors.primary + '20' },
+                      isRTL ? { marginLeft: 8 } : { marginRight: 8 }
+                    ]}
                   >
-                    <Text className="text-blue-700 text-sm">{t('expenseEdit.selectAll')}</Text>
+                    <Text style={{ color: theme.colors.primary }} className="text-sm">{t('expenseEdit.selectAll')}</Text>
                   </Pressable>
                   <Pressable
                     onPress={clearAllParticipants}
@@ -301,28 +319,41 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
                 </View>
               </View>
               
-              <View className="flex-row flex-wrap gap-2">
+              <View 
+                style={{ 
+                  alignItems: isRTL ? 'flex-end' : 'flex-start'
+                }}
+              >
                 {currentApartment.members.map((member) => (
                   <Pressable
                     key={member.id}
                     onPress={() => toggleParticipant(member.id)}
-                    className={cn(
-                      "flex-row items-center px-3 py-2 rounded-lg border",
-                      selectedParticipants.includes(member.id)
-                        ? "bg-blue-100 border-blue-300"
-                        : ""
-                    )}
-                    style={!selectedParticipants.includes(member.id) ? { backgroundColor: '#f9fafb', ...themed.borderColor } : undefined}
+                    className="items-center px-3 py-2 rounded-lg border mb-2"
+                    style={[
+                      selectedParticipants.includes(member.id) 
+                        ? { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }
+                        : { backgroundColor: theme.colors.surface, ...themed.borderColor },
+                      { 
+                        flexDirection: isRTL ? 'row-reverse' : 'row',
+                        alignItems: 'center',
+                        alignSelf: isRTL ? 'flex-end' : 'flex-start'
+                      }
+                    ]}
                   >
                     <Ionicons 
                       name={selectedParticipants.includes(member.id) ? "checkmark-circle" : "ellipse-outline"} 
                       size={16} 
-                      color={selectedParticipants.includes(member.id) ? "#3b82f6" : "#6b7280"} 
+                      color={selectedParticipants.includes(member.id) ? theme.colors.primary : theme.colors.text.secondary} 
                     />
-                    <ThemedText className={cn(
-                      "mr-2 text-sm font-medium",
-                      selectedParticipants.includes(member.id) ? "text-blue-700" : ""
-                    )} style={!selectedParticipants.includes(member.id) ? themed.textSecondary : undefined}>
+                    <ThemedText 
+                      className="text-sm font-medium"
+                      style={[
+                        selectedParticipants.includes(member.id) 
+                          ? { color: theme.colors.primary } 
+                          : themed.textSecondary,
+                        isRTL ? { marginLeft: 8 } : { marginRight: 8 }
+                      ]}
+                    >
                       {member.name}
                     </ThemedText>
                   </Pressable>
@@ -335,13 +366,12 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
               <ThemedText className="text-base mb-2 font-medium" style={themed.textSecondary}>
                 {t('expenseEdit.description')}
               </ThemedText>
-              <TextInput
+              <AppTextInput
                 value={description}
                 onChangeText={setDescription}
                 placeholder={t('expenseEdit.additionalDetailsPlaceholder')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
-                textAlign="right"
+                style={[themed.borderColor, themed.textPrimary, themed.cardBg]}
                 multiline
                 numberOfLines={3}
                 returnKeyType="done"
@@ -352,37 +382,56 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
 
             {/* Impact Preview */}
             {showImpactPreview && (
-              <View className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                <Text className="text-yellow-800 text-base font-semibold mb-3">
+              <View 
+                className="mb-6 p-4 border rounded-xl"
+                style={[
+                  { backgroundColor: theme.colors.status.warning + '10' },
+                  themed.warningBorder
+                ]}
+              >
+                <ThemedText 
+                  className="text-base font-semibold mb-3"
+                  style={themed.warningText}
+                >
                   {t('common.confirm')}
-                </Text>
+                </ThemedText>
                 {calculateImpact()?.map((impact, index) => (
                   <View key={index} className="flex-row items-center justify-between mb-2">
-                    <Text className="text-yellow-700 text-sm flex-1">
+                    <ThemedText 
+                      className="text-sm flex-1"
+                      style={themed.warningText}
+                    >
                       {impact.member.name}:
-                    </Text>
-                    <Text className={cn(
-                      "text-sm font-medium",
-                      impact.change > 0 ? "text-red-600" : 
-                      impact.change < 0 ? "text-green-600" : "text-gray-600"
-                    )}>
+                    </ThemedText>
+                    <ThemedText 
+                      className="text-sm font-medium"
+                      style={impact.change > 0 ? themed.errorText : 
+                             impact.change < 0 ? themed.successText : themed.textSecondary}
+                    >
                       {impact.description}
-                    </Text>
+                    </ThemedText>
                   </View>
                 ))}
                 <View className="flex-row mt-3">
                   <Pressable
                     onPress={() => setShowImpactPreview(false)}
-                    className="flex-1 bg-yellow-200 py-2 px-4 rounded-lg mr-2"
+                    className="flex-1 py-2 px-4 rounded-lg mr-2"
+                    style={[themed.warningBg, { opacity: 0.3 }]}
                   >
-                    <Text className="text-yellow-800 text-center font-medium">{t('expenseEdit.cancel')}</Text>
+                    <ThemedText 
+                      className="text-center font-medium"
+                      style={themed.warningText}
+                    >
+                      {t('expenseEdit.cancel')}
+                    </ThemedText>
                   </Pressable>
                   <Pressable
                     onPress={() => {
                       setShowImpactPreview(false);
                       performUpdate();
                     }}
-                    className="flex-1 bg-green-500 py-2 px-4 rounded-lg"
+                    className="flex-1 py-2 px-4 rounded-lg"
+                    style={themed.successBg}
                   >
                     <Text className="text-white text-center font-medium">{t('expenseEdit.confirm')}</Text>
                   </Pressable>
