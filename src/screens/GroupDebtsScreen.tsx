@@ -24,6 +24,7 @@ import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { useFormatCurrency } from '../utils/hebrewFormatting';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -127,13 +128,7 @@ export default function GroupDebtsScreen() {
     return useSimplified ? getSimplifiedBalances() : getRawBalances();
   }, [expenses, useSimplified, getRawBalances, getSimplifiedBalances]);
 
-  const formatCurrency = (amount: number) => {
-    // Show exact amount with up to 2 decimal places, no rounding
-    if (amount === Math.floor(amount)) {
-      return `₪${amount}`;
-    }
-    return `₪${amount.toFixed(2)}`;
-  };
+  const formatCurrency = useFormatCurrency();
 
   const getUserName = (userId: string) => {
     if (userId === currentUser?.id) return t('common.you');

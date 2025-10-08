@@ -25,6 +25,7 @@ import { ThemedText } from '../theme/components/ThemedText';
 import { impactMedium, impactLight } from '../utils/haptics';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { useFormatCurrency } from '../utils/hebrewFormatting';
 
 type RootStackParamList = {
   AddExpense: undefined;
@@ -89,13 +90,7 @@ export default function BudgetScreen() {
     return getTotalApartmentExpenses(selectedYear, selectedMonth);
   }, [expenses, selectedYear, selectedMonth]);
 
-  const formatCurrency = (amount: number) => {
-    // Show exact amount with up to 2 decimal places, no rounding
-    if (amount === Math.floor(amount)) {
-      return `₪${amount}`;
-    }
-    return `₪${amount.toFixed(2)}`;
-  };
+  const formatCurrency = useFormatCurrency();
 
   const formatDate = (date: Date | string) => {
     try {
