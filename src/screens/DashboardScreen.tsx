@@ -30,6 +30,7 @@ import AddExpenseModal from '../components/AddExpenseModal';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
 import i18n from '../i18n';
+import { useFormatCurrency } from '../utils/hebrewFormatting';
 
 type RootStackParamList = {
   Settings: undefined;
@@ -471,13 +472,7 @@ export default function DashboardScreen() {
     return currentApartment.members.find(member => member.id === (cleaningTask as any).user_id);
   };
 
-  const formatCurrency = (amount: number) => {
-    // Show exact amount with up to 2 decimal places, no rounding
-    if (amount === Math.floor(amount)) {
-      return `₪${amount}`;
-    }
-    return `₪${amount.toFixed(2)}`;
-  };
+  const formatCurrency = useFormatCurrency();
   
   const formatDate = (date: Date | string) => {
     try {
