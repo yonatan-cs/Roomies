@@ -11,16 +11,22 @@ import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
 import { success, impactMedium, impactLight, warning, selection } from '../utils/haptics';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { useTheme } from '../theme/ThemeProvider';
+import { cn } from '../utils/cn';
+import { DayPicker } from '../components/DayPicker';
 import { firebaseNotificationService } from '../services/firebase-notification-service';
 import { getTaskLabel } from '../utils/taskLabel';
 
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
+  const isRTL = useIsRTL();
+  const { activeScheme } = useTheme();
   const appLanguage = useStore(s => s.appLanguage);
   const currency = useStore(s => s.currency);
   const {
@@ -75,7 +81,9 @@ export default function SettingsScreen() {
     inputBg: { backgroundColor: tk.colors.card },
     inputText: { color: tk.colors.text.primary },
     buttonText: { color: '#111827' }, // Always dark for unselected buttons
-    nameDisplayBg: { backgroundColor: tk.colors.card },
+    nameDisplayBg: { 
+      backgroundColor: activeScheme === 'dark' ? '#374151' : '#f9fafb' // Lighter gray in dark mode, light gray in light mode
+    },
   }));
 
   const handleSaveName = async () => {
@@ -246,10 +254,32 @@ export default function SettingsScreen() {
 
           <View className="mb-1">
             <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
-            <View className="flex-row items-center justify-between p-3 rounded-xl" style={{ backgroundColor: themed.textSecondary.color + '15', borderWidth: 1, borderColor: themed.borderColor.borderColor }}>
-              <ThemedText className="text-lg font-mono font-bold" style={themed.textPrimary}>{currentApartment.invite_code}</ThemedText>
-              <View className="flex-row">
-                <Pressable onPress={handleCopyCode} className="bg-blue-100 p-2 rounded-lg ml-2">
+            <View 
+              className="items-center p-3 rounded-xl" 
+              style={{ 
+                backgroundColor: themed.textSecondary.color + '15', 
+                borderWidth: 1, 
+                borderColor: themed.borderColor.borderColor,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              <ThemedText className="text-lg font-mono font-bold flex-1" style={themed.textPrimary}>{currentApartment.invite_code}</ThemedText>
+              <View 
+                className="flex-row"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
+                <Pressable 
+                  onPress={handleCopyCode} 
+                  className={cn(
+                    "bg-blue-100 p-2 rounded-lg",
+                    isRTL ? "ml-2" : "mr-2"
+                  )}
+                >
                   <Ionicons name="copy-outline" size={20} color="#007AFF" />
                 </Pressable>
                 <Pressable onPress={handleShareCode} className="bg-green-100 p-2 rounded-lg">
@@ -263,29 +293,42 @@ export default function SettingsScreen() {
 
         {/* Roommates */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <View className="flex-row items-center justify-between mb-4">
-            <ThemedText className="text-lg font-semibold">
+          <View className="mb-4">
+            <ThemedText className="text-lg font-semibold flex-1">
               {t('dashboard.roommates')} ({currentApartment.members.length})
             </ThemedText>
-            <Pressable 
-              onPress={() => {
-                impactLight(); // Haptic feedback for refresh action
-                refreshApartmentMembers();
-              }}
-              className="bg-blue-100 p-2 rounded-lg"
-            >
-              <Ionicons name="refresh" size={20} color="#007AFF" />
-            </Pressable>
           </View>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
-              <View className="flex-row items-center">
-                <View className="w-12 h-12 bg-blue-100 rounded-full items-center justify-center">
-                  <ThemedText className="text-blue-700 font-semibold text-lg">
+              <View 
+                className="items-center"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
+                <View 
+                  className={cn(
+                    "w-12 h-12 rounded-full items-center justify-center",
+                    activeScheme === 'dark' ? "bg-gray-700" : "bg-blue-100"
+                  )}
+                >
+                  <ThemedText 
+                    className="font-semibold text-lg"
+                    style={{ 
+                      color: activeScheme === 'dark' ? '#ffffff' : '#1d4ed8' 
+                    }}
+                  >
                     {getUserDisplayInfo(member).initial}
                   </ThemedText>
                 </View>
-                <View className="mr-3 flex-1">
+                <View 
+                  className="flex-1"
+                  style={{ 
+                    marginStart: isRTL ? 0 : 12,
+                    marginEnd: isRTL ? 12 : 0
+                  }}
+                >
                   <ThemedText className="font-medium">
                     {getDisplayName(member)} {member.id === currentUser.id && `(${t('common.you')})`}
                   </ThemedText>
@@ -335,7 +378,13 @@ export default function SettingsScreen() {
           <View className="mb-4">
             <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('settings.fullName')}</ThemedText>
             {editingName ? (
-              <View className="flex-row items-center">
+              <View 
+                className="items-center"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 <AppTextInput
                   value={newName}
                   onChangeText={setNewName}
@@ -343,14 +392,29 @@ export default function SettingsScreen() {
                   style={[themed.borderColor, themed.inputBg, themed.inputText]}
                   autoFocus
                   returnKeyType="done"
-                  onSubmitEditing={() => Keyboard.dismiss()}
+                  onSubmitEditing={handleSaveName}
                   placeholderTextColor={themed.textSecondary.color}
                 />
-                <View className="flex-row mr-3">
-                  <Pressable onPress={() => {
-                    impactMedium(); // Haptic feedback for save action
-                    handleSaveName();
-                  }} className={"p-2 rounded-lg ml-2 " + (newName.trim() ? 'bg-green-100' : 'bg-gray-100')}>
+                <View 
+                  className="flex-row"
+                  style={{ 
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    marginStart: isRTL ? 0 : 12,
+                    marginEnd: isRTL ? 12 : 0
+                  }}
+                >
+                  <Pressable 
+                    onPress={() => {
+                      impactMedium(); // Haptic feedback for save action
+                      handleSaveName();
+                    }} 
+                    className={cn(
+                      "p-2 rounded-lg",
+                      newName.trim() ? 'bg-green-100' : 'bg-gray-100',
+                      isRTL ? "ml-2" : "mr-2"
+                    )}
+                  >
                     <Ionicons name="checkmark" size={20} color={newName.trim() ? '#10b981' : '#9ca3af'} />
                   </Pressable>
                   <Pressable
@@ -366,11 +430,20 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <Pressable onPress={() => {
-                impactLight(); // Haptic feedback for edit action
-                setEditingName(true);
-              }} className="flex-row items-center justify-between p-3 rounded-xl" style={themed.nameDisplayBg}>
-                <ThemedText className="text-base" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
+              <Pressable 
+                onPress={() => {
+                  impactLight(); // Haptic feedback for edit action
+                  setEditingName(true);
+                }} 
+                className="items-center p-3 rounded-xl" 
+                style={{
+                  ...themed.nameDisplayBg,
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <ThemedText className="text-base flex-1" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
                 <Ionicons name="pencil-outline" size={20} color="#6b7280" />
               </Pressable>
             )}
@@ -387,7 +460,13 @@ export default function SettingsScreen() {
           <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningSchedule')}</ThemedText>
 
           <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.frequency')}</ThemedText>
-          <View className="flex-row mb-4">
+          <View 
+            className="flex-wrap mb-4"
+            style={{ 
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'flex-start'
+            }}
+          >
             {[7, 14, 30].map((days) => {
               const selected = cleaningSettings.intervalDays === days;
               const label = days === 7 ? t('settings.scheduleLabels.weekly') : days === 14 ? t('settings.scheduleLabels.biweekly') : t('settings.scheduleLabels.monthly');
@@ -398,7 +477,11 @@ export default function SettingsScreen() {
                     selection(); // Haptic feedback for schedule selection
                     setCleaningIntervalDays(days);
                   }}
-                  className={"px-3 py-2 rounded-xl mr-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
+                  className={cn(
+                    "px-3 py-2 rounded-xl",
+                    selected ? 'bg-blue-500' : 'bg-gray-100',
+                    isRTL ? "ml-2" : "mr-2"
+                  )}
                 >
                   <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : { color: '#ffffff' }}>{label}</ThemedText>
                 </Pressable>
@@ -408,23 +491,14 @@ export default function SettingsScreen() {
           </View>
 
           <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.rotationDay')}</ThemedText>
-          <View className="flex-row flex-wrap">
-            {[0, 1, 2, 3, 4, 5, 6].map((dayIndex) => {
-              const selected = cleaningSettings.anchorDow === dayIndex;
-              return (
-                <Pressable
-                  key={dayIndex}
-                  onPress={() => {
-                    selection(); // Haptic feedback for day selection
-                    setCleaningAnchorDow(dayIndex);
-                  }}
-                  className={"px-2 py-1 rounded-lg mr-2 mb-2 " + (selected ? 'bg-blue-500' : 'bg-gray-100')}
-                >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : { color: '#ffffff' }}>{t(`days.${dayIndex}`)}</ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
+          <DayPicker
+            selectedDay={cleaningSettings.anchorDow}
+            onDayChange={(day) => {
+              selection(); // Haptic feedback for day selection
+              setCleaningAnchorDow(day);
+            }}
+            style={{ marginBottom: 8 }}
+          />
         </ThemedCard>
 
         {/* Cleaning Chores */}
@@ -435,7 +509,14 @@ export default function SettingsScreen() {
           {checklistItems.map((item) => {
             const isEditing = editingChoreId === item.id;
             return (
-              <View key={item.id} className="flex-row items-center py-2">
+              <View 
+                key={item.id} 
+                className="items-center py-2"
+                style={{ 
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
                 {isEditing ? (
                   <AppTextInput
                     value={editingChoreName}
@@ -459,7 +540,15 @@ export default function SettingsScreen() {
                   <ThemedText className="flex-1 text-base">{getTaskLabel(item)}</ThemedText>
                 )}
                 {!isEditing ? (
-                  <View className="flex-row ml-2">
+                  <View 
+                    className="flex-row"
+                    style={{ 
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      marginStart: isRTL ? 0 : 8,
+                      marginEnd: isRTL ? 8 : 0
+                    }}
+                  >
                     <Pressable
                       onPress={() => {
                         impactLight(); // Haptic feedback for edit task
@@ -580,17 +669,17 @@ export default function SettingsScreen() {
 
         {/* Feedback Section */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <ThemedText className="text-lg font-semibold mb-4">{t('settings.feedbackTitle')}</ThemedText>
-          <ThemedText className="text-sm mb-4" style={themed.textSecondary}>
+          <Text className="text-lg font-semibold mb-4 w-full text-center" style={themed.textPrimary}>{t('settings.feedbackTitle')}</Text>
+          <Text className="text-sm mb-4 w-full text-center" style={themed.textSecondary}>
             {t('settings.feedbackDescription')}
-          </ThemedText>
+          </Text>
           
           {/* Test Notification Button */}
           <Pressable 
             onPress={handleTestNotification}
             className="bg-purple-500 py-3 px-6 rounded-xl mb-3"
           >
-            <ThemedText className="text-white font-semibold text-center">🧪 {t('settings.testNotificationButton')}</ThemedText>
+            <Text className="text-white font-semibold text-center w-full">🧪 {t('settings.testNotificationButton')}</Text>
           </Pressable>
           
           <Pressable 
@@ -599,14 +688,14 @@ export default function SettingsScreen() {
           >
             <View className="flex-row items-center justify-center">
               <Ionicons name="mail-outline" size={20} color="white" className="ml-2" />
-              <ThemedText className="text-white font-semibold text-center"> {t('settings.feedbackCta')} </ThemedText>
+              <Text className="text-white font-semibold text-center w-full"> {t('settings.feedbackCta')} </Text>
             </View>
           </Pressable>
         </ThemedCard>
 
         {/* Danger Zone */}
         <ThemedCard className="rounded-2xl p-6 shadow-sm border-2 border-red-100">
-          <ThemedText className="text-lg font-semibold text-red-600 mb-4">{t('settings.dangerZone')}</ThemedText>
+          <Text className="text-lg font-semibold text-red-600 mb-4 w-full text-center">{t('settings.dangerZone')}</Text>
           
           <Pressable 
             onPress={async () => {
@@ -635,13 +724,13 @@ export default function SettingsScreen() {
             }}
             className="bg-orange-500 py-3 px-6 rounded-xl mb-3"
           >
-            <ThemedText className="text-white font-semibold text-center">{t('settings.signOut')}</ThemedText>
+            <Text className="text-white font-semibold text-center w-full">{t('settings.signOut')}</Text>
           </Pressable>
           
           <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
-            <ThemedText className="text-white font-semibold text-center">{t('settings.leaveApartment')}</ThemedText>
+            <Text className="text-white font-semibold text-center w-full">{t('settings.leaveApartment')}</Text>
           </Pressable>
-          <ThemedText className="text-xs text-center mt-2" style={themed.textSecondary}>{t('settings.actionWillRemove')}</ThemedText>
+          <Text className="text-xs text-center mt-2 w-full" style={themed.textSecondary}>{t('settings.actionWillRemove')}</Text>
         </ThemedCard>
 
       <ConfirmModal
