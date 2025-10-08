@@ -40,7 +40,7 @@ export default function AddExpenseScreen() {
           navigation.goBack();
         }}
         showAsModal={false}
-        title={t('addExpense.add')}
+        title={t('dashboard.actionAddExpense')}
       />
     </Screen>
   );
