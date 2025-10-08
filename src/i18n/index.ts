@@ -330,6 +330,8 @@ export const resources = {
         clear: 'Clear',
         description: 'Description (optional)',
         descriptionPh: 'More details...',
+        date: 'Date',
+        today: 'Today',
         add: 'Add expense',
         adding: 'Adding expense...',
         cancel: 'Cancel'
@@ -850,6 +852,8 @@ export const resources = {
         clear: 'ביטול',
         description: 'תיאור (אופציונלי)',
         descriptionPh: 'פרטים נוספים...',
+        date: 'תאריך',
+        today: 'היום',
         add: 'הוסף הוצאה',
         adding: 'מוסיף הוצאה...',
         cancel: 'ביטול'
