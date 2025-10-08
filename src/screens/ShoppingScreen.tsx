@@ -753,14 +753,14 @@ export default function ShoppingScreen() {
         <View className="absolute inset-0">
           <Pressable onPress={Keyboard.dismiss} className="flex-1 bg-black/50 justify-center items-center px-6">
             <Animated.View onLayout={purchaseLift.onLayoutCard} style={[{ width: '100%', maxWidth: 400 }, purchaseLift.animatedStyle]}>
-              <View className="bg-white rounded-2xl p-6">
+              <ThemedCard className="rounded-2xl p-6">
                 <Pressable onPress={Keyboard.dismiss}>
-                  <Text style={{ textAlign: 'center' }} className="text-xl font-semibold mb-4 w-full">{t('shopping.purchaseModal.title')}</Text>
+                  <ThemedText className="text-xl font-semibold mb-4" style={{ textAlign: 'center' }}>{t('shopping.purchaseModal.title')}</ThemedText>
                 </Pressable>
 
                 {/* Price */}
                 <View className="mb-6">
-                  <ThemedText className="text-gray-700 text-base mb-2">
+                  <ThemedText className="text-base mb-2" style={themed.textSecondary}>
                     {t('shopping.purchaseModal.price')} <ThemedText className="text-red-500">*</ThemedText>
                   </ThemedText>
                   <View className="flex-row items-center">
@@ -768,25 +768,26 @@ export default function ShoppingScreen() {
                       value={purchasePrice}
                       onChangeText={setPurchasePrice}
                       placeholder={t('shopping.purchaseModal.pricePlaceholder')}
-                      className="flex-1 border border-gray-300 rounded-xl px-4 py-3 text-base"
+                      className="flex-1 border rounded-xl px-4 py-3 text-base"
+                      style={[{ textAlign: 'center' }, themed.borderColor, themed.textPrimary]}
                       keyboardType="numeric"
-                      style={{ textAlign: 'center' }}
                       returnKeyType="next"
                       onSubmitEditing={Keyboard.dismiss}
                       blurOnSubmit={false}
                     />
-                    <ThemedText className="text-gray-700 text-lg mr-3">{t('shopping.shekel')}</ThemedText>
+                    <ThemedText className="text-lg mr-3" style={themed.textSecondary}>{t('shopping.shekel')}</ThemedText>
                   </View>
                 </View>
 
                 {/* Note */}
                 <View className="mb-6">
-                  <ThemedText className="text-gray-700 text-base mb-2">{t('shopping.purchaseModal.note')}</ThemedText>
+                  <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('shopping.purchaseModal.note')}</ThemedText>
                   <AppTextInput
                     value={purchaseNote}
                     onChangeText={setPurchaseNote}
                     placeholder={t('shopping.additionalDetailsPlaceholder')}
-                    className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                    className="border rounded-xl px-4 py-3 text-base"
+                    style={[themed.borderColor, themed.textPrimary]}
                     multiline
                     numberOfLines={3}
                     returnKeyType="done"
@@ -798,49 +799,54 @@ export default function ShoppingScreen() {
                 {/* Participants */}
                 {purchasePrice.trim() && (
                   <View className="mb-4">
-                    <ThemedText className="text-gray-700 text-base mb-3 text-center">{t('shopping.purchaseModal.whoParticipates')}</ThemedText>
-                    <View className={cn('space-y-2', (currentApartment?.members?.length || 0) > 5 && 'max-h-40')}>
-                      <ScrollView showsVerticalScrollIndicator={false}>
-                        {currentApartment?.members.map(member => (
-                          <Pressable
-                            key={member.id}
-                            onPress={() => {
-                              Keyboard.dismiss();
-                              setSelectedParticipants(prev =>
-                                prev.includes(member.id) ? prev.filter(id => id !== member.id) : [...prev, member.id]
-                              );
-                            }}
-                            className={cn(
-                              'items-center p-3 rounded-xl border mb-2',
-                              selectedParticipants.includes(member.id) ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'
-                            )}
-                            style={{ 
-                              flexDirection: isRTL ? 'row-reverse' : 'row',
-                              alignItems: 'center',
-                              justifyContent: 'space-between'
+                    <ThemedText className="text-base mb-3 text-center" style={themed.textSecondary}>{t('shopping.purchaseModal.whoParticipates')}</ThemedText>
+                    <View 
+                      className="flex-row flex-wrap"
+                      style={{ 
+                        justifyContent: isRTL ? 'flex-end' : 'flex-start'
+                      }}
+                    >
+                      {currentApartment?.members.map((member) => (
+                        <Pressable
+                          key={member.id}
+                          onPress={() => {
+                            Keyboard.dismiss();
+                            setSelectedParticipants(prev =>
+                              prev.includes(member.id) ? prev.filter(id => id !== member.id) : [...prev, member.id]
+                            );
+                          }}
+                          className={cn(
+                            "mb-2 px-4 py-2 rounded-xl border-2",
+                            selectedParticipants.includes(member.id)
+                              ? "bg-blue-500 border-blue-500"
+                              : "border-gray-300",
+                            isRTL ? "ml-2" : "mr-2"
+                          )}
+                          style={[
+                            selectedParticipants.includes(member.id) 
+                              ? { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }
+                              : { backgroundColor: theme.colors.surface, ...themed.borderColor }
+                          ]}
+                        >
+                          <Text 
+                            className="text-sm font-medium"
+                            style={{
+                              color: selectedParticipants.includes(member.id) 
+                                ? 'white' 
+                                : theme.colors.text.primary
                             }}
                           >
-                            <ThemedText className={cn('font-medium flex-1', selectedParticipants.includes(member.id) ? 'text-blue-700' : 'text-gray-700')}>
-                              {member.name} {member.id === currentUser?.id && t('shopping.youLabel')}
-                            </ThemedText>
-                            <View
-                              className={cn(
-                                'w-6 h-6 rounded-full border-2 items-center justify-center',
-                                selectedParticipants.includes(member.id) ? 'bg-blue-500 border-blue-500' : 'border-gray-300'
-                              )}
-                            >
-                              {selectedParticipants.includes(member.id) && <Ionicons name="checkmark" size={14} color="white" />}
-                            </View>
-                          </Pressable>
-                        ))}
-                      </ScrollView>
+                            {member.name} {member.id === currentUser?.id && t('shopping.youLabel')}
+                          </Text>
+                        </Pressable>
+                      ))}
                     </View>
 
-                    <ThemedText className="text-xs text-gray-500 text-center mt-2">{t('shopping.purchaseModal.splitNote')}</ThemedText>
+                    <ThemedText className="text-xs text-center mt-2" style={themed.textSecondary}>{t('shopping.purchaseModal.splitNote')}</ThemedText>
                   </View>
                 )}
 
-                <ThemedText className="text-sm text-gray-500 text-center mb-4">{t('shopping.purchaseModal.budgetHintWithPrice')}</ThemedText>
+                <ThemedText className="text-sm text-center mb-4" style={themed.textSecondary}>{t('shopping.purchaseModal.budgetHintWithPrice')}</ThemedText>
 
                 {/* Footer buttons */}
                 <View className="flex-row space-x-3">
@@ -854,9 +860,10 @@ export default function ShoppingScreen() {
                       setPurchaseNote('');
                       setPurchaseDate(new Date());
                     }}
-                    className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                    className="flex-1 py-3 px-4 rounded-xl mr-2"
+                    style={themed.surfaceBg}
                   >
-                    <Text style={{ textAlign: 'center' }} className="font-medium w-full">{t('shopping.purchaseModal.cancel')}</Text>
+                    <ThemedText className="font-medium" style={[themed.textSecondary, { textAlign: 'center' }]}>{t('shopping.purchaseModal.cancel')}</ThemedText>
                   </Pressable>
 
                   <Pressable
@@ -865,19 +872,22 @@ export default function ShoppingScreen() {
                       handlePurchaseConfirm();
                     }}
                     disabled={isPurchasingItem === selectedItemId}
-                    className="flex-1 bg-green-500 py-3 px-4 rounded-xl"
+                    className={cn(
+                      "flex-1 py-3 px-4 rounded-xl",
+                      isPurchasingItem === selectedItemId ? "bg-gray-400" : "bg-green-500"
+                    )}
                   >
                     {isPurchasingItem === selectedItemId ? (
                       <View className="flex-row items-center justify-center">
                         <Ionicons name="hourglass" size={20} color="white" />
-                        <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium mr-2 w-full">{t('shopping.purchaseModal.adding')}</Text>
+                        <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium mr-2">{t('shopping.purchaseModal.adding')}</Text>
                       </View>
                     ) : (
-                      <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium w-full">{t('shopping.purchaseModal.confirm')}</Text>
+                      <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium">{t('shopping.purchaseModal.confirm')}</Text>
                     )}
                   </Pressable>
                 </View>
-              </View>
+              </ThemedCard>
             </Animated.View>
           </Pressable>
         </View>

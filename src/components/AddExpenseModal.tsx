@@ -386,9 +386,9 @@ export default function AddExpenseModal({
             style={[{ width: '100%', maxWidth: 400 }, keyboardLift.animatedStyle]}
           >
             <ThemedCard className="rounded-2xl p-6">
-              <Text style={{ textAlign: 'center' }} className="text-xl font-semibold mb-6 w-full">
+              <ThemedText className="text-xl font-semibold mb-6 w-full" style={{ textAlign: 'center' }}>
                 {modalTitle}
-              </Text>
+              </ThemedText>
 
               {/* Expense Title */}
               <View className="mb-6">
@@ -432,27 +432,33 @@ export default function AddExpenseModal({
                 <ThemedText className="text-base mb-2" style={themed.textSecondary}>
                   {t('expenseEdit.participants')}
                 </ThemedText>
-                <View className="flex-row flex-wrap">
+                <View 
+                  className="flex-row flex-wrap"
+                  style={{ 
+                    justifyContent: isRTL ? 'flex-end' : 'flex-start'
+                  }}
+                >
                   {currentApartment.members.map((member) => (
                     <Pressable
                       key={member.id}
                       onPress={() => toggleParticipant(member.id)}
                       className={cn(
-                        "mr-2 mb-2 px-4 py-2 rounded-xl border-2",
+                        "mb-2 px-4 py-2 rounded-xl border-2",
                         selectedParticipants.includes(member.id)
                           ? "bg-blue-500 border-blue-500"
-                          : "bg-white border-gray-300"
+                          : "bg-white border-gray-300",
+                        isRTL ? "ml-2" : "mr-2"
                       )}
                       style={!selectedParticipants.includes(member.id) ? themed.borderColor : undefined}
                     >
-                      <ThemedText className={cn(
+                      <Text className={cn(
                         "text-sm font-medium",
                         selectedParticipants.includes(member.id)
                           ? "text-white"
                           : "text-gray-700"
                       )}>
                         {getDisplayName(member)}
-                      </ThemedText>
+                      </Text>
                     </Pressable>
                   ))}
                 </View>

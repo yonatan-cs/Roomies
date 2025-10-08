@@ -296,7 +296,6 @@ export const resources = {
         moneyYouAreOwedMessage: '💰 Money you are owed from roommates',
         moneyYouOweMessage: '💳 Amount you owe to roommates',
         addExpenseModal: {
-          title: 'Add new expense',
           expenseName: 'Expense name *',
           expenseNamePh: 'e.g. Groceries, Electricity...',
           amount: 'Amount *',
@@ -817,7 +816,6 @@ export const resources = {
         moneyYouAreOwedMessage: '💰 כסף שמגיע לך מהשותפים',
         moneyYouOweMessage: '💳 סכום שאתה חייב לשותפים',
         addExpenseModal: {
-          title: 'הוסף הוצאה חדשה',
           expenseName: 'שם ההוצאה *',
           expenseNamePh: 'למשל: קניות, חשבון חשמל...',
           amount: 'סכום *',
