@@ -5,13 +5,6 @@ import "react-native-get-random-values";
 import { LogBox } from "react-native";
 LogBox.ignoreLogs(["Expo AV has been deprecated", "Disconnected from Metro"]);
 
-import * as SplashScreen from "expo-splash-screen";
-
-// Prevent the splash screen from auto-hiding before App component is mounted
-SplashScreen.preventAutoHideAsync().catch(() => {
-  // Handle errors silently
-});
-
 import { registerRootComponent } from "expo";
 
 import App from "./App";
