@@ -27,7 +27,7 @@ export interface ThemeTokens {
 export const lightTokens: ThemeTokens = {
   colors: {
     background: '#ffffff',
-    surface: '#f8fafc',
+    surface: '#f1f5f9', // slate-100 - slightly darker for better contrast
     card: '#ffffff',
     primary: '#3b82f6', // blue-500
     secondary: '#6b7280', // gray-500
