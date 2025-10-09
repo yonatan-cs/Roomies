@@ -10,6 +10,7 @@ import {
   TouchableWithoutFeedback,
   Alert,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { firebaseAuth } from '../services/firebase-auth';
@@ -300,11 +301,15 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
           accessibilityRole="button"
           accessibilityLabel={t('settings.language')}
         >
-          <Ionicons name="language" size={22} color="#111827" />
+          <Ionicons name="language" size={22} color={themed.textPrimary.color} />
         </Pressable>
         {/* Header */}
         <View className="items-center mb-8">
-          <Ionicons name="home" size={80} color="#007AFF" />
+          <Image 
+            source={require('../../logo_inside.png')} 
+            style={{ width: 140, height: 140 }}
+            resizeMode="contain"
+          />
           <ThemedText className="text-3xl font-bold mt-4 text-center">{t('auth.title')}</ThemedText>
           <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>{t('auth.subtitle')}</ThemedText>
         </View>
