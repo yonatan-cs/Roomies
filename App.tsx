@@ -8,12 +8,14 @@ import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 import { navigationRef } from "./src/navigation/navigationRef";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import "./src/i18n";
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
-import { configureReanimatedLogger } from 'react-native-reanimated';
+import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { firebaseNotificationService } from './src/services/firebase-notification-service';
 import { isRTL } from './src/utils/rtl';
+import * as SplashScreen from 'expo-splash-screen';
+import Animated from 'react-native-reanimated';
 
 // Configure Reanimated logger to disable strict mode warnings
 configureReanimatedLogger({
@@ -69,6 +71,9 @@ export default function App() {
 
   function ThemedRoot() {
     const { activeScheme, theme } = useTheme();
+    const [appIsReady, setAppIsReady] = useState(false);
+    const opacity = useSharedValue(0);
+
     useEffect(() => {
       (async () => {
         try {
@@ -86,11 +91,50 @@ export default function App() {
       })();
     }, []);
 
+    // Handle splash screen and fade-in animation
+    useEffect(() => {
+      const prepare = async () => {
+        try {
+          // Wait a bit for theme and navigation to be ready
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (e) {
+          console.warn('Error preparing app:', e);
+        } finally {
+          setAppIsReady(true);
+        }
+      };
+
+      prepare();
+    }, []);
+
+    useEffect(() => {
+      if (appIsReady) {
+        // Start fade-in animation
+        opacity.value = withTiming(1, { duration: 500 });
+        
+        // Hide splash screen after animation
+        const hideSplash = async () => {
+          try {
+            await SplashScreen.hideAsync();
+          } catch (e) {
+            console.warn('Error hiding splash:', e);
+          }
+        };
+        
+        // Delay hiding splash to allow fade-in to complete
+        setTimeout(hideSplash, 600);
+      }
+    }, [appIsReady]);
+
     // Handle language change without full app refresh
     useEffect(() => {
       // This effect runs when appLanguage changes, but we don't need to do anything
       // as the changeAppLanguage function handles navigation preservation
     }, [appLanguage]);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      opacity: opacity.value,
+    }));
 
     const navTheme: NavTheme =
       activeScheme === 'dark'
@@ -118,12 +162,12 @@ export default function App() {
           };
 
     return (
-      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <Animated.View style={[{ flex: 1, backgroundColor: theme.colors.background }, animatedStyle]}>
         <NavigationContainer ref={navigationRef} theme={navTheme}>
           <AppNavigator />
         </NavigationContainer>
         <StatusBar style={activeScheme === 'dark' ? 'light' : 'dark'} />
-      </View>
+      </Animated.View>
     );
   }
 
