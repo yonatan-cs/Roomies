@@ -8,7 +8,8 @@ import {
   ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
-  ActivityIndicator
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
@@ -684,7 +685,11 @@ export default function WelcomeScreen() {
         
         <View className="flex-1 justify-center">
           <View className="items-center mb-12">
-            <Ionicons name="home" size={80} color="#007AFF" />
+            <Image 
+              source={require('../../logo_inside.png')} 
+              style={{ width: 140, height: 140 }}
+              resizeMode="contain"
+            />
             <ThemedText className="text-3xl font-bold mt-4 text-center">
               {t('welcome.hello', { name: getDisplayName(currentUser) })}
             </ThemedText>
