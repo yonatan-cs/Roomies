@@ -130,6 +130,7 @@ export const resources = {
         actionWillRemove: 'This action will remove you from the apartment and delete all local data',
         removeMember: 'Remove member',
         confirmRemoveMember: 'Are you sure you want to remove {{name}} from the apartment? This action cannot be undone.',
+        codeCopiedSuccess: 'Code copied successfully',
         alerts: {
           cannotUpdateName: 'Cannot update name',
           cannotOpenEmail: 'Cannot open email application',
@@ -665,6 +666,7 @@ export const resources = {
         actionWillRemove: 'פעולה זו תסיר אותך מהדירה ותמחק את כל הנתונים המקומיים',
         removeMember: 'הסר שותף',
         confirmRemoveMember: 'האם אתה בטוח שברצונך להסיר את {{name}} מהדירה? פעולה זו אינה ניתנת לביטול.',
+        codeCopiedSuccess: 'הקוד הועתק בהצלחה',
         alerts: {
           cannotUpdateName: 'לא ניתן לעדכן את השם',
           cannotOpenEmail: 'לא ניתן לפתוח את אפליקציית המייל',
