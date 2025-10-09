@@ -19,7 +19,8 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { cn } from '../utils/cn';
 import { DayPicker } from '../components/DayPicker';
-import { firebaseNotificationService } from '../services/firebase-notification-service';
+import { notificationService } from '../services/notification-service';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getTaskLabel } from '../utils/taskLabel';
 import { showThemedAlert } from '../components/ThemedAlert';
 
@@ -51,7 +52,7 @@ export default function SettingsScreen() {
     if (currentApartment) {
       console.log('🔄 Settings: Refreshing apartment members on mount');
       refreshApartmentMembers();
-      
+
       // Also load checklist items to show in settings
       const { loadCleaningChecklist } = useStore.getState();
       loadCleaningChecklist();
@@ -69,11 +70,11 @@ export default function SettingsScreen() {
   const [isAddingChore, setIsAddingChore] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [deletingChoreId, setDeletingChoreId] = useState<string | null>(null);
-  
+
   // Member removal states
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
   const [confirmRemoveVisible, setConfirmRemoveVisible] = useState(false);
-  const [memberToRemove, setMemberToRemove] = useState<{id: string, name: string} | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string, name: string } | null>(null);
   const [showMemberOptions, setShowMemberOptions] = useState<string | null>(null);
   const themed = useThemedStyles(tk => ({
     textPrimary: { color: tk.colors.text.primary },
@@ -82,22 +83,22 @@ export default function SettingsScreen() {
     inputBg: { backgroundColor: tk.colors.card },
     inputText: { color: tk.colors.text.primary },
     buttonText: { color: '#111827' }, // Always dark for unselected buttons
-    nameDisplayBg: { 
+    nameDisplayBg: {
       backgroundColor: activeScheme === 'dark' ? '#374151' : '#f9fafb' // Lighter gray in dark mode, light gray in light mode
     },
   }));
 
   const handleSaveName = async () => {
     if (!newName.trim() || !currentUser) return;
-    
+
     try {
       console.log('💾 Saving profile name:', newName.trim());
-      
+
       // Update user name in Firestore (allowed field branch uses display_name)
       await firestoreService.updateUserSafeProfileFields(currentUser.id, {
         display_name: newName.trim(),
       });
-      
+
       // Update local state - use setState to preserve all fields and prevent unwanted re-renders
       useStore.setState(state => ({
         currentUser: state.currentUser ? {
@@ -106,7 +107,7 @@ export default function SettingsScreen() {
           display_name: newName.trim()
         } : undefined
       }));
-      
+
       console.log('✅ Profile name saved successfully, staying on Settings screen');
       setEditingName(false);
     } catch (error: any) {
@@ -132,13 +133,13 @@ export default function SettingsScreen() {
     try {
       impactMedium(); // Haptic feedback for share action
       await Share.share({
-        message: t('settings.shareMessage', { 
-          apartmentName: currentApartment.name, 
-          inviteCode: currentApartment.invite_code 
+        message: t('settings.shareMessage', {
+          apartmentName: currentApartment.name,
+          inviteCode: currentApartment.invite_code
         }),
         title: t('settings.joinApartmentTitle'),
       });
-    } catch (error) {}
+    } catch (error) { }
   };
 
   const handleLeaveApartment = () => {
@@ -155,9 +156,9 @@ export default function SettingsScreen() {
       appVersion: '1.0.0',
       userName: currentUser?.name || 'Unknown'
     }));
-    
+
     const mailtoUrl = `mailto:${to}?subject=${subject}&body=${body}`;
-    
+
     Linking.openURL(mailtoUrl).catch((err) => {
       console.error('Error opening mailto:', err);
       showThemedAlert(t('common.error'), t('settings.alerts.cannotOpenEmail'));
@@ -169,7 +170,7 @@ export default function SettingsScreen() {
       // Don't show remove option for current user (they should use "Leave Apartment")
       return;
     }
-    
+
     // Toggle menu - if already open, close it
     if (showMemberOptions === member.id) {
       setShowMemberOptions(null);
@@ -180,17 +181,17 @@ export default function SettingsScreen() {
 
   const handleRemoveMemberPress = async (member: any) => {
     setShowMemberOptions(null);
-    
+
     try {
       // Check if member can be removed
       const canBeRemoved = await checkMemberCanBeRemoved(member.id);
-      
+
       if (!canBeRemoved.canBeRemoved) {
         showThemedAlert(
           t('settings.alerts.cannotRemoveMember'),
-          t('settings.alerts.cannotRemoveMemberReason', { 
-            name: getDisplayName(member), 
-            reason: canBeRemoved.reason 
+          t('settings.alerts.cannotRemoveMemberReason', {
+            name: getDisplayName(member),
+            reason: canBeRemoved.reason
           }),
           [{ text: t('common.ok') }]
         );
@@ -229,11 +230,38 @@ export default function SettingsScreen() {
   const handleTestNotification = async () => {
     try {
       impactMedium(); // Haptic feedback for test notification
-      await firebaseNotificationService.sendTestNotification();
-      showThemedAlert(t('settings.alerts.testNotificationSuccess'), t('settings.alerts.testNotificationSent'));
+
+      console.log('🧪 Testing notifications...');
+
+      // 1. Send local notification immediately (works even without backend)
+      await notificationService.sendTestLocalNotification();
+      console.log('✅ Local notification sent');
+
+      // 2. Try to send remote notification via cloud function (requires backend setup)
+      try {
+        console.log('📡 Calling cloud function to send remote notification...');
+        const functions = getFunctions();
+        const sendTestNotification = httpsCallable(functions, 'sendTestNotificationV1');
+        const result = await sendTestNotification({
+          title: '🧪 Remote Test',
+          body: 'This is a remote push notification from Firebase Cloud Functions!'
+        });
+        console.log('✅ Remote notification sent:', result.data);
+      } catch (remoteError: any) {
+        console.log('⚠️ Remote notification failed (cloud function may not be deployed):', remoteError.message);
+        // Don't throw - local notification already worked
+      }
+
+      showThemedAlert(
+        t('settings.alerts.testNotificationSuccess'),
+        'Local notification sent! Check your device.'
+      );
     } catch (error) {
-      console.error('Error sending test notification:', error);
-      showThemedAlert(t('settings.alerts.testNotificationError'), t('settings.alerts.testNotificationFailed'));
+      console.error('❌ Error sending test notification:', error);
+      showThemedAlert(
+        t('settings.alerts.testNotificationError'),
+        t('settings.alerts.testNotificationFailed')
+      );
     }
   };
 
@@ -261,11 +289,11 @@ export default function SettingsScreen() {
           onPress={() => setShowMemberOptions(null)}
         />
       )}
-      
+
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-center w-full" style={themed.textPrimary}>{t('settings.title')}</Text>
       </ThemedCard>
-      <ScrollView 
+      <ScrollView
         className="flex-1 px-6 py-6"
         contentContainerStyle={{ alignItems: 'stretch' }}
         keyboardShouldPersistTaps="handled"
@@ -285,11 +313,11 @@ export default function SettingsScreen() {
 
           <View className="mb-1">
             <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
-            <View 
-              className="items-center p-3 rounded-xl" 
-              style={{ 
-                backgroundColor: themed.textSecondary.color + '15', 
-                borderWidth: 1, 
+            <View
+              className="items-center p-3 rounded-xl"
+              style={{
+                backgroundColor: themed.textSecondary.color + '15',
+                borderWidth: 1,
                 borderColor: themed.borderColor.borderColor,
                 flexDirection: isRTL ? 'row-reverse' : 'row',
                 alignItems: 'center',
@@ -297,15 +325,15 @@ export default function SettingsScreen() {
               }}
             >
               <ThemedText className="text-lg font-mono font-bold flex-1" style={themed.textPrimary}>{currentApartment.invite_code}</ThemedText>
-              <View 
+              <View
                 className="flex-row"
-                style={{ 
+                style={{
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                   alignItems: 'center'
                 }}
               >
-                <Pressable 
-                  onPress={handleCopyCode} 
+                <Pressable
+                  onPress={handleCopyCode}
                   className={cn(
                     "bg-blue-100 p-2 rounded-lg",
                     isRTL ? "ml-2" : "mr-2"
@@ -331,31 +359,31 @@ export default function SettingsScreen() {
           </View>
           {currentApartment.members.map((member) => (
             <View key={member.id} className="mb-4">
-              <View 
+              <View
                 className="items-center"
-                style={{ 
+                style={{
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                   alignItems: 'center'
                 }}
               >
-                <View 
+                <View
                   className={cn(
                     "w-12 h-12 rounded-full items-center justify-center",
                     activeScheme === 'dark' ? "bg-gray-700" : "bg-blue-100"
                   )}
                 >
-                  <ThemedText 
+                  <ThemedText
                     className="font-semibold text-lg"
-                    style={{ 
-                      color: activeScheme === 'dark' ? '#ffffff' : '#1d4ed8' 
+                    style={{
+                      color: activeScheme === 'dark' ? '#ffffff' : '#1d4ed8'
                     }}
                   >
                     {getUserDisplayInfo(member).initial}
                   </ThemedText>
                 </View>
-                <View 
+                <View
                   className="flex-1"
-                  style={{ 
+                  style={{
                     marginStart: isRTL ? 0 : 12,
                     marginEnd: isRTL ? 12 : 0
                   }}
@@ -380,12 +408,12 @@ export default function SettingsScreen() {
                     >
                       <Ionicons name="ellipsis-horizontal" size={20} color="#9ca3af" />
                     </Pressable>
-                    
+
                     {/* Popup menu */}
                     {showMemberOptions === member.id && (
-                      <View 
-                        className="absolute top-10 rounded-lg shadow-lg" 
-                        style={{ 
+                      <View
+                        className="absolute top-10 rounded-lg shadow-lg"
+                        style={{
                           backgroundColor: theme.colors.status.error,
                           minWidth: 140,
                           maxWidth: 180,
@@ -419,9 +447,9 @@ export default function SettingsScreen() {
           <View className="mb-4">
             <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('settings.fullName')}</ThemedText>
             {editingName ? (
-              <View 
+              <View
                 className="items-center"
-                style={{ 
+                style={{
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                   alignItems: 'center'
                 }}
@@ -436,20 +464,20 @@ export default function SettingsScreen() {
                   onSubmitEditing={handleSaveName}
                   placeholderTextColor={themed.textSecondary.color}
                 />
-                <View 
+                <View
                   className="flex-row"
-                  style={{ 
+                  style={{
                     flexDirection: isRTL ? 'row-reverse' : 'row',
                     alignItems: 'center',
                     marginStart: isRTL ? 0 : 12,
                     marginEnd: isRTL ? 12 : 0
                   }}
                 >
-                  <Pressable 
+                  <Pressable
                     onPress={() => {
                       impactMedium(); // Haptic feedback for save action
                       handleSaveName();
-                    }} 
+                    }}
                     className={cn(
                       "p-2 rounded-lg",
                       newName.trim() ? 'bg-green-100' : 'bg-gray-100',
@@ -471,12 +499,12 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <Pressable 
+              <Pressable
                 onPress={() => {
                   impactLight(); // Haptic feedback for edit action
                   setEditingName(true);
-                }} 
-                className="items-center p-3 rounded-xl" 
+                }}
+                className="items-center p-3 rounded-xl"
                 style={{
                   ...themed.nameDisplayBg,
                   flexDirection: isRTL ? 'row-reverse' : 'row',
@@ -501,9 +529,9 @@ export default function SettingsScreen() {
           <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningSchedule')}</ThemedText>
 
           <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.frequency')}</ThemedText>
-          <View 
+          <View
             className="flex-wrap mb-4"
-            style={{ 
+            style={{
               flexDirection: isRTL ? 'row-reverse' : 'row',
               alignItems: 'flex-start'
             }}
@@ -545,15 +573,15 @@ export default function SettingsScreen() {
         {/* Cleaning Chores */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
           <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningTasks')} ({checklistItems.length})</ThemedText>
-          
+
 
           {checklistItems.map((item) => {
             const isEditing = editingChoreId === item.id;
             return (
-              <View 
-                key={item.id} 
+              <View
+                key={item.id}
                 className="items-center py-2"
-                style={{ 
+                style={{
                   flexDirection: isRTL ? 'row-reverse' : 'row',
                   alignItems: 'center'
                 }}
@@ -581,9 +609,9 @@ export default function SettingsScreen() {
                   <ThemedText className="flex-1 text-base">{getTaskLabel(item)}</ThemedText>
                 )}
                 {!isEditing ? (
-                  <View 
+                  <View
                     className="flex-row"
-                    style={{ 
+                    style={{
                       flexDirection: isRTL ? 'row-reverse' : 'row',
                       alignItems: 'center',
                       marginStart: isRTL ? 0 : 8,
@@ -600,7 +628,7 @@ export default function SettingsScreen() {
                     >
                       <Ionicons name="pencil" size={18} color="#6b7280" />
                     </Pressable>
-                    <Pressable 
+                    <Pressable
                       onPress={async () => {
                         if (deletingChoreId) return; // Prevent multiple clicks
                         warning(); // Haptic feedback for delete task
@@ -613,7 +641,7 @@ export default function SettingsScreen() {
                         } finally {
                           setDeletingChoreId(null);
                         }
-                      }} 
+                      }}
                       disabled={deletingChoreId === item.id}
                       className="p-2"
                     >
@@ -686,9 +714,8 @@ export default function SettingsScreen() {
                 }
               }}
               disabled={isAddingChore}
-              className={`w-12 h-12 rounded-xl items-center justify-center mr-3 ${
-                isAddingChore ? 'bg-gray-400' : 'bg-blue-500'
-              }`}
+              className={`w-12 h-12 rounded-xl items-center justify-center mr-3 ${isAddingChore ? 'bg-gray-400' : 'bg-blue-500'
+                }`}
             >
               {isAddingChore ? (
                 <Ionicons name="hourglass" size={24} color="white" />
@@ -697,7 +724,7 @@ export default function SettingsScreen() {
               )}
             </Pressable>
           </View>
-          
+
           {/* Success Message */}
           {showSuccessMessage && (
             <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
@@ -714,16 +741,16 @@ export default function SettingsScreen() {
           <Text className="text-sm mb-4 w-full text-center" style={themed.textSecondary}>
             {t('settings.feedbackDescription')}
           </Text>
-          
+
           {/* Test Notification Button */}
-          <Pressable 
+          <Pressable
             onPress={handleTestNotification}
             className="bg-purple-500 py-3 px-6 rounded-xl mb-3"
           >
             <Text className="text-white font-semibold text-center w-full">🧪 {t('settings.testNotificationButton')}</Text>
           </Pressable>
-          
-          <Pressable 
+
+          <Pressable
             onPress={handleSendFeedback}
             className="bg-blue-500 py-3 px-6 rounded-xl"
           >
@@ -737,13 +764,13 @@ export default function SettingsScreen() {
         {/* Danger Zone */}
         <ThemedCard className="rounded-2xl p-6 shadow-sm border-2 border-red-100">
           <Text className="text-lg font-semibold text-red-600 mb-4 w-full text-center">{t('settings.dangerZone')}</Text>
-          
-          <Pressable 
+
+          <Pressable
             onPress={async () => {
               try {
                 warning(); // Haptic feedback for sign out action
                 console.log('🚪 Signing out user...');
-                
+
                 // Clear local state first to immediately trigger navigation
                 useStore.setState({
                   currentUser: undefined,
@@ -754,7 +781,7 @@ export default function SettingsScreen() {
                   checklistItems: [],
                   disableFirestoreForNewUsers: false, // Reset Firestore flag
                 });
-                
+
                 // Then perform actual sign out
                 await firebaseAuth.signOut();
                 console.log('✅ Sign out completed successfully');
@@ -767,7 +794,7 @@ export default function SettingsScreen() {
           >
             <Text className="text-white font-semibold text-center w-full">{t('settings.signOut')}</Text>
           </Pressable>
-          
+
           <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
             <Text className="text-white font-semibold text-center w-full">{t('settings.leaveApartment')}</Text>
           </Pressable>
@@ -776,8 +803,8 @@ export default function SettingsScreen() {
 
         {/* Logo at bottom */}
         <View className="items-center my-8">
-          <Image 
-            source={require('../../logo_inside.png')} 
+          <Image
+            source={require('../../logo_inside.png')}
             style={{ width: 80, height: 80, opacity: 0.4 }}
             resizeMode="contain"
           />
@@ -796,10 +823,10 @@ export default function SettingsScreen() {
             if (currentUser && currentApartment) {
               // Leave apartment in Firestore
               await firestoreService.leaveApartment(currentApartment.id, currentUser.id);
-              
+
               // current_apartment_id is managed automatically through apartmentMembers
             }
-            
+
             // Reset local state for apartment-scope data
             useStore.setState({
               currentApartment: undefined,
@@ -808,15 +835,15 @@ export default function SettingsScreen() {
               shoppingItems: [],
               checklistItems: [],
             });
-            
+
             // Update current user to remove apartment reference
             if (currentUser) {
-              setCurrentUser({ 
-                ...currentUser, 
-                current_apartment_id: null 
+              setCurrentUser({
+                ...currentUser,
+                current_apartment_id: null
               });
             }
-            
+
             setConfirmLeaveVisible(false);
           } catch (error: any) {
             console.error('Leave apartment error:', error);

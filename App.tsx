@@ -12,7 +12,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
 import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { firebaseNotificationService } from './src/services/firebase-notification-service';
+import { notificationService } from './src/services/notification-service';
 import { isRTL } from './src/utils/rtl';
 import Animated from 'react-native-reanimated';
 import { ThemedAlertProvider } from './src/components/ThemedAlert';
@@ -48,6 +48,7 @@ const openai_api_key = Constants.expoConfig.extra.apikey;
 export default function App() {
   const appLanguage = useStore(s => s.appLanguage);
   const currentUser = useStore(s => s.currentUser);
+  const [hasRequestedPermissions, setHasRequestedPermissions] = useState(false);
 
   useEffect(() => {
     if (i18n.language !== appLanguage) {
@@ -55,18 +56,51 @@ export default function App() {
     }
   }, [appLanguage]);
 
-  // Initialize Firebase notifications when user is logged in
+  // Request notification permissions on first app launch
   useEffect(() => {
-    const initializeFirebaseNotifications = async () => {
-      if (currentUser?.id) {
-        console.log('🚀 Initializing Firebase notifications for user:', currentUser.id);
-        // Fire-and-forget to avoid blocking app startup
-        void firebaseNotificationService.initialize(currentUser.id);
+    const requestFirstTimePermissions = async () => {
+      try {
+        // Check if we've already requested permissions
+        const hasAsked = await AsyncStorage.getItem('notification_permissions_requested');
+        
+        if (!hasAsked) {
+          console.log('🔔 First time app launch - requesting notification permissions');
+          // Request permissions immediately on first launch
+          const granted = await notificationService.requestPermissions();
+          
+          if (granted) {
+            console.log('✅ User granted notification permissions');
+          } else {
+            console.log('⚠️ User denied notification permissions');
+          }
+          
+          // Mark that we've asked (whether granted or denied)
+          await AsyncStorage.setItem('notification_permissions_requested', 'true');
+          setHasRequestedPermissions(true);
+        } else {
+          setHasRequestedPermissions(true);
+        }
+      } catch (error) {
+        console.error('❌ Error requesting first-time permissions:', error);
+        setHasRequestedPermissions(true);
       }
     };
 
-    initializeFirebaseNotifications();
-  }, [currentUser?.id]);
+    requestFirstTimePermissions();
+  }, []);
+
+  // Initialize notifications when user is logged in
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      if (currentUser?.id && hasRequestedPermissions) {
+        console.log('🚀 Initializing notifications for user:', currentUser.id);
+        // Fire-and-forget to avoid blocking app startup
+        void notificationService.initialize(currentUser.id);
+      }
+    };
+
+    initializeNotifications();
+  }, [currentUser?.id, hasRequestedPermissions]);
 
   // RTL text alignment is now handled by ThemedText and AppTextInput components
   // No need for global defaultProps which don't work reliably
