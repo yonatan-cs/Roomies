@@ -4,6 +4,7 @@
     "slug": "roomies",
     "scheme": "roomies",
     "version": "1.0.0",
+    "projectId": "25750afa-5613-4fc5-9bcd-c68398815964",
     "orientation": "portrait",
     "icon": "./logo.png",
     "userInterfaceStyle": "automatic",
@@ -14,7 +15,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.Roomies.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "UIBackgroundModes": ["fetch", "remote-notification"]
+      }
     },
     "android": {
       "edgeToEdgeEnabled": true,
@@ -28,6 +32,15 @@
       "expo-dev-client",
       "expo-font",
       "expo-mail-composer",
+      [
+        "expo-notifications",
+        {
+          "icon": "./logo.png",
+          "color": "#ffffff",
+          "sounds": ["./assets/notification.wav"],
+          "mode": "production"
+        }
+      ],
       "expo-secure-store",
       "expo-sqlite",
       "expo-video",
