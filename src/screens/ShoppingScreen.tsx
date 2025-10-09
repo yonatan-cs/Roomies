@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   ScrollView,
-  Alert,
   FlatList,
   Platform,
   Modal,
@@ -26,6 +25,7 @@ import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
+import { showThemedAlert } from '../components/ThemedAlert';
 
 
 // ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
@@ -146,7 +146,7 @@ export default function ShoppingScreen() {
       setShowAddModal(false);
     } catch (error) {
       console.error('Error adding shopping item:', error);
-      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.cannotAdd'));
+      showThemedAlert(t('shopping.alerts.error'), t('shopping.alerts.cannotAdd'));
     } finally {
       setIsAddingItem(false);
     }
@@ -160,7 +160,7 @@ export default function ShoppingScreen() {
       setSelectedItemId(itemId);
       setShowItemDetailsModal(true);
     } else {
-      Alert.alert(
+      showThemedAlert(
         t('shopping.deleteModal.title'),
         '',
         [
@@ -173,7 +173,7 @@ export default function ShoppingScreen() {
                 await removeShoppingItem(itemId);
               } catch (error) {
                 console.error('Error removing item:', error);
-                Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.cannotRemove'));
+                showThemedAlert(t('shopping.alerts.error'), t('shopping.alerts.cannotRemove'));
               } finally {
                 setIsRemovingItem(null);
               }
@@ -202,18 +202,18 @@ export default function ShoppingScreen() {
     
     // Price is now mandatory - check if it's provided and valid
     if (!purchasePrice.trim()) {
-      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.priceRequired'));
+      showThemedAlert(t('shopping.alerts.error'), t('shopping.alerts.priceRequired'));
       return;
     }
     
     const price = parseFloat(purchasePrice);
     if (!price || price <= 0) {
-      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.invalidPrice'));
+      showThemedAlert(t('shopping.alerts.error'), t('shopping.alerts.invalidPrice'));
       return;
     }
     
     if (selectedParticipants.length === 0) {
-      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.needParticipants'));
+      showThemedAlert(t('shopping.alerts.error'), t('shopping.alerts.needParticipants'));
       return;
     }
 
@@ -238,7 +238,7 @@ export default function ShoppingScreen() {
       setPurchaseDate(new Date());
     } catch (error) {
       console.error('Error marking item as purchased:', error);
-      Alert.alert(t('shopping.alerts.error'), t('shopping.alerts.cannotMarkPurchased'));
+      showThemedAlert(t('shopping.alerts.error'), t('shopping.alerts.cannotMarkPurchased'));
     } finally {
       setIsPurchasingItem(null);
     }
@@ -275,12 +275,12 @@ export default function ShoppingScreen() {
       await markItemForRepurchase(itemId);
       setShowItemDetailsModal(false);
       setSelectedItemId(null);
-      Alert.alert(t('shopping.alerts.success'), t('shopping.alerts.repurchased', { name: item?.name || '' }), [
+      showThemedAlert(t('shopping.alerts.success'), t('shopping.alerts.repurchased', { name: item?.name || '' }), [
         { text: t('common.ok'), style: 'default' }
       ]);
     } catch (error) {
       console.error('Error repurchasing item:', error);
-      Alert.alert(t('common.error'), t('shopping.alerts.cannotAdd'));
+      showThemedAlert(t('common.error'), t('shopping.alerts.cannotAdd'));
     } finally {
       setIsRepurchasingItem(null);
     }

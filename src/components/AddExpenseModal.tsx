@@ -5,7 +5,6 @@ import {
   TextInput,
   Pressable,
   Modal,
-  Alert,
   TouchableWithoutFeedback,
   Keyboard,
   Animated,
@@ -25,6 +24,7 @@ import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { impactLight } from '../utils/haptics';
+import { showThemedAlert } from './ThemedAlert';
 
 // Keyboard lift hook for modal
 function useKeyboardLift() {
@@ -134,23 +134,23 @@ export default function AddExpenseModal({
   // Handle Add Expense
   const handleAddExpense = async () => {
     if (!expenseTitle.trim()) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.enterExpenseName'));
+      showThemedAlert(t('common.error'), t('dashboard.alerts.enterExpenseName'));
       return;
     }
 
     const numAmount = parseFloat(expenseAmount);
     if (!numAmount || numAmount <= 0) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.enterValidAmount'));
+      showThemedAlert(t('common.error'), t('dashboard.alerts.enterValidAmount'));
       return;
     }
 
     if (selectedParticipants.length === 0) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.selectAtLeastOneParticipant'));
+      showThemedAlert(t('common.error'), t('dashboard.alerts.selectAtLeastOneParticipant'));
       return;
     }
 
     if (!currentUser) {
-      Alert.alert(t('common.error'), t('dashboard.alerts.userNotLoggedIn'));
+      showThemedAlert(t('common.error'), t('dashboard.alerts.userNotLoggedIn'));
       return;
     }
 
@@ -171,7 +171,7 @@ export default function AddExpenseModal({
       onSuccess?.();
     } catch (error) {
       console.error('Error adding expense:', error);
-      Alert.alert(t('common.error'), t('dashboard.alerts.cannotAddExpense'));
+      showThemedAlert(t('common.error'), t('dashboard.alerts.cannotAddExpense'));
     } finally {
       setIsAddingExpense(false);
     }

@@ -463,29 +463,30 @@ export class FirebaseAuthService {
 
   /**
    * Handle Firebase authentication errors
+   * Returns error codes that can be translated in the UI layer
    */
   private handleAuthError(errorData: FirebaseError): Error {
-    const errorMessage = errorData.error?.message || 'Authentication failed';
+    const errorMessage = errorData.error?.message || 'AUTHENTICATION_FAILED';
     
-    // Convert Firebase error messages to user-friendly Hebrew messages
-    const errorTranslations: { [key: string]: string } = {
-      'EMAIL_EXISTS': 'כתובת האימייל כבר קיימת במערכת',
-      'OPERATION_NOT_ALLOWED': 'פעולה זו אינה מורשת',
-      'TOO_MANY_ATTEMPTS_TRY_LATER': 'יותר מדי ניסיונות. נסה שוב מאוחר יותר',
-      'EMAIL_NOT_FOUND': 'כתובת אימייל לא נמצאה',
-      'INVALID_PASSWORD': 'סיסמה שגויה',
-      'USER_DISABLED': 'משתמש זה הושבת',
-      'INVALID_EMAIL': 'כתובת אימייל לא חוקית',
-      'WEAK_PASSWORD': 'הסיסמה חייבת להכיל לפחות 6 תווים',
+    // Map Firebase errors to error codes (not translated here - will be translated in UI)
+    const errorCodes: { [key: string]: string } = {
+      'EMAIL_EXISTS': 'EMAIL_EXISTS',
+      'OPERATION_NOT_ALLOWED': 'OPERATION_NOT_ALLOWED',
+      'TOO_MANY_ATTEMPTS_TRY_LATER': 'TOO_MANY_ATTEMPTS',
+      'EMAIL_NOT_FOUND': 'EMAIL_NOT_FOUND',
+      'INVALID_PASSWORD': 'INVALID_PASSWORD',
+      'USER_DISABLED': 'USER_DISABLED',
+      'INVALID_EMAIL': 'INVALID_EMAIL',
+      'WEAK_PASSWORD': 'WEAK_PASSWORD',
     };
 
-    for (const [key, translation] of Object.entries(errorTranslations)) {
+    for (const [key, code] of Object.entries(errorCodes)) {
       if (errorMessage.includes(key)) {
-        return new Error(translation);
+        return new Error(code);
       }
     }
 
-    return new Error('שגיאה באימות המשתמש');
+    return new Error('AUTHENTICATION_FAILED');
   }
 
   /**

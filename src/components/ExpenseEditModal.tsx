@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   ScrollView,
-  Alert,
   Modal,
   TouchableWithoutFeedback,
   Keyboard,
@@ -25,6 +24,7 @@ import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { useIsRTL } from '../hooks/useIsRTL';
+import { showThemedAlert } from './ThemedAlert';
 
 type Props = {
   visible: boolean;
@@ -73,23 +73,23 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
 
   const handleUpdateExpense = async () => {
     if (!title.trim()) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterTitle'));
+      showThemedAlert(t('common.error'), t('expenseEdit.alerts.enterTitle'));
       return;
     }
 
     const numAmount = parseFloat(amount);
     if (!numAmount || numAmount <= 0) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.enterValidAmount'));
+      showThemedAlert(t('common.error'), t('expenseEdit.alerts.enterValidAmount'));
       return;
     }
 
     if (selectedParticipants.length === 0) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.selectParticipants'));
+      showThemedAlert(t('common.error'), t('expenseEdit.alerts.selectParticipants'));
       return;
     }
 
     if (!currentUser || !expense) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.userNotLoggedIn'));
+      showThemedAlert(t('common.error'), t('expenseEdit.alerts.userNotLoggedIn'));
       return;
     }
 
@@ -105,7 +105,7 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
       const changePercentage = originalAmount > 0 ? Math.abs((numAmount - originalAmount) / originalAmount) * 100 : 0;
       
       if (changePercentage > 50) {
-        Alert.alert(
+        showThemedAlert(
           t('expenseEdit.significantChange'),
           t('expenseEdit.changeMsg', { percent: changePercentage.toFixed(0) }),
           [
@@ -190,14 +190,14 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
         description: description.trim() || undefined,
       });
 
-      Alert.alert(t('common.success'), t('expenseEdit.alerts.updated'), [
+      showThemedAlert(t('common.success'), t('expenseEdit.alerts.updated'), [
         { text: t('common.ok'), onPress: () => {
           onSuccess();
           onClose();
         }}
       ]);
     } catch (error) {
-      Alert.alert(t('common.error'), t('expenseEdit.alerts.updateFailed'));
+      showThemedAlert(t('common.error'), t('expenseEdit.alerts.updateFailed'));
       console.error('Error updating expense:', error);
     } finally {
       setLoading(false);
