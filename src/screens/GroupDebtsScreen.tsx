@@ -5,7 +5,6 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Alert,
   Switch,
   Keyboard
 } from 'react-native';
@@ -25,6 +24,7 @@ import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useFormatCurrency } from '../utils/hebrewFormatting';
+import { showThemedAlert } from '../components/ThemedAlert';
 
 type RootStackParamList = {
   Budget: undefined;
@@ -147,7 +147,7 @@ export default function GroupDebtsScreen() {
   const confirmSettlement = async () => {
     const amount = parseFloat(settlementAmount);
     if (!amount || amount <= 0 || amount > settlementOriginalAmount) {
-      Alert.alert(t('debts.alerts.error'), t('debts.alerts.invalidAmount'));
+      showThemedAlert(t('debts.alerts.error'), t('debts.alerts.invalidAmount'));
       return;
     }
 
@@ -192,9 +192,9 @@ export default function GroupDebtsScreen() {
         const debtorName = getUserName(settlementFromUser);
         const amount = parseFloat(settlementAmount);
         
-        Alert.alert(t('debts.alerts.success'), t('debts.alerts.debtClosed', { to: creditorName, amount: formatCurrency(amount), from: debtorName }));
+        showThemedAlert(t('debts.alerts.success'), t('debts.alerts.debtClosed', { to: creditorName, amount: formatCurrency(amount), from: debtorName }));
       } else {
-        Alert.alert(t('debts.alerts.error'), t('debts.alerts.debtNotClosed'));
+        showThemedAlert(t('debts.alerts.error'), t('debts.alerts.debtNotClosed'));
       }
       
     } catch (error: any) {
@@ -227,7 +227,7 @@ export default function GroupDebtsScreen() {
         }
       }
       
-      Alert.alert(t('debts.alerts.error'), errorMessage);
+      showThemedAlert(t('debts.alerts.error'), errorMessage);
     } finally {
       setIsSettling(false);
     }
