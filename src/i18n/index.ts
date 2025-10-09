@@ -512,7 +512,7 @@ export const resources = {
       },
       welcome: {
         hello: 'Hello {{name}}!',
-        subtitle: 'Welcome to Romiz',
+        subtitle: 'Welcome to Roomies',
         createApt: 'Create new apartment',
         joinApt: 'Join existing apartment',
         signOut: 'Sign out',
