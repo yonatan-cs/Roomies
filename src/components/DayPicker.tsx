@@ -6,6 +6,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../theme/ThemeProvider';
 
 interface DayPickerProps {
   selectedDay: number; // 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -19,10 +20,11 @@ export const DayPicker: React.FC<DayPickerProps> = ({
   style 
 }) => {
   const { t } = useTranslation();
+  const { activeScheme } = useTheme();
   const themed = useThemedStyles(tk => ({
     textPrimary: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
-    surfaceBg: { backgroundColor: tk.colors.surface },
+    lightBg: { backgroundColor: activeScheme === 'dark' ? '#374151' : '#f9fafb' },
     border: { borderColor: tk.colors.border.primary },
   }));
   const isRTL = useIsRTL();
@@ -48,7 +50,7 @@ export const DayPicker: React.FC<DayPickerProps> = ({
 
   return (
     <View style={[style, { 
-      backgroundColor: themed.surfaceBg.backgroundColor,
+      backgroundColor: themed.lightBg.backgroundColor,
       borderRadius: 12,
       borderWidth: 1,
         borderColor: themed.border.borderColor,

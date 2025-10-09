@@ -56,6 +56,8 @@ export default function DashboardScreen() {
   
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
+    cardBg: { backgroundColor: tk.colors.card },
+    lightBg: { backgroundColor: activeScheme === 'dark' ? '#374151' : '#f9fafb' },
     textSecondary: { color: tk.colors.text.secondary },
     backgroundBg: { backgroundColor: tk.colors.background },
     closeButtonBg: { backgroundColor: tk.colors.surface },
@@ -586,7 +588,7 @@ export default function DashboardScreen() {
               navigation.navigate('Settings');
             }}
             className="w-10 h-10 rounded-full items-center justify-center"
-            style={themed.surfaceBg}
+            style={themed.lightBg}
           >
             <Ionicons name="person-outline" size={20} color={theme.colors.text.secondary} />
           </Pressable>
@@ -948,7 +950,7 @@ export default function DashboardScreen() {
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}
                 className="w-10 h-10 rounded-full items-center justify-center"
-                style={themed.surfaceBg}
+                style={themed.lightBg}
               >
                 <Ionicons name="arrow-forward" size={24} color={themed.textSecondary.color} />
               </Pressable>
