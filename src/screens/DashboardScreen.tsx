@@ -588,12 +588,10 @@ export default function DashboardScreen() {
               impactLight(); // Haptic feedback for settings navigation
               navigation.navigate('Settings');
             }}
-            className="w-10 h-10 rounded-full items-center justify-center"
-            style={themed.lightBg}
-          >
+            >
             <Image 
               source={require('../../logo_inside.png')} 
-              style={{ width: 45, height: 45, marginTop: 10, marginLeft: 10, marginRight: 10 }}
+              style={{ width: 45, height: 45, marginTop: 10}}
               resizeMode="contain"
             />
           </Pressable>
