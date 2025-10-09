@@ -13,6 +13,7 @@ import {
   Dimensions,
   StyleSheet,
   I18nManager,
+  Image,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -590,7 +591,11 @@ export default function DashboardScreen() {
             className="w-10 h-10 rounded-full items-center justify-center"
             style={themed.lightBg}
           >
-            <Ionicons name="person-outline" size={20} color={theme.colors.text.secondary} />
+            <Image 
+              source={require('../../logo_inside.png')} 
+              style={{ width: 45, height: 45, marginTop: 10, marginLeft: 10, marginRight: 10 }}
+              resizeMode="contain"
+            />
           </Pressable>
         </View>
         <ThemedText style={themed.textSecondary}>
