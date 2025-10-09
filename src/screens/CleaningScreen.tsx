@@ -24,6 +24,7 @@ export default function CleaningScreen() {
   const isRTL = useIsRTL();
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
+    textPrimary: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
     cardBg: { backgroundColor: tk.colors.card },
@@ -322,7 +323,7 @@ export default function CleaningScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <Text style={{ textAlign: 'center' }} className="text-2xl font-bold mb-2 w-full">{t('cleaning.title')}</Text>
+        <Text style={{ textAlign: 'center', ...themed.textPrimary }} className="text-2xl font-bold mb-2 w-full">{t('cleaning.title')}</Text>
         <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="w-full">{currentApartment.name}</Text>
         <View className="flex-row items-center justify-center mt-2">
           <View className="px-3 py-1 rounded-full" style={themed.surfaceBg}>

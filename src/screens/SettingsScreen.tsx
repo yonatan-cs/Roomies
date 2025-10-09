@@ -243,7 +243,7 @@ export default function SettingsScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <ThemedText className="text-2xl font-bold text-center">{t('settings.title')}</ThemedText>
+        <Text className="text-2xl font-bold text-center w-full" style={themed.textPrimary}>{t('settings.title')}</Text>
       </ThemedCard>
       <ScrollView 
         className="flex-1 px-6 py-6"
