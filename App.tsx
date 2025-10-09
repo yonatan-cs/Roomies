@@ -14,9 +14,10 @@ import i18n from "./src/i18n";
 import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { firebaseNotificationService } from './src/services/firebase-notification-service';
 import { isRTL } from './src/utils/rtl';
-import * as SplashScreen from 'expo-splash-screen';
 import Animated from 'react-native-reanimated';
 import { ThemedAlertProvider } from './src/components/ThemedAlert';
+import { Asset } from 'expo-asset';
+import { LoadingScreen } from './src/components/LoadingScreen';
 
 // Configure Reanimated logger to disable strict mode warnings
 configureReanimatedLogger({
@@ -92,12 +93,15 @@ export default function App() {
       })();
     }, []);
 
-    // Handle splash screen and fade-in animation
+    // Handle loading and fade-in animation
     useEffect(() => {
       const prepare = async () => {
         try {
-          // Wait a bit for theme and navigation to be ready
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Preload logo image to ensure it's cached
+          await Asset.loadAsync(require('./assets/splash-logo.png'));
+          
+          // Minimal delay - just enough for smooth transition
+          await new Promise(resolve => setTimeout(resolve, 500));
         } catch (e) {
           console.warn('Error preparing app:', e);
         } finally {
@@ -110,20 +114,8 @@ export default function App() {
 
     useEffect(() => {
       if (appIsReady) {
-        // Start fade-in animation
-        opacity.value = withTiming(1, { duration: 500 });
-        
-        // Hide splash screen after animation
-        const hideSplash = async () => {
-          try {
-            await SplashScreen.hideAsync();
-          } catch (e) {
-            console.warn('Error hiding splash:', e);
-          }
-        };
-        
-        // Delay hiding splash to allow fade-in to complete
-        setTimeout(hideSplash, 600);
+        // Start fade-in animation - quick transition
+        opacity.value = withTiming(1, { duration: 300 });
       }
     }, [appIsReady]);
 
@@ -161,6 +153,11 @@ export default function App() {
               primary: theme.colors.primary,
             },
           };
+
+    // Show loading screen while app is not ready
+    if (!appIsReady) {
+      return <LoadingScreen />;
+    }
 
     return (
       <Animated.View style={[{ flex: 1, backgroundColor: theme.colors.background }, animatedStyle]}>
