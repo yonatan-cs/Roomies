@@ -15,6 +15,7 @@ import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { AppTextInput } from '../components/AppTextInput';
 import { useThemedStyles } from '../theme/useThemedStyles';
+import { useTheme } from '../theme/ThemeProvider';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import AuthScreen from './AuthScreen';
@@ -26,13 +27,19 @@ import { getDisplayName } from '../utils/userDisplay';
 import { isValidApartmentId, fetchWithRetry, validateUserSession, safeNavigate } from '../utils/navigation-helpers';
 import { changeAppLanguage } from '../utils/changeLanguage';
 import { absEnd } from '../utils/rtl';
+import { useIsRTL } from '../hooks/useIsRTL';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
+  const { activeScheme } = useTheme();
+  const isRTL = useIsRTL();
   const themed = useThemedStyles(tk => ({
     surfaceBg: { backgroundColor: tk.colors.surface },
+    textPrimary: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
     borderColor: { borderColor: tk.colors.border.primary },
+    titleText: { color: tk.colors.text.primary }, // Black text in both modes for create/join title
+    signOutText: { color: activeScheme === 'light' ? '#EF4444' : '#7F1D1D' }, // Red in light mode, dark red in dark mode
   }));
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [apartmentName, setApartmentName] = useState('');
@@ -676,11 +683,11 @@ export default function WelcomeScreen() {
             changeAppLanguage(newLang);
           }}
           className="absolute p-2 rounded-full"
-          style={{ ...absEnd(16), top: 60, ...themed.surfaceBg }}
+          style={{ ...absEnd(16), top: 90, ...themed.surfaceBg }}
           accessibilityRole="button"
           accessibilityLabel={t('settings.language')}
         >
-          <Ionicons name="language" size={22} color="#111827" />
+          <Ionicons name="language" size={22} color={themed.textPrimary.color}  />
         </Pressable>
         
         <View className="flex-1 justify-center">
@@ -701,19 +708,20 @@ export default function WelcomeScreen() {
           <View className="space-y-4">
             <Pressable
               onPress={() => setMode('create')}
-              className="bg-blue-500 py-4 px-6 rounded-xl flex-row items-center justify-center"
+              className="bg-blue-500 py-4 px-6 rounded-xl items-center justify-center"
+              style={{ flexDirection: isRTL ? 'row' : 'row-reverse', gap: 8 }}
             >
               <Ionicons name="add-circle-outline" size={24} color="white" />
-              <ThemedText className="text-white text-lg font-semibold mr-2">{t('welcome.createApt')}</ThemedText>
+              <ThemedText className="text-lg font-semibold" style={{ color: '#ffffff' }}>{t('welcome.createApt')}</ThemedText>
             </Pressable>
 
             <Pressable
               onPress={() => setMode('join')}
-              className="py-4 px-6 rounded-xl flex-row items-center justify-center"
-              style={themed.surfaceBg}
+              className="py-4 px-6 rounded-xl items-center justify-center"
+              style={[themed.surfaceBg, { flexDirection: isRTL ? 'row' : 'row-reverse', gap: 8 }]}
             >
               <Ionicons name="people-outline" size={24} color="#007AFF" />
-              <ThemedText className="text-blue-500 text-lg font-semibold mr-2">{t('welcome.joinApt')}</ThemedText>
+              <ThemedText className="text-blue-500 text-lg font-semibold">{t('welcome.joinApt')}</ThemedText>
             </Pressable>
 
             <Pressable
@@ -725,10 +733,11 @@ export default function WelcomeScreen() {
                   console.error('Sign out error:', error);
                 }
               }}
-              className="bg-red-100 py-3 px-6 rounded-xl flex-row items-center justify-center mt-8"
+              className="bg-red-100 py-3 px-6 rounded-xl items-center justify-center mt-8"
+              style={{ flexDirection: isRTL ? 'row' : 'row-reverse', gap: 8 }}
             >
-              <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-              <ThemedText className="text-red-500 text-base font-medium mr-2">{t('welcome.signOut')}</ThemedText>
+              <Ionicons name="log-out-outline" size={20} color={activeScheme === 'light' ? '#EF4444' : '#7F1D1D'} />
+              <ThemedText className="text-base font-medium" style={themed.signOutText}>{t('welcome.signOut')}</ThemedText>
             </Pressable>
           </View>
         </View>
@@ -739,14 +748,26 @@ export default function WelcomeScreen() {
   return (
     <Screen withPadding={true} keyboardVerticalOffset={0}>
       <View className="pt-20 pb-8">
-        <Pressable onPress={() => setMode('select')} className="flex-row items-center mb-6">
+        <Pressable 
+          onPress={() => setMode('select')} 
+          className="flex-row items-center mb-6"
+          style={{ gap: 8 }}
+        >
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
-          <ThemedText className="text-blue-500 text-lg mr-2">{t('welcome.back')}</ThemedText>
+          <ThemedText className="text-blue-500 text-lg">{t('welcome.back')}</ThemedText>
         </Pressable>
 
-        <ThemedText className="text-2xl font-bold text-center mb-8">
+        <View className="items-center mb-6">
+          <Image 
+            source={require('../../logo_inside.png')} 
+            style={{ width: 140, height: 140 }}
+            resizeMode="contain"
+          />
+        </View>
+
+        <Text className="text-2xl font-bold text-center mb-8" style={themed.titleText}>
           {mode === 'create' ? t('welcome.createTitle') : t('welcome.joinTitle')}
-        </ThemedText>
+        </Text>
 
         <View className="space-y-4">
           {mode === 'create' && (
@@ -794,9 +815,9 @@ export default function WelcomeScreen() {
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
-            <ThemedText className="text-white text-lg font-semibold text-center">
+            <Text className="text-white text-lg font-semibold text-center">
               {mode === 'create' ? t('welcome.primaryCreate') : t('welcome.primaryJoin')}
-            </ThemedText>
+            </Text>
           )}
         </Pressable>
       </View>
