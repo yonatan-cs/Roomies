@@ -40,6 +40,7 @@ export default function WelcomeScreen() {
     borderColor: { borderColor: tk.colors.border.primary },
     titleText: { color: tk.colors.text.primary }, // Black text in both modes for create/join title
     signOutText: { color: activeScheme === 'light' ? '#EF4444' : '#7F1D1D' }, // Red in light mode, dark red in dark mode
+    textInputColor: { color: tk.colors.text.primary }, // Text color for input fields
   }));
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select');
   const [apartmentName, setApartmentName] = useState('');
@@ -778,7 +779,7 @@ export default function WelcomeScreen() {
                 onChangeText={setApartmentName}
                 placeholder={t('welcome.aptNamePh')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={themed.borderColor}
+                style={[themed.borderColor, themed.textInputColor]}
                 editable={!loading}
               />
             </View>
@@ -792,7 +793,7 @@ export default function WelcomeScreen() {
                 onChangeText={setJoinCode}
                 placeholder={t('welcome.aptCodePh')}
                 className="border rounded-xl px-4 py-3 text-base"
-                style={[themed.borderColor, { textAlign: 'center' }]}
+                style={[themed.borderColor, themed.textInputColor, { textAlign: 'center' }]}
                 autoCapitalize="characters"
                 maxLength={6}
                 editable={!loading}

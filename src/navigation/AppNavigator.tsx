@@ -18,12 +18,14 @@ import { useStore } from '../state/store';
 import { getApartmentContext } from '../services/firestore-service';
 import { useTranslation } from 'react-i18next';
 import { isValidApartmentId, validateApartmentIdWithLogging, safeNavigate } from '../utils/navigation-helpers';
+import { useTheme } from '../theme/ThemeProvider';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   const { t } = useTranslation();
+  const { activeScheme, theme } = useTheme();
   const currentUser = useStore(state => state.currentUser);
   const currentApartment = useStore(state => state.currentApartment);
 
@@ -76,7 +78,7 @@ function MainTabs() {
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: 'gray',
+        tabBarInactiveTintColor: activeScheme === 'dark' ? '#ffffff' : '#6b7280',
         headerShown: false,
       })}
     >
