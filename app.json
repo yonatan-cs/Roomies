@@ -5,6 +5,7 @@
     "scheme": "roomies",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./logo.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
