@@ -922,3 +922,89 @@ iOS Bundled 97ms index.ts (1 module)
  LOG  👤 WelcomeScreen: No user present, skipping timeout
  LOG  🔍 initializing state changed to: false
  LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+iOS ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS Bundled 81ms index.ts (1 module)
+ LOG  🔧 Firestore debug logging enabled
+ ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
+ LOG  [index] Project ID is:  6d6cd6da-7505-42d7-91fd-2928c6600b00
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+iOS ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS Bundled 81ms index.ts (1 module)
+ LOG  🔧 Firestore debug logging enabled
+ ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
+ LOG  [index] Project ID is:  6d6cd6da-7505-42d7-91fd-2928c6600b00
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+iOS ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS Bundled 88ms index.ts (1 module)
+ LOG  🔧 Firestore debug logging enabled
+ ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
+ LOG  [index] Project ID is:  6d6cd6da-7505-42d7-91fd-2928c6600b00
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+iOS ./index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+iOS Bundled 122ms index.ts (1 module)
+ LOG  🔧 Firestore debug logging enabled
+ ERROR  i18next::pluralResolver: Your environment seems not to be Intl API compatible, use an Intl.PluralRules polyfill. Will fallback to the compatibilityJSON v3 format handling.
+ LOG  [index] Project ID is:  6d6cd6da-7505-42d7-91fd-2928c6600b00
+ LOG  🔍 initializing state changed to: true
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": true, "isNewUserRegistration": false, "mode": "select"}
+ LOG  👤 WelcomeScreen: No user present, immediately showing auth screen
+ LOG  🔍 setInitializing(false) called from: no user present
+ LOG  👤 WelcomeScreen: No user present, skipping timeout
+ LOG  🔍 initializing state changed to: false
+ LOG  🔍 Current state values: {"currentUser": false, "disableFirestoreForNewUsers": false, "initializing": false, "isNewUserRegistration": false, "mode": "select"}
+ ERROR  Sign in error: [Error: שגיאה באימות המשתמש]
+ ERROR  Login error: [Error: שגיאה באימות המשתמש]

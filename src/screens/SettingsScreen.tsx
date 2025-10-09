@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Share, Alert, Linking, Platform, Keyboard } from 'react-native';
+import { View, Text, Pressable, ScrollView, Share, Alert, Linking, Platform, Keyboard, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
@@ -742,6 +742,15 @@ export default function SettingsScreen() {
           </Pressable>
           <Text className="text-xs text-center mt-2 w-full" style={themed.textSecondary}>{t('settings.actionWillRemove')}</Text>
         </ThemedCard>
+
+        {/* Logo at bottom */}
+        <View className="items-center my-8">
+          <Image 
+            source={require('../../logo_inside.png')} 
+            style={{ width: 80, height: 80, opacity: 0.4 }}
+            resizeMode="contain"
+          />
+        </View>
 
       <ConfirmModal
         visible={confirmLeaveVisible}
