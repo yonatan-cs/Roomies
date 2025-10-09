@@ -27,7 +27,7 @@ import { showThemedAlert } from '../components/ThemedAlert';
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const isRTL = useIsRTL();
-  const { activeScheme } = useTheme();
+  const { activeScheme, theme } = useTheme();
   const appLanguage = useStore(s => s.appLanguage);
   const currency = useStore(s => s.currency);
   const {
@@ -170,7 +170,12 @@ export default function SettingsScreen() {
       return;
     }
     
-    setShowMemberOptions(member.id);
+    // Toggle menu - if already open, close it
+    if (showMemberOptions === member.id) {
+      setShowMemberOptions(null);
+    } else {
+      setShowMemberOptions(member.id);
+    }
   };
 
   const handleRemoveMemberPress = async (member: any) => {
@@ -242,6 +247,21 @@ export default function SettingsScreen() {
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
+      {/* Invisible overlay to close menu when clicking outside */}
+      {showMemberOptions && (
+        <Pressable
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 5,
+          }}
+          onPress={() => setShowMemberOptions(null)}
+        />
+      )}
+      
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-center w-full" style={themed.textPrimary}>{t('settings.title')}</Text>
       </ThemedCard>
@@ -363,16 +383,26 @@ export default function SettingsScreen() {
                     
                     {/* Popup menu */}
                     {showMemberOptions === member.id && (
-                      <View className="absolute top-10 right-0 rounded-lg shadow-lg z-10 min-w-[120px]" style={{ backgroundColor: '#ffffff', ...themed.borderColor }}>
+                      <View 
+                        className="absolute top-10 rounded-lg shadow-lg" 
+                        style={{ 
+                          backgroundColor: theme.colors.status.error,
+                          minWidth: 140,
+                          maxWidth: 180,
+                          [isRTL ? 'left' : 'right']: 0,
+                          zIndex: 10,
+                        }}
+                      >
                         <Pressable
                           onPress={() => {
                             warning(); // Haptic feedback for remove member action
                             handleRemoveMemberPress(member);
                           }}
-                          className="px-4 py-3 border-b"
-                          style={themed.borderColor}
+                          className="px-4 py-3"
                         >
-                          <ThemedText className="text-red-600 font-medium">{t('settings.removeMember')}</ThemedText>
+                          <ThemedText className="font-medium" style={{ color: '#ffffff' }}>
+                            {t('settings.removeMember')}
+                          </ThemedText>
                         </Pressable>
                       </View>
                     )}
@@ -752,7 +782,9 @@ export default function SettingsScreen() {
             resizeMode="contain"
           />
         </View>
+      </ScrollView>
 
+      {/* Modals - outside Pressable to prevent closing on modal interaction */}
       <ConfirmModal
         visible={confirmLeaveVisible}
         title={t('settings.leaveApartmentTitle')}
@@ -807,7 +839,6 @@ export default function SettingsScreen() {
           setMemberToRemove(null);
         }}
       />
-      </ScrollView>
     </Screen>
   );
 }
