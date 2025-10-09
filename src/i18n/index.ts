@@ -74,7 +74,20 @@ export const resources = {
           registerSuccessTitle: 'Registration successful! ',
           registerSuccessBody: 'Your account has been created. You can start using the app now.',
           continue: 'Continue',
-          fullNameTooShort: 'Name must contain at least 2 characters'
+          fullNameTooShort: 'Name must contain at least 2 characters',
+          emailExistsTitle: 'Email already exists',
+          emailExistsMessage: 'This email is already registered. Would you like to:',
+          signInInstead: 'Sign in instead',
+          useDifferentEmail: 'Use different email',
+          EMAIL_EXISTS: 'This email address is already in use',
+          OPERATION_NOT_ALLOWED: 'This operation is not allowed',
+          TOO_MANY_ATTEMPTS: 'Too many attempts. Please try again later',
+          EMAIL_NOT_FOUND: 'Email address not found',
+          INVALID_PASSWORD: 'Incorrect password',
+          USER_DISABLED: 'This user has been disabled',
+          INVALID_EMAIL: 'Invalid email address',
+          WEAK_PASSWORD: 'Password must be at least 6 characters',
+          AUTHENTICATION_FAILED: 'Authentication error'
         }
       },
       tabs: {
@@ -596,7 +609,20 @@ export const resources = {
           registerSuccessTitle: 'הרשמה בוצעה בהצלחה!',
           registerSuccessBody: 'החשבון שלך נוצר בהצלחה. כעת תוכל להתחיל להשתמש באפליקציה.',
           continue: 'המשך',
-          fullNameTooShort: 'השם חייב להכיל לפחות 2 תווים'
+          fullNameTooShort: 'השם חייב להכיל לפחות 2 תווים',
+          emailExistsTitle: 'האימייל כבר קיים',
+          emailExistsMessage: 'כתובת האימייל כבר קיימת במערכת. האם תרצה:',
+          signInInstead: 'להתחבר במקום',
+          useDifferentEmail: 'להשתמש באימייל אחר',
+          EMAIL_EXISTS: 'כתובת האימייל כבר קיימת במערכת',
+          OPERATION_NOT_ALLOWED: 'פעולה זו אינה מורשית',
+          TOO_MANY_ATTEMPTS: 'יותר מדי ניסיונות. נסה שוב מאוחר יותר',
+          EMAIL_NOT_FOUND: 'כתובת אימייל לא נמצאה',
+          INVALID_PASSWORD: 'סיסמה שגויה',
+          USER_DISABLED: 'משתמש זה הושבת',
+          INVALID_EMAIL: 'כתובת אימייל לא חוקית',
+          WEAK_PASSWORD: 'הסיסמה חייבת להכיל לפחות 6 תווים',
+          AUTHENTICATION_FAILED: 'שגיאה באימות המשתמש'
         }
       },
       tabs: {

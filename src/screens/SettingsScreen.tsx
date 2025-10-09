@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Share, Alert, Linking, Platform, Keyboard, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, Share, Linking, Platform, Keyboard, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
@@ -21,6 +21,7 @@ import { cn } from '../utils/cn';
 import { DayPicker } from '../components/DayPicker';
 import { firebaseNotificationService } from '../services/firebase-notification-service';
 import { getTaskLabel } from '../utils/taskLabel';
+import { showThemedAlert } from '../components/ThemedAlert';
 
 
 export default function SettingsScreen() {
@@ -110,7 +111,7 @@ export default function SettingsScreen() {
       setEditingName(false);
     } catch (error: any) {
       console.error('Update name error:', error);
-      Alert.alert(t('common.error'), t('settings.alerts.cannotUpdateName'));
+      showThemedAlert(t('common.error'), t('settings.alerts.cannotUpdateName'));
     }
   };
 
@@ -159,7 +160,7 @@ export default function SettingsScreen() {
     
     Linking.openURL(mailtoUrl).catch((err) => {
       console.error('Error opening mailto:', err);
-      Alert.alert(t('common.error'), t('settings.alerts.cannotOpenEmail'));
+      showThemedAlert(t('common.error'), t('settings.alerts.cannotOpenEmail'));
     });
   };
 
@@ -180,7 +181,7 @@ export default function SettingsScreen() {
       const canBeRemoved = await checkMemberCanBeRemoved(member.id);
       
       if (!canBeRemoved.canBeRemoved) {
-        Alert.alert(
+        showThemedAlert(
           t('settings.alerts.cannotRemoveMember'),
           t('settings.alerts.cannotRemoveMemberReason', { 
             name: getDisplayName(member), 
@@ -199,7 +200,7 @@ export default function SettingsScreen() {
       setConfirmRemoveVisible(true);
     } catch (error) {
       console.error('Error checking if member can be removed:', error);
-      Alert.alert(t('common.error'), t('settings.alerts.cannotCheckRemoval'));
+      showThemedAlert(t('common.error'), t('settings.alerts.cannotCheckRemoval'));
     }
   };
 
@@ -209,10 +210,10 @@ export default function SettingsScreen() {
     setRemovingMemberId(memberToRemove.id);
     try {
       await removeApartmentMember(memberToRemove.id);
-      Alert.alert(t('common.success'), t('settings.alerts.memberRemovedSuccess', { name: memberToRemove.name }));
+      showThemedAlert(t('common.success'), t('settings.alerts.memberRemovedSuccess', { name: memberToRemove.name }));
     } catch (error: any) {
       console.error('Error removing member:', error);
-      Alert.alert(t('common.error'), error.message || t('settings.alerts.cannotRemoveMemberError'));
+      showThemedAlert(t('common.error'), error.message || t('settings.alerts.cannotRemoveMemberError'));
     } finally {
       setRemovingMemberId(null);
       setConfirmRemoveVisible(false);
@@ -224,10 +225,10 @@ export default function SettingsScreen() {
     try {
       impactMedium(); // Haptic feedback for test notification
       await firebaseNotificationService.sendTestNotification();
-      Alert.alert(t('settings.alerts.testNotificationSuccess'), t('settings.alerts.testNotificationSent'));
+      showThemedAlert(t('settings.alerts.testNotificationSuccess'), t('settings.alerts.testNotificationSent'));
     } catch (error) {
       console.error('Error sending test notification:', error);
-      Alert.alert(t('settings.alerts.testNotificationError'), t('settings.alerts.testNotificationFailed'));
+      showThemedAlert(t('settings.alerts.testNotificationError'), t('settings.alerts.testNotificationFailed'));
     }
   };
 
@@ -578,7 +579,7 @@ export default function SettingsScreen() {
                           await removeChecklistItem(item.id);
                         } catch (error) {
                           console.error('Error removing checklist item:', error);
-                          Alert.alert(t('common.error'), t('settings.alerts.cannotDeleteTask'));
+                          showThemedAlert(t('common.error'), t('settings.alerts.cannotDeleteTask'));
                         } finally {
                           setDeletingChoreId(null);
                         }
@@ -627,7 +628,7 @@ export default function SettingsScreen() {
                   setTimeout(() => setShowSuccessMessage(false), 3000);
                 } catch (error) {
                   console.error('Error adding checklist item:', error);
-                  Alert.alert(t('common.error'), t('settings.alerts.cannotAddTask'));
+                  showThemedAlert(t('common.error'), t('settings.alerts.cannotAddTask'));
                 } finally {
                   setIsAddingChore(false);
                 }
@@ -649,7 +650,7 @@ export default function SettingsScreen() {
                   setTimeout(() => setShowSuccessMessage(false), 3000);
                 } catch (error) {
                   console.error('Error adding checklist item:', error);
-                  Alert.alert(t('common.error'), t('settings.alerts.cannotAddTask'));
+                  showThemedAlert(t('common.error'), t('settings.alerts.cannotAddTask'));
                 } finally {
                   setIsAddingChore(false);
                 }
@@ -729,7 +730,7 @@ export default function SettingsScreen() {
                 console.log('✅ Sign out completed successfully');
               } catch (error) {
                 console.error('Sign out error:', error);
-                Alert.alert(t('common.error'), t('settings.alerts.cannotSignOut'));
+                showThemedAlert(t('common.error'), t('settings.alerts.cannotSignOut'));
               }
             }}
             className="bg-orange-500 py-3 px-6 rounded-xl mb-3"
@@ -787,7 +788,7 @@ export default function SettingsScreen() {
             setConfirmLeaveVisible(false);
           } catch (error: any) {
             console.error('Leave apartment error:', error);
-            Alert.alert(t('common.error'), t('settings.alerts.cannotLeaveApartment'));
+            showThemedAlert(t('common.error'), t('settings.alerts.cannotLeaveApartment'));
             setConfirmLeaveVisible(false);
           }
         }}

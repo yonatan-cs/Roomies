@@ -8,7 +8,6 @@ import {
   ScrollView,
   Keyboard,
   TouchableWithoutFeedback,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -27,6 +26,7 @@ import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { absEnd } from '../utils/rtl';
+import { showThemedAlert } from '../components/ThemedAlert';
 
 interface AuthScreenProps {
   onAuthSuccess: (user: any) => void;
@@ -132,7 +132,11 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       onAuthSuccess(user);
     } catch (error: any) {
       console.error('Login error:', error);
-      setLoginError(error.message || t('auth.errors.loginFailed'));
+      // Check if error message is a known error code, otherwise use default
+      const errorCode = error.message || 'AUTHENTICATION_FAILED';
+      const translationKey = `auth.errors.${errorCode}`;
+      const translatedError = t(translationKey, { defaultValue: t('auth.errors.loginFailed') });
+      setLoginError(translatedError);
     } finally {
       setLoginLoading(false);
     }
@@ -256,7 +260,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       // Show informational alert (non-blocking for navigation)
       // Use setTimeout to ensure the alert doesn't block the async flow
       setTimeout(() => {
-        Alert.alert(
+        showThemedAlert(
           t('auth.errors.registerSuccessTitle'),
           t('auth.errors.registerSuccessBody'),
           [{ text: t('common.ok') }]
@@ -264,7 +268,11 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       }, 100);
     } catch (error: any) {
       console.error('Registration error:', error);
-      setRegisterError(error.message || t('common.error'));
+      // Check if error message is a known error code, otherwise use default
+      const errorCode = error.message || 'AUTHENTICATION_FAILED';
+      const translationKey = `auth.errors.${errorCode}`;
+      const translatedError = t(translationKey, { defaultValue: t('common.error') });
+      setRegisterError(translatedError);
     } finally {
       setRegisterLoading(false);
     }
@@ -404,8 +412,8 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Error Message */}
             {loginError && (
-              <View className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
-                <ThemedText className="text-red-600 text-center">{loginError}</ThemedText>
+              <View className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mt-4">
+                <ThemedText className="text-red-600 dark:text-red-400 text-center">{loginError}</ThemedText>
               </View>
             )}
 
@@ -507,7 +515,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Confirm Password Input */}
             <View>
-              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.confirmPassword')}</ThemedText>
+              <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('auth.confirmPassword')} *</ThemedText>
               <View className="relative">
                 <AppTextInput
                   value={confirmPassword}
@@ -540,14 +548,14 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
 
             {/* Error Message */}
             {registerError && (
-              <View className="bg-red-50 border border-red-200 rounded-xl p-4 mt-4">
-                <ThemedText className="text-red-600 text-center">{registerError}</ThemedText>
+              <View className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mt-4">
+                <ThemedText className="text-red-600 dark:text-red-400 text-center">{registerError}</ThemedText>
                 
                 {/* Show helpful action for email exists error */}
-                {registerError.includes('כתובת האימייל כבר קיימת במערכת') && (
+                {registerError === t('auth.errors.EMAIL_EXISTS') && (
                   <View className="mt-3">
-                    <ThemedText className="text-gray-600 text-center text-sm mb-3">
-                      This email is already registered. Would you like to:
+                    <ThemedText className="text-center text-sm mb-3" style={themed.textSecondary}>
+                      {t('auth.errors.emailExistsMessage')}
                     </ThemedText>
                     <View className="space-y-2">
                       <Pressable
@@ -556,10 +564,11 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                           setRegisterError(null);
                           setLoginError(null);
                         }}
-                        className="bg-blue-500 py-2 px-4 rounded-lg"
+                        className="py-2 px-4 rounded-lg"
+                        style={{ backgroundColor: themed.textPrimary.color === '#f9fafb' ? '#3b82f6' : '#3b82f6' }}
                       >
                         <ThemedText className="text-white text-center font-medium">
-                          Sign in instead
+                          {t('auth.errors.signInInstead')}
                         </ThemedText>
                       </Pressable>
                       <Pressable
@@ -567,10 +576,11 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                           setRegisterError(null);
                           setRegisterEmail('');
                         }}
-                        className="bg-gray-200 py-2 px-4 rounded-lg"
+                        className="py-2 px-4 rounded-lg"
+                        style={themed.surfaceBg}
                       >
-                        <ThemedText className="text-gray-700 text-center font-medium">
-                          Use different email
+                        <ThemedText className="text-center font-medium" style={themed.textPrimary}>
+                          {t('auth.errors.useDifferentEmail')}
                         </ThemedText>
                       </Pressable>
                     </View>

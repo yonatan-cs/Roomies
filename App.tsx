@@ -16,6 +16,7 @@ import { firebaseNotificationService } from './src/services/firebase-notificatio
 import { isRTL } from './src/utils/rtl';
 import * as SplashScreen from 'expo-splash-screen';
 import Animated from 'react-native-reanimated';
+import { ThemedAlertProvider } from './src/components/ThemedAlert';
 
 // Configure Reanimated logger to disable strict mode warnings
 configureReanimatedLogger({
@@ -175,7 +176,9 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
-          <ThemedRoot />
+          <ThemedAlertProvider>
+            <ThemedRoot />
+          </ThemedAlertProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
