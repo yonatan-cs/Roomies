@@ -25,6 +25,8 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+expo.log
 
 # macOS
 .DS_Store
@@ -36,3 +38,4 @@ yarn-error.*
 # iOS & Android
 ios/
 android/
+expo.log
