@@ -1,29 +1,29 @@
 {
   "expo": {
-    "name": "vibecode",
-    "slug": "vibecode",
-    "scheme": "vibecode",
+    "name": "Roomies",
+    "slug": "roomies",
+    "scheme": "roomies",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./logo_inside.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.vibecode.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "splash": {
-        "image": "./logo_inside.png",
+        "image": "./assets/splash.png",
         "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#ffffff",
         "dark": {
-          "image": "./logo_inside.png",
+          "image": "./assets/splash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#111827"
         }
       }
     },
@@ -33,13 +33,13 @@
       "package": "com.vibecode.app",
       "googleServicesFile": "./google-services.json",
       "splash": {
-        "image": "./logo_inside.png",
+        "image": "./assets/splash.png",
         "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#ffffff",
         "dark": {
-          "image": "./logo_inside.png",
+          "image": "./assets/splash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#111827"
         }
       }
     },
@@ -52,7 +52,13 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-video",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "imageWidth": 200
+        }
+      ]
     ]
   }
 }
