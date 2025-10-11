@@ -30,6 +30,7 @@ import { impactMedium, impactLight, selection } from '../utils/haptics';
 import AddExpenseModal from '../components/AddExpenseModal';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
+import { useGenderedText } from '../hooks/useGenderedText';
 import i18n from '../i18n';
 import { useFormatCurrency } from '../utils/hebrewFormatting';
 
@@ -47,6 +48,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function DashboardScreen() {
   const { theme, activeScheme } = useTheme();
   const isRTL = useIsRTL();
+  const gt = useGenderedText();
   
   // Debug: Check RTL status
   console.log('Dashboard RTL Debug:', { 
@@ -81,6 +83,7 @@ export default function DashboardScreen() {
     debtSettlements,
     shoppingItems, 
     getBalances,
+    getSimplifiedBalances,
     refreshApartmentMembers,
     loadExpenses,
     loadDebtSettlements,
@@ -155,6 +158,10 @@ export default function DashboardScreen() {
 
   const balances = useMemo(() => getBalances(), [expenses, debtSettlements]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
+  
+  // Get simplified balances for "My Debts" section
+  const simplifiedBalances = useMemo(() => getSimplifiedBalances(), [expenses, debtSettlements]);
+  const mySimplifiedBalance = simplifiedBalances.find(b => b.userId === currentUser?.id);
 
   // Quick Stats Calculations
   const monthlyExpenses = useMemo(() => {
@@ -494,7 +501,7 @@ export default function DashboardScreen() {
   };
 
   const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return t('common.you');
+    if (userId === currentUser?.id) return gt('common.you');
     
     // Check if user is still a member of the apartment
     const member = currentApartment?.members.find(m => m.id === userId);
@@ -679,10 +686,10 @@ export default function DashboardScreen() {
                   color: (myBalance?.netBalance ?? 0) >= 0 ? '#16a34a' : '#dc2626' 
                 }}
               >
-                {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
+                {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '0₪'}
               </ThemedText>
               <ThemedText className="text-xs" style={themed.textSecondary}>
-                {(myBalance?.netBalance ?? 0) >= 0 ? t('dashboard.comesToYou') : t('dashboard.youOwe')}
+                {(myBalance?.netBalance ?? 0) >= 0 ? t('dashboard.comesToYou') : gt('dashboard.youOwe')}
               </ThemedText>
             </ThemedCard>
           </Pressable>
@@ -831,10 +838,10 @@ export default function DashboardScreen() {
             {t('dashboard.myDebts')}
           </ThemedText>
           
-          {myBalance && myBalance.owed && myBalance.owes && (
+          {mySimplifiedBalance && mySimplifiedBalance.owed && mySimplifiedBalance.owes && (
             <View>
-              {/* Who owes me */}
-              {Object.entries(myBalance.owed)
+              {/* Who owes me (simplified) */}
+              {Object.entries(mySimplifiedBalance.owed)
                 .filter(([_, amount]) => amount > 0)
                 .slice(0, 3)
                 .map(([userId, amount]) => (
@@ -848,7 +855,7 @@ export default function DashboardScreen() {
                   }}
                 >
                   <ThemedText className="flex-1" style={themed.textSecondary}>
-                    {t('dashboard.owesYou', { name: getUserName(userId) })}
+                    {gt('dashboard.owesYou', { name: getUserName(userId) })}
                   </ThemedText>
                   <ThemedText className="font-medium" style={{ color: '#16a34a' }}>
                     {formatCurrency(amount)}
@@ -856,8 +863,8 @@ export default function DashboardScreen() {
                 </View>
               ))}
               
-              {/* Who I owe */}
-              {Object.entries(myBalance.owes)
+              {/* Who I owe (simplified) */}
+              {Object.entries(mySimplifiedBalance.owes)
                 .filter(([_, amount]) => amount > 0)
                 .slice(0, 3)
                 .map(([userId, amount]) => (
@@ -871,7 +878,7 @@ export default function DashboardScreen() {
                   }}
                 >
                   <ThemedText className="flex-1" style={themed.textSecondary}>
-                    {t('dashboard.youOweTo', { name: getUserName(userId) })}
+                    {gt('dashboard.youOweTo', { name: getUserName(userId) })}
                   </ThemedText>
                   <ThemedText className="font-medium" style={{ color: '#dc2626' }}>
                     {formatCurrency(amount)}
@@ -879,7 +886,7 @@ export default function DashboardScreen() {
                 </View>
               ))}
 
-              {Object.keys(myBalance.owed).length === 0 && Object.keys(myBalance.owes).length === 0 && (
+              {Object.keys(mySimplifiedBalance.owed).length === 0 && Object.keys(mySimplifiedBalance.owes).length === 0 && (
                 <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="py-4 w-full">
                   {t('dashboard.allCleared')}
                 </Text>
@@ -896,13 +903,13 @@ export default function DashboardScreen() {
             </View>
           )}
 
-          {myBalance && (!myBalance.owed || !myBalance.owes) && (
+          {mySimplifiedBalance && (!mySimplifiedBalance.owed || !mySimplifiedBalance.owes) && (
             <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="py-4 w-full">
               {t('dashboard.loadingDebts')}
             </Text>
           )}
 
-          {!myBalance && (
+          {!mySimplifiedBalance && (
             <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="py-4 w-full">
               {t('dashboard.noDebtsData')}
             </Text>

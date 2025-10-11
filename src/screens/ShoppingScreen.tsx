@@ -18,6 +18,7 @@ import { Screen } from '../components/Screen';
 import { AppTextInput } from '../components/AppTextInput';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
+import { useGenderedText } from '../hooks/useGenderedText';
 import { useNavigation } from '@react-navigation/native';
 import { success, impactMedium, selection, impactLight, warning } from '../utils/haptics';
 import { getDisplayName } from '../utils/userDisplay';
@@ -79,6 +80,7 @@ function useKeyboardLift() {
 
 export default function ShoppingScreen() {
   const { t } = useTranslation();
+  const gt = useGenderedText();
   const isRTL = useIsRTL();
   const navigation = useNavigation<any>();
   const appLanguage = useStore(s => s.appLanguage);
@@ -261,7 +263,7 @@ export default function ShoppingScreen() {
   };
 
   const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return t('common.you');
+    if (userId === currentUser?.id) return gt('common.you');
     const member = currentApartment?.members.find(m => m.id === userId);
     return getDisplayName(member) || t('common.unknown');
   };
@@ -974,7 +976,7 @@ export default function ShoppingScreen() {
                             <Ionicons name="cash-outline" size={16} color="#eab308" />
                             <ThemedText className="text-sm font-medium mr-2" style={{ color: '#eab308' }}>{t('shopping.priceLabel')}</ThemedText>
                           </View>
-                          <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-bold text-xl w-full">₪{item.purchasePrice}</Text>
+                          <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="font-bold text-xl w-full">{item.purchasePrice}₪</Text>
                         </View>
                       )}
                     </>

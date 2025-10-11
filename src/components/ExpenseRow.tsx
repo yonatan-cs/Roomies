@@ -153,13 +153,22 @@ export default function ExpenseRow({
           {item.description && (
             <ThemedText style={[styles.description, themed.description]}>{item.description}</ThemedText>
           )}
-          {isParticipant && (
-            <ThemedText style={[
-              styles.personalInfo,
-              isPayer ? styles.payerText : styles.participantText
-            ]}>
-              {isPayer ? t('expenseRow.youPaid', { amount: formatCurrency(item.amount) }) : t('expenseRow.participants', { count: item.participants.length, amount: formatCurrency(personalShare) })}
-            </ThemedText>
+          {isParticipant && item.participants.length > 1 && (
+            <View style={{ flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center', marginTop: 4 }}>
+              <ThemedText style={[
+                styles.personalInfo,
+                styles.participantText
+              ]}>
+                {item.participants.length} {t('expenseRow.participantsLabel')} • 
+              </ThemedText>
+              <ThemedText style={[
+                styles.personalInfo,
+                styles.participantText,
+                { marginStart: isRTL ? 0 : 4, marginEnd: isRTL ? 4 : 0 }
+              ]}>
+                {formatCurrency(personalShare)} {t('expenseRow.perPersonLabel')}
+              </ThemedText>
+            </View>
           )}
         </View>
         
@@ -171,9 +180,14 @@ export default function ExpenseRow({
             }
           ]}
         >
-          <ThemedText style={[styles.amount, themed.amount]}>{formatCurrency(item.amount)}</ThemedText>
+          <ThemedText style={[
+            styles.amount, 
+            isPayer ? styles.payerAmount : themed.amount
+          ]}>
+            {formatCurrency(item.amount)}
+          </ThemedText>
           <ThemedText style={[styles.payer, themed.textSecondary]}>{t('expenseRow.paidBy', { name: getUserName(item.paidBy) })}</ThemedText>
-          {item.participants.length > 1 && (
+          {!isParticipant && item.participants.length > 1 && (
             <ThemedText style={[styles.participants, themed.textSecondary]}>
               {t('expenseRow.participants', { count: item.participants.length, amount: formatCurrency(personalShare) })}
             </ThemedText>
@@ -289,6 +303,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1f2937',
     marginBottom: 4,
+  },
+  payerAmount: {
+    color: '#10b981',
   },
   payer: {
     fontSize: 12,

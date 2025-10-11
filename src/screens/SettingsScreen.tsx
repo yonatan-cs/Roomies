@@ -12,6 +12,7 @@ import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
+import { useGenderedText } from '../hooks/useGenderedText';
 import { success, impactMedium, impactLight, warning, selection } from '../utils/haptics';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
@@ -29,6 +30,7 @@ import * as Notifications from 'expo-notifications';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
+  const gt = useGenderedText();
   const isRTL = useIsRTL();
   const { activeScheme, theme } = useTheme();
   const appLanguage = useStore(s => s.appLanguage);
@@ -236,19 +238,19 @@ export default function SettingsScreen() {
   };
 
   const handleConfirmRemoveMember = async () => {
-    if (!memberToRemove) return;
+    if (!memberToRemove || removingMemberId) return; // Prevent double clicks
 
     setRemovingMemberId(memberToRemove.id);
     try {
       await removeApartmentMember(memberToRemove.id);
+      setConfirmRemoveVisible(false);
+      setMemberToRemove(null);
       showThemedAlert(t('common.success'), t('settings.alerts.memberRemovedSuccess', { name: memberToRemove.name }));
     } catch (error: any) {
       console.error('Error removing member:', error);
       showThemedAlert(t('common.error'), error.message || t('settings.alerts.cannotRemoveMemberError'));
     } finally {
       setRemovingMemberId(null);
-      setConfirmRemoveVisible(false);
-      setMemberToRemove(null);
     }
   };
 
@@ -951,7 +953,7 @@ export default function SettingsScreen() {
       <ConfirmModal
         visible={confirmLeaveVisible}
         title={t('settings.leaveApartmentTitle')}
-        message={t('settings.leaveApartmentMessage')}
+        message={gt('settings.leaveApartmentMessage')}
         confirmText={t('settings.confirmLeaveText')}
         cancelText={t('settings.cancelText')}
         onConfirm={async () => {
@@ -993,7 +995,7 @@ export default function SettingsScreen() {
       <ConfirmModal
         visible={confirmRemoveVisible}
         title={t('settings.removeMemberTitle')}
-        message={t('settings.confirmRemoveMember', { name: memberToRemove?.name || '' })}
+        message={gt('settings.confirmRemoveMember', { name: memberToRemove?.name || '' })}
         confirmText={t('settings.confirmRemoveText')}
         cancelText={t('settings.cancelText')}
         onConfirm={handleConfirmRemoveMember}
@@ -1001,6 +1003,7 @@ export default function SettingsScreen() {
           setConfirmRemoveVisible(false);
           setMemberToRemove(null);
         }}
+        loading={removingMemberId !== null}
       />
     </Screen>
   );

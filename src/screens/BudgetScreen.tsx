@@ -20,6 +20,7 @@ import AddExpenseModal from '../components/AddExpenseModal';
 import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
+import { useGenderedText } from '../hooks/useGenderedText';
 import { ThemedCard } from '../theme/components/ThemedCard';
 import { ThemedText } from '../theme/components/ThemedText';
 import { impactMedium, impactLight } from '../utils/haptics';
@@ -37,6 +38,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function BudgetScreen() {
   const { t } = useTranslation();
+  const gt = useGenderedText();
   const isRTL = useIsRTL();
   const appLanguage = useStore(s => s.appLanguage);
   const navigation = useNavigation<NavigationProp>();
@@ -109,7 +111,7 @@ export default function BudgetScreen() {
   };
 
   const getUserName = (userId: string) => {
-    if (userId === currentUser?.id) return t('common.you');
+    if (userId === currentUser?.id) return gt('common.you');
     const member = currentApartment?.members.find(m => m.id === userId);
     return getDisplayName(member) || t('common.unknown');
   };
@@ -144,7 +146,7 @@ export default function BudgetScreen() {
       return { 
         status: 'owes', 
         amount: Math.abs(myBalance.netBalance), 
-        message: t('budget.moneyYouOwe')
+        message: gt('budget.moneyYouOwe')
       };
     }
   };
@@ -371,16 +373,6 @@ export default function BudgetScreen() {
                   {personalSummary.message}
                 </ThemedText>
                 
-                {personalSummary.status === 'owed' && (
-                  <ThemedText className="text-sm mt-2 text-center" style={themed.textSecondary}>
-                    {t('budget.moneyYouAreOwedMessage')}
-                  </ThemedText>
-                )}
-                {personalSummary.status === 'owes' && (
-                  <ThemedText className="text-sm mt-2 text-center" style={themed.textSecondary}>
-                    {t('budget.moneyYouOweMessage')}
-                  </ThemedText>
-                )}
               </>
             )}
           </View>
