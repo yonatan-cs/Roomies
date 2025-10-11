@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { firestoreService } from './firestore-service';
+import { useStore } from '../state/store';
 
 // Configure notification behavior for foreground notifications
 Notifications.setNotificationHandler({
@@ -111,13 +112,17 @@ export class FCMNotificationService {
 
       console.log('💾 Saving FCM token to Firestore for user:', userId);
       
+      // Get current app language to save as user's locale preference
+      const appLanguage = useStore.getState().appLanguage;
+      
       await firestoreService.updateUserSafeProfileFields(userId, {
         fcm_token: this.fcmToken,
         device_type: Platform.OS,
         last_seen: new Date().toISOString(),
+        locale: appLanguage, // Save user's language preference for notifications
       });
 
-      console.log('✅ FCM token saved to Firestore');
+      console.log('✅ FCM token and language preference saved to Firestore');
       return true;
     } catch (error) {
       console.error('❌ Error saving FCM token to Firestore:', error);
