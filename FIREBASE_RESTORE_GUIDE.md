@@ -39,65 +39,42 @@
 }
 ```
 
-### 2. שחזור `App.tsx`
+### 2. שחזור הקוד - פשוט הסר את ההערות!
 
-#### א. הסר את ההערה מה-import (שורה 15-16):
-```typescript
-// הסר את ההערה מהשורה הזו:
-import { fcmNotificationService } from './src/services/fcm-notification-service';
-```
+#### 🔍 איך לעשות את זה:
+1. **פתח כל קובץ ברשימה למטה**
+2. **חפש את התגית `FCM RESTORE`**
+3. **הסר את הסלאשים `//` מתחילת השורות המוערות**
 
-#### ב. הסר את ההערות מה-useEffect הראשון (שורות 60-97):
-```typescript
-// החלף את ה-useEffect הנוכחי בקוד הזה:
-useEffect(() => {
-  const requestFirstTimePermissions = async () => {
-    try {
-      // Check if we've already requested permissions
-      const hasAsked = await AsyncStorage.getItem('notification_permissions_requested');
-      
-      if (!hasAsked) {
-        console.log('🔔 First time app launch - requesting FCM notification permissions');
-        // Request permissions immediately on first launch
-        const granted = await fcmNotificationService.requestPermissions();
-        
-        if (granted) {
-          console.log('✅ User granted FCM notification permissions');
-        } else {
-          console.log('⚠️ User denied FCM notification permissions');
-        }
-        
-        // Mark that we've asked (whether granted or denied)
-        await AsyncStorage.setItem('notification_permissions_requested', 'true');
-        setHasRequestedPermissions(true);
-      } else {
-        setHasRequestedPermissions(true);
-      }
-    } catch (error) {
-      console.error('❌ Error requesting first-time FCM permissions:', error);
-      setHasRequestedPermissions(true);
-    }
-  };
+#### 📁 הקבצים שצריך לערוך:
 
-  requestFirstTimePermissions();
-}, []);
-```
+**1. `App.tsx`**
+- שורה 15-16: הסר `//` מה-import
+- שורות 66-96: הסר `//` מהקוד המוער
+- שורות 102-112: הסר `//` מהקוד המוער
 
-#### ג. הסר את ההערות מה-useEffect השני (שורות 99-113):
-```typescript
-// החלף את ה-useEffect הנוכחי בקוד הזה:
-useEffect(() => {
-  const initializeNotifications = async () => {
-    if (currentUser?.id && hasRequestedPermissions) {
-      console.log('🚀 Initializing FCM notifications for user:', currentUser.id);
-      // Fire-and-forget to avoid blocking app startup
-      void fcmNotificationService.initialize(currentUser.id);
-    }
-  };
+**2. `SettingsScreen.tsx`**
+- שורה 22-23: הסר `//` מה-import
+- שורות 70-80: הסר `//` מהקוד המוער
+- שורות 263-317: הסר `//` מהקוד המוער
+- שורות 328-364: הסר `//` מהקוד המוער
 
-  initializeNotifications();
-}, [currentUser?.id, hasRequestedPermissions]);
-```
+**3. `firebase-init.ts`**
+- שורה 6-7: הסר `//` מה-import
+- שורות 23-31: הסר `//` מהקוד המוער
+
+#### ⚡ טיפים מהירים:
+**Find & Replace** בעורך הקוד:
+- חפש: `// import { fcmNotificationService`
+- החלף: `import { fcmNotificationService`
+- חזור על זה לכל השורות שמוערות!
+
+**או השתמש ב-Ctrl+H (Windows) / Cmd+H (Mac):**
+- חפש: `// import`
+- החלף: `import`
+- זה יחליף את כל השורות בבת אחת!
+
+**בדיקה מהירה:** אחרי השחזור, ודא שאין יותר שורות שמתחילות ב-`// import` או `/* FCM RESTORE`
 
 ## תהליך הבנייה לייצור
 
@@ -200,6 +177,35 @@ eas build --platform android --profile production
 - **לפני העלאה ל-App Store**: ודא שכל הקוד של FCM פעיל
 - **בדיקה מקיפה**: בדוק התראות על מכשירים אמיתיים
 - **גיבוי**: שמור עותק של הקוד הנוכחי לפני השינויים
+
+## 🚀 שימוש עם Native Modules אחרים
+
+### AdMob, Camera, וכו'
+
+המדריך הזה עובד **בדיוק אותו דבר** עם כל native module אחר:
+
+**AdMob לדוגמה:**
+1. במהלך פיתוח: הסר `@react-native-google-mobile-ads/app` מ-`plugins` ב-`app.json`
+2. הער את הקוד עם הערות `/* ADMOB RESTORE */`
+3. לפני העלאה: השתמש באותו מדריך - חפש `ADMOB RESTORE` והסר הערות
+
+**העיקרון:** כל package שדורש native code לא יעבוד ב-Expo Go!
+
+### 📝 תבנית לקבצים חדשים
+
+כשתוסיף native module חדש, השתמש בתבנית הזו:
+
+```typescript
+// NATIVE_MODULE disabled for Expo Go compatibility - restore before App Store deployment
+// import { nativeModule } from '@react-native-native-module';
+
+// NATIVE_MODULE initialization disabled for Expo Go compatibility
+console.log('⚠️ NATIVE_MODULE disabled for Expo Go compatibility');
+
+/* NATIVE_MODULE RESTORE: Uncomment this block before App Store deployment
+// Your native module code here
+*/
+```
 
 ---
 

@@ -19,7 +19,8 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { cn } from '../utils/cn';
 import { DayPicker } from '../components/DayPicker';
-import { fcmNotificationService } from '../services/fcm-notification-service';
+// FCM disabled for Expo Go compatibility - restore before App Store deployment
+// import { fcmNotificationService } from '../services/fcm-notification-service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getTaskLabel } from '../utils/taskLabel';
 import { showThemedAlert } from '../components/ThemedAlert';
@@ -60,8 +61,13 @@ export default function SettingsScreen() {
     }
   }, [currentApartment?.id]); // Only refresh when apartment ID changes
 
-  // Check notification status on mount and when screen is focused
+  // FCM notifications disabled for Expo Go compatibility
   useEffect(() => {
+    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
+    setNotificationStatus('not-determined');
+    setFcmToken(null);
+    
+    /* FCM RESTORE: Uncomment this block before App Store deployment
     const checkNotificationStatus = async () => {
       const status = await fcmNotificationService.getPermissionStatus();
       setNotificationStatus(status);
@@ -71,6 +77,7 @@ export default function SettingsScreen() {
     };
     
     checkNotificationStatus();
+    */
   }, []);
 
   const [editingName, setEditingName] = useState(false);
@@ -246,6 +253,14 @@ export default function SettingsScreen() {
   };
 
   const handleEnableNotifications = async () => {
+    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
+    showThemedAlert(
+      'Notifications Disabled',
+      'FCM notifications are disabled for Expo Go compatibility. They will be enabled in the production build.',
+      [{ text: 'OK' }]
+    );
+    
+    /* FCM RESTORE: Uncomment this block before App Store deployment
     try {
       impactMedium();
       
@@ -299,9 +314,18 @@ export default function SettingsScreen() {
       console.error('❌ Error enabling notifications:', error);
       showThemedAlert(t('common.error'), t('settings.alerts.cannotEnableNotifications'));
     }
+    */
   };
 
   const handleTestNotification = async () => {
+    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
+    showThemedAlert(
+      'Notifications Disabled',
+      'FCM notifications are disabled for Expo Go compatibility. They will be enabled in the production build.',
+      [{ text: 'OK' }]
+    );
+    
+    /* FCM RESTORE: Uncomment this block before App Store deployment
     try {
       impactMedium(); // Haptic feedback for test notification
 
@@ -337,6 +361,7 @@ export default function SettingsScreen() {
         t('settings.alerts.testNotificationFailed')
       );
     }
+    */
   };
 
   if (!currentUser || !currentApartment) {
