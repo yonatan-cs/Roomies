@@ -5,33 +5,31 @@ import { useTheme } from '../theme/ThemeProvider';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withRepeat,
-  withSequence,
   withTiming,
   Easing,
 } from 'react-native-reanimated';
 
 export function LoadingScreen() {
   const { theme } = useTheme();
-  const scale = useSharedValue(1);
+  const scale = useSharedValue(0.92);
+  const opacity = useSharedValue(0);
 
   useEffect(() => {
-    // Heartbeat animation: scale up slightly, then back, with a pause
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.1, { duration: 700, easing: Easing.ease }),
-        withTiming(1, { duration: 700, easing: Easing.ease }),
-        withTiming(1.1, { duration: 700, easing: Easing.ease }),
-        withTiming(1, { duration: 700, easing: Easing.ease }),
-        withTiming(1, { duration: 1000, easing: Easing.ease }) // pause
-      ),
-      -1, // infinite repeat
-      false
-    );
+    // Fade in animation with gentle scale up
+    opacity.value = withTiming(1, { 
+      duration: 600, 
+      easing: Easing.out(Easing.cubic) 
+    });
+    
+    scale.value = withTiming(1, { 
+      duration: 600, 
+      easing: Easing.out(Easing.cubic) 
+    });
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+    opacity: opacity.value,
   }));
 
   return (
@@ -43,6 +41,8 @@ export function LoadingScreen() {
           contentFit="contain"
           cachePolicy="memory-disk"
           priority="high"
+          transition={0}
+          allowDownscaling={false}
         />
       </Animated.View>
     </View>
