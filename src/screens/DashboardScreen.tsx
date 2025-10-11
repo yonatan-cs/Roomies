@@ -673,10 +673,12 @@ export default function DashboardScreen() {
                 <Ionicons name="wallet-outline" size={20} color={theme.colors.text.secondary} />
                 <ThemedText className="text-sm flex-1" style={[themed.textSecondary, { marginStart: isRTL ? 0 : 8, marginEnd: isRTL ? 8 : 0 }]}>{t('dashboard.cardMyBalance')}</ThemedText>
               </View>
-              <ThemedText className={cn(
-                "text-2xl font-bold",
-                (myBalance?.netBalance ?? 0) >= 0 ? "text-green-600" : "text-red-600"
-              )}>
+              <ThemedText 
+                className="text-2xl font-bold"
+                style={{ 
+                  color: (myBalance?.netBalance ?? 0) >= 0 ? '#16a34a' : '#dc2626' 
+                }}
+              >
                 {myBalance ? formatCurrency(Math.abs(myBalance.netBalance ?? 0)) : '₪0'}
               </ThemedText>
               <ThemedText className="text-xs" style={themed.textSecondary}>

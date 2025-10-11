@@ -345,10 +345,12 @@ export default function GroupDebtsScreen() {
                   {getDisplayName(user)} {isCurrentUser && `(${t('common.you')})`}
                 </ThemedText>
                 
-                <ThemedText className={cn(
-                  "font-semibold text-base",
-                  balance.netBalance >= 0 ? "text-green-600" : "text-red-600"
-                )}>
+                <ThemedText 
+                  className="font-semibold text-base"
+                  style={{ 
+                    color: balance.netBalance >= 0 ? '#16a34a' : '#dc2626' 
+                  }}
+                >
                   {balance.netBalance >= 0 ? '+' : ''}{formatCurrency(balance.netBalance)}
                 </ThemedText>
               </View>
