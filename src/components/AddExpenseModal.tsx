@@ -596,9 +596,30 @@ export default function AddExpenseModal({
 
               {/* Participants */}
               <View className="mb-6">
-                <ThemedText className="text-base mb-2" style={themed.textSecondary}>
-                  {t('expenseEdit.participants')}
-                </ThemedText>
+                <View className="flex-row items-center justify-between mb-3" style={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                  <ThemedText className="text-base font-medium" style={themed.textSecondary}>
+                    {t('expenseEdit.participants')}
+                  </ThemedText>
+                  <View className="flex-row" style={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                    <Pressable
+                      onPress={selectAllParticipants}
+                      className="py-1 px-3 rounded-lg"
+                      style={[
+                        { backgroundColor: theme.colors.primary + '20' },
+                        isRTL ? { marginLeft: 8 } : { marginRight: 8 }
+                      ]}
+                    >
+                      <Text style={{ color: theme.colors.primary }} className="text-sm">{t('expenseEdit.selectAll')}</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={clearAllParticipants}
+                      className="py-1 px-3 rounded-lg"
+                      style={themed.surfaceBg}
+                    >
+                      <ThemedText className="text-sm" style={themed.textSecondary}>{t('expenseEdit.clearAll')}</ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
                 <View 
                   className="flex-row flex-wrap"
                   style={{ 

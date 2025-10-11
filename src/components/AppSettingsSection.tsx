@@ -17,6 +17,8 @@ export default function AppSettingsSection() {
   const isRTL = useIsRTL();
   const appLanguage = useStore(s => s.appLanguage);
   const setAppLanguage = useStore(s => s.setAppLanguage);
+  const userGender = useStore(s => s.userGender);
+  const setUserGender = useStore(s => s.setUserGender);
   const themeSetting = useStore(s => s.themeSetting);
   const setThemeSetting = useStore(s => s.setThemeSetting);
   const hapticsEnabled = useStore(s => s.hapticsEnabled);
@@ -89,6 +91,53 @@ export default function AppSettingsSection() {
           </Pressable>
         </View>
       </View>
+
+      {/* Gender Preference Section (Hebrew only) */}
+      {appLanguage === 'he' && (
+        <View className="mb-6">
+          <View 
+            className="items-center mb-3"
+            style={{ 
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <ThemedText className="text-base font-medium flex-1">{t('settings.genderPreference')}</ThemedText>
+            <Ionicons name="person-outline" size={18} color="#6b7280" />
+          </View>
+          <View 
+            className="flex-wrap"
+            style={{ 
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+              alignItems: 'flex-start'
+            }}
+          >
+            <Pressable
+              onPress={() => {
+                selection();
+                setUserGender('male');
+              }}
+              className={cn(
+                "px-3 py-2 rounded-xl",
+                userGender === 'male' ? 'bg-blue-500' : 'bg-gray-100',
+                isRTL ? "ml-2" : "mr-2"
+              )}
+            >
+              <ThemedText className={userGender === 'male' ? 'text-white' : ''} style={userGender !== 'male' ? themed.buttonText : { color: '#ffffff' }}>{t('settings.male')}</ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                selection();
+                setUserGender('female');
+              }}
+              className={`px-3 py-2 rounded-xl ${userGender === 'female' ? 'bg-blue-500' : 'bg-gray-100'}`}
+            >
+              <ThemedText className={userGender === 'female' ? 'text-white' : ''} style={userGender !== 'female' ? themed.buttonText : { color: '#ffffff' }}>{t('settings.female')}</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {/* Haptics Section */}
       <View className="mb-6">

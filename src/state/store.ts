@@ -55,6 +55,10 @@ interface AppState {
   appLanguage: 'he' | 'en';
   setAppLanguage: (lang: 'he' | 'en') => void;
 
+  // User Gender (for Hebrew only)
+  userGender: 'male' | 'female' | null;
+  setUserGender: (gender: 'male' | 'female' | null) => void;
+
   // Currency
   currency: 'ILS' | 'USD';
   setCurrency: (currency: 'ILS' | 'USD') => void;
@@ -167,6 +171,9 @@ export const useStore = create<AppState>()(
       // Language (default Hebrew to match current UI)
       appLanguage: 'he',
 
+      // User Gender (default null - user can set it)
+      userGender: null,
+
       // Currency (default ILS - Shekel)
       currency: 'ILS',
 
@@ -185,6 +192,9 @@ export const useStore = create<AppState>()(
       
       // Language setter
       setAppLanguage: (lang) => set({ appLanguage: lang }),
+
+      // User Gender setter
+      setUserGender: (gender) => set({ userGender: gender }),
 
       // Currency setter
       setCurrency: (currency) => set({ currency }),
