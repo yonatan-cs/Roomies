@@ -42,8 +42,8 @@ This guide explains the complete FCM (Firebase Cloud Messaging) notification sys
 
 7. **🧹 Cleaning Turn Reminder**
    - When: Runs daily at 9:00 AM (Israel Time)
-   - Who gets notified: The person whose turn it is to clean (only if due today or overdue)
-   - Message: "It's your turn to clean the apartment today!" or "Your cleaning turn is X day(s) overdue!"
+   - Who gets notified: The person whose turn it is to clean (only if due in 2 days)
+   - Message: "You have 2 days left to clean the apartment. Please remember to complete your cleaning turn!"
 
 8. **💰 Purchase Follow-up Reminder**
    - When: Runs daily at 10:00 AM (Israel Time)
