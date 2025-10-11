@@ -9,20 +9,137 @@ import * as admin from 'firebase-admin';
 // Initialize Firebase Admin
 admin.initializeApp();
 
+// ===== NOTIFICATION TRANSLATIONS =====
+
+interface NotificationText {
+  title: string;
+  body: string;
+}
+
+type NotificationType = 
+  | 'shopping_item_added'
+  | 'shopping_item_purchased'
+  | 'expense_added'
+  | 'member_joined'
+  | 'cleaning_completed'
+  | 'cleaning_task_added'
+  | 'cleaning_reminder'
+  | 'purchase_followup';
+
+// Notification translations for Hebrew and English
+const notificationTranslations: Record<NotificationType, {
+  en: (vars: Record<string, string>) => NotificationText;
+  he: (vars: Record<string, string>) => NotificationText;
+}> = {
+  shopping_item_added: {
+    en: ({ userName, itemName }) => ({
+      title: '🛒 New Shopping Item',
+      body: `${userName} added "${itemName}" to the shopping list`
+    }),
+    he: ({ userName, itemName }) => ({
+      title: '🛒 פריט קניות חדש',
+      body: `${userName} הוסיף/ה "${itemName}" לרשימת הקניות`
+    })
+  },
+  shopping_item_purchased: {
+    en: ({ userName, itemName }) => ({
+      title: '✅ Item Purchased',
+      body: `${userName} bought "${itemName}"`
+    }),
+    he: ({ userName, itemName }) => ({
+      title: '✅ פריט נרכש',
+      body: `${userName} קנה/תה את "${itemName}"`
+    })
+  },
+  expense_added: {
+    en: ({ userName, title, amount }) => ({
+      title: '💰 New Expense Added',
+      body: `${userName} added ${title} - ₪${amount}`
+    }),
+    he: ({ userName, title, amount }) => ({
+      title: '💰 הוצאה חדשה נוספה',
+      body: `${userName} הוסיף/ה ${title} - ₪${amount}`
+    })
+  },
+  member_joined: {
+    en: ({ userName }) => ({
+      title: '👋 New Roommate!',
+      body: `${userName} joined the apartment`
+    }),
+    he: ({ userName }) => ({
+      title: '👋 שותף/ה חדש/ה!',
+      body: `${userName} הצטרף/ה לדירה`
+    })
+  },
+  cleaning_completed: {
+    en: ({ userName }) => ({
+      title: '🧹 Cleaning Completed!',
+      body: `${userName} finished cleaning the apartment`
+    }),
+    he: ({ userName }) => ({
+      title: '🧹 ניקיון הושלם!',
+      body: `${userName} סיים/ה לנקות את הדירה`
+    })
+  },
+  cleaning_task_added: {
+    en: ({ taskTitle }) => ({
+      title: '📝 New Cleaning Task',
+      body: `"${taskTitle}" was added to the cleaning checklist`
+    }),
+    he: ({ taskTitle }) => ({
+      title: '📝 משימת ניקיון חדשה',
+      body: `"${taskTitle}" נוסף/ה לרשימת הניקיון`
+    })
+  },
+  cleaning_reminder: {
+    en: ({ daysLeft }) => ({
+      title: '🧹 Cleaning Reminder',
+      body: `You have ${daysLeft} days left to clean the apartment. Please remember to complete your cleaning turn!`
+    }),
+    he: ({ daysLeft }) => ({
+      title: '🧹 תזכורת ניקיון',
+      body: `נשארו לך ${daysLeft} ימים לנקות את הדירה. אנא זכור/י להשלים את תור הניקיון שלך!`
+    })
+  },
+  purchase_followup: {
+    en: ({ itemName }) => ({
+      title: '💰 Don\'t forget to add expense!',
+      body: `You bought "${itemName}" yesterday. Remember to add it to expenses!`
+    }),
+    he: ({ itemName }) => ({
+      title: '💰 אל תשכח/י להוסיף הוצאה!',
+      body: `קנית "${itemName}" אתמול. זכור/י להוסיף את זה להוצאות!`
+    })
+  }
+};
+
+/**
+ * Get notification text in user's preferred language
+ */
+function getNotificationText(
+  type: NotificationType,
+  locale: string,
+  variables: Record<string, string>
+): NotificationText {
+  const lang = (locale === 'he' || locale === 'iw') ? 'he' : 'en';
+  const translator = notificationTranslations[type];
+  return translator[lang](variables);
+}
+
 // ===== HELPER FUNCTIONS =====
 
 /**
- * Send notification to all members of an apartment
+ * Send notification to all members of an apartment with localized text
  * @param apartmentId - The apartment ID
- * @param title - Notification title
- * @param body - Notification body
+ * @param notificationType - Type of notification for translation
+ * @param variables - Variables to interpolate in notification text
  * @param data - Additional data payload
  * @param excludeUserId - Optional user ID to exclude from notifications (e.g., the user who triggered the action)
  */
 async function sendNotificationToApartment(
   apartmentId: string,
-  title: string,
-  body: string,
+  notificationType: NotificationType,
+  variables: Record<string, string>,
   data: { [key: string]: string } = {},
   excludeUserId?: string
 ): Promise<void> {
@@ -57,102 +174,118 @@ async function sendNotificationToApartment(
 
     console.log(`📱 Sending to ${targetMembers.length} members`);
 
-    // Get FCM tokens for all members
+    // Get user documents for all members
     const userDocs = await Promise.all(
       targetMembers.map((uid: string) => admin.firestore().collection('users').doc(uid).get())
     );
 
-    const tokens: string[] = [];
+    // Group users by language and collect their tokens
+    const usersByLanguage: Map<string, { token: string; userId: string }[]> = new Map();
+    
     for (const userDoc of userDocs) {
       if (userDoc.exists) {
         const userData = userDoc.data();
-        if (userData?.fcm_token) {
-          tokens.push(userData.fcm_token);
+        const fcmToken = userData?.fcm_token;
+        const locale = userData?.locale || 'en'; // Default to English if no preference
+        
+        if (fcmToken) {
+          if (!usersByLanguage.has(locale)) {
+            usersByLanguage.set(locale, []);
+          }
+          usersByLanguage.get(locale)!.push({ token: fcmToken, userId: userDoc.id });
         }
       }
     }
 
-    if (tokens.length === 0) {
+    if (usersByLanguage.size === 0) {
       console.log(`⚠️ No valid FCM tokens found`);
       return;
     }
 
-    // Prepare notification message
-    const message: admin.messaging.MulticastMessage = {
-      tokens,
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        ...data,
-        timestamp: new Date().toISOString(),
-      },
-      apns: {
-        payload: {
-          aps: {
-            sound: 'default',
-            badge: 1,
+    let totalSent = 0;
+    let totalFailed = 0;
+
+    // Send notifications to each language group
+    for (const [locale, users] of usersByLanguage.entries()) {
+      const tokens = users.map(u => u.token);
+      const notificationText = getNotificationText(notificationType, locale, variables);
+
+      console.log(`📤 Sending to ${tokens.length} users in ${locale}`);
+
+      // Prepare notification message for this language group
+      const message: admin.messaging.MulticastMessage = {
+        tokens,
+        notification: {
+          title: notificationText.title,
+          body: notificationText.body,
+        },
+        data: {
+          ...data,
+          timestamp: new Date().toISOString(),
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
           },
         },
-      },
-      android: {
-        priority: 'high',
-        notification: {
-          sound: 'default',
-          channelId: 'default',
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            channelId: 'default',
+          },
         },
-      },
-    };
+      };
 
-    // Send to multiple devices
-    const response = await admin.messaging().sendEachForMulticast(message);
-    console.log(`✅ Successfully sent ${response.successCount} notifications, ${response.failureCount} failures`);
+      // Send to this language group
+      const response = await admin.messaging().sendEachForMulticast(message);
+      totalSent += response.successCount;
+      totalFailed += response.failureCount;
+      
+      console.log(`✅ Sent ${response.successCount} notifications in ${locale}, ${response.failureCount} failures`);
 
-    // Clean up invalid tokens
-    if (response.failureCount > 0) {
-      const invalidTokens: string[] = [];
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success && resp.error) {
-          const errorCode = resp.error.code;
-          if (errorCode === 'messaging/invalid-registration-token' || 
-              errorCode === 'messaging/registration-token-not-registered') {
-            invalidTokens.push(tokens[idx]);
+      // Clean up invalid tokens
+      if (response.failureCount > 0) {
+        const invalidUserIds: string[] = [];
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success && resp.error) {
+            const errorCode = resp.error.code;
+            if (errorCode === 'messaging/invalid-registration-token' || 
+                errorCode === 'messaging/registration-token-not-registered') {
+              invalidUserIds.push(users[idx].userId);
+            }
           }
-        }
-      });
+        });
 
-      // Remove invalid tokens from users
-      for (const token of invalidTokens) {
-        const userQuery = await admin.firestore()
-          .collection('users')
-          .where('fcm_token', '==', token)
-          .limit(1)
-          .get();
-        
-        if (!userQuery.empty) {
-          await userQuery.docs[0].ref.update({
+        // Remove invalid tokens from users
+        for (const userId of invalidUserIds) {
+          await admin.firestore().collection('users').doc(userId).update({
             fcm_token: admin.firestore.FieldValue.delete(),
           });
         }
       }
     }
+
+    console.log(`✅ Total: ${totalSent} notifications sent, ${totalFailed} failed`);
   } catch (error) {
     console.error('❌ Error sending notification to apartment:', error);
   }
 }
 
 /**
- * Send notification to a specific user
+ * Send notification to a specific user in their preferred language
  * @param userId - The user ID
- * @param title - Notification title
- * @param body - Notification body
+ * @param notificationType - Type of notification for translation
+ * @param variables - Variables to interpolate in notification text
  * @param data - Additional data payload
  */
 async function sendNotificationToUser(
   userId: string,
-  title: string,
-  body: string,
+  notificationType: NotificationType,
+  variables: Record<string, string>,
   data: { [key: string]: string } = {}
 ): Promise<void> {
   try {
@@ -167,17 +300,21 @@ async function sendNotificationToUser(
 
     const userData = userDoc.data();
     const fcmToken = userData?.fcm_token;
+    const locale = userData?.locale || 'en'; // Default to English if no preference
 
     if (!fcmToken) {
       console.log(`⚠️ No FCM token for user ${userId}`);
       return;
     }
 
+    // Get localized notification text
+    const notificationText = getNotificationText(notificationType, locale, variables);
+
     const message: admin.messaging.Message = {
       token: fcmToken,
       notification: {
-        title,
-        body,
+        title: notificationText.title,
+        body: notificationText.body,
       },
       data: {
         ...data,
@@ -201,7 +338,7 @@ async function sendNotificationToUser(
     };
 
     await admin.messaging().send(message);
-    console.log(`✅ Successfully sent notification to user ${userId}`);
+    console.log(`✅ Successfully sent notification to user ${userId} in ${locale}`);
   } catch (error: any) {
     console.error(`❌ Error sending notification to user ${userId}:`, error);
     
@@ -532,8 +669,8 @@ export const onShoppingItemAdded = functions.firestore
 
       await sendNotificationToApartment(
         apartmentId,
-        '🛒 New Shopping Item',
-        `${userName} added "${itemName}" to the shopping list`,
+        'shopping_item_added',
+        { userName, itemName },
         {
           type: 'shopping_item_added',
           itemId: context.params.itemId,
@@ -575,8 +712,8 @@ export const onShoppingItemPurchased = functions.firestore
 
         await sendNotificationToApartment(
           apartmentId,
-          '✅ Item Purchased',
-          `${userName} bought "${itemName}"`,
+          'shopping_item_purchased',
+          { userName, itemName },
           {
             type: 'shopping_item_purchased',
             itemId: context.params.itemId,
@@ -617,8 +754,8 @@ export const onExpenseAdded = functions.firestore
 
       await sendNotificationToApartment(
         apartmentId,
-        '💰 New Expense Added',
-        `${userName} added ${title} - ₪${amount.toFixed(2)}`,
+        'expense_added',
+        { userName, title, amount: amount.toFixed(2) },
         {
           type: 'expense_added',
           expenseId: context.params.expenseId,
@@ -662,12 +799,12 @@ export const onApartmentMemberAdded = functions.firestore
 
       // Send notification for each new member
       for (const newMemberId of newMembers) {
-        const newMemberName = await getUserDisplayName(newMemberId);
+        const userName = await getUserDisplayName(newMemberId);
 
         await sendNotificationToApartment(
           apartmentId,
-          '👋 New Roommate!',
-          `${newMemberName} joined the apartment`,
+          'member_joined',
+          { userName },
           {
             type: 'member_joined',
             newMemberId,
@@ -675,7 +812,7 @@ export const onApartmentMemberAdded = functions.firestore
           newMemberId // Don't notify the new member
         );
 
-        console.log(`✅ Sent member joined notification for ${newMemberName}`);
+        console.log(`✅ Sent member joined notification for ${userName}`);
       }
     } catch (error) {
       console.error('❌ Error in onApartmentMemberAdded:', error);
@@ -710,8 +847,8 @@ export const onCleaningCompleted = functions.firestore
 
         await sendNotificationToApartment(
           apartmentId,
-          '🧹 Cleaning Completed!',
-          `${userName} finished cleaning the apartment`,
+          'cleaning_completed',
+          { userName },
           {
             type: 'cleaning_completed',
             completedBy: completedByUserId,
@@ -745,8 +882,8 @@ export const onCleaningChecklistItemAdded = functions.firestore
 
       await sendNotificationToApartment(
         apartmentId,
-        '📝 New Cleaning Task',
-        `"${taskTitle}" was added to the cleaning checklist`,
+        'cleaning_task_added',
+        { taskTitle },
         {
           type: 'cleaning_task_added',
           itemId: context.params.itemId,
@@ -816,8 +953,8 @@ export const checkCleaningReminders = functions.pubsub
 
           await sendNotificationToUser(
             currentUserId,
-            '🧹 Cleaning Reminder',
-            'You have 2 days left to clean the apartment. Please remember to complete your cleaning turn!',
+            'cleaning_reminder',
+            { daysLeft: '2' },
             {
               type: 'cleaning_reminder',
               apartmentId,
@@ -881,8 +1018,8 @@ export const checkPurchaseFollowUps = functions.pubsub
           if (hoursSincePurchase >= 24) {
             await sendNotificationToUser(
               purchasedByUserId,
-              '💰 Don\'t forget to add expense!',
-              `You bought "${itemName}" yesterday. Remember to add it to expenses!`,
+              'purchase_followup',
+              { itemName },
               {
                 type: 'purchase_followup',
                 itemId: doc.id,
