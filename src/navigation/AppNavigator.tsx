@@ -15,7 +15,7 @@ import AddExpenseScreen from '../screens/AddExpenseScreen';
 import GroupDebtsScreen from '../screens/GroupDebtsScreen';
 
 import { useStore } from '../state/store';
-import { getApartmentContext } from '../services/firestore-service';
+import { getApartmentContext, firestoreService } from '../services/firestore-service';
 import { useTranslation } from 'react-i18next';
 import { isValidApartmentId, validateApartmentIdWithLogging, safeNavigate } from '../utils/navigation-helpers';
 import { useTheme } from '../theme/ThemeProvider';
@@ -117,6 +117,81 @@ export default function AppNavigator() {
   const currentUserId = useStore(state => state.currentUser?.id);
   const currentUserApartmentId = useStore(state => state.currentUser?.current_apartment_id);
   const currentApartment = useStore(state => state.currentApartment);
+
+  // Listen for user removal from apartment (when current_apartment_id becomes null in Firestore)
+  useEffect(() => {
+    // Only set up listener if user has an apartment
+    if (!currentUserId || !currentUserApartmentId) {
+      return;
+    }
+
+    console.log('👂 Setting up user removal listener for user:', currentUserId);
+
+    let isMounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+
+    // Poll user profile to check if they were removed
+    const checkUserProfile = async () => {
+      try {
+        const userDoc = await firestoreService.getUser(currentUserId);
+        
+        if (!isMounted) return;
+
+        // Check if user was removed (apartment_id became null in Firestore)
+        const firestoreApartmentId = userDoc?.current_apartment_id;
+        const localApartmentId = useStore.getState().currentUser?.current_apartment_id;
+
+        console.log('🔍 User removal check:', {
+          firestoreApartmentId,
+          localApartmentId,
+          userWasRemoved: firestoreApartmentId === null && localApartmentId !== null
+        });
+
+        // If Firestore says null but we still have apartment_id locally, user was removed
+        if (firestoreApartmentId === null && localApartmentId) {
+          console.log('🚨 User was removed from apartment, clearing local state');
+          
+          // Clear apartment-related state
+          useStore.setState({
+            currentUser: {
+              ...useStore.getState().currentUser!,
+              current_apartment_id: null
+            },
+            currentApartment: undefined,
+            cleaningTask: undefined,
+            expenses: [],
+            shoppingItems: [],
+            checklistItems: [],
+          });
+        }
+
+        // Schedule next check
+        if (isMounted) {
+          timeoutId = setTimeout(checkUserProfile, 10000); // Check every 10 seconds
+        }
+      } catch (error) {
+        console.error('❌ Error checking user profile:', error);
+        // Don't clear state on error - might just be network issue
+        
+        // Retry after a longer delay on error
+        if (isMounted) {
+          timeoutId = setTimeout(checkUserProfile, 30000);
+        }
+      }
+    };
+
+    // Start checking
+    checkUserProfile();
+
+    // Cleanup
+    return () => {
+      console.log('🧹 Cleaning up user removal listener');
+      isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [currentUserId, currentUserApartmentId]);
 
   // Determine routing based on presence of a valid apartment id
   // Check for null/undefined apartment_id (new users) or invalid apartment_id

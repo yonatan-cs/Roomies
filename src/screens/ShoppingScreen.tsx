@@ -84,7 +84,7 @@ export default function ShoppingScreen() {
   const isRTL = useIsRTL();
   const navigation = useNavigation<any>();
   const appLanguage = useStore(s => s.appLanguage);
-  const { theme } = useTheme();
+  const { theme, activeScheme } = useTheme();
   const themed = useThemedStyles(tk => ({
     textSecondary: { color: tk.colors.text.secondary },
     textPrimary: { color: tk.colors.text.primary },
@@ -384,16 +384,21 @@ export default function ShoppingScreen() {
               }}
             >
               <View 
-                className="bg-orange-100 px-2 py-1 rounded-lg"
+                className="px-2 py-1 rounded-lg"
                 style={{ 
                   flexDirection: isRTL ? 'row-reverse' : 'row',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  backgroundColor: activeScheme === 'dark' ? '#f9731620' : '#fed7aa'
                 }}
               >
-                <Ionicons name="list-outline" size={12} color="#f97316" />
+                <Ionicons name="list-outline" size={12} color={activeScheme === 'dark' ? '#fb923c' : '#f97316'} />
                 <ThemedText 
-                  className="text-xs font-medium text-orange-700"
-                  style={{ marginStart: isRTL ? 0 : 4, marginEnd: isRTL ? 4 : 0 }}
+                  className="text-xs font-medium"
+                  style={{ 
+                    marginStart: isRTL ? 0 : 4, 
+                    marginEnd: isRTL ? 4 : 0,
+                    color: activeScheme === 'dark' ? '#fb923c' : '#c2410c'
+                  }}
                 >
                   {t('shopping.quantity', { qty: item.quantity })}
                 </ThemedText>
@@ -410,16 +415,21 @@ export default function ShoppingScreen() {
               }}
             >
               <View 
-                className="bg-indigo-100 px-2 py-1 rounded-lg"
+                className="px-2 py-1 rounded-lg"
                 style={{ 
                   flexDirection: isRTL ? 'row-reverse' : 'row',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  backgroundColor: activeScheme === 'dark' ? '#6366f120' : '#e0e7ff'
                 }}
               >
-                <Ionicons name="chatbubble-outline" size={12} color="#6366f1" />
+                <Ionicons name="chatbubble-outline" size={12} color={activeScheme === 'dark' ? '#818cf8' : '#6366f1'} />
                 <ThemedText 
-                  className="text-sm text-indigo-700 italic"
-                  style={{ marginStart: isRTL ? 0 : 4, marginEnd: isRTL ? 4 : 0 }}
+                  className="text-sm italic"
+                  style={{ 
+                    marginStart: isRTL ? 0 : 4, 
+                    marginEnd: isRTL ? 4 : 0,
+                    color: activeScheme === 'dark' ? '#a5b4fc' : '#4338ca'
+                  }}
                 >
                   {item.notes}
                 </ThemedText>

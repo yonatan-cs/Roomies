@@ -448,7 +448,7 @@ export default function SettingsScreen() {
               </View>
             </View>
           </View>
-          {copied && <ThemedText className="text-xs text-green-600 mt-1">{t('common.success')}</ThemedText>}
+          {copied && <ThemedText className="text-xs text-green-600 mt-2">{t('settings.codeCopiedSuccess')}</ThemedText>}
         </ThemedCard>
 
         {/* Roommates */}
@@ -490,7 +490,7 @@ export default function SettingsScreen() {
                   }}
                 >
                   <ThemedText className="font-medium">
-                    {getDisplayName(member)} {member.id === currentUser.id && `(${t('common.you')})`}
+                    {getDisplayName(member)} {member.id === currentUser.id && `(${gt('common.you')})`}
                   </ThemedText>
                   <ThemedText className="text-sm" style={themed.textSecondary}>{member.email || t('common.unknown')}</ThemedText>
                 </View>
