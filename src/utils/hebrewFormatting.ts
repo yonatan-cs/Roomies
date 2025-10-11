@@ -6,18 +6,14 @@ import { useStore } from '../state/store';
  * Uses Intl.NumberFormat to ensure proper RTL number display
  */
 
-// Number formatter for ILS (Shekel)
+// Number formatter for ILS (Shekel) - without currency symbol
 const ilsNumberFormatter = new Intl.NumberFormat('he-IL', {
-  style: 'currency',
-  currency: 'ILS',
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
 
-// Number formatter for USD (Dollar)
+// Number formatter for USD (Dollar) - without currency symbol
 const usdNumberFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
@@ -38,15 +34,19 @@ const englishDateFormatter = new Intl.DateTimeFormat('en-US', {
 
 /**
  * Format currency with proper RTL support
+ * Currency symbol is placed after the number (on the right) without space
+ * since numbers are written LTR even in RTL languages
  * @param amount - The amount to format
  * @param currency - The currency to use ('ILS' | 'USD')
  * @returns Formatted currency string
  */
 export function formatCurrency(amount: number, currency: 'ILS' | 'USD'): string {
   if (currency === 'ILS') {
-    return ilsNumberFormatter.format(amount);
+    // Format number and add shekel symbol after it, without space
+    return ilsNumberFormatter.format(amount) + '₪';
   } else {
-    return usdNumberFormatter.format(amount);
+    // Format number and add dollar symbol after it, without space
+    return usdNumberFormatter.format(amount) + '$';
   }
 }
 

@@ -321,22 +321,23 @@ export default function ExpenseEditModal({ visible, expense, onClose, onSuccess 
               
               <View 
                 style={{ 
-                  alignItems: isRTL ? 'flex-end' : 'flex-start'
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  flexWrap: 'wrap',
+                  gap: 8
                 }}
               >
                 {currentApartment.members.map((member) => (
                   <Pressable
                     key={member.id}
                     onPress={() => toggleParticipant(member.id)}
-                    className="items-center px-3 py-2 rounded-lg border mb-2"
+                    className="items-center px-3 py-2 rounded-lg border"
                     style={[
                       selectedParticipants.includes(member.id) 
                         ? { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }
                         : { backgroundColor: theme.colors.surface, ...themed.borderColor },
                       { 
                         flexDirection: isRTL ? 'row-reverse' : 'row',
-                        alignItems: 'center',
-                        alignSelf: isRTL ? 'flex-end' : 'flex-start'
+                        alignItems: 'center'
                       }
                     ]}
                   >
