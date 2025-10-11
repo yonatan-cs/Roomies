@@ -12,7 +12,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
 import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { fcmNotificationService } from './src/services/fcm-notification-service';
+// FCM disabled for Expo Go compatibility - restore before App Store deployment
+// import { fcmNotificationService } from './src/services/fcm-notification-service';
 import { isRTL } from './src/utils/rtl';
 import Animated from 'react-native-reanimated';
 import { ThemedAlertProvider } from './src/components/ThemedAlert';
@@ -56,8 +57,13 @@ export default function App() {
     }
   }, [appLanguage]);
 
-  // Request notification permissions on first app launch
+  // FCM notifications disabled for Expo Go compatibility
+  // Restore this useEffect before App Store deployment
   useEffect(() => {
+    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
+    setHasRequestedPermissions(true);
+    
+    /* FCM RESTORE: Uncomment this block before App Store deployment
     const requestFirstTimePermissions = async () => {
       try {
         // Check if we've already requested permissions
@@ -87,10 +93,13 @@ export default function App() {
     };
 
     requestFirstTimePermissions();
+    */
   }, []);
 
-  // Initialize FCM notifications when user is logged in
+  // FCM notifications disabled for Expo Go compatibility
+  // Restore this useEffect before App Store deployment
   useEffect(() => {
+    /* FCM RESTORE: Uncomment this block before App Store deployment
     const initializeNotifications = async () => {
       if (currentUser?.id && hasRequestedPermissions) {
         console.log('🚀 Initializing FCM notifications for user:', currentUser.id);
@@ -100,6 +109,7 @@ export default function App() {
     };
 
     initializeNotifications();
+    */
   }, [currentUser?.id, hasRequestedPermissions]);
 
   // RTL text alignment is now handled by ThemedText and AppTextInput components

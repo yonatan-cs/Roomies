@@ -41,8 +41,6 @@
           "mode": "production"
         }
       ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
       "expo-secure-store",
       "expo-sqlite",
       "expo-video",
