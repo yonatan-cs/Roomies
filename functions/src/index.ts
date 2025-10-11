@@ -9,6 +9,228 @@ import * as admin from 'firebase-admin';
 // Initialize Firebase Admin
 admin.initializeApp();
 
+// ===== HELPER FUNCTIONS =====
+
+/**
+ * Send notification to all members of an apartment
+ * @param apartmentId - The apartment ID
+ * @param title - Notification title
+ * @param body - Notification body
+ * @param data - Additional data payload
+ * @param excludeUserId - Optional user ID to exclude from notifications (e.g., the user who triggered the action)
+ */
+async function sendNotificationToApartment(
+  apartmentId: string,
+  title: string,
+  body: string,
+  data: { [key: string]: string } = {},
+  excludeUserId?: string
+): Promise<void> {
+  try {
+    console.log(`📨 Sending notification to apartment ${apartmentId}`);
+
+    // Get apartment members
+    const apartmentDoc = await admin.firestore().collection('apartments').doc(apartmentId).get();
+    
+    if (!apartmentDoc.exists) {
+      console.log(`⚠️ Apartment ${apartmentId} not found`);
+      return;
+    }
+
+    const apartmentData = apartmentDoc.data();
+    const members = apartmentData?.members || [];
+    
+    if (members.length === 0) {
+      console.log(`⚠️ No members in apartment ${apartmentId}`);
+      return;
+    }
+
+    // Filter out the excluded user
+    const targetMembers = excludeUserId 
+      ? members.filter((uid: string) => uid !== excludeUserId)
+      : members;
+
+    if (targetMembers.length === 0) {
+      console.log(`⚠️ No target members after exclusion`);
+      return;
+    }
+
+    console.log(`📱 Sending to ${targetMembers.length} members`);
+
+    // Get FCM tokens for all members
+    const userDocs = await Promise.all(
+      targetMembers.map((uid: string) => admin.firestore().collection('users').doc(uid).get())
+    );
+
+    const tokens: string[] = [];
+    for (const userDoc of userDocs) {
+      if (userDoc.exists) {
+        const userData = userDoc.data();
+        if (userData?.fcm_token) {
+          tokens.push(userData.fcm_token);
+        }
+      }
+    }
+
+    if (tokens.length === 0) {
+      console.log(`⚠️ No valid FCM tokens found`);
+      return;
+    }
+
+    // Prepare notification message
+    const message: admin.messaging.MulticastMessage = {
+      tokens,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        ...data,
+        timestamp: new Date().toISOString(),
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'default',
+        },
+      },
+    };
+
+    // Send to multiple devices
+    const response = await admin.messaging().sendEachForMulticast(message);
+    console.log(`✅ Successfully sent ${response.successCount} notifications, ${response.failureCount} failures`);
+
+    // Clean up invalid tokens
+    if (response.failureCount > 0) {
+      const invalidTokens: string[] = [];
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success && resp.error) {
+          const errorCode = resp.error.code;
+          if (errorCode === 'messaging/invalid-registration-token' || 
+              errorCode === 'messaging/registration-token-not-registered') {
+            invalidTokens.push(tokens[idx]);
+          }
+        }
+      });
+
+      // Remove invalid tokens from users
+      for (const token of invalidTokens) {
+        const userQuery = await admin.firestore()
+          .collection('users')
+          .where('fcm_token', '==', token)
+          .limit(1)
+          .get();
+        
+        if (!userQuery.empty) {
+          await userQuery.docs[0].ref.update({
+            fcm_token: admin.firestore.FieldValue.delete(),
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error sending notification to apartment:', error);
+  }
+}
+
+/**
+ * Send notification to a specific user
+ * @param userId - The user ID
+ * @param title - Notification title
+ * @param body - Notification body
+ * @param data - Additional data payload
+ */
+async function sendNotificationToUser(
+  userId: string,
+  title: string,
+  body: string,
+  data: { [key: string]: string } = {}
+): Promise<void> {
+  try {
+    console.log(`📨 Sending notification to user ${userId}`);
+
+    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    
+    if (!userDoc.exists) {
+      console.log(`⚠️ User ${userId} not found`);
+      return;
+    }
+
+    const userData = userDoc.data();
+    const fcmToken = userData?.fcm_token;
+
+    if (!fcmToken) {
+      console.log(`⚠️ No FCM token for user ${userId}`);
+      return;
+    }
+
+    const message: admin.messaging.Message = {
+      token: fcmToken,
+      notification: {
+        title,
+        body,
+      },
+      data: {
+        ...data,
+        timestamp: new Date().toISOString(),
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default',
+            badge: 1,
+          },
+        },
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'default',
+        },
+      },
+    };
+
+    await admin.messaging().send(message);
+    console.log(`✅ Successfully sent notification to user ${userId}`);
+  } catch (error: any) {
+    console.error(`❌ Error sending notification to user ${userId}:`, error);
+    
+    // Clean up invalid token
+    if (error.code === 'messaging/invalid-registration-token' ||
+        error.code === 'messaging/registration-token-not-registered') {
+      await admin.firestore().collection('users').doc(userId).update({
+        fcm_token: admin.firestore.FieldValue.delete(),
+      });
+    }
+  }
+}
+
+/**
+ * Get user display name
+ */
+async function getUserDisplayName(userId: string): Promise<string> {
+  try {
+    const userDoc = await admin.firestore().collection('users').doc(userId).get();
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      return userData?.display_name || userData?.email || 'Someone';
+    }
+  } catch (error) {
+    console.error('Error getting user display name:', error);
+  }
+  return 'Someone';
+}
+
 /**
  * Send test notification to the current user
  * Callable function that sends a test FCM notification
@@ -105,9 +327,9 @@ export const sendTestNotificationV1 = functions.https.onCall(async (data, contex
 
 /**
  * Send notification to a specific user by user ID
- * Can be called from other cloud functions or triggers
+ * Callable function that can be invoked from the app
  */
-export const sendNotificationToUser = functions.https.onCall(async (data, context) => {
+export const sendNotificationToUserCallable = functions.https.onCall(async (data, context) => {
   // Check if user is authenticated
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
@@ -285,4 +507,411 @@ export const sendNotificationToMultipleUsers = functions.https.onCall(async (dat
     results,
   };
 });
+
+// ===== FIRESTORE TRIGGERS =====
+
+/**
+ * Trigger: Shopping item added
+ * Sends notification when someone adds a new item to the shopping list
+ */
+export const onShoppingItemAdded = functions.firestore
+  .document('shopping_items/{itemId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const itemData = snapshot.data();
+      const apartmentId = itemData.apartment_id;
+      const addedByUserId = itemData.added_by_user_id;
+      const itemName = itemData.title || itemData.name || 'item';
+
+      if (!apartmentId || !addedByUserId) {
+        console.log('⚠️ Missing apartment_id or added_by_user_id');
+        return;
+      }
+
+      const userName = await getUserDisplayName(addedByUserId);
+
+      await sendNotificationToApartment(
+        apartmentId,
+        '🛒 New Shopping Item',
+        `${userName} added "${itemName}" to the shopping list`,
+        {
+          type: 'shopping_item_added',
+          itemId: context.params.itemId,
+          itemName,
+          addedBy: addedByUserId,
+        },
+        addedByUserId // Don't notify the person who added it
+      );
+
+      console.log(`✅ Sent shopping item notification for ${itemName}`);
+    } catch (error) {
+      console.error('❌ Error in onShoppingItemAdded:', error);
+    }
+  });
+
+/**
+ * Trigger: Shopping item purchased
+ * Sends notification when someone marks an item as purchased
+ */
+export const onShoppingItemPurchased = functions.firestore
+  .document('shopping_items/{itemId}')
+  .onUpdate(async (change, context) => {
+    try {
+      const before = change.before.data();
+      const after = change.after.data();
+
+      // Check if item was just marked as purchased
+      if (!before.purchased && after.purchased) {
+        const apartmentId = after.apartment_id;
+        const purchasedByUserId = after.purchased_by_user_id;
+        const itemName = after.title || after.name || 'item';
+
+        if (!apartmentId || !purchasedByUserId) {
+          console.log('⚠️ Missing apartment_id or purchased_by_user_id');
+          return;
+        }
+
+        const userName = await getUserDisplayName(purchasedByUserId);
+
+        await sendNotificationToApartment(
+          apartmentId,
+          '✅ Item Purchased',
+          `${userName} bought "${itemName}"`,
+          {
+            type: 'shopping_item_purchased',
+            itemId: context.params.itemId,
+            itemName,
+            purchasedBy: purchasedByUserId,
+          },
+          purchasedByUserId // Don't notify the person who purchased it
+        );
+
+        console.log(`✅ Sent purchase notification for ${itemName}`);
+      }
+    } catch (error) {
+      console.error('❌ Error in onShoppingItemPurchased:', error);
+    }
+  });
+
+/**
+ * Trigger: Expense added
+ * Sends notification when someone adds a new expense
+ */
+export const onExpenseAdded = functions.firestore
+  .document('expenses/{expenseId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const expenseData = snapshot.data();
+      const apartmentId = expenseData.apartment_id;
+      const paidByUserId = expenseData.paid_by_user_id;
+      const amount = expenseData.amount || 0;
+      const title = expenseData.title || 'expense';
+      const category = expenseData.category || 'other';
+
+      if (!apartmentId || !paidByUserId) {
+        console.log('⚠️ Missing apartment_id or paid_by_user_id');
+        return;
+      }
+
+      const userName = await getUserDisplayName(paidByUserId);
+
+      await sendNotificationToApartment(
+        apartmentId,
+        '💰 New Expense Added',
+        `${userName} added ${title} - ₪${amount.toFixed(2)}`,
+        {
+          type: 'expense_added',
+          expenseId: context.params.expenseId,
+          amount: amount.toString(),
+          category,
+          paidBy: paidByUserId,
+        },
+        paidByUserId // Don't notify the person who added it
+      );
+
+      console.log(`✅ Sent expense notification for ${title}`);
+    } catch (error) {
+      console.error('❌ Error in onExpenseAdded:', error);
+    }
+  });
+
+/**
+ * Trigger: New member joined apartment
+ * Sends notification when someone joins the apartment
+ */
+export const onApartmentMemberAdded = functions.firestore
+  .document('apartments/{apartmentId}')
+  .onUpdate(async (change, context) => {
+    try {
+      const before = change.before.data();
+      const after = change.after.data();
+
+      const beforeMembers = before.members || [];
+      const afterMembers = after.members || [];
+
+      // Find new members
+      const newMembers = afterMembers.filter(
+        (uid: string) => !beforeMembers.includes(uid)
+      );
+
+      if (newMembers.length === 0) {
+        return;
+      }
+
+      const apartmentId = context.params.apartmentId;
+
+      // Send notification for each new member
+      for (const newMemberId of newMembers) {
+        const newMemberName = await getUserDisplayName(newMemberId);
+
+        await sendNotificationToApartment(
+          apartmentId,
+          '👋 New Roommate!',
+          `${newMemberName} joined the apartment`,
+          {
+            type: 'member_joined',
+            newMemberId,
+          },
+          newMemberId // Don't notify the new member
+        );
+
+        console.log(`✅ Sent member joined notification for ${newMemberName}`);
+      }
+    } catch (error) {
+      console.error('❌ Error in onApartmentMemberAdded:', error);
+    }
+  });
+
+/**
+ * Trigger: Cleaning round completed
+ * Sends notification when someone completes their cleaning turn
+ */
+export const onCleaningCompleted = functions.firestore
+  .document('cleaningTasks/{apartmentId}')
+  .onUpdate(async (change, context) => {
+    try {
+      const before = change.before.data();
+      const after = change.after.data();
+
+      // Check if cleaning was just completed
+      const beforeCompleted = before.last_completed_at;
+      const afterCompleted = after.last_completed_at;
+
+      if (beforeCompleted !== afterCompleted && afterCompleted) {
+        const apartmentId = context.params.apartmentId;
+        const completedByUserId = after.last_completed_by;
+
+        if (!completedByUserId) {
+          console.log('⚠️ Missing last_completed_by');
+          return;
+        }
+
+        const userName = await getUserDisplayName(completedByUserId);
+
+        await sendNotificationToApartment(
+          apartmentId,
+          '🧹 Cleaning Completed!',
+          `${userName} finished cleaning the apartment`,
+          {
+            type: 'cleaning_completed',
+            completedBy: completedByUserId,
+          },
+          completedByUserId // Don't notify the person who completed it
+        );
+
+        console.log(`✅ Sent cleaning completed notification`);
+      }
+    } catch (error) {
+      console.error('❌ Error in onCleaningCompleted:', error);
+    }
+  });
+
+/**
+ * Trigger: Cleaning checklist item added
+ * Sends notification when someone adds a new cleaning task to the checklist
+ */
+export const onCleaningChecklistItemAdded = functions.firestore
+  .document('cleaning_checklist_items/{itemId}')
+  .onCreate(async (snapshot, context) => {
+    try {
+      const itemData = snapshot.data();
+      const apartmentId = itemData.apartment_id;
+      const taskTitle = itemData.title || 'cleaning task';
+
+      if (!apartmentId) {
+        console.log('⚠️ Missing apartment_id');
+        return;
+      }
+
+      await sendNotificationToApartment(
+        apartmentId,
+        '📝 New Cleaning Task',
+        `"${taskTitle}" was added to the cleaning checklist`,
+        {
+          type: 'cleaning_task_added',
+          itemId: context.params.itemId,
+          taskTitle,
+        }
+      );
+
+      console.log(`✅ Sent cleaning task added notification for ${taskTitle}`);
+    } catch (error) {
+      console.error('❌ Error in onCleaningChecklistItemAdded:', error);
+    }
+  });
+
+// ===== SCHEDULED FUNCTIONS =====
+
+/**
+ * Scheduled: Check for overdue cleaning turns
+ * Runs daily at 9:00 AM (Israel Time = UTC+2/3)
+ * Sends reminder to the person whose turn it is to clean
+ */
+export const checkCleaningReminders = functions.pubsub
+  .schedule('0 9 * * *')
+  .timeZone('Asia/Jerusalem')
+  .onRun(async (context) => {
+    try {
+      console.log('🔔 Running cleaning reminders check...');
+
+      const now = new Date();
+      const cleaningTasksSnapshot = await admin.firestore()
+        .collection('cleaningTasks')
+        .get();
+
+      let remindersCount = 0;
+
+      for (const doc of cleaningTasksSnapshot.docs) {
+        const taskData = doc.data();
+        const apartmentId = doc.id;
+        const currentUserId = taskData.user_id;
+        const assignedAt = taskData.assigned_at;
+        const frequencyDays = taskData.frequency_days || 7;
+        const lastCompletedAt = taskData.last_completed_at;
+
+        if (!currentUserId) {
+          continue;
+        }
+
+        // Calculate when cleaning is due
+        const referenceDate = lastCompletedAt 
+          ? new Date(lastCompletedAt) 
+          : assignedAt 
+            ? new Date(assignedAt) 
+            : null;
+
+        if (!referenceDate) {
+          continue;
+        }
+
+        const dueDate = new Date(referenceDate);
+        dueDate.setDate(dueDate.getDate() + frequencyDays);
+
+        // Check if due date is today or overdue
+        const isToday = dueDate.toDateString() === now.toDateString();
+        const isOverdue = now > dueDate;
+
+        if (isToday || isOverdue) {
+          const userName = await getUserDisplayName(currentUserId);
+          const daysOverdue = isOverdue 
+            ? Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+            : 0;
+
+          const title = isOverdue 
+            ? '🚨 Cleaning Overdue!'
+            : '🧹 Cleaning Reminder';
+          
+          const body = isOverdue
+            ? `Your cleaning turn is ${daysOverdue} day(s) overdue! Please clean the apartment today.`
+            : `It's your turn to clean the apartment today!`;
+
+          await sendNotificationToUser(
+            currentUserId,
+            title,
+            body,
+            {
+              type: 'cleaning_reminder',
+              apartmentId,
+              isOverdue: isOverdue.toString(),
+              daysOverdue: daysOverdue.toString(),
+            }
+          );
+
+          remindersCount++;
+          console.log(`✅ Sent cleaning reminder to ${userName} (apartment ${apartmentId})`);
+        }
+      }
+
+      console.log(`✅ Sent ${remindersCount} cleaning reminders`);
+    } catch (error) {
+      console.error('❌ Error in checkCleaningReminders:', error);
+    }
+  });
+
+/**
+ * Scheduled: Follow-up on purchased items not added to expenses
+ * Runs daily at 10:00 AM (Israel Time)
+ * Reminds users who purchased items but didn't add them to expenses after 24 hours
+ */
+export const checkPurchaseFollowUps = functions.pubsub
+  .schedule('0 10 * * *')
+  .timeZone('Asia/Jerusalem')
+  .onRun(async (context) => {
+    try {
+      console.log('🔔 Running purchase follow-up check...');
+
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      // Get all purchased items from yesterday that have a price but no expense created
+      const shoppingItemsSnapshot = await admin.firestore()
+        .collection('shopping_items')
+        .where('purchased', '==', true)
+        .where('purchased_at', '>=', yesterday.toISOString())
+        .where('purchased_at', '<', now.toISOString())
+        .get();
+
+      let remindersCount = 0;
+
+      for (const doc of shoppingItemsSnapshot.docs) {
+        const itemData = doc.data();
+        const purchasedByUserId = itemData.purchased_by_user_id;
+        const itemName = itemData.title || itemData.name || 'item';
+        const price = itemData.price;
+        const purchasedAt = itemData.purchased_at ? new Date(itemData.purchased_at) : null;
+
+        // Skip if no user or no price
+        if (!purchasedByUserId || !price) {
+          continue;
+        }
+
+        // Check if it's been 24+ hours
+        if (purchasedAt) {
+          const hoursSincePurchase = (now.getTime() - purchasedAt.getTime()) / (1000 * 60 * 60);
+          
+          if (hoursSincePurchase >= 24) {
+            await sendNotificationToUser(
+              purchasedByUserId,
+              '💰 Don\'t forget to add expense!',
+              `You bought "${itemName}" yesterday. Remember to add it to expenses!`,
+              {
+                type: 'purchase_followup',
+                itemId: doc.id,
+                itemName,
+                price: price.toString(),
+              }
+            );
+
+            remindersCount++;
+            console.log(`✅ Sent follow-up reminder for ${itemName} to ${purchasedByUserId}`);
+          }
+        }
+      }
+
+      console.log(`✅ Sent ${remindersCount} purchase follow-up reminders`);
+    } catch (error) {
+      console.error('❌ Error in checkPurchaseFollowUps:', error);
+    }
+  });
 
