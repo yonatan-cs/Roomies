@@ -12,7 +12,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
 import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { fcmNotificationService } from './src/services/fcm-notification-service';
+import { firebaseNotificationService } from './src/services/firebase-notification-service';
 import { isRTL } from './src/utils/rtl';
 import Animated from 'react-native-reanimated';
 import { ThemedAlertProvider } from './src/components/ThemedAlert';
@@ -64,14 +64,14 @@ export default function App() {
         const hasAsked = await AsyncStorage.getItem('notification_permissions_requested');
         
         if (!hasAsked) {
-          console.log('🔔 First time app launch - requesting FCM notification permissions');
+          console.log('🔔 First time app launch - requesting notification permissions');
           // Request permissions immediately on first launch
-          const granted = await fcmNotificationService.requestPermissions();
+          const granted = await firebaseNotificationService.requestPermissions();
           
           if (granted) {
-            console.log('✅ User granted FCM notification permissions');
+            console.log('✅ User granted notification permissions');
           } else {
-            console.log('⚠️ User denied FCM notification permissions');
+            console.log('⚠️ User denied notification permissions');
           }
           
           // Mark that we've asked (whether granted or denied)
@@ -80,22 +80,22 @@ export default function App() {
         } else {
           setHasRequestedPermissions(true);
         }
-      } catch (error) {
-        console.error('❌ Error requesting first-time FCM permissions:', error);
-        setHasRequestedPermissions(true);
-      }
+        } catch (error) {
+          console.error('❌ Error requesting first-time permissions:', error);
+          setHasRequestedPermissions(true);
+        }
     };
 
     requestFirstTimePermissions();
   }, []);
 
-  // Initialize FCM notifications when user is logged in
+  // Initialize Firebase notifications when user is logged in
   useEffect(() => {
     const initializeNotifications = async () => {
       if (currentUser?.id && hasRequestedPermissions) {
-        console.log('🚀 Initializing FCM notifications for user:', currentUser.id);
+        console.log('🚀 Initializing Firebase notifications for user:', currentUser.id);
         // Fire-and-forget to avoid blocking app startup
-        void fcmNotificationService.initialize(currentUser.id);
+        void firebaseNotificationService.initialize(currentUser.id);
       }
     };
 

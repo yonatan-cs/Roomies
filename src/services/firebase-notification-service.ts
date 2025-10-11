@@ -2,7 +2,8 @@
  * Firebase Push Notification Service (Web SDK)
  * Uses Firebase Web SDK for push notifications - works in Expo Go
  */
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { firestoreService } from './firestore-service';
 import { firebaseAuth } from './firebase-auth';
 
@@ -224,6 +225,52 @@ export class FirebaseNotificationService {
    */
   getFCMToken(): string | null {
     return this.fcmToken;
+  }
+
+  /**
+   * Get current token (alias for getFCMToken)
+   */
+  getCurrentToken(): string | null {
+    return this.getFCMToken();
+  }
+
+  /**
+   * Get notification permission status
+   */
+  async getPermissionStatus(): Promise<'granted' | 'denied' | 'not-determined'> {
+    try {
+      const settings = await Notifications.getPermissionsAsync();
+      if (settings.granted) {
+        return 'granted';
+      } else if (settings.canAskAgain) {
+        return 'not-determined';
+      } else {
+        return 'denied';
+      }
+    } catch (error) {
+      console.error('❌ Error getting permission status:', error);
+      return 'not-determined';
+    }
+  }
+
+  /**
+   * Send a test local notification
+   */
+  async sendTestLocalNotification(): Promise<void> {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "🧪 Test Notification",
+          body: "This is a test notification from Roomies!",
+          data: { test: true },
+        },
+        trigger: null, // Show immediately
+      });
+      console.log('✅ Test local notification sent');
+    } catch (error) {
+      console.error('❌ Error sending test local notification:', error);
+      throw error;
+    }
   }
 
   /**

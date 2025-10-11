@@ -19,7 +19,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { cn } from '../utils/cn';
 import { DayPicker } from '../components/DayPicker';
-import { fcmNotificationService } from '../services/fcm-notification-service';
+import { firebaseNotificationService } from '../services/firebase-notification-service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getTaskLabel } from '../utils/taskLabel';
 import { showThemedAlert } from '../components/ThemedAlert';
@@ -63,10 +63,10 @@ export default function SettingsScreen() {
   // Check notification status on mount and when screen is focused
   useEffect(() => {
     const checkNotificationStatus = async () => {
-      const status = await fcmNotificationService.getPermissionStatus();
+      const status = await firebaseNotificationService.getPermissionStatus();
       setNotificationStatus(status);
       
-      const token = fcmNotificationService.getCurrentToken();
+      const token = firebaseNotificationService.getCurrentToken();
       setFcmToken(token);
     };
     
@@ -249,7 +249,7 @@ export default function SettingsScreen() {
     try {
       impactMedium();
       
-      const currentStatus = await fcmNotificationService.getPermissionStatus();
+      const currentStatus = await firebaseNotificationService.getPermissionStatus();
       
       if (currentStatus === 'denied') {
         // On iOS, if denied, we need to open Settings app
@@ -272,13 +272,13 @@ export default function SettingsScreen() {
         );
       } else {
         // Request permissions
-        const granted = await fcmNotificationService.requestPermissions();
+        const granted = await firebaseNotificationService.requestPermissions();
         
         if (granted && currentUser) {
           // Get token and save to Firestore
-          const token = await fcmNotificationService.getFCMToken();
+          const token = await firebaseNotificationService.getFCMToken();
           if (token && currentUser) {
-            await fcmNotificationService.saveTokenToFirestore(currentUser.id);
+            await firebaseNotificationService.saveTokenToFirestore(currentUser.id);
             setFcmToken(token);
           }
           setNotificationStatus('granted');
@@ -308,7 +308,7 @@ export default function SettingsScreen() {
       console.log('🧪 Testing FCM notifications...');
 
       // 1. Send local notification immediately (works even without backend)
-      await fcmNotificationService.sendTestLocalNotification();
+      await firebaseNotificationService.sendTestLocalNotification();
       console.log('✅ Local notification sent');
 
       // 2. Try to send remote notification via cloud function (requires backend setup)
