@@ -763,9 +763,9 @@ export const onCleaningChecklistItemAdded = functions.firestore
 // ===== SCHEDULED FUNCTIONS =====
 
 /**
- * Scheduled: Check for overdue cleaning turns
+ * Scheduled: Check for upcoming cleaning turns
  * Runs daily at 9:00 AM (Israel Time = UTC+2/3)
- * Sends reminder to the person whose turn it is to clean
+ * Sends reminder 2 days before the cleaning turn is due
  */
 export const checkCleaningReminders = functions.pubsub
   .schedule('0 9 * * *')
@@ -807,38 +807,26 @@ export const checkCleaningReminders = functions.pubsub
         const dueDate = new Date(referenceDate);
         dueDate.setDate(dueDate.getDate() + frequencyDays);
 
-        // Check if due date is today or overdue
-        const isToday = dueDate.toDateString() === now.toDateString();
-        const isOverdue = now > dueDate;
+        // Calculate days until due date
+        const daysUntilDue = Math.floor((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-        if (isToday || isOverdue) {
+        // Send reminder 2 days before due date
+        if (daysUntilDue === 2) {
           const userName = await getUserDisplayName(currentUserId);
-          const daysOverdue = isOverdue 
-            ? Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
-            : 0;
-
-          const title = isOverdue 
-            ? '🚨 Cleaning Overdue!'
-            : '🧹 Cleaning Reminder';
-          
-          const body = isOverdue
-            ? `Your cleaning turn is ${daysOverdue} day(s) overdue! Please clean the apartment today.`
-            : `It's your turn to clean the apartment today!`;
 
           await sendNotificationToUser(
             currentUserId,
-            title,
-            body,
+            '🧹 Cleaning Reminder',
+            'You have 2 days left to clean the apartment. Please remember to complete your cleaning turn!',
             {
               type: 'cleaning_reminder',
               apartmentId,
-              isOverdue: isOverdue.toString(),
-              daysOverdue: daysOverdue.toString(),
+              daysUntilDue: '2',
             }
           );
 
           remindersCount++;
-          console.log(`✅ Sent cleaning reminder to ${userName} (apartment ${apartmentId})`);
+          console.log(`✅ Sent cleaning reminder to ${userName} (apartment ${apartmentId}) - 2 days before due`);
         }
       }
 
