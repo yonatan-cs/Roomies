@@ -11,7 +11,7 @@ import "./src/i18n";
 import { useEffect, useState, useCallback } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
-import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 // FCM disabled for Expo Go compatibility - restore before App Store deployment
 // import { fcmNotificationService } from './src/services/fcm-notification-service';
 import { isRTL } from './src/utils/rtl';
@@ -118,7 +118,9 @@ export default function App() {
   function ThemedRoot() {
     const { activeScheme, theme } = useTheme();
     const [appIsReady, setAppIsReady] = useState(false);
+    const [showSplash, setShowSplash] = useState(true);
     const opacity = useSharedValue(0);
+    const splashOpacity = useSharedValue(1);
 
     useEffect(() => {
       (async () => {
@@ -144,8 +146,8 @@ export default function App() {
           // Preload logo image to ensure it's cached
           await Asset.loadAsync(require('./assets/splash-logo.png'));
           
-          // Minimal delay - just enough for smooth transition
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // Wait for fade in animation to complete
+          await new Promise(resolve => setTimeout(resolve, 750));
         } catch (e) {
           console.warn('Error preparing app:', e);
         } finally {
@@ -158,8 +160,24 @@ export default function App() {
 
     useEffect(() => {
       if (appIsReady) {
-        // Start fade-in animation - quick transition
-        opacity.value = withTiming(1, { duration: 300 });
+        // Start fade-out animation for splash - gentle and smooth
+        splashOpacity.value = withTiming(0, { 
+          duration: 500,
+          easing: Easing.in(Easing.cubic)
+        });
+        
+        // Start fade-in animation for app (slightly delayed for smooth crossfade)
+        setTimeout(() => {
+          opacity.value = withTiming(1, { 
+            duration: 500,
+            easing: Easing.out(Easing.cubic)
+          });
+        }, 100);
+        
+        // Hide splash screen after fade out completes
+        setTimeout(() => {
+          setShowSplash(false);
+        }, 500);
       }
     }, [appIsReady]);
 
@@ -198,18 +216,33 @@ export default function App() {
             },
           };
 
-    // Show loading screen while app is not ready
-    if (!appIsReady) {
-      return <LoadingScreen />;
-    }
+    const splashAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: splashOpacity.value,
+    }));
 
     return (
-      <Animated.View style={[{ flex: 1, backgroundColor: theme.colors.background }, animatedStyle]}>
-        <NavigationContainer ref={navigationRef} theme={navTheme}>
-          <AppNavigator />
-        </NavigationContainer>
-        <StatusBar style={activeScheme === 'dark' ? 'light' : 'dark'} />
-      </Animated.View>
+      <>
+        {/* Main app with fade-in */}
+        <Animated.View style={[{ flex: 1, backgroundColor: theme.colors.background }, animatedStyle]}>
+          <NavigationContainer ref={navigationRef} theme={navTheme}>
+            <AppNavigator />
+          </NavigationContainer>
+          <StatusBar style={activeScheme === 'dark' ? 'light' : 'dark'} />
+        </Animated.View>
+
+        {/* Splash screen overlay with fade-out */}
+        {showSplash && (
+          <Animated.View style={[{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0 
+          }, splashAnimatedStyle]}>
+            <LoadingScreen />
+          </Animated.View>
+        )}
+      </>
     );
   }
 
