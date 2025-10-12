@@ -437,8 +437,92 @@ export default function SettingsScreen() {
           {copied && <ThemedText className="text-xs text-green-600 mt-2">{t('settings.codeCopiedSuccess')}</ThemedText>}
         </ThemedCard>
 
-        {/* Roommates */}
+        {/* Roommates & My Profile */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          {/* My Profile Section */}
+          <View className="mb-6 pb-6" style={{ borderBottomWidth: 1, borderBottomColor: themed.borderColor.borderColor }}>
+            <ThemedText className="text-lg font-semibold mb-4">{t('settings.myProfile')}</ThemedText>
+            <View className="mb-4">
+              <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('settings.fullName')}</ThemedText>
+              {editingName ? (
+                <View
+                  className="items-center"
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center'
+                  }}
+                >
+                  <AppTextInput
+                    value={newName}
+                    onChangeText={setNewName}
+                    className="flex-1 border rounded-xl px-4 py-3 text-base"
+                    style={[themed.borderColor, themed.inputBg, themed.inputText]}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveName}
+                    placeholderTextColor={themed.textSecondary.color}
+                  />
+                  <View
+                    className="flex-row"
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      marginStart: isRTL ? 0 : 12,
+                      marginEnd: isRTL ? 12 : 0
+                    }}
+                  >
+                    <Pressable
+                      onPress={() => {
+                        impactMedium(); // Haptic feedback for save action
+                        handleSaveName();
+                      }}
+                      className={cn(
+                        "p-2 rounded-lg",
+                        newName.trim() ? 'bg-green-100' : 'bg-gray-100',
+                        isRTL ? "ml-2" : "mr-2"
+                      )}
+                    >
+                      <Ionicons name="checkmark" size={20} color={newName.trim() ? '#10b981' : '#9ca3af'} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        impactLight(); // Haptic feedback for cancel action
+                        setEditingName(false);
+                        setNewName(getDisplayName(currentUser));
+                      }}
+                      className="bg-red-100 p-2 rounded-lg"
+                    >
+                      <Ionicons name="close" size={20} color="#ef4444" />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    impactLight(); // Haptic feedback for edit action
+                    setEditingName(true);
+                  }}
+                  className="items-center p-3 rounded-xl"
+                  style={{
+                    ...themed.nameDisplayBg,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <ThemedText className="text-base flex-1" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
+                  <Ionicons name="pencil-outline" size={20} color="#6b7280" />
+                </Pressable>
+              )}
+            </View>
+
+            <View>
+              <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('settings.email')}</ThemedText>
+              <ThemedText style={themed.textSecondary}>{currentUser.email || t('settings.notDefined')}</ThemedText>
+            </View>
+          </View>
+
+          {/* Roommates List */}
           <View className="mb-4">
             <ThemedText className="text-lg font-semibold flex-1">
               {t('dashboard.roommates')} ({currentApartment.members.length})
@@ -526,89 +610,6 @@ export default function SettingsScreen() {
               </View>
             </View>
           ))}
-        </ThemedCard>
-
-        {/* My Profile */}
-        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <ThemedText className="text-lg font-semibold mb-4">{t('settings.myProfile')}</ThemedText>
-          <View className="mb-4">
-            <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('settings.fullName')}</ThemedText>
-            {editingName ? (
-              <View
-                className="items-center"
-                style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                  alignItems: 'center'
-                }}
-              >
-                <AppTextInput
-                  value={newName}
-                  onChangeText={setNewName}
-                  className="flex-1 border rounded-xl px-4 py-3 text-base"
-                  style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                  autoFocus
-                  returnKeyType="done"
-                  onSubmitEditing={handleSaveName}
-                  placeholderTextColor={themed.textSecondary.color}
-                />
-                <View
-                  className="flex-row"
-                  style={{
-                    flexDirection: isRTL ? 'row-reverse' : 'row',
-                    alignItems: 'center',
-                    marginStart: isRTL ? 0 : 12,
-                    marginEnd: isRTL ? 12 : 0
-                  }}
-                >
-                  <Pressable
-                    onPress={() => {
-                      impactMedium(); // Haptic feedback for save action
-                      handleSaveName();
-                    }}
-                    className={cn(
-                      "p-2 rounded-lg",
-                      newName.trim() ? 'bg-green-100' : 'bg-gray-100',
-                      isRTL ? "ml-2" : "mr-2"
-                    )}
-                  >
-                    <Ionicons name="checkmark" size={20} color={newName.trim() ? '#10b981' : '#9ca3af'} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => {
-                      impactLight(); // Haptic feedback for cancel action
-                      setEditingName(false);
-                      setNewName(getDisplayName(currentUser));
-                    }}
-                    className="bg-red-100 p-2 rounded-lg"
-                  >
-                    <Ionicons name="close" size={20} color="#ef4444" />
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <Pressable
-                onPress={() => {
-                  impactLight(); // Haptic feedback for edit action
-                  setEditingName(true);
-                }}
-                className="items-center p-3 rounded-xl"
-                style={{
-                  ...themed.nameDisplayBg,
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}
-              >
-                <ThemedText className="text-base flex-1" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
-                <Ionicons name="pencil-outline" size={20} color="#6b7280" />
-              </Pressable>
-            )}
-          </View>
-
-          <View className="mb-4">
-            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('settings.email')}</ThemedText>
-            <ThemedText style={themed.textSecondary}>{currentUser.email || t('settings.notDefined')}</ThemedText>
-          </View>
         </ThemedCard>
 
         {/* Cleaning Schedule & Tasks Section */}
