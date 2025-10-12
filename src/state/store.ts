@@ -380,17 +380,12 @@ export const useStore = create<AppState>()(
           return;
         }
         
-        if (!currentApartment?.id) {
-          console.warn('Cannot start expenses listener: no apartment');
-          console.log('📡 currentApartment:', currentApartment);
-          return;
-        }
+        console.log('📡 Starting safe real-time expenses listener');
+        console.log('📡 currentApartment:', currentApartment);
+        console.log('📡 currentUser:', state.currentUser?.id);
         
-        console.log('📡 Starting real-time expenses listener');
-        console.log('📡 apartment_id filter value:', currentApartment.id);
-        
-        // Subscribe to expenses collection
-        const unsubscribe = realtimeManager.subscribeToCollection(
+        // Use the new safe method
+        const unsubscribe = realtimeManager.subscribeToCollectionSafe(
           'expenses',
           'expenses',
           (docs) => {
@@ -434,11 +429,7 @@ export const useStore = create<AppState>()(
             
             set({ expenses });
           },
-          [
-            { field: 'apartment_id', operator: '==', value: currentApartment.id }
-          ],
-          'created_at',
-          'desc'
+          'created_at'
         );
         
         set({ _expensesUnsubscribe: unsubscribe });
@@ -539,19 +530,12 @@ export const useStore = create<AppState>()(
           return;
         }
         
-        if (!currentApartment?.id) {
-          console.warn('Cannot start shopping items listener: no apartment');
-          console.log('📡 currentApartment:', currentApartment);
-          return;
-        }
-        
-        console.log('📡 Starting real-time shopping items listener');
-        console.log('📡 apartment_id filter value:', currentApartment.id);
+        console.log('📡 Starting safe real-time shopping items listener');
+        console.log('📡 currentApartment:', currentApartment);
         console.log('📡 currentUser:', state.currentUser?.id);
-        console.log('📡 currentApartment full object:', currentApartment);
         
-        // Subscribe to shopping_items collection
-        const unsubscribe = realtimeManager.subscribeToCollection(
+        // Use the new safe method - no need to pass apartment_id filter manually
+        const unsubscribe = realtimeManager.subscribeToCollectionSafe(
           'shopping_items',
           'shopping_items',
           (docs) => {
@@ -572,11 +556,7 @@ export const useStore = create<AppState>()(
             
             set({ shoppingItems });
           },
-          [
-            { field: 'apartment_id', operator: '==', value: currentApartment.id }
-          ],
-          'created_at',
-          'desc'
+          'created_at' // orderByField
         );
         
         set({ _shoppingItemsUnsubscribe: unsubscribe });
@@ -800,17 +780,12 @@ export const useStore = create<AppState>()(
           return;
         }
         
-        if (!currentApartment?.id) {
-          console.warn('Cannot start cleaning checklist listener: no apartment');
-          console.log('📡 currentApartment:', currentApartment);
-          return;
-        }
+        console.log('📡 Starting safe real-time cleaning checklist listener');
+        console.log('📡 currentApartment:', currentApartment);
+        console.log('📡 currentUser:', state.currentUser?.id);
         
-        console.log('📡 Starting real-time cleaning checklist listener');
-        console.log('📡 apartment_id filter value:', currentApartment.id);
-        
-        // Subscribe to cleaning_checklist collection with real-time updates
-        const unsubscribe = realtimeManager.subscribeToCollection(
+        // Use the new safe method
+        const unsubscribe = realtimeManager.subscribeToCollectionSafe(
           'cleaning_checklist',
           'cleaning_checklist',
           async (docs) => {
@@ -863,11 +838,7 @@ export const useStore = create<AppState>()(
               console.error('Error in checklist listener:', error);
             }
           },
-          [
-            { field: 'apartment_id', operator: '==', value: currentApartment.id }
-          ],
-          'order',
-          'asc'
+          'order' // orderByField
         );
         
         // Store the unsubscribe function
