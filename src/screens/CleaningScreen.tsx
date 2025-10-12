@@ -50,6 +50,8 @@ export default function CleaningScreen() {
   const checklistItems = useStore((s) => s.checklistItems);
   const isMyCleaningTurn = useStore((s) => s.isMyCleaningTurn);
   const loadCleaningChecklist = useStore((s) => s.loadCleaningChecklist);
+  const startCleaningChecklistListener = useStore((s) => s.startCleaningChecklistListener);
+  const stopCleaningChecklistListener = useStore((s) => s.stopCleaningChecklistListener);
   const completeChecklistItem = useStore((s) => s.completeChecklistItem);
   const uncompleteChecklistItem = useStore((s) => s.uncompleteChecklistItem);
   const finishCleaningTurn = useStore((s) => s.finishCleaningTurn);
@@ -92,28 +94,28 @@ export default function CleaningScreen() {
     }
   }, [currentUser, cleaningTask, checklistItems, isMyCleaningTurn]);
 
-  // Load checklist data when screen comes into focus (OPTIMIZED to reduce Firestore reads)
+  // Set up realtime listener when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
       
-      const loadData = async () => {
+      const setupListener = async () => {
         if (isActive) {
+          // Load initial data
           await loadCleaningChecklist();
+          // Start realtime listener for live updates
+          startCleaningChecklistListener();
         }
       };
 
-      // Load data immediately
-      loadData();
-
-      // REMOVED: Smart polling to reduce Firestore reads
-      // Polling every 5 seconds was causing excessive reads
-      // Now only loads data on focus, not continuously
+      setupListener();
 
       return () => {
         isActive = false;
+        // Stop listener when leaving screen to save resources
+        stopCleaningChecklistListener();
       };
-    }, []) // REMOVED dependencies to prevent unnecessary re-runs
+    }, [loadCleaningChecklist, startCleaningChecklistListener, stopCleaningChecklistListener])
   );
 
   // Use the unified turn check from the store
@@ -193,8 +195,7 @@ export default function CleaningScreen() {
       success(); // Success haptic for completing cleaning turn
       setShowConfirmDone(false);
       setTurnCompleted(true); // Mark as completed locally
-      // Reload data to get fresh state (OPTIMIZED to reduce Firestore reads)
-      await loadCleaningChecklist();
+      // No need to reload - the realtime listener will update automatically
     } catch (error) {
       console.error('Error finishing turn:', error);
       setErrorMessage(t('common.error'));
@@ -499,7 +500,7 @@ export default function CleaningScreen() {
         </ThemedCard>
 
         {/* Cleaning Tasks */}
-        {isMyTurn && (
+        {(isMyTurn || turnCompleted) && (
           <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
               <ThemedText className="text-lg font-semibold flex-1">{t('cleaning.tasksList')}</ThemedText>
@@ -512,6 +513,9 @@ export default function CleaningScreen() {
               const isDisabled = !isMyTurn || turnCompleted;
               const isRTL = I18nManager.isRTL;
               
+              // When turn is completed, show tasks as completed but grayed out
+              const showAsCompletedAndDisabled = isCompleted && turnCompleted;
+              
               return (
                 <View 
                   key={`${cycleKey}-${item.id}`} 
@@ -522,11 +526,17 @@ export default function CleaningScreen() {
                     onPress={() => !isDisabled && handleToggleTask(item.id, !isCompleted)} 
                     className={cn(
                       'w-8 h-8 rounded-full border-2 items-center justify-center shadow-sm',
-                      isDisabled ? '' : (isCompleted ? 'bg-green-500 border-green-500' : ''),
+                      showAsCompletedAndDisabled ? '' : (
+                        isDisabled ? '' : (isCompleted ? 'bg-green-500 border-green-500' : '')
+                      ),
                       isRTL ? 'ml-3' : 'mr-3'
                     )}
                     style={[
-                      isDisabled ? { 
+                      showAsCompletedAndDisabled ? {
+                        backgroundColor: '#9ca3af',
+                        borderColor: '#9ca3af',
+                        shadowOpacity: 0
+                      } : isDisabled ? { 
                         backgroundColor: '#6b7280', 
                         borderColor: '#6b7280',
                         shadowOpacity: 0
@@ -543,7 +553,7 @@ export default function CleaningScreen() {
                         shadowRadius: 2,
                         elevation: 2,
                       },
-                      isCompleted ? {
+                      isCompleted && !showAsCompletedAndDisabled ? {
                         shadowColor: '#10b981',
                         shadowOffset: { width: 0, height: 2 },
                         shadowRadius: 4,

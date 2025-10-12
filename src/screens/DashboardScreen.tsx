@@ -63,7 +63,7 @@ export default function DashboardScreen() {
     lightBg: { backgroundColor: activeScheme === 'dark' ? '#374151' : '#f9fafb' },
     textSecondary: { color: tk.colors.text.secondary },
     backgroundBg: { backgroundColor: tk.colors.background },
-    closeButtonBg: { backgroundColor: tk.colors.surface },
+    closeButtonBg: { backgroundColor: activeScheme === 'dark' ? '#374151' : '#e5e7eb' },
   }));
   const { t } = useTranslation();
   const appLanguage = useStore(s => s.appLanguage);

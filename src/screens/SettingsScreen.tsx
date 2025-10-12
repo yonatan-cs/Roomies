@@ -20,6 +20,7 @@ import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { cn } from '../utils/cn';
 import { DayPicker } from '../components/DayPicker';
+import { IntervalPicker } from '../components/IntervalPicker';
 // FCM disabled for Expo Go compatibility - restore before App Store deployment
 // import { fcmNotificationService } from '../services/fcm-notification-service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -630,35 +631,14 @@ export default function SettingsScreen() {
           <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningSchedule')}</ThemedText>
 
           <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.frequency')}</ThemedText>
-          <View
-            className="flex-wrap mb-4"
-            style={{
-              flexDirection: isRTL ? 'row-reverse' : 'row',
-              alignItems: 'flex-start'
+          <IntervalPicker
+            selectedInterval={cleaningSettings.intervalDays}
+            onIntervalChange={(interval) => {
+              selection(); // Haptic feedback for schedule selection
+              setCleaningIntervalDays(interval);
             }}
-          >
-            {[7, 14, 30].map((days) => {
-              const selected = cleaningSettings.intervalDays === days;
-              const label = days === 7 ? t('settings.scheduleLabels.weekly') : days === 14 ? t('settings.scheduleLabels.biweekly') : t('settings.scheduleLabels.monthly');
-              return (
-                <Pressable
-                  key={days}
-                  onPress={() => {
-                    selection(); // Haptic feedback for schedule selection
-                    setCleaningIntervalDays(days);
-                  }}
-                  className={cn(
-                    "px-3 py-2 rounded-xl",
-                    selected ? 'bg-blue-500' : 'bg-gray-100',
-                    isRTL ? "ml-2" : "mr-2"
-                  )}
-                >
-                  <ThemedText className={selected ? 'text-white' : ''} style={!selected ? themed.buttonText : { color: '#ffffff' }}>{label}</ThemedText>
-                </Pressable>
-              );
-            })}
-            {/* Custom days input could be added later */}
-          </View>
+            style={{ marginBottom: 16 }}
+          />
 
           <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.rotationDay')}</ThemedText>
           <DayPicker

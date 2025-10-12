@@ -235,6 +235,38 @@ export class FirestoreSDKService {
   }
 
   /**
+   * Subscribe to cleaning checklist items for real-time updates
+   * This allows users to see live progress when others complete tasks
+   */
+  subscribeToCleaningChecklist(
+    apartmentId: string,
+    callback: (items: any[]) => void
+  ): Unsubscribe {
+    console.log(`📡 Setting up real-time listener for cleaning checklist: ${apartmentId}`);
+
+    // Query the subcollection: cleaningTasks/{apartmentId}/checklistItems
+    const checklistRef = collection(db, 'cleaningTasks', apartmentId, 'checklistItems');
+    const q = query(checklistRef, orderBy('order', 'asc'));
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log(`✅ Cleaning checklist update: ${items.length} items`);
+        callback(items);
+      },
+      (error) => {
+        console.error('❌ Cleaning checklist listener error:', error);
+        // Don't throw - just log the error and let the UI continue working
+      }
+    );
+  }
+
+  /**
    * Simple debt settlement - only updates balances and creates action log
    * This is the minimal approach that doesn't touch the debts collection at all
    */
