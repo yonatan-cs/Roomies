@@ -82,6 +82,7 @@ interface AppState {
   isMyCleaningTurn: boolean;
   _loadingChecklist: boolean;
   cleaningStats?: CleaningStats;
+  _checklistUnsubscribe?: () => void; // Realtime listener unsubscribe function
 
   // Expenses & Budget
   expenses: Expense[];
@@ -138,6 +139,8 @@ interface AppState {
   
   // New checklist actions (Firestore-based)
   loadCleaningChecklist: () => Promise<void>;
+  startCleaningChecklistListener: () => void; // Start realtime listener
+  stopCleaningChecklistListener: () => void; // Stop realtime listener
   completeChecklistItem: (itemId: string) => Promise<void>;
       uncompleteChecklistItem: (itemId: string) => Promise<void>;
     addChecklistItem: (title: string, order?: number) => Promise<void>;
@@ -616,6 +619,30 @@ export const useStore = create<AppState>()(
             taskCurrentTurn: task?.currentTurn
           });
 
+          // Auto-reset checklist if it's my turn and all tasks are completed by someone else
+          if (isMyTurn && currentUser && items.length > 0) {
+            const allCompleted = items.every(item => item.completed);
+            const completedByOther = items.some(item => item.completed_by && item.completed_by !== currentUser.id);
+            
+            if (allCompleted && completedByOther) {
+              console.log('🔄 Auto-resetting checklist for new turn');
+              try {
+                await firestoreService.resetAllChecklistItems();
+                // Reload after reset
+                const resetItems = await firestoreService.getCleaningChecklist();
+                set({
+                  checklistItems: resetItems,
+                  isMyCleaningTurn: isMyTurn,
+                  _loadingChecklist: false
+                });
+                return;
+              } catch (resetError) {
+                console.error('Error auto-resetting checklist:', resetError);
+                // Continue with completed items if reset fails
+              }
+            }
+          }
+
           set({
             checklistItems: items,
             isMyCleaningTurn: isMyTurn,
@@ -624,6 +651,78 @@ export const useStore = create<AppState>()(
           console.error('Error loading checklist:', error);
         } finally {
           set({ _loadingChecklist: false });
+        }
+      },
+
+      startCleaningChecklistListener: () => {
+        const state = get();
+        const { currentApartment, _checklistUnsubscribe } = state;
+        
+        // If already listening, don't start again
+        if (_checklistUnsubscribe) {
+          console.log('📡 Cleaning checklist listener already active');
+          return;
+        }
+        
+        if (!currentApartment?.id) {
+          console.warn('Cannot start cleaning checklist listener: no apartment');
+          return;
+        }
+        
+        console.log('📡 Starting realtime cleaning checklist listener');
+        
+        // Start the realtime listener
+        const unsubscribe = firestoreSDKService.subscribeToCleaningChecklist(
+          currentApartment.id,
+          async (items) => {
+            const state = get();
+            const { currentUser, currentApartment, cleaningTask } = state;
+            
+            // Calculate if it's my turn
+            const currentTurnUserId = getCurrentTurnUserId(cleaningTask);
+            const members = currentApartment?.members ?? [];
+            const isMyTurn = members.length === 1 ? 
+              !!(cleaningTask && currentUser && members[0].id === currentUser.id) :
+              !!(cleaningTask && currentUser && currentTurnUserId === currentUser.id);
+            
+            // Auto-reset checklist if it's my turn and all tasks are completed by someone else
+            if (isMyTurn && currentUser && items.length > 0) {
+              const allCompleted = items.every((item: any) => item.completed);
+              const completedByOther = items.some((item: any) => item.completed_by && item.completed_by !== currentUser.id);
+              
+              if (allCompleted && completedByOther) {
+                console.log('🔄 [Listener] Auto-resetting checklist for new turn');
+                try {
+                  await firestoreService.resetAllChecklistItems();
+                  // The listener will receive the updated items automatically
+                  return;
+                } catch (resetError) {
+                  console.error('[Listener] Error auto-resetting checklist:', resetError);
+                  // Continue with completed items if reset fails
+                }
+              }
+            }
+            
+            // Update state with new items
+            set({
+              checklistItems: items,
+              isMyCleaningTurn: isMyTurn,
+            });
+          }
+        );
+        
+        // Store the unsubscribe function
+        set({ _checklistUnsubscribe: unsubscribe });
+      },
+
+      stopCleaningChecklistListener: () => {
+        const state = get();
+        const { _checklistUnsubscribe } = state;
+        
+        if (_checklistUnsubscribe) {
+          console.log('📡 Stopping realtime cleaning checklist listener');
+          _checklistUnsubscribe();
+          set({ _checklistUnsubscribe: undefined });
         }
       },
 
@@ -661,16 +760,17 @@ export const useStore = create<AppState>()(
 
         // Optimistic: mark locally immediately
         const originalItems = [...checklistItems];
+        const now = new Date().toISOString();
         set({
           checklistItems: checklistItems.map(it =>
-            it.id === itemId ? { ...it, completed: true, completed_by: currentUser.id } : it
+            it.id === itemId ? { ...it, completed: true, completed_by: currentUser.id, completed_at: now } : it
           )
         });
 
         try {
           await firestoreService.markChecklistItemCompleted(itemId);
-          // Reload to sync (and see completed_by/at)
-          await get().loadCleaningChecklist();
+          // Don't reload - the optimistic update is sufficient and reduces flickering
+          // The data will be synced on next focus/refresh
         } catch (error) {
           console.error('Error completing checklist item:', error);
           // Rollback on error
@@ -696,6 +796,9 @@ export const useStore = create<AppState>()(
           return;
         }
 
+        // Store original state for rollback
+        const originalItems = [...checklistItems];
+        
         // Optimistic: unmark locally immediately
         set({
           checklistItems: checklistItems.map(it =>
@@ -705,12 +808,12 @@ export const useStore = create<AppState>()(
 
         try {
           await firestoreService.unmarkChecklistItemCompleted(itemId);
-          // Reload to sync
-          await get().loadCleaningChecklist();
+          // Don't reload - the optimistic update is sufficient and reduces flickering
+          // The data will be synced on next focus/refresh
         } catch (error) {
           console.error('Error uncompleting checklist item:', error);
           // Rollback on error
-          set({ checklistItems });
+          set({ checklistItems: originalItems });
         }
       },
 
@@ -731,8 +834,7 @@ export const useStore = create<AppState>()(
 
         try {
           await firestoreService.addChecklistItem(title.trim(), order);
-          // Reload to get the new item with proper ID
-          await get().loadCleaningChecklist();
+          // No need to reload - the realtime listener will update automatically
         } catch (error) {
           console.error('Error adding checklist item:', error);
           throw error;
@@ -751,8 +853,7 @@ export const useStore = create<AppState>()(
 
         try {
           await firestoreService.removeChecklistItem(itemId);
-          // Reload to get the updated list
-          await get().loadCleaningChecklist();
+          // No need to reload - the realtime listener will update automatically
         } catch (error) {
           console.error('Error removing checklist item:', error);
           throw error;
@@ -803,27 +904,18 @@ export const useStore = create<AppState>()(
         }
 
         try {
-          // Optimistic reset: immediately update UI before server calls
-          set((s) => ({
-            checklistItems: s.checklistItems.map(it => ({
-              ...it,
-              completed: false,
-              completed_by: null,
-              completed_at: null,
-            })),
-          }));
-
-          // Reset all checklist items first
-          await firestoreService.resetAllChecklistItems();
-          // Then mark cleaning as completed (moves to next person)
+          // Don't reset checklist items immediately - they will stay visible as completed
+          // and will be reset when the next user starts their turn
+          
+          // Mark cleaning as completed (moves to next person)
           await firestoreService.markCleaningCompleted();
-          // Reload task, checklist, and stats
+          // Reload task and stats (checklist will update via realtime listener)
           await Promise.all([
             get().loadCleaningTask(),
-            get().loadCleaningChecklist(),
             get().loadCleaningStats(),
           ]);
           
+          // Note: checklist items stay checked and disabled until the next user resets them
           // Verify stats were updated
           const updatedStats = get().cleaningStats;
           console.log('✅ Cleaning turn finished. Updated stats:', updatedStats);
@@ -1534,6 +1626,7 @@ export const useStore = create<AppState>()(
         currentUser: state.currentUser,
         currentApartment: state.currentApartment,
         appLanguage: state.appLanguage,
+        userGender: state.userGender,
         currency: state.currency,
         themeSetting: state.themeSetting,
         hapticsEnabled: state.hapticsEnabled,
