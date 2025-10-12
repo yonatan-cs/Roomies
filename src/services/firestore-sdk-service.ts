@@ -21,13 +21,11 @@ import {
   onSnapshot,
   Unsubscribe,
   Query,
-  CollectionReference,
-  QueryConstraint
+  CollectionReference
 } from 'firebase/firestore';
 import { db } from './firebase-sdk';
 import { firebaseAuth } from './firebase-auth';
 import { firestoreService, requireSession, ensureCurrentApartmentIdMatches } from './firestore-service';
-import { useStore } from '../state/store';
 
 export interface DebtSettlementData {
   apartmentId: string;
@@ -45,11 +43,6 @@ export interface ExpenseUpdateData {
   title?: string;
   note?: string;
 }
-
-type SubscribeOpts = {
-  orderByField?: string;
-  extra?: QueryConstraint[]; // אופציונלי: פילטרים נוספים
-};
 
 /**
  * Firestore SDK Service Class
@@ -159,55 +152,8 @@ export class FirestoreSDKService {
   }
 
   /**
-   * ✅ עטיפת subscribe שמוסיפה where ומחכה ל-aptId
-   * פותר את כל 3 הבעיות: aptId null, missing where, wrong field name
-   */
-  subscribeCollection(
-    collectionName: 'expenses' | 'shopping_items' | 'cleaning_checklist' | string,
-    opts: SubscribeOpts,
-    callback: (rows: any[]) => void
-  ): Unsubscribe {
-    // Get current apartment ID from store
-    const store = useStore.getState();
-    const aptId = store.currentApartment?.id;
-
-    // 1) בלי דירה נוכחית – לא פותחים מאזין (מונע Permission Denied)
-    if (!aptId) {
-      console.warn(`subscribeCollection(${collectionName}): skipped – no currentApartmentId yet`);
-      return () => {}; // noop unsubscribe
-    }
-
-    const needsAptFilter = ['expenses', 'shopping_items', 'cleaning_checklist'].includes(collectionName);
-
-    let base = collection(db, collectionName);
-    let constraints: QueryConstraint[] = [];
-
-    // 2) מוסיפים where חובה לפי הכללים
-    if (needsAptFilter) {
-      constraints.push(where('apartment_id', '==', aptId));
-    }
-
-    // 3) כבוד למסננים קיימים
-    if (opts?.extra?.length) constraints = constraints.concat(opts.extra);
-    if (opts?.orderByField) constraints.push(orderBy(opts.orderByField as any));
-
-    const q = query(base, ...constraints);
-
-    // 4) לוג קצר כדי לוודא
-    console.log(`[subscribe] ${collectionName} apt=${aptId} constraints=`, constraints);
-
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      callback(data);
-    }, (err) => {
-      console.error(`❌ ${collectionName} subscription error:`, err);
-    });
-
-    return unsub;
-  }
-
-  /**
-   * @deprecated Use subscribeCollection instead - it automatically handles apartment_id filtering
+   * Get real-time updates for a collection using onSnapshot
+   * This is more efficient than polling with REST API
    */
   subscribeToCollection(
     collectionName: string,
@@ -217,23 +163,18 @@ export class FirestoreSDKService {
     orderDirection: 'asc' | 'desc' = 'desc'
   ): Unsubscribe {
     console.log(`📡 Setting up real-time subscription for ${collectionName}`);
-    console.log(`📡 Filters:`, filters);
 
     let q: Query | CollectionReference = collection(db, collectionName);
     
     // Apply filters if provided
     if (filters) {
       filters.forEach(filter => {
-        console.log(`📡 Applying filter: ${filter.field} ${filter.operator} ${filter.value}`);
         q = query(q, where(filter.field, filter.operator, filter.value));
       });
-    } else {
-      console.log(`⚠️ No filters provided for ${collectionName} - this may cause permission errors!`);
     }
     
     // Apply ordering if provided
     if (orderByField) {
-      console.log(`📡 Applying orderBy: ${orderByField} ${orderDirection}`);
       q = query(q, orderBy(orderByField, orderDirection));
     }
 

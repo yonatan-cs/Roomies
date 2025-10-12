@@ -131,74 +131,6 @@ export class FCMNotificationService {
   }
 
   /**
-   * Handle data refresh based on notification type
-   * Triggers appropriate store methods when notifications received in foreground
-   */
-  private handleDataRefresh(notificationType: string, data?: any): void {
-    console.log(`🔄 Handling data refresh for type: ${notificationType}`);
-    
-    const store = useStore.getState();
-    
-    try {
-      switch (notificationType) {
-        case 'shopping_item_added':
-        case 'shopping_item_purchased':
-          // Refresh shopping items
-          console.log('🛒 Refreshing shopping items...');
-          store.loadShoppingItems();
-          break;
-
-        case 'expense_added':
-          // Refresh expenses and debt settlements
-          console.log('💰 Refreshing expenses and debts...');
-          store.loadExpenses();
-          store.loadDebtSettlements();
-          break;
-
-        case 'cleaning_completed':
-        case 'cleaning_task_added':
-          // Refresh cleaning data
-          console.log('🧹 Refreshing cleaning data...');
-          store.loadCleaningTask();
-          store.loadCleaningChecklist();
-          store.loadCleaningStats();
-          break;
-
-        case 'member_joined':
-          // Refresh apartment members
-          console.log('👋 Refreshing apartment members...');
-          store.refreshApartmentMembers();
-          break;
-
-        case 'cleaning_reminder':
-          // Just show the notification, no data refresh needed
-          console.log('⏰ Cleaning reminder notification');
-          break;
-
-        case 'purchase_followup':
-          // Refresh expenses to show updated purchase status
-          console.log('💸 Refreshing expenses for purchase follow-up...');
-          store.loadExpenses();
-          break;
-
-        default:
-          console.log(`⚠️ Unknown notification type: ${notificationType}, refreshing all data`);
-          // Fallback: refresh all data
-          store.loadShoppingItems();
-          store.loadExpenses();
-          store.loadDebtSettlements();
-          store.loadCleaningTask();
-          store.loadCleaningChecklist();
-          break;
-      }
-      
-      console.log('✅ Data refresh triggered successfully');
-    } catch (error) {
-      console.error('❌ Error handling data refresh:', error);
-    }
-  }
-
-  /**
    * Setup FCM listeners
    */
   setupFCMListeners(): void {
@@ -212,12 +144,6 @@ export class FCMNotificationService {
     // Handle foreground messages (when app is open)
     messaging().onMessage(async remoteMessage => {
       console.log('📨 Foreground FCM message received:', remoteMessage);
-      
-      // Trigger data refresh based on notification type
-      const notificationType = remoteMessage.data?.type as string;
-      if (notificationType) {
-        this.handleDataRefresh(notificationType, remoteMessage.data);
-      }
       
       // Show a local notification when app is in foreground
       if (remoteMessage.notification) {
@@ -235,23 +161,11 @@ export class FCMNotificationService {
     // Setup Expo notification listeners for tap handling
     this.notificationListener = Notifications.addNotificationReceivedListener(notification => {
       console.log('🔔 Notification received (foreground):', notification);
-      
-      // Also trigger data refresh when notification is displayed
-      const notificationType = notification.request.content.data?.type as string;
-      if (notificationType) {
-        this.handleDataRefresh(notificationType, notification.request.content.data);
-      }
     });
 
     this.responseListener = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('👆 Notification tapped:', response);
       const data = response.notification.request.content.data;
-      
-      // Trigger data refresh when user taps notification
-      const notificationType = data?.type as string;
-      if (notificationType) {
-        this.handleDataRefresh(notificationType, data);
-      }
       
       // Handle navigation based on notification data
       if (data?.screen) {
@@ -266,10 +180,7 @@ export class FCMNotificationService {
       this.fcmToken = token;
       
       // Update token in Firestore if we have a user
-      const currentUser = useStore.getState().currentUser;
-      if (currentUser?.id) {
-        await this.saveTokenToFirestore(currentUser.id);
-      }
+      // You'll need to get the current user ID here
     });
 
     console.log('✅ FCM listeners setup complete');
