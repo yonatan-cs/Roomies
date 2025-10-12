@@ -4,7 +4,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { firestoreService } from '../services/firestore-service';
 import { firestoreSDKService } from '../services/firestore-sdk-service';
-import { realtimeManager } from '../services/realtime-manager';
 import { ThemeSetting, DEFAULT_THEME_SETTING } from '../theme/theme-settings';
 import {
   User,
@@ -88,11 +87,9 @@ interface AppState {
   // Expenses & Budget
   expenses: Expense[];
   debtSettlements: DebtSettlement[];
-  _expensesUnsubscribe?: () => void; // Realtime listener unsubscribe function
 
   // Shopping
   shoppingItems: ShoppingItem[];
-  _shoppingItemsUnsubscribe?: () => void; // Realtime listener unsubscribe function
 
   // Actions - User & Apartment
   setCurrentUser: (user: User) => void;
@@ -115,8 +112,6 @@ interface AppState {
   updateExpense: (expenseId: string, updates: Partial<Omit<Expense, 'id' | 'date'>>) => Promise<void>;
   deleteExpense: (expenseId: string) => Promise<void>;
   loadExpenses: () => Promise<void>;
-  startExpensesListener: () => void; // Start realtime listener
-  stopExpensesListener: () => void; // Stop realtime listener
   loadDebtSettlements: () => Promise<void>;
   getBalances: () => Balance[];
   getRawBalances: () => Balance[];
@@ -132,8 +127,6 @@ interface AppState {
   // Actions - Shopping
   addShoppingItem: (name: string, userId: string, priority?: 'low' | 'normal' | 'high', quantity?: number, notes?: string) => Promise<void>;
   loadShoppingItems: () => Promise<void>;
-  startShoppingItemsListener: () => void; // Start realtime listener
-  stopShoppingItemsListener: () => void; // Stop realtime listener
   updateShoppingItem: (itemId: string, updates: { priority?: 'low' | 'normal' | 'high'; quantity?: number; notes?: string; name?: string }) => Promise<void>;
   markItemPurchased: (itemId: string, userId: string, price?: number, participants?: string[], category?: ExpenseCategory, note?: string, purchaseDate?: Date) => Promise<void>;
   addItemToShoppingList: (name: string, userId: string) => Promise<void>;
@@ -370,82 +363,6 @@ export const useStore = create<AppState>()(
         }
       },
 
-      startExpensesListener: () => {
-        const state = get();
-        const { currentApartment, _expensesUnsubscribe } = state;
-        
-        // If already listening, don't start again
-        if (_expensesUnsubscribe) {
-          console.log('📡 Expenses listener already active');
-          return;
-        }
-        
-        console.log('📡 Starting safe real-time expenses listener');
-        console.log('📡 currentApartment:', currentApartment);
-        console.log('📡 currentUser:', state.currentUser?.id);
-        
-        // Use the new safe method
-        const unsubscribe = realtimeManager.subscribeToCollectionSafe(
-          'expenses',
-          'expenses',
-          (docs) => {
-            const expenses: Expense[] = docs.map((doc: any) => {
-              const note = doc.note;
-              const isHiddenDebtSettlement = note && note.includes('HIDDEN_DEBT_SETTLEMENT_');
-              const isDebtSettlementMessage = note && note.includes('DEBT_SETTLEMENT_MESSAGE_');
-              const category = doc.category as ExpenseCategory;
-              
-              // Parse debt settlement message
-              let debtSettlementMessage = '';
-              if (isDebtSettlementMessage && note) {
-                const parts = note.split('_');
-                if (parts.length >= 3) {
-                  const amount = parts[3];
-                  const fromUserId = doc.paid_by_user_id;
-                  const participants = doc.participants || [];
-                  const toUserId = participants.find((p: string) => p !== fromUserId);
-                  
-                  if (fromUserId && toUserId) {
-                    debtSettlementMessage = `${fromUserId} שילם ${amount}₪ ל-${toUserId}`;
-                  }
-                }
-              }
-              
-              return {
-                id: doc.id || uuidv4(),
-                title: isHiddenDebtSettlement ? 'סגירת חוב' : 
-                       isDebtSettlementMessage ? 'סגירת חוב' : 
-                       (doc.title || doc.note || 'הוצאה'),
-                amount: doc.amount || 0,
-                paidBy: doc.paid_by_user_id || '',
-                participants: doc.participants || [],
-                category: category || 'groceries',
-                date: new Date(doc.created_at || Date.now()),
-                description: isDebtSettlementMessage ? debtSettlementMessage : note,
-                isHiddenDebtSettlement: isHiddenDebtSettlement,
-                isDebtSettlementMessage: isDebtSettlementMessage,
-              };
-            });
-            
-            set({ expenses });
-          },
-          'created_at'
-        );
-        
-        set({ _expensesUnsubscribe: unsubscribe });
-      },
-
-      stopExpensesListener: () => {
-        const state = get();
-        const { _expensesUnsubscribe } = state;
-        
-        if (_expensesUnsubscribe) {
-          console.log('📡 Stopping real-time expenses listener');
-          _expensesUnsubscribe();
-          set({ _expensesUnsubscribe: undefined });
-        }
-      },
-
       loadDebtSettlements: async () => {
         try {
           const settlementsData = await firestoreService.getDebtSettlements();
@@ -517,59 +434,6 @@ export const useStore = create<AppState>()(
           set({ shoppingItems });
         } catch (error) {
           console.error('Error loading shopping items:', error);
-        }
-      },
-
-      startShoppingItemsListener: () => {
-        const state = get();
-        const { currentApartment, _shoppingItemsUnsubscribe } = state;
-        
-        // If already listening, don't start again
-        if (_shoppingItemsUnsubscribe) {
-          console.log('📡 Shopping items listener already active');
-          return;
-        }
-        
-        console.log('📡 Starting safe real-time shopping items listener');
-        console.log('📡 currentApartment:', currentApartment);
-        console.log('📡 currentUser:', state.currentUser?.id);
-        
-        // Use the new safe method - no need to pass apartment_id filter manually
-        const unsubscribe = realtimeManager.subscribeToCollectionSafe(
-          'shopping_items',
-          'shopping_items',
-          (docs) => {
-            const shoppingItems: ShoppingItem[] = docs.map((item: any) => ({
-              id: item.id || uuidv4(),
-              name: item.title || item.name || '',
-              addedBy: item.added_by_user_id || '',
-              quantity: item.quantity || 1,
-              priority: item.priority || 'normal',
-              notes: item.notes || '',
-              purchased: item.purchased || false,
-              purchasedBy: item.purchased_by_user_id || '',
-              purchasePrice: item.price || null,
-              createdAt: item.created_at ? new Date(item.created_at) : new Date(),
-              purchasedAt: item.purchased_at ? new Date(item.purchased_at) : undefined,
-              addedAt: item.created_at ? new Date(item.created_at) : new Date(),
-            }));
-            
-            set({ shoppingItems });
-          },
-          'created_at' // orderByField
-        );
-        
-        set({ _shoppingItemsUnsubscribe: unsubscribe });
-      },
-
-      stopShoppingItemsListener: () => {
-        const state = get();
-        const { _shoppingItemsUnsubscribe } = state;
-        
-        if (_shoppingItemsUnsubscribe) {
-          console.log('📡 Stopping real-time shopping items listener');
-          _shoppingItemsUnsubscribe();
-          set({ _shoppingItemsUnsubscribe: undefined });
         }
       },
 
@@ -780,69 +644,58 @@ export const useStore = create<AppState>()(
           return;
         }
         
-        console.log('📡 Starting safe real-time cleaning checklist listener');
-        console.log('📡 currentApartment:', currentApartment);
-        console.log('📡 currentUser:', state.currentUser?.id);
+        if (!currentApartment?.id) {
+          console.warn('Cannot start cleaning checklist listener: no apartment');
+          return;
+        }
         
-        // Use the new safe method
-        const unsubscribe = realtimeManager.subscribeToCollectionSafe(
-          'cleaning_checklist',
-          'cleaning_checklist',
-          async (docs) => {
-            try {
-              // Check for overdue tasks (automatic turn rotation)
-              await get().checkOverdueTasks();
+        console.log('📡 Starting polling-based checklist updates (Firebase rules compatible)');
+        
+        // Use polling instead of realtime listener due to Firebase rules complexity
+        const pollInterval = setInterval(async () => {
+          try {
+            // Check for overdue tasks (automatic turn rotation)
+            await get().checkOverdueTasks();
+            
+            const items = await firestoreService.getCleaningChecklist();
+            const { currentUser, currentApartment, cleaningTask } = get();
+            
+            // Calculate if it's my turn
+            const currentTurnUserId = getCurrentTurnUserId(cleaningTask);
+            const members = currentApartment?.members ?? [];
+            const isMyTurn = members.length === 1 ? 
+              !!(cleaningTask && currentUser && members[0].id === currentUser.id) :
+              !!(cleaningTask && currentUser && currentTurnUserId === currentUser.id);
+            
+            // Auto-reset checklist if it's my turn and all tasks are completed by someone else
+            if (isMyTurn && currentUser && items.length > 0) {
+              const allCompleted = items.every((item: any) => item.completed);
+              const completedByOther = items.some((item: any) => item.completed_by && item.completed_by !== currentUser.id);
               
-              const items: ChecklistItem[] = docs.map((doc: any) => ({
-                id: doc.id || uuidv4(),
-                title: doc.title || '',
-                completed: doc.completed || false,
-                completed_by: doc.completed_by || null,
-                completed_at: doc.completed_at || null,
-                apartment_id: doc.apartment_id || '',
-                order: doc.order || 0,
-              }));
-              
-              const { currentUser, currentApartment, cleaningTask } = get();
-              
-              // Calculate if it's my turn
-              const currentTurnUserId = getCurrentTurnUserId(cleaningTask);
-              const members = currentApartment?.members ?? [];
-              const isMyTurn = members.length === 1 ? 
-                !!(cleaningTask && currentUser && members[0].id === currentUser.id) :
-                !!(cleaningTask && currentUser && currentTurnUserId === currentUser.id);
-              
-              // Auto-reset checklist if it's my turn and all tasks are completed by someone else
-              if (isMyTurn && currentUser && items.length > 0) {
-                const allCompleted = items.every((item: any) => item.completed);
-                const completedByOther = items.some((item: any) => item.completed_by && item.completed_by !== currentUser.id);
-                
-                if (allCompleted && completedByOther) {
-                  console.log('🔄 [Real-time] Auto-resetting checklist for new turn');
-                  try {
-                    await firestoreService.resetAllChecklistItems();
-                    return;
-                  } catch (resetError) {
-                    console.error('[Real-time] Error auto-resetting checklist:', resetError);
-                    // Continue with completed items if reset fails
-                  }
+              if (allCompleted && completedByOther) {
+                console.log('🔄 [Polling] Auto-resetting checklist for new turn');
+                try {
+                  await firestoreService.resetAllChecklistItems();
+                  return;
+                } catch (resetError) {
+                  console.error('[Polling] Error auto-resetting checklist:', resetError);
+                  // Continue with completed items if reset fails
                 }
               }
-              
-              // Update state with new items
-              set({
-                checklistItems: items,
-                isMyCleaningTurn: isMyTurn,
-              });
-            } catch (error) {
-              console.error('Error in checklist listener:', error);
             }
-          },
-          'order' // orderByField
-        );
+            
+            // Update state with new items
+            set({
+              checklistItems: items,
+              isMyCleaningTurn: isMyTurn,
+            });
+          } catch (error) {
+            console.error('Error in checklist polling:', error);
+          }
+        }, 10000); // Poll every 10 seconds (reduced frequency for automatic turn rotation)
         
         // Store the unsubscribe function
-        set({ _checklistUnsubscribe: unsubscribe });
+        set({ _checklistUnsubscribe: () => clearInterval(pollInterval) });
       },
 
       stopCleaningChecklistListener: () => {
@@ -1246,9 +1099,7 @@ export const useStore = create<AppState>()(
 
             // Move to next person in queue
             const queue = task.queue || [];
-            // Calculate current index based on current user_id instead of relying on stored current_index
-            let currentIndex = queue.indexOf(task.user_id);
-            if (currentIndex === -1) currentIndex = 0; // fallback if user not found
+            let currentIndex = task.current_index || 0;
             currentIndex = (currentIndex + 1) % queue.length;
             const nextUserId = queue[currentIndex];
 

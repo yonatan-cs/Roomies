@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useStore } from '../state/store';
 import { cn } from '../utils/cn';
@@ -66,26 +66,20 @@ export default function BudgetScreen() {
     getMonthlyExpenses,
     getTotalApartmentExpenses,
     loadDebtSettlements,
-    deleteExpense,
-    startExpensesListener,
-    stopExpensesListener
+    deleteExpense
   } = useStore();
 
-  // Set up real-time listener when screen is focused
-  useFocusEffect(
-    useCallback(() => {
-      console.log('💰 BudgetScreen: Setting up real-time expenses listener');
-      startExpensesListener();
-      
-      // Also load debt settlements (less frequently updated)
-      loadDebtSettlements();
-      
-      return () => {
-        console.log('💰 BudgetScreen: Cleaning up real-time expenses listener');
-        stopExpensesListener();
-      };
-    }, [startExpensesListener, stopExpensesListener, loadDebtSettlements])
-  );
+  // Load debt settlements on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await loadDebtSettlements();
+      } catch (error) {
+        console.error('Error loading debt settlements in Budget screen:', error);
+      }
+    };
+    loadData();
+  }, [loadDebtSettlements]);
 
   const balances = useMemo(() => getBalances(), [expenses, debtSettlements]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
