@@ -235,48 +235,10 @@ export class FirestoreSDKService {
   }
 
   /**
-   * Subscribe to cleaning checklist items for real-time updates
-   * This allows users to see live progress when others complete tasks
+   * NOTE: Realtime listener removed due to Firebase Security Rules complexity
+   * The rules require reading parent documents which creates infinite recursion in onSnapshot
+   * Using polling-based updates instead via REST API
    */
-  subscribeToCleaningChecklist(
-    apartmentId: string,
-    callback: (items: any[]) => void
-  ): Unsubscribe {
-    console.log(`📡 Setting up real-time listener for cleaning checklist: ${apartmentId}`);
-
-    // Query the subcollection: cleaningTasks/{apartmentId}/checklistItems
-    const checklistRef = collection(db, 'cleaningTasks', apartmentId, 'checklistItems');
-    const q = query(checklistRef, orderBy('order', 'asc'));
-
-    return onSnapshot(
-      q,
-      (snapshot) => {
-        const items = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        console.log(`✅ Cleaning checklist update: ${items.length} items`);
-        callback(items);
-      },
-      (error) => {
-        console.error('❌ Cleaning checklist listener error:', error);
-        
-        // Handle specific Firebase errors
-        if (error.code === 'permission-denied') {
-          console.error('🚫 Permission denied for cleaning checklist listener');
-          console.error('🚫 Make sure user is authenticated and has access to apartment');
-        } else if (error.code === 'unavailable') {
-          console.error('🌐 Firebase service temporarily unavailable');
-        } else if (error.code === 'unauthenticated') {
-          console.error('🔐 User not authenticated for cleaning checklist listener');
-        }
-        
-        // Don't throw - just log the error and let the UI continue working
-        // The UI will fall back to manual loading
-      }
-    );
-  }
 
   /**
    * Simple debt settlement - only updates balances and creates action log

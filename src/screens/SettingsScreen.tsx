@@ -6,6 +6,7 @@ import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
 import * as Clipboard from 'expo-clipboard';
 import ConfirmModal from '../components/ConfirmModal';
 import AppSettingsSection from '../components/AppSettingsSection';
+import CleaningScheduleSection from '../components/CleaningScheduleSection';
 import { AppTextInput } from '../components/AppTextInput';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
@@ -19,12 +20,9 @@ import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { cn } from '../utils/cn';
-import { DayPicker } from '../components/DayPicker';
-import { IntervalPicker } from '../components/IntervalPicker';
 // FCM disabled for Expo Go compatibility - restore before App Store deployment
 // import { fcmNotificationService } from '../services/fcm-notification-service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { getTaskLabel } from '../utils/taskLabel';
 import { showThemedAlert } from '../components/ThemedAlert';
 import * as Notifications from 'expo-notifications';
 
@@ -41,12 +39,6 @@ export default function SettingsScreen() {
     currentApartment,
     setCurrentUser,
     setCurrency,
-    cleaningSettings,
-    setCleaningIntervalDays,
-    setCleaningAnchorDow,
-    checklistItems,
-    addChecklistItem,
-    removeChecklistItem,
     refreshApartmentMembers,
     checkMemberCanBeRemoved,
     removeApartmentMember,
@@ -87,13 +79,6 @@ export default function SettingsScreen() {
   const [newName, setNewName] = useState(currentUser?.name || '');
   const [copied, setCopied] = useState(false);
   const [confirmLeaveVisible, setConfirmLeaveVisible] = useState(false);
-
-  const [newChore, setNewChore] = useState('');
-  const [editingChoreId, setEditingChoreId] = useState<string | null>(null);
-  const [editingChoreName, setEditingChoreName] = useState('');
-  const [isAddingChore, setIsAddingChore] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [deletingChoreId, setDeletingChoreId] = useState<string | null>(null);
 
   // Member removal states
   const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
@@ -626,195 +611,8 @@ export default function SettingsScreen() {
           </View>
         </ThemedCard>
 
-        {/* Cleaning Schedule */}
-        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningSchedule')}</ThemedText>
-
-          <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.frequency')}</ThemedText>
-          <IntervalPicker
-            selectedInterval={cleaningSettings.intervalDays}
-            onIntervalChange={(interval) => {
-              selection(); // Haptic feedback for schedule selection
-              setCleaningIntervalDays(interval);
-            }}
-            style={{ marginBottom: 16 }}
-          />
-
-          <ThemedText className="mb-2" style={themed.textSecondary}>{t('settings.rotationDay')}</ThemedText>
-          <DayPicker
-            selectedDay={cleaningSettings.anchorDow}
-            onDayChange={(day) => {
-              selection(); // Haptic feedback for day selection
-              setCleaningAnchorDow(day);
-            }}
-            style={{ marginBottom: 8 }}
-          />
-        </ThemedCard>
-
-        {/* Cleaning Chores */}
-        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <ThemedText className="text-lg font-semibold mb-4">{t('settings.cleaningTasks')} ({checklistItems.length})</ThemedText>
-
-
-          {checklistItems.map((item) => {
-            const isEditing = editingChoreId === item.id;
-            return (
-              <View
-                key={item.id}
-                className="items-center py-2"
-                style={{
-                  flexDirection: isRTL ? 'row-reverse' : 'row',
-                  alignItems: 'center'
-                }}
-              >
-                {isEditing ? (
-                  <AppTextInput
-                    value={editingChoreName}
-                    onChangeText={setEditingChoreName}
-                    className="flex-1 border rounded-xl px-3 py-2 text-base"
-                    style={[themed.borderColor, themed.inputBg, themed.inputText]}
-                    returnKeyType="done"
-                    onSubmitEditing={() => {
-                      if (editingChoreName.trim()) {
-                        // TODO: Implement rename functionality for checklist items
-                        setEditingChoreId(null);
-                        setEditingChoreName('');
-                      } else {
-                        setEditingChoreId(null);
-                      }
-                      Keyboard.dismiss();
-                    }}
-                    placeholderTextColor={themed.textSecondary.color}
-                  />
-                ) : (
-                  <ThemedText className="flex-1 text-base">{getTaskLabel(item)}</ThemedText>
-                )}
-                {!isEditing ? (
-                  <View
-                    className="flex-row"
-                    style={{
-                      flexDirection: isRTL ? 'row-reverse' : 'row',
-                      alignItems: 'center',
-                      marginStart: isRTL ? 0 : 8,
-                      marginEnd: isRTL ? 8 : 0
-                    }}
-                  >
-                    <Pressable
-                      onPress={() => {
-                        impactLight(); // Haptic feedback for edit task
-                        setEditingChoreId(item.id);
-                        setEditingChoreName(getTaskLabel(item));
-                      }}
-                      className="p-2"
-                    >
-                      <Ionicons name="pencil" size={18} color="#6b7280" />
-                    </Pressable>
-                    <Pressable
-                      onPress={async () => {
-                        if (deletingChoreId) return; // Prevent multiple clicks
-                        warning(); // Haptic feedback for delete task
-                        setDeletingChoreId(item.id);
-                        try {
-                          await removeChecklistItem(item.id);
-                        } catch (error) {
-                          console.error('Error removing checklist item:', error);
-                          showThemedAlert(t('common.error'), t('settings.alerts.cannotDeleteTask'));
-                        } finally {
-                          setDeletingChoreId(null);
-                        }
-                      }}
-                      disabled={deletingChoreId === item.id}
-                      className="p-2"
-                    >
-                      {deletingChoreId === item.id ? (
-                        <Ionicons name="hourglass" size={18} color="#6b7280" />
-                      ) : (
-                        <Ionicons name="trash" size={18} color="#ef4444" />
-                      )}
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Pressable
-                    onPress={() => {
-                      impactLight(); // Haptic feedback for cancel edit
-                      setEditingChoreId(null);
-                      setEditingChoreName('');
-                    }}
-                    className="p-2 ml-2"
-                  >
-                    <Ionicons name="close" size={18} color="#ef4444" />
-                  </Pressable>
-                )}
-              </View>
-            );
-          })}
-
-          <View className="flex-row items-center mt-4">
-            <AppTextInput
-              value={newChore}
-              onChangeText={setNewChore}
-              placeholder={t('settings.addNewTaskPlaceholder')}
-              className="flex-1 border rounded-xl px-4 py-3 text-base"
-              style={[themed.borderColor, themed.inputBg, themed.inputText]}
-              onSubmitEditing={async () => {
-                if (!newChore.trim()) return;
-                setIsAddingChore(true);
-                try {
-                  await addChecklistItem(newChore.trim());
-                  setNewChore('');
-                  success(); // Haptic feedback for successful task addition
-                  setShowSuccessMessage(true);
-                  setTimeout(() => setShowSuccessMessage(false), 3000);
-                } catch (error) {
-                  console.error('Error adding checklist item:', error);
-                  showThemedAlert(t('common.error'), t('settings.alerts.cannotAddTask'));
-                } finally {
-                  setIsAddingChore(false);
-                }
-                Keyboard.dismiss();
-              }}
-              returnKeyType="done"
-              editable={!isAddingChore}
-              placeholderTextColor={themed.textSecondary.color}
-            />
-            <Pressable
-              onPress={async () => {
-                if (!newChore.trim()) return;
-                impactMedium(); // Haptic feedback for add task action
-                setIsAddingChore(true);
-                try {
-                  await addChecklistItem(newChore.trim());
-                  setNewChore('');
-                  setShowSuccessMessage(true);
-                  setTimeout(() => setShowSuccessMessage(false), 3000);
-                } catch (error) {
-                  console.error('Error adding checklist item:', error);
-                  showThemedAlert(t('common.error'), t('settings.alerts.cannotAddTask'));
-                } finally {
-                  setIsAddingChore(false);
-                }
-              }}
-              disabled={isAddingChore}
-              className={`w-12 h-12 rounded-xl items-center justify-center mr-3 ${isAddingChore ? 'bg-gray-400' : 'bg-blue-500'
-                }`}
-            >
-              {isAddingChore ? (
-                <Ionicons name="hourglass" size={24} color="white" />
-              ) : (
-                <Ionicons name="add" size={24} color="white" />
-              )}
-            </Pressable>
-          </View>
-
-          {/* Success Message */}
-          {showSuccessMessage && (
-            <View className="bg-green-100 border border-green-300 rounded-xl p-4 mt-4">
-              <ThemedText className="text-green-800 text-center font-medium">
-                ✅ {t('settings.alerts.taskAddedSuccess')}
-              </ThemedText>
-            </View>
-          )}
-        </ThemedCard>
+        {/* Cleaning Schedule & Tasks Section */}
+        <CleaningScheduleSection />
 
         {/* Notifications Section */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
