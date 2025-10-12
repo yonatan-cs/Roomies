@@ -209,6 +209,14 @@ export function getCurrentCycleWithSettings(task: {
   }
   // Respect frequency_days coming from task; fallback to settings interval
   const frequency_days = task.frequency_days || cleaningSettings.intervalDays || 7;
+  
+  // For intervals less than a week, don't use day-of-week anchor
+  // Just use simple day-based calculation
+  if (frequency_days < 7) {
+    return getCurrentCycle({ ...task, frequency_days });
+  }
+  
+  // For weekly or longer intervals, use day-of-week anchor
   return getCurrentCycleWithDayOfWeek({ ...task, frequency_days }, cleaningSettings.anchorDow);
 }
 

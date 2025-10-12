@@ -357,26 +357,19 @@ export default function CleaningScreen() {
     }, cleaningSettings);
     
     const now = new Date();
-    const today = new Date(now);
-    today.setHours(0, 0, 0, 0);
     
-    const cycleEndDate = new Date(cycleEnd);
-    cycleEndDate.setHours(0, 0, 0, 0);
+    // Calculate exact days until rotation (from now)
+    const msUntilRotation = cycleEnd.getTime() - now.getTime();
+    const daysUntil = Math.ceil(msUntilRotation / (24 * 60 * 60 * 1000));
     
-    // Calculate days until rotation
-    const daysUntil = Math.ceil((cycleEndDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
-    
-    if (daysUntil < 0) {
-      // Already overdue - don't show rotation message
+    if (daysUntil <= 0) {
+      // Already overdue or today - don't show rotation message
       return null;
-    } else if (daysUntil === 0) {
-      // Today
-      return t('cleaning.rotatesToday');
     } else if (daysUntil === 1) {
-      // Tomorrow
+      // Tomorrow (within 24 hours)
       return t('cleaning.rotatesTomorrow');
     } else if (daysUntil <= 6) {
-      // Within a week - show day name
+      // 2-6 days - show day name
       const dayName = t(`days.${cycleEnd.getDay()}`);
       return t('cleaning.rotatesOnDay', { day: dayName });
     }
