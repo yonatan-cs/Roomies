@@ -122,7 +122,7 @@ export const resources = {
         fullName: 'Full name',
         email: 'Email',
         cleaningSchedule: 'Cleaning Schedule',
-        frequency: 'Frequency',
+        frequency: 'Cleaning rotation changes every:',
         rotationDay: 'Rotation day (default Sunday)',
         cleaningTasks: 'Cleaning tasks',
         haptics: 'Haptics',
@@ -160,6 +160,17 @@ export const resources = {
           weekly: 'Weekly',
           biweekly: 'Bi-weekly',
           monthly: 'Monthly'
+        },
+        intervalLabels: {
+          oneDay: 'Day',
+          twoDays: '2 days',
+          threeDays: '3 days',
+          fourDays: '4 days',
+          fiveDays: '5 days',
+          sixDays: '6 days',
+          oneWeek: 'Week',
+          twoWeeks: '2 weeks',
+          oneMonth: 'Month'
         },
         addNewTaskPlaceholder: 'Add new task...',
         leaveApartmentTitle: 'Leave apartment',
@@ -669,7 +680,7 @@ export const resources = {
         fullName: 'שם מלא',
         email: 'אימייל',
         cleaningSchedule: 'סבב ניקיון',
-        frequency: 'תדירות',
+        frequency: 'סבב הניקיון מתחלף כל:',
         rotationDay: 'יום התחלפות (ברירת מחדל ראשון)',
         cleaningTasks: 'משימות ניקיון',
         haptics: 'רטט',
@@ -709,6 +720,17 @@ export const resources = {
           weekly: 'שבועי',
           biweekly: 'דו שבועי',
           monthly: 'חודשי'
+        },
+        intervalLabels: {
+          oneDay: 'יום',
+          twoDays: 'יומיים',
+          threeDays: '3 ימים',
+          fourDays: '4 ימים',
+          fiveDays: '5 ימים',
+          sixDays: '6 ימים',
+          oneWeek: 'שבוע',
+          twoWeeks: 'שבועיים',
+          oneMonth: 'חודש'
         },
         addNewTaskPlaceholder: 'הוסף משימה חדשה...',
         leaveApartmentTitle: 'עזיבת דירה',
