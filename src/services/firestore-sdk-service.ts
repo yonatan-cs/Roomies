@@ -163,18 +163,23 @@ export class FirestoreSDKService {
     orderDirection: 'asc' | 'desc' = 'desc'
   ): Unsubscribe {
     console.log(`📡 Setting up real-time subscription for ${collectionName}`);
+    console.log(`📡 Filters:`, filters);
 
     let q: Query | CollectionReference = collection(db, collectionName);
     
     // Apply filters if provided
     if (filters) {
       filters.forEach(filter => {
+        console.log(`📡 Applying filter: ${filter.field} ${filter.operator} ${filter.value}`);
         q = query(q, where(filter.field, filter.operator, filter.value));
       });
+    } else {
+      console.log(`⚠️ No filters provided for ${collectionName} - this may cause permission errors!`);
     }
     
     // Apply ordering if provided
     if (orderByField) {
+      console.log(`📡 Applying orderBy: ${orderByField} ${orderDirection}`);
       q = query(q, orderBy(orderByField, orderDirection));
     }
 

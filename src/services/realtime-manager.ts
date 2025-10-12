@@ -60,6 +60,7 @@ class RealtimeManager {
     }
 
     console.log(`📡 Starting real-time listener for: ${key} (collection: ${collectionName})`);
+    console.log(`📡 Filters received:`, filters);
 
     // Create the onSnapshot listener
     const unsubscribe = firestoreSDKService.subscribeToCollection(
