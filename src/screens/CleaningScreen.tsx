@@ -37,6 +37,7 @@ export default function CleaningScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [turnCompleted, setTurnCompleted] = useState(false);
   const [isFinishingTurn, setIsFinishingTurn] = useState(false);
+  const [completedChecklistItems, setCompletedChecklistItems] = useState<any[]>([]);
 
   // Selectors to avoid broad store subscriptions
   const currentUser = useStore((s) => s.currentUser);
@@ -68,22 +69,37 @@ export default function CleaningScreen() {
     initialize();
   }, [currentApartment, cleaningTask, initializeCleaning, checkOverdueTasks]);
 
-  // Check if current turn is completed (all tasks done by current user)
+  // Check if turn is completed for current cycle using proper cycle calculation
   useEffect(() => {
-    if (currentUser && checklistItems.length > 0) {
-      // Check if all tasks are completed by the current user
-      const allCompletedByMe = checklistItems.every(item => 
-        item.completed && item.completed_by === currentUser.id
-      );
+    if (currentUser && cleaningTask && checklistItems.length > 0 && isMyCleaningTurn) {
+      const isCompleted = isTurnCompletedForCurrentCycleWithSettings({
+        uid: currentUser.id,
+        task: {
+          assigned_at: cleaningTask.assigned_at || null,
+          frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
+          last_completed_at: cleaningTask.last_completed_at || null,
+          last_completed_by: cleaningTask.last_completed_by || null,
+          dueDate: cleaningTask.dueDate ? cleaningTask.dueDate.toISOString() : null,
+        },
+        checklistItems: checklistItems.map(item => ({
+          completed: item.completed,
+          completed_by: item.completed_by,
+          completed_at: item.completed_at,
+        })),
+        cleaningSettings,
+      });
+      setTurnCompleted(isCompleted);
       
-      // Or if it's not my turn but tasks are completed (previous user finished)
-      const isNotMyTurnButCompleted = !isMyCleaningTurn && checklistItems.some(item => item.completed);
-      
-      setTurnCompleted(allCompletedByMe || isNotMyTurnButCompleted);
+      // Clear saved completed items when turn changes (new cycle starts)
+      if (!isCompleted) {
+        setCompletedChecklistItems([]);
+      }
     } else {
+      // אם אין נתונים או זה לא התור שלי, אפס את turnCompleted
       setTurnCompleted(false);
+      setCompletedChecklistItems([]);
     }
-  }, [currentUser, checklistItems, isMyCleaningTurn]);
+  }, [currentUser, cleaningTask, checklistItems, isMyCleaningTurn, cleaningSettings]);
 
   // Set up realtime listener when screen comes into focus
   useFocusEffect(
@@ -186,6 +202,15 @@ export default function CleaningScreen() {
     
     setIsFinishingTurn(true);
     try {
+      // Save the completed items before finishing turn
+      const completedItems = checklistItems.map(item => ({
+        ...item,
+        completed: true, // Force all items to show as completed
+        completed_by: currentUser?.id,
+        completed_at: new Date().toISOString()
+      }));
+      setCompletedChecklistItems(completedItems);
+      
       await finishCleaningTurn();
       success(); // Success haptic for completing cleaning turn
       setShowConfirmDone(false);
@@ -219,6 +244,9 @@ export default function CleaningScreen() {
 
   // Enhanced completion percentage that shows live updates from other users
   const getCompletionPercentage = () => {
+    // If user completed their turn, always show 100%
+    if (turnCompleted) return 100;
+    
     if (checklistItems.length === 0) return 0;
     
     const completedTasks = checklistItems.filter(item => item.completed);
@@ -332,7 +360,7 @@ export default function CleaningScreen() {
 
       <ScrollView 
         className="flex-1 px-6 py-6"
-        contentContainerStyle={{ alignItems: 'stretch' }}
+        contentContainerStyle={{ alignItems: 'stretch', paddingBottom: 10 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
@@ -375,7 +403,7 @@ export default function CleaningScreen() {
               <>
                 <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('cleaning.progress', { percent: getCompletionPercentage() })}</ThemedText>
                 <View className="w-full rounded-full h-2 mb-4" style={{ backgroundColor: '#e5e7eb' }}>
-                  <View className="bg-blue-500 h-2 rounded-full" style={{ width: `${getCompletionPercentage()}%` }} />
+                  <View className={turnCompleted ? "bg-green-500 h-2 rounded-full" : "bg-blue-500 h-2 rounded-full"} style={{ width: `${getCompletionPercentage()}%` }} />
                 </View>
                 <AsyncButton
                   title={turnCompleted ? t('cleaning.youCompleted') : (getCompletionPercentage() === 100 ? t('cleaning.finishTurnCta') : t('cleaning.completeAllTasks'))}
@@ -495,21 +523,23 @@ export default function CleaningScreen() {
         </ThemedCard>
 
         {/* Cleaning Tasks */}
-        {(isMyTurn || turnCompleted) && (
+        {(isMyTurn || turnCompleted || completedChecklistItems.length > 0) && (
           <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
             <View className="flex-row items-center justify-between mb-4">
               <ThemedText className="text-lg font-semibold flex-1">{t('cleaning.tasksList')}</ThemedText>
             </View>
 
-            {checklistItems.map((item) => {
-              const isCompleted = item.completed;
+            {(turnCompleted && completedChecklistItems.length > 0 ? completedChecklistItems : checklistItems).length > 0 ? 
+              (turnCompleted && completedChecklistItems.length > 0 ? completedChecklistItems : checklistItems).map((item) => {
+              // If turn is completed, ALL tasks should appear as completed (UI only)
+              const isCompleted = turnCompleted ? true : item.completed;
               // אם זה לא התור שלי, הכפתורים צריכים להיות חסומים
               // אם זה התור שלי, הכפתורים חסומים רק אם סיימתי את התור
               const isDisabled = !isMyTurn || turnCompleted;
               const isRTL = I18nManager.isRTL;
               
               // When turn is completed, show tasks as completed but grayed out
-              const showAsCompletedAndDisabled = isCompleted && turnCompleted;
+              const showAsCompletedAndDisabled = turnCompleted;
               
               return (
                 <View 
@@ -571,7 +601,12 @@ export default function CleaningScreen() {
                   </ThemedText>
                 </View>
               );
-            })}
+              })
+            : (
+              <View className="py-8 items-center">
+                <ThemedText className="text-gray-500 text-center">{t('cleaning.noTasks')}</ThemedText>
+              </View>
+            )}
 
           </ThemedCard>
         )}

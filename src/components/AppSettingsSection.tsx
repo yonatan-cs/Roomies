@@ -11,6 +11,7 @@ import { ThemedCard } from '../theme/components/ThemedCard';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { changeAppLanguage } from '../utils/changeLanguage';
 import { cn } from '../utils/cn';
+import { Accordion } from './Accordion';
 
 export default function AppSettingsSection() {
   const { t } = useTranslation();
@@ -33,19 +34,12 @@ export default function AppSettingsSection() {
 
   return (
     <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-      <View 
-        className="items-center mb-4"
-        style={{ 
-          flexDirection: isRTL ? 'row-reverse' : 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}
+      <Accordion
+        title={t('settings.appSettings')}
+        icon="settings-outline"
+        defaultExpanded={false}
       >
-        <ThemedText className="text-lg font-semibold flex-1">{t('settings.appSettings')}</ThemedText>
-        <Ionicons name="settings-outline" size={20} color="#6b7280" />
-      </View>
-
-      {/* Language Section */}
+        {/* Language Section */}
       <View className="mb-6">
         <View 
           className="items-center mb-3"
@@ -259,6 +253,7 @@ export default function AppSettingsSection() {
           </ThemedText>
         )}
       </View>
+      </Accordion>
     </ThemedCard>
   );
 }
