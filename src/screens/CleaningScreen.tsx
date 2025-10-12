@@ -322,6 +322,18 @@ export default function CleaningScreen() {
         return t('common.invalidDate');
       }
       const locale = appLanguage === 'he' ? 'he-IL' : 'en-US';
+      
+      // For short intervals (less than a week), show time as well for clarity
+      if (cleaningSettings.intervalDays < 7) {
+        return new Intl.DateTimeFormat(locale, { 
+          weekday: 'long', 
+          day: 'numeric', 
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
+        }).format(dateObj);
+      }
+      
       return new Intl.DateTimeFormat(locale, { weekday: 'long', day: 'numeric', month: 'short' }).format(dateObj);
     } catch (error) {
       return t('common.invalidDate');
@@ -352,7 +364,10 @@ export default function CleaningScreen() {
         <View className="flex-row items-center justify-center mt-2">
           <View className="px-3 py-1 rounded-full" style={themed.surfaceBg}>
             <ThemedText className="text-sm" style={themed.textSecondary}>
-              {cleaningSettings.intervalDays === 7 ? t('cleaning.scheduleWeekly') : t('cleaning.scheduleDays', { count: cleaningSettings.intervalDays })} • {t('cleaning.rotatesOn', { day: t(`days.${cleaningSettings.anchorDow}`) })}
+              {cleaningSettings.intervalDays === 7 ? t('cleaning.scheduleWeekly') : t('cleaning.scheduleDays', { count: cleaningSettings.intervalDays })}
+              {cleaningSettings.intervalDays >= 7 && (
+                <>{' • '}{t('cleaning.rotatesOn', { day: t(`days.${cleaningSettings.anchorDow}`) })}</>
+              )}
             </ThemedText>
           </View>
         </View>
@@ -380,6 +395,9 @@ export default function CleaningScreen() {
             </ThemedText>
 
             {(() => {
+              // Only show recommended day for weekly or longer intervals
+              if (cleaningSettings.intervalDays < 7) return null;
+              
               const dow = cleaningSettings.preferredDayByUser[(cleaningTask as any).user_id];
               if (dow === undefined) return null;
               return <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('cleaning.recommendedDay', { day: t(`days.${dow}`) })}</ThemedText>;
