@@ -1267,7 +1267,9 @@ export const useStore = create<AppState>()(
 
             // Move to next person in queue
             const queue = task.queue || [];
-            let currentIndex = task.current_index || 0;
+            // Calculate current index based on current user_id instead of relying on stored current_index
+            let currentIndex = queue.indexOf(task.user_id);
+            if (currentIndex === -1) currentIndex = 0; // fallback if user not found
             currentIndex = (currentIndex + 1) % queue.length;
             const nextUserId = queue[currentIndex];
 

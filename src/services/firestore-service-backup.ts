@@ -3659,7 +3659,9 @@ export class FirestoreService {
     }
 
     const queue = currentTask.queue || [];
-    let currentIndex = currentTask.current_index || 0;
+    // Calculate current index based on current user_id instead of relying on stored current_index
+    let currentIndex = queue.indexOf(uid);
+    if (currentIndex === -1) currentIndex = 0; // fallback if user not found
 
     // Move to next person
     currentIndex = (currentIndex + 1) % queue.length;
