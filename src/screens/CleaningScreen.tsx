@@ -68,31 +68,22 @@ export default function CleaningScreen() {
     initialize();
   }, [currentApartment, cleaningTask, initializeCleaning, checkOverdueTasks]);
 
-  // Check if turn is completed for current cycle
+  // Check if current turn is completed (all tasks done by current user)
   useEffect(() => {
-    if (currentUser && cleaningTask && checklistItems.length > 0 && isMyCleaningTurn) {
-      const isCompleted = isTurnCompletedForCurrentCycleWithSettings({
-        uid: currentUser.id,
-        task: {
-          assigned_at: cleaningTask.assigned_at || null,
-          frequency_days: cleaningTask.frequency_days || cleaningTask.intervalDays,
-          last_completed_at: cleaningTask.last_completed_at || null,
-          last_completed_by: cleaningTask.last_completed_by || null,
-          dueDate: cleaningTask.dueDate ? cleaningTask.dueDate.toISOString() : null,
-        },
-        checklistItems: checklistItems.map(item => ({
-          completed: item.completed,
-          completed_by: item.completed_by,
-          completed_at: item.completed_at,
-        })),
-        cleaningSettings,
-      });
-      setTurnCompleted(isCompleted);
+    if (currentUser && checklistItems.length > 0) {
+      // Check if all tasks are completed by the current user
+      const allCompletedByMe = checklistItems.every(item => 
+        item.completed && item.completed_by === currentUser.id
+      );
+      
+      // Or if it's not my turn but tasks are completed (previous user finished)
+      const isNotMyTurnButCompleted = !isMyCleaningTurn && checklistItems.some(item => item.completed);
+      
+      setTurnCompleted(allCompletedByMe || isNotMyTurnButCompleted);
     } else {
-      // אם אין נתונים או זה לא התור שלי, אפס את turnCompleted
       setTurnCompleted(false);
     }
-  }, [currentUser, cleaningTask, checklistItems, isMyCleaningTurn]);
+  }, [currentUser, checklistItems, isMyCleaningTurn]);
 
   // Set up realtime listener when screen comes into focus
   useFocusEffect(
@@ -101,10 +92,14 @@ export default function CleaningScreen() {
       
       const setupListener = async () => {
         if (isActive) {
-          // Load initial data
-          await loadCleaningChecklist();
-          // Start realtime listener for live updates
-          startCleaningChecklistListener();
+          try {
+            // Start realtime listener first (faster than manual loading)
+            startCleaningChecklistListener();
+            // Load initial data in background
+            await loadCleaningChecklist();
+          } catch (error) {
+            console.error('Error setting up cleaning listener:', error);
+          }
         }
       };
 
