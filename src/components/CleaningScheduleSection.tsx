@@ -63,17 +63,22 @@ export default function CleaningScheduleSection() {
             style={{ marginBottom: 16 }}
           />
 
-          <ThemedText className="mb-2" style={themed.textSecondary}>
-            {t('settings.rotationDay')}
-          </ThemedText>
-          <DayPicker
-            selectedDay={cleaningSettings.anchorDow}
-            onDayChange={(day) => {
-              selection(); // Haptic feedback for day selection
-              setCleaningAnchorDow(day);
-            }}
-            style={{ marginBottom: 8 }}
-          />
+          {/* Show rotation day picker only for weekly or longer intervals */}
+          {cleaningSettings.intervalDays >= 7 && (
+            <>
+              <ThemedText className="mb-2" style={themed.textSecondary}>
+                {t('settings.rotationDay')}
+              </ThemedText>
+              <DayPicker
+                selectedDay={cleaningSettings.anchorDow}
+                onDayChange={(day) => {
+                  selection(); // Haptic feedback for day selection
+                  setCleaningAnchorDow(day);
+                }}
+                style={{ marginBottom: 8 }}
+              />
+            </>
+          )}
         </View>
 
         {/* Cleaning Tasks Section */}
