@@ -619,29 +619,9 @@ export const useStore = create<AppState>()(
             taskCurrentTurn: task?.currentTurn
           });
 
-          // Auto-reset checklist if it's my turn and all tasks are completed by someone else
-          if (isMyTurn && currentUser && items.length > 0) {
-            const allCompleted = items.every(item => item.completed);
-            const completedByOther = items.some(item => item.completed_by && item.completed_by !== currentUser.id);
-            
-            if (allCompleted && completedByOther) {
-              console.log('🔄 Auto-resetting checklist for new turn');
-              try {
-                await firestoreService.resetAllChecklistItems();
-                // Reload after reset
-                const resetItems = await firestoreService.getCleaningChecklist();
-                set({
-                  checklistItems: resetItems,
-                  isMyCleaningTurn: isMyTurn,
-                  _loadingChecklist: false
-                });
-                return;
-              } catch (resetError) {
-                console.error('Error auto-resetting checklist:', resetError);
-                // Continue with completed items if reset fails
-              }
-            }
-          }
+          // Don't auto-reset checklist items here
+          // They should stay completed until the next user's turn starts
+          // The reset will happen when the next user completes their turn
 
           set({
             checklistItems: items,
@@ -669,14 +649,16 @@ export const useStore = create<AppState>()(
           return;
         }
         
-        console.log('📡 Starting realtime cleaning checklist listener');
+        console.log('📡 Starting polling-based checklist updates (Firebase rules compatible)');
         
-        // Start the realtime listener
-        const unsubscribe = firestoreSDKService.subscribeToCleaningChecklist(
-          currentApartment.id,
-          async (items) => {
-            const state = get();
-            const { currentUser, currentApartment, cleaningTask } = state;
+        // Use polling instead of realtime listener due to Firebase rules complexity
+        const pollInterval = setInterval(async () => {
+          try {
+            // Check for overdue tasks (automatic turn rotation)
+            await get().checkOverdueTasks();
+            
+            const items = await firestoreService.getCleaningChecklist();
+            const { currentUser, currentApartment, cleaningTask } = get();
             
             // Calculate if it's my turn
             const currentTurnUserId = getCurrentTurnUserId(cleaningTask);
@@ -691,13 +673,12 @@ export const useStore = create<AppState>()(
               const completedByOther = items.some((item: any) => item.completed_by && item.completed_by !== currentUser.id);
               
               if (allCompleted && completedByOther) {
-                console.log('🔄 [Listener] Auto-resetting checklist for new turn');
+                console.log('🔄 [Polling] Auto-resetting checklist for new turn');
                 try {
                   await firestoreService.resetAllChecklistItems();
-                  // The listener will receive the updated items automatically
                   return;
                 } catch (resetError) {
-                  console.error('[Listener] Error auto-resetting checklist:', resetError);
+                  console.error('[Polling] Error auto-resetting checklist:', resetError);
                   // Continue with completed items if reset fails
                 }
               }
@@ -708,11 +689,13 @@ export const useStore = create<AppState>()(
               checklistItems: items,
               isMyCleaningTurn: isMyTurn,
             });
+          } catch (error) {
+            console.error('Error in checklist polling:', error);
           }
-        );
+        }, 10000); // Poll every 10 seconds (reduced frequency for automatic turn rotation)
         
         // Store the unsubscribe function
-        set({ _checklistUnsubscribe: unsubscribe });
+        set({ _checklistUnsubscribe: () => clearInterval(pollInterval) });
       },
 
       stopCleaningChecklistListener: () => {
@@ -904,18 +887,18 @@ export const useStore = create<AppState>()(
         }
 
         try {
-          // Don't reset checklist items immediately - they will stay visible as completed
-          // and will be reset when the next user starts their turn
-          
           // Mark cleaning as completed (moves to next person)
           await firestoreService.markCleaningCompleted();
-          // Reload task and stats (checklist will update via realtime listener)
+          
+          // Reset checklist items for the next user's turn
+          await firestoreService.resetAllChecklistItems();
+          
+          // Reload task and stats
           await Promise.all([
             get().loadCleaningTask(),
             get().loadCleaningStats(),
           ]);
           
-          // Note: checklist items stay checked and disabled until the next user resets them
           // Verify stats were updated
           const updatedStats = get().cleaningStats;
           console.log('✅ Cleaning turn finished. Updated stats:', updatedStats);
@@ -1071,13 +1054,95 @@ export const useStore = create<AppState>()(
         try {
           // Load current task from Firestore to check if overdue
           const task = await firestoreService.getCleaningTask();
-          if (!task || !task.last_completed_at) return;
+          if (!task) return;
 
-          // For now, just log - the actual overdue logic should be handled by Firestore
-          console.log('Checking overdue tasks for task:', task.id);
+          const { getCurrentCycleWithSettings } = await import('../utils/dateUtils');
+          const state = get();
           
-          // TODO: Implement overdue logic with Firestore if needed
-          // This might involve checking against a due_date field in Firestore
+          // Calculate current cycle based on settings
+          const { cycleEnd } = getCurrentCycleWithSettings({
+            assigned_at: task.assigned_at || null,
+            frequency_days: task.frequency_days || task.intervalDays,
+            dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+          }, state.cleaningSettings);
+
+          const now = new Date();
+          
+          // If current cycle has ended, automatically move to next person
+          if (now > cycleEnd) {
+            console.log('🔄 Cycle ended, automatically moving to next person');
+            
+            // Check if current user completed their turn in this cycle
+            const { isTurnCompletedForCurrentCycleWithSettings } = await import('../utils/dateUtils');
+            const checklistItems = await firestoreService.getCleaningChecklist();
+            
+            const isCompleted = isTurnCompletedForCurrentCycleWithSettings({
+              uid: task.user_id,
+              task: {
+                assigned_at: task.assigned_at || null,
+                frequency_days: task.frequency_days || task.intervalDays,
+                last_completed_at: task.last_completed_at || null,
+                last_completed_by: task.last_completed_by || null,
+                dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+              },
+              checklistItems: checklistItems.map(item => ({
+                completed: item.completed,
+                completed_by: item.completed_by,
+                completed_at: item.completed_at,
+              })),
+              cleaningSettings: state.cleaningSettings,
+            });
+
+            // Always reset checklist for new cycle (whether previous user completed or not)
+            console.log('🔄 Auto-resetting checklist for new cycle');
+            await firestoreService.resetAllChecklistItems();
+
+            // Move to next person in queue
+            const queue = task.queue || [];
+            let currentIndex = task.current_index || 0;
+            currentIndex = (currentIndex + 1) % queue.length;
+            const nextUserId = queue[currentIndex];
+
+            // Update task with new cycle - reset completion status for new cycle
+            const updateBody = {
+              fields: {
+                user_id: { stringValue: nextUserId },
+                assigned_at: { timestampValue: now.toISOString() },
+                current_index: { integerValue: currentIndex.toString() },
+                // Reset completion status for the new cycle
+                last_completed_at: { nullValue: null },
+                last_completed_by: { nullValue: null },
+              },
+            };
+
+            const fieldPaths = ['user_id', 'assigned_at', 'current_index', 'last_completed_at', 'last_completed_by'];
+            const { FIRESTORE_BASE_URL } = await import('../services/firebase-config');
+            const { requireSession } = await import('../services/firestore-service');
+            const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${state.currentApartment?.id}?` + 
+              fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+            
+            const { uid, idToken } = await requireSession();
+            const authHeaders = {
+              Authorization: `Bearer ${idToken}`,
+              'Content-Type': 'application/json',
+            };
+            const res = await fetch(url, {
+              method: 'PATCH',
+              headers: authHeaders,
+              body: JSON.stringify(updateBody),
+            });
+
+            if (res.ok) {
+              console.log('✅ Automatically moved to next person in queue');
+              console.log('🔄 New cycle started - turnCompleted should reset to false');
+              // Reload task to get updated data
+              await get().loadCleaningTask();
+              // Force reload checklist to ensure UI updates
+              await get().loadCleaningChecklist();
+            } else {
+              console.error('❌ Failed to automatically move to next person');
+            }
+          }
         } catch (error) {
           console.error('Error checking overdue tasks:', error);
         }

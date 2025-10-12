@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { View, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { ThemedText } from '../theme/components/ThemedText';
@@ -29,7 +29,12 @@ export const IntervalPicker: React.FC<IntervalPickerProps> = ({
   const isRTL = useIsRTL();
   
   // Prevent onValueChange from firing during initial render
-  const didFirstRender = useRef(false);
+  const isMounted = useRef(false);
+
+  // Mark component as mounted after first render
+  useEffect(() => {
+    isMounted.current = true;
+  }, []);
 
   // Create array of interval options: 1, 2, 3, 4, 5, 6, 7, 14, 30 days
   const intervalOptions = [
@@ -46,9 +51,8 @@ export const IntervalPicker: React.FC<IntervalPickerProps> = ({
 
   // Safe handler that skips the first render trigger
   const handleValueChange = useCallback((itemValue: number) => {
-    // Skip the first render trigger to prevent state update on unmounted component
-    if (!didFirstRender.current) {
-      didFirstRender.current = true;
+    // Skip the initial render trigger to prevent unwanted state updates
+    if (!isMounted.current) {
       return;
     }
     onIntervalChange(itemValue);
