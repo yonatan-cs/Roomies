@@ -4078,10 +4078,11 @@ export class FirestoreService {
         assigned_at: F.ts(new Date()), // עוגן למחזור הבא (קריטי)
         last_completed_at: F.ts(new Date()), // Mark completion time
         last_completed_by: F.str(uid), // Who completed the cleaning
+        current_index: F.int(currentIndex), // Update the queue index
       },
     };
 
-    const fieldPaths = ['user_id', 'assigned_at', 'last_completed_at', 'last_completed_by'];
+    const fieldPaths = ['user_id', 'assigned_at', 'last_completed_at', 'last_completed_by', 'current_index'];
     const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?` + 
       fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
     
