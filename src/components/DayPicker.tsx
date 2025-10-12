@@ -49,46 +49,50 @@ export const DayPicker: React.FC<DayPickerProps> = ({
   }, [onDayChange]);
 
   return (
-    <View style={[style, { 
-      backgroundColor: themed.lightBg.backgroundColor,
-      borderRadius: 12,
-      borderWidth: 1,
+    <View style={[style, { alignItems: 'center' }]}>
+      <View style={{ 
+        backgroundColor: themed.lightBg.backgroundColor,
+        borderRadius: 12,
+        borderWidth: 1,
         borderColor: themed.border.borderColor,
-      overflow: 'hidden',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 1,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: 2,
-      elevation: 2,
-    }]}>
-      <Picker
-        selectedValue={selectedDay}
-        onValueChange={handleValueChange}
-        style={{
-          height: Platform.OS === 'ios' ? 200 : 50,
-          backgroundColor: 'transparent',
-        }}
-        itemStyle={{
-          color: themed.textPrimary.color,
-          fontSize: 16,
-          textAlign: isRTL ? 'right' : 'left',
-          fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-        }}
-        dropdownIconColor={themed.textSecondary.color}
-        mode={Platform.OS === 'android' ? 'dropdown' : 'dialog'}
-      >
-        {dayOptions.map((day) => (
-          <Picker.Item
-            key={day.value}
-            label={day.label}
-            value={day.value}
-            color={themed.textPrimary.color}
-          />
-        ))}
-      </Picker>
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
+        width: '70%',
+        maxWidth: 200,
+      }}>
+        <Picker
+          selectedValue={selectedDay}
+          onValueChange={handleValueChange}
+          style={{
+            height: Platform.OS === 'ios' ? 200 : 50,
+            backgroundColor: 'transparent',
+          }}
+          itemStyle={{
+            color: themed.textPrimary.color,
+            fontSize: 16,
+            textAlign: isRTL ? 'right' : 'left',
+            fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+          }}
+          dropdownIconColor={themed.textSecondary.color}
+          mode={Platform.OS === 'android' ? 'dropdown' : 'dialog'}
+        >
+          {dayOptions.map((day) => (
+            <Picker.Item
+              key={day.value}
+              label={day.label}
+              value={day.value}
+              color={themed.textPrimary.color}
+            />
+          ))}
+        </Picker>
+      </View>
     </View>
   );
 };
