@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,7 @@ import { AppTextInput } from '../components/AppTextInput';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
 import { useGenderedText } from '../hooks/useGenderedText';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { success, impactMedium, selection, impactLight, warning } from '../utils/haptics';
 import { getDisplayName } from '../utils/userDisplay';
 import { ThemedCard } from '../theme/components/ThemedCard';
@@ -125,8 +125,23 @@ export default function ShoppingScreen() {
     addShoppingItem,
     markItemPurchased,
     removeShoppingItem,
-    markItemForRepurchase
+    markItemForRepurchase,
+    startShoppingItemsListener,
+    stopShoppingItemsListener
   } = useStore();
+
+  // Set up real-time listener when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🛒 ShoppingScreen: Setting up real-time listener');
+      startShoppingItemsListener();
+      
+      return () => {
+        console.log('🛒 ShoppingScreen: Cleaning up real-time listener');
+        stopShoppingItemsListener();
+      };
+    }, [startShoppingItemsListener, stopShoppingItemsListener])
+  );
 
   const handleAddItem = async () => {
     if (!newItemName.trim() || !currentUser) return;

@@ -92,7 +92,13 @@ export default function DashboardScreen() {
     loadCleaningChecklist,
     loadCleaningStats,
     cleaningStats,
-    backfillCleaningStats
+    backfillCleaningStats,
+    startExpensesListener,
+    stopExpensesListener,
+    startShoppingItemsListener,
+    stopShoppingItemsListener,
+    startCleaningChecklistListener,
+    stopCleaningChecklistListener
   } = useStore();
 
   // Load all data from Firestore when component mounts (OPTIMIZED to reduce reads)
@@ -124,37 +130,54 @@ export default function DashboardScreen() {
     loadAllData();
   }, [currentApartment?.id]); // Only reload when apartment actually changes
 
-  // Refresh data when screen comes into focus (OPTIMIZED to reduce Firestore reads)
+  // Set up real-time listeners when screen comes into focus
   useFocusEffect(useCallback(() => {
-    const refreshData = async () => {
+    console.log('📊 Dashboard: Setting up real-time listeners');
+    
+    // Start real-time listeners for all dashboard data
+    startExpensesListener();
+    startShoppingItemsListener();
+    startCleaningChecklistListener();
+    
+    // Also load cleaning task data (not as frequently updated, so one-time load is fine)
+    const loadAdditionalData = async () => {
       try {
-        console.log('🔄 Dashboard: Refreshing data on focus...');
-        // Load additional data that wasn't loaded on mount
         await Promise.all([
-          loadShoppingItems(),
           loadCleaningTask(),
-          loadCleaningChecklist(),
           loadCleaningStats(),
+          loadDebtSettlements(), // Debts are managed separately in GroupDebtsScreen
         ]);
         console.log('✅ Dashboard: Additional data loaded successfully');
       } catch (error) {
-        console.error('❌ Dashboard: Error refreshing data:', error);
+        console.error('❌ Dashboard: Error loading additional data:', error);
       }
     };
+    
+    loadAdditionalData();
 
-    // Load additional data when screen comes into focus
-    refreshData();
-
-    // REMOVED: Polling every 15 seconds to reduce Firestore reads
-    // This was causing excessive reads - now only refreshes on focus
-
+    // Cleanup: stop all listeners when screen loses focus
     return () => {
+      console.log('📊 Dashboard: Cleaning up real-time listeners');
+      stopExpensesListener();
+      stopShoppingItemsListener();
+      stopCleaningChecklistListener();
+      
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
     };
-  }, [])); // REMOVED dependencies to prevent unnecessary re-runs
+  }, [
+    startExpensesListener,
+    stopExpensesListener,
+    startShoppingItemsListener,
+    stopShoppingItemsListener,
+    startCleaningChecklistListener,
+    stopCleaningChecklistListener,
+    loadCleaningTask,
+    loadCleaningStats,
+    loadDebtSettlements
+  ]));
 
   const balances = useMemo(() => getBalances(), [expenses, debtSettlements]);
   const myBalance = balances.find(b => b.userId === currentUser?.id);
