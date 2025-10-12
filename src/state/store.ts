@@ -382,10 +382,12 @@ export const useStore = create<AppState>()(
         
         if (!currentApartment?.id) {
           console.warn('Cannot start expenses listener: no apartment');
+          console.log('📡 currentApartment:', currentApartment);
           return;
         }
         
         console.log('📡 Starting real-time expenses listener');
+        console.log('📡 apartment_id filter value:', currentApartment.id);
         
         // Subscribe to expenses collection
         const unsubscribe = realtimeManager.subscribeToCollection(
@@ -539,10 +541,14 @@ export const useStore = create<AppState>()(
         
         if (!currentApartment?.id) {
           console.warn('Cannot start shopping items listener: no apartment');
+          console.log('📡 currentApartment:', currentApartment);
           return;
         }
         
         console.log('📡 Starting real-time shopping items listener');
+        console.log('📡 apartment_id filter value:', currentApartment.id);
+        console.log('📡 currentUser:', state.currentUser?.id);
+        console.log('📡 currentApartment full object:', currentApartment);
         
         // Subscribe to shopping_items collection
         const unsubscribe = realtimeManager.subscribeToCollection(
@@ -796,10 +802,12 @@ export const useStore = create<AppState>()(
         
         if (!currentApartment?.id) {
           console.warn('Cannot start cleaning checklist listener: no apartment');
+          console.log('📡 currentApartment:', currentApartment);
           return;
         }
         
         console.log('📡 Starting real-time cleaning checklist listener');
+        console.log('📡 apartment_id filter value:', currentApartment.id);
         
         // Subscribe to cleaning_checklist collection with real-time updates
         const unsubscribe = realtimeManager.subscribeToCollection(
