@@ -347,6 +347,43 @@ export default function CleaningScreen() {
     return getDisplayName(member) || t('common.user');
   };
 
+  // Helper function to get rotation message for short intervals (< 7 days)
+  const getRotationMessage = () => {
+    if (!cleaningTask || cleaningSettings.intervalDays >= 7) return null;
+    
+    const { cycleEnd } = getCurrentCycleWithSettings({
+      assigned_at: cleaningTask.assigned_at || null,
+      frequency_days: cleaningSettings.intervalDays,
+    }, cleaningSettings);
+    
+    const now = new Date();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+    
+    const cycleEndDate = new Date(cycleEnd);
+    cycleEndDate.setHours(0, 0, 0, 0);
+    
+    // Calculate days until rotation
+    const daysUntil = Math.ceil((cycleEndDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+    
+    if (daysUntil < 0) {
+      // Already overdue - don't show rotation message
+      return null;
+    } else if (daysUntil === 0) {
+      // Today
+      return t('cleaning.rotatesToday');
+    } else if (daysUntil === 1) {
+      // Tomorrow
+      return t('cleaning.rotatesTomorrow');
+    } else if (daysUntil <= 6) {
+      // Within a week - show day name
+      const dayName = t(`days.${cycleEnd.getDay()}`);
+      return t('cleaning.rotatesOnDay', { day: dayName });
+    }
+    
+    return null;
+  };
+
   if (!currentApartment || !cleaningTask) {
     return (
       <View className="flex-1 justify-center items-center px-6" style={themed.surfaceBg}>
@@ -368,6 +405,13 @@ export default function CleaningScreen() {
               {cleaningSettings.intervalDays >= 7 && (
                 <>{' • '}{t('cleaning.rotatesOn', { day: t(`days.${cleaningSettings.anchorDow}`) })}</>
               )}
+              {(() => {
+                const rotationMsg = getRotationMessage();
+                if (rotationMsg) {
+                  return <>{' • '}{rotationMsg}</>;
+                }
+                return null;
+              })()}
             </ThemedText>
           </View>
         </View>
@@ -410,6 +454,18 @@ export default function CleaningScreen() {
                 frequency_days: cleaningSettings.intervalDays,
               }, cleaningSettings);
               const overdue = new Date() > cycleEnd;
+              
+              // For short intervals (< 7 days), show clear rotation message
+              const rotationMsg = getRotationMessage();
+              if (rotationMsg && !overdue) {
+                return (
+                  <ThemedText className="text-sm mb-4" style={themed.textSecondary}>
+                    {rotationMsg}
+                  </ThemedText>
+                );
+              }
+              
+              // For weekly or longer intervals, show "Until [date]"
               return (
                 <ThemedText className={cn('text-sm mb-4', overdue ? 'text-red-600' : '')} style={!overdue ? themed.textSecondary : undefined}>
                   {t('cleaning.untilDate', { date: formatDueDate(cycleEnd) })}{overdue && t('cleaning.overdue')}
