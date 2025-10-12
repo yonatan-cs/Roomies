@@ -261,7 +261,19 @@ export class FirestoreSDKService {
       },
       (error) => {
         console.error('❌ Cleaning checklist listener error:', error);
+        
+        // Handle specific Firebase errors
+        if (error.code === 'permission-denied') {
+          console.error('🚫 Permission denied for cleaning checklist listener');
+          console.error('🚫 Make sure user is authenticated and has access to apartment');
+        } else if (error.code === 'unavailable') {
+          console.error('🌐 Firebase service temporarily unavailable');
+        } else if (error.code === 'unauthenticated') {
+          console.error('🔐 User not authenticated for cleaning checklist listener');
+        }
+        
         // Don't throw - just log the error and let the UI continue working
+        // The UI will fall back to manual loading
       }
     );
   }
