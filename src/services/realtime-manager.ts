@@ -1,7 +1,7 @@
 // Centralized Real-time Listener Manager
 // Manages all Firestore onSnapshot listeners to prevent duplicates and ensure proper cleanup
 
-import { Unsubscribe } from 'firebase/firestore';
+import { Unsubscribe, QueryConstraint } from 'firebase/firestore';
 import { firestoreSDKService } from './firestore-sdk-service';
 
 /**
@@ -36,6 +36,45 @@ class RealtimeManager {
   }
 
   /**
+   * ✅ New method using the improved subscribeCollection
+   */
+  subscribeToCollectionSafe(
+    key: string, // Unique key for this listener (e.g., 'shoppingItemsScreen')
+    collectionName: 'expenses' | 'shopping_items' | 'cleaning_checklist' | string,
+    callback: (docs: any[]) => void,
+    orderByField?: string,
+    extraFilters?: QueryConstraint[]
+  ): Unsubscribe {
+    if (this.activeListeners.has(key)) {
+      console.log(`📡 Listener for ${key} already active, returning existing unsubscribe.`);
+      return this.activeListeners.get(key)!.unsubscribe;
+    }
+
+    console.log(`📡 Registering new safe real-time listener for ${key} (collection: ${collectionName})`);
+    
+    // Use the new safe subscribeCollection method
+    const unsubscribe = firestoreSDKService.subscribeCollection(
+      collectionName,
+      {
+        orderByField,
+        extra: extraFilters
+      },
+      callback
+    );
+
+    this.activeListeners.set(key, {
+      unsubscribe,
+      collectionName,
+      createdAt: new Date(),
+    });
+
+    console.log(`✅ Active listeners count: ${this.activeListeners.size}`);
+    return () => {
+      this.unsubscribeFromCollection(key);
+    };
+  }
+
+  /**
    * Subscribe to a Firestore collection with real-time updates
    * @param key Unique identifier for this listener (e.g., 'shopping_items', 'expenses')
    * @param collectionName Firestore collection name
@@ -44,6 +83,7 @@ class RealtimeManager {
    * @param orderByField Optional field to order results by
    * @param orderDirection Optional direction for ordering
    * @returns Unsubscribe function
+   * @deprecated Use subscribeToCollectionSafe instead - it automatically handles apartment_id filtering
    */
   subscribeToCollection(
     key: string,
@@ -53,37 +93,8 @@ class RealtimeManager {
     orderByField?: string,
     orderDirection: 'asc' | 'desc' = 'desc'
   ): Unsubscribe {
-    // If listener already exists for this key, unsubscribe first
-    if (this.activeListeners.has(key)) {
-      console.log(`📡 Replacing existing listener for: ${key}`);
-      this.unsubscribeFromCollection(key);
-    }
-
-    console.log(`📡 Starting real-time listener for: ${key} (collection: ${collectionName})`);
-    console.log(`📡 Filters received:`, filters);
-
-    // Create the onSnapshot listener
-    const unsubscribe = firestoreSDKService.subscribeToCollection(
-      collectionName,
-      callback,
-      filters,
-      orderByField,
-      orderDirection
-    );
-
-    // Store the listener metadata
-    this.activeListeners.set(key, {
-      unsubscribe,
-      collectionName,
-      createdAt: new Date(),
-    });
-
-    console.log(`✅ Active listeners count: ${this.activeListeners.size}`);
-
-    // Return unsubscribe function that also removes from our map
-    return () => {
-      this.unsubscribeFromCollection(key);
-    };
+    // Use the new safe method
+    return this.subscribeToCollectionSafe(key, collectionName as any, callback, orderByField);
   }
 
   /**
