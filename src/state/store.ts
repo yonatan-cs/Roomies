@@ -1673,8 +1673,8 @@ export const useStore = create<AppState>()(
             currentUser.id
           );
           
-          // Refresh apartment members to update the UI
-          await get().refreshApartmentMembers();
+          // Don't refresh immediately to avoid race condition with removal listener
+          // The UI will refresh automatically when user navigates or after timeout
           
           console.log('✅ Member removed successfully');
         } catch (error) {
