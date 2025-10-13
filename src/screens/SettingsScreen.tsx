@@ -243,6 +243,16 @@ export default function SettingsScreen() {
       await removeApartmentMember(memberToRemove.id);
       setConfirmRemoveVisible(false);
       setMemberToRemove(null);
+      
+      // Refresh apartment members after a short delay to avoid race condition
+      setTimeout(async () => {
+        try {
+          await refreshApartmentMembers();
+        } catch (error) {
+          console.error('Error refreshing apartment members:', error);
+        }
+      }, 1500);
+      
       showThemedAlert(t('common.success'), t('settings.alerts.memberRemovedSuccess', { name: memberToRemove.name }));
     } catch (error: any) {
       console.error('Error removing member:', error);
