@@ -1,0 +1,123 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to get current user's apartment ID
+    function currentUserApartmentId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.current_apartment_id;
+    }
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is member of apartment
+    function isApartmentMember(apartmentId) {
+      return exists(/databases/$(database)/documents/apartmentMembers/$(apartmentId + '_' + request.auth.uid));
+    }
+    
+    // Users collection - users can read/write their own document
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Apartments collection - only members can read/write
+    match /apartments/{apartmentId} {
+      allow read, write: if isAuthenticated() && isApartmentMember(apartmentId);
+    }
+    
+    // Apartment members collection - only members can read, only apartment admins can write
+    match /apartmentMembers/{membershipId} {
+      allow read: if isAuthenticated() && 
+        (isApartmentMember(apartmentId) || request.auth.uid in resource.data.user_id);
+      allow write: if isAuthenticated() && 
+        (request.auth.uid in resource.data.user_id || 
+         isApartmentMember(apartmentId));
+    }
+    
+    // Apartment invites collection - public read for joining, authenticated write for creating
+    match /apartmentInvites/{inviteId} {
+      allow read: if true; // Public read for join functionality
+      allow write: if isAuthenticated();
+    }
+    
+    // Expenses collection - only apartment members can access
+    match /expenses/{expenseId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Debt settlements collection - only apartment members can access
+    match /debtSettlements/{settlementId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Shopping items collection - only apartment members can access
+    match /shoppingItems/{itemId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Cleaning tasks collection - only apartment members can access
+    match /cleaningTasks/{taskId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Checklist items collection (subcollection under cleaning tasks)
+    match /cleaningTasks/{taskId}/checklistItems/{itemId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Collection group queries for checklist items (cross-apartment access)
+    match /{path=**}/checklistItems/{itemId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Debts collection - only apartment members can access
+    match /debts/{debtId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Balances collection - only apartment members can access
+    match /balances/{balanceId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Actions collection - only apartment members can access
+    match /actions/{actionId} {
+      allow read, write: if isAuthenticated() && 
+        resource.data.apartment_id == currentUserApartmentId();
+      allow create: if isAuthenticated() && 
+        request.resource.data.apartment_id == currentUserApartmentId();
+    }
+    
+    // Default deny rule for any other documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

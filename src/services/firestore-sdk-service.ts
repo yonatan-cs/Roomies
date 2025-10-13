@@ -252,6 +252,62 @@ export class FirestoreSDKService {
   }
 
   /**
+   * Subscribe to a single Firestore document with real-time updates
+   * 
+   * @param collectionName - Collection name
+   * @param documentId - Document ID
+   * @param callback - Callback when document updates
+   * @param onError - Optional error handler
+   * @returns Unsubscribe function
+   */
+  subscribeToDocument(
+    collectionName: string,
+    documentId: string,
+    callback: (doc: any | null) => void,
+    onError?: (error: any) => void
+  ): Unsubscribe {
+    console.log(`📡 Setting up real-time listener for ${collectionName}/${documentId}`);
+    
+    const docRef = doc(db, collectionName, documentId);
+    
+    const unsubscribe = onSnapshot(
+      docRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          callback({ id: snapshot.id, ...snapshot.data() });
+        } else {
+          callback(null);
+        }
+      },
+      (error) => {
+        console.warn(`❌ Document listener error:`, error?.code || error?.message);
+        
+        // Enhanced error handling for permission issues
+        if (error?.code === 'permission-denied') {
+          console.error('🚫 PERMISSION DENIED - Document listener blocked');
+          console.error('🚫 This usually means:');
+          console.error('   1. User is not authenticated');
+          console.error('   2. User does not have access to this document');
+          console.error('   3. User\'s current_apartment_id is not set correctly');
+          console.error('🚫 Document:', `${collectionName}/${documentId}`);
+          
+          // Try to get user context for debugging
+          try {
+            const currentUser = require('../services/firebase-auth').firebaseAuth.getCurrentUser();
+            console.error('🚫 Current user:', currentUser ? currentUser.localId : 'NULL');
+          } catch (e) {
+            console.error('🚫 Could not get current user context');
+          }
+        }
+        
+        onError?.(error);
+      }
+    );
+    
+    return unsubscribe;
+  }
+
+  /**
    * Get a single document by ID
    */
   async getDocument(collectionName: string, documentId: string): Promise<any | null> {

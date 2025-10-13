@@ -579,7 +579,7 @@ export default function CleaningScreen() {
                     alignItems: 'center'
                   }}
                 >
-                  <View className="w-10 h-10 rounded-full items-center justify-center" style={themed.surfaceBg}>
+                  <View className="bg-gray-200 dark:bg-gray-600 w-10 h-10 rounded-full items-center justify-center">
                     <ThemedText style={themed.textSecondary} className="font-medium">{i + 2}</ThemedText>
                   </View>
                   <ThemedText className="text-base flex-1" style={{ marginStart: isRTL ? 0 : 12, marginEnd: isRTL ? 12 : 0 }}>{getDisplayName(user)}</ThemedText>
