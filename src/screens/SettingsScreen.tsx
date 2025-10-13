@@ -193,13 +193,18 @@ export default function SettingsScreen() {
   };
 
   const handleRemoveMemberPress = async (member: any) => {
-    setShowMemberOptions(null);
-
+    console.log('🟢 handleRemoveMemberPress called for member:', member.id, member.name);
     try {
-      // Check if member can be removed
+      // Check if member can be removed first
+      console.log('🔍 Checking if member can be removed...');
       const canBeRemoved = await checkMemberCanBeRemoved(member.id);
+      console.log('✅ Check result:', canBeRemoved);
+
+      // Close menu after check completes
+      setShowMemberOptions(null);
 
       if (!canBeRemoved.canBeRemoved) {
+        console.log('❌ Cannot remove member:', canBeRemoved.reason);
         showThemedAlert(
           t('settings.alerts.cannotRemoveMember'),
           t('settings.alerts.cannotRemoveMemberReason', {
@@ -212,13 +217,15 @@ export default function SettingsScreen() {
       }
 
       // Show confirmation dialog
+      console.log('✅ Member can be removed, showing confirmation dialog');
       setMemberToRemove({
         id: member.id,
         name: getDisplayName(member)
       });
       setConfirmRemoveVisible(true);
     } catch (error) {
-      console.error('Error checking if member can be removed:', error);
+      console.error('❌ Error checking if member can be removed:', error);
+      setShowMemberOptions(null); // Close menu even on error
       showThemedAlert(t('common.error'), t('settings.alerts.cannotCheckRemoval'));
     }
   };
@@ -371,9 +378,13 @@ export default function SettingsScreen() {
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: 5,
+            zIndex: 998, // Below the menu (which is 999)
+            elevation: 998, // For Android
           }}
-          onPress={() => setShowMemberOptions(null)}
+          onPress={() => {
+            console.log('🔵 Overlay clicked, closing menu');
+            setShowMemberOptions(null);
+          }}
         />
       )}
 
@@ -583,19 +594,23 @@ export default function SettingsScreen() {
                     {/* Popup menu */}
                     {showMemberOptions === member.id && (
                       <View
+                        onStartShouldSetResponder={() => true}
+                        onTouchEnd={(e) => e.stopPropagation()}
                         className="absolute top-10 rounded-lg shadow-lg"
                         style={{
                           backgroundColor: theme.colors.status.error,
                           minWidth: 140,
                           maxWidth: 180,
                           [isRTL ? 'left' : 'right']: 0,
-                          zIndex: 10,
+                          zIndex: 999, // Above the overlay (which is 998)
+                          elevation: 999, // For Android
                         }}
                       >
                         <Pressable
-                          onPress={() => {
+                          onPress={async () => {
+                            console.log('🔴 Remove member button pressed for:', member.id);
                             warning(); // Haptic feedback for remove member action
-                            handleRemoveMemberPress(member);
+                            await handleRemoveMemberPress(member);
                           }}
                           className="px-4 py-3"
                         >
