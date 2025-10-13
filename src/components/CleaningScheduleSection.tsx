@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '../state/store';
 import { useTranslation } from 'react-i18next';
 import { useIsRTL } from '../hooks/useIsRTL';
+import { useFocusEffect } from '@react-navigation/native';
 import { selection, success, impactMedium, impactLight, warning } from '../utils/haptics';
 import { ThemedText } from '../theme/components/ThemedText';
 import { ThemedCard } from '../theme/components/ThemedCard';
@@ -14,6 +15,7 @@ import { IntervalPicker } from './IntervalPicker';
 import { AppTextInput } from './AppTextInput';
 import { getTaskLabel } from '../utils/taskLabel';
 import { showThemedAlert } from './ThemedAlert';
+import CleaningRotationOrderModal from './CleaningRotationOrderModal';
 
 export default function CleaningScheduleSection() {
   const { t } = useTranslation();
@@ -25,6 +27,8 @@ export default function CleaningScheduleSection() {
     checklistItems,
     addChecklistItem,
     removeChecklistItem,
+    startCleaningTaskListener,
+    stopCleaningTaskListener,
   } = useStore();
 
   const [newChore, setNewChore] = useState('');
@@ -33,6 +37,7 @@ export default function CleaningScheduleSection() {
   const [isAddingChore, setIsAddingChore] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [deletingChoreId, setDeletingChoreId] = useState<string | null>(null);
+  const [showRotationOrderModal, setShowRotationOrderModal] = useState(false);
 
   const themed = useThemedStyles(tk => ({
     textPrimary: { color: tk.colors.text.primary },
@@ -41,6 +46,16 @@ export default function CleaningScheduleSection() {
     inputBg: { backgroundColor: tk.colors.card },
     inputText: { color: tk.colors.text.primary },
   }));
+
+  // Set up real-time listener for cleaning task settings
+  useFocusEffect(
+    React.useCallback(() => {
+      startCleaningTaskListener().catch(error => {
+        console.error('Failed to start cleaning task listener:', error);
+      });
+      return () => stopCleaningTaskListener();
+    }, [startCleaningTaskListener, stopCleaningTaskListener])
+  );
 
   return (
     <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
@@ -56,9 +71,9 @@ export default function CleaningScheduleSection() {
           </ThemedText>
           <IntervalPicker
             selectedInterval={cleaningSettings.intervalDays}
-            onIntervalChange={(interval) => {
+            onIntervalChange={async (interval) => {
               selection(); // Haptic feedback for schedule selection
-              setCleaningIntervalDays(interval);
+              await setCleaningIntervalDays(interval);
             }}
             style={{ marginBottom: 16 }}
           />
@@ -71,14 +86,39 @@ export default function CleaningScheduleSection() {
               </ThemedText>
               <DayPicker
                 selectedDay={cleaningSettings.anchorDow}
-                onDayChange={(day) => {
+                onDayChange={async (day) => {
                   selection(); // Haptic feedback for day selection
-                  setCleaningAnchorDow(day);
+                  await setCleaningAnchorDow(day);
                 }}
-                style={{ marginBottom: 8 }}
+                style={{ marginBottom: 16 }}
               />
             </>
           )}
+
+          {/* Edit Rotation Order Button */}
+          <Pressable
+            onPress={() => {
+              impactLight(); // Haptic feedback
+              setShowRotationOrderModal(true);
+            }}
+            style={[
+              {
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                backgroundColor: '#3b82f6',
+                gap: 8,
+              },
+            ]}
+          >
+            <Ionicons name="swap-vertical" size={20} color="white" />
+            <ThemedText className="text-base font-medium" style={{ color: 'white' }}>
+              {t('cleaning.editRotationOrder')}
+            </ThemedText>
+          </Pressable>
         </View>
 
         {/* Cleaning Tasks Section */}
@@ -248,6 +288,12 @@ export default function CleaningScheduleSection() {
           )}
         </View>
       </Accordion>
+
+      {/* Rotation Order Modal */}
+      <CleaningRotationOrderModal
+        visible={showRotationOrderModal}
+        onClose={() => setShowRotationOrderModal(false)}
+      />
     </ThemedCard>
   );
 }

@@ -3982,6 +3982,7 @@ export class FirestoreService {
           current_index: f.current_index?.integerValue ? Number(f.current_index.integerValue) : 0,
           assigned_at: f.assigned_at?.timestampValue ?? null,
           frequency_days: f.frequency_days?.integerValue ? Number(f.frequency_days.integerValue) : 7,
+          anchor_dow: f.anchor_dow?.integerValue ? Number(f.anchor_dow.integerValue) : 0,
           last_completed_at: f.last_completed_at?.timestampValue ?? null,
           last_completed_by: f.last_completed_by?.stringValue ?? null,
         };
@@ -4025,6 +4026,7 @@ export class FirestoreService {
         rotation: F.arrStr([uid]),           // תתחיל ממי שקיים כרגע
         assigned_at: F.ts(new Date()),
         frequency_days: F.int(7),
+        anchor_dow: F.int(0),                // Default to Sunday (0)
       },
     };
 
@@ -4112,6 +4114,51 @@ export class FirestoreService {
     console.log('✅ Cleaning stats update completed');
 
     return await res.json();
+  }
+
+  /**
+   * Update cleaning settings (frequency_days and/or anchor_dow)
+   * Syncs changes across all roommates in real-time
+   */
+  async updateCleaningSettings(settings: { 
+    frequency_days?: number; 
+    anchor_dow?: number 
+  }): Promise<void> {
+    const { idToken, aptId } = await getApartmentContext();
+    
+    const fields: any = {};
+    const fieldPaths: string[] = [];
+    
+    if (settings.frequency_days !== undefined) {
+      fields.frequency_days = F.int(settings.frequency_days);
+      fieldPaths.push('frequency_days');
+    }
+    
+    if (settings.anchor_dow !== undefined) {
+      fields.anchor_dow = F.int(settings.anchor_dow);
+      fieldPaths.push('anchor_dow');
+    }
+    
+    if (fieldPaths.length === 0) {
+      return; // Nothing to update
+    }
+    
+    const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${aptId}?` + 
+      fieldPaths.map(path => `updateMask.fieldPaths=${path}`).join('&');
+    
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: H(idToken),
+      body: JSON.stringify({ fields }),
+    });
+    
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('Failed to update cleaning settings:', res.status, text);
+      throw new Error(`UPDATE_CLEANING_SETTINGS_${res.status}`);
+    }
+    
+    console.log('✅ Cleaning settings updated successfully');
   }
 
   /**
@@ -4309,6 +4356,52 @@ export class FirestoreService {
     
     console.log('📊 Converted stats:', convertedStats);
     return convertedStats;
+  }
+
+  /**
+   * Update cleaning rotation order (queue)
+   */
+  async updateCleaningRotationOrder(apartmentId: string, newQueue: string[]): Promise<void> {
+    console.log('🔄 Updating cleaning rotation order for apartment:', apartmentId);
+    console.log('📋 New queue:', newQueue);
+    
+    const { idToken } = await requireSession();
+    
+    const url = `${FIRESTORE_BASE_URL}/cleaningTasks/${apartmentId}`;
+    
+    // First, check if the cleaning task exists
+    const getRes = await fetch(url, {
+      method: 'GET',
+      headers: H(idToken),
+    });
+    
+    if (!getRes.ok) {
+      console.error('❌ Cleaning task not found for apartment:', apartmentId);
+      throw new Error(`CLEANING_TASK_NOT_FOUND: Cannot update rotation order - task doesn't exist`);
+    }
+    
+    // Update the rotation field in Firestore (which maps to queue in our local state)
+    const updateBody = {
+      fields: {
+        rotation: F.arrStr(newQueue),
+      }
+    };
+    
+    const updateUrl = `${url}?updateMask.fieldPaths=rotation`;
+    
+    const updateRes = await fetch(updateUrl, {
+      method: 'PATCH',
+      headers: H(idToken),
+      body: JSON.stringify(updateBody),
+    });
+    
+    if (!updateRes.ok) {
+      const text = await updateRes.text().catch(() => '');
+      console.error('❌ Firestore updateCleaningRotationOrder error:', updateRes.status, text);
+      throw new Error(`UPDATE_ROTATION_ORDER_${updateRes.status}: ${text}`);
+    }
+    
+    console.log('✅ Cleaning rotation order updated successfully in Firestore');
   }
 
   /**
