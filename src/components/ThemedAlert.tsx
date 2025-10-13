@@ -128,13 +128,36 @@ export function ThemedAlert({
           )}
 
           {/* Buttons */}
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: 16 }}>
             {alertButtons.map((button, index) => {
-              const isLast = index === alertButtons.length - 1;
-              const buttonColor = 
-                button.style === 'destructive' ? themed.destructiveButton.color :
-                button.style === 'cancel' ? themed.cancelButton.color :
-                themed.defaultButton.color;
+              // Define background, border and text colors for each button style
+              const getButtonColors = () => {
+                switch (button.style) {
+                  case 'destructive':
+                    return {
+                      bg: 'rgba(239, 68, 68, 0.2)', // Light red background
+                      bgPressed: 'rgba(239, 68, 68, 0.3)',
+                      border: '#EF4444', // Red border
+                      text: '#DC2626', // Red text
+                    };
+                  case 'cancel':
+                    return {
+                      bg: 'rgba(156, 163, 175, 0.2)', // Light gray background
+                      bgPressed: 'rgba(156, 163, 175, 0.3)',
+                      border: '#9CA3AF', // Gray border
+                      text: themed.cancelButton.color,
+                    };
+                  default: // default style
+                    return {
+                      bg: 'rgba(59, 130, 246, 0.2)', // Light blue background
+                      bgPressed: 'rgba(59, 130, 246, 0.3)',
+                      border: '#3B82F6', // Blue border
+                      text: themed.defaultButton.color,
+                    };
+                }
+              };
+
+              const colors = getButtonColors();
 
               return (
                 <Pressable
@@ -142,26 +165,20 @@ export function ThemedAlert({
                   onPress={() => handleButtonPress(button)}
                   style={({ pressed }) => [
                     {
-                      paddingVertical: 12,
+                      paddingVertical: 14,
                       paddingHorizontal: 16,
-                      borderRadius: 10,
-                      backgroundColor: pressed 
-                        ? (button.style === 'destructive' 
-                          ? 'rgba(239, 68, 68, 0.1)' 
-                          : 'rgba(59, 130, 246, 0.1)')
-                        : 'transparent',
-                    },
-                    !isLast && { 
-                      borderBottomWidth: 1, 
-                      ...themed.buttonBorder 
+                      borderRadius: 12,
+                      borderWidth: 1.5,
+                      borderColor: colors.border,
+                      backgroundColor: pressed ? colors.bgPressed : colors.bg,
                     },
                   ]}
                 >
                   <Text
                     style={{
-                      color: buttonColor,
+                      color: colors.text,
                       fontSize: 16,
-                      fontWeight: button.style === 'cancel' ? '400' : '600',
+                      fontWeight: button.style === 'cancel' ? '500' : '600',
                       textAlign: 'center',
                     }}
                   >
