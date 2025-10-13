@@ -2,13 +2,13 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer, DefaultTheme, DarkTheme, Theme as NavTheme } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { View, Text, TextInput } from "react-native";
+import { View, Text, TextInput, AppState, AppStateStatus } from "react-native";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeProvider";
 import { navigationRef } from "./src/navigation/navigationRef";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import "./src/i18n";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
 import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
@@ -50,6 +50,7 @@ export default function App() {
   const appLanguage = useStore(s => s.appLanguage);
   const currentUser = useStore(s => s.currentUser);
   const [hasRequestedPermissions, setHasRequestedPermissions] = useState(false);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
     if (i18n.language !== appLanguage) {
@@ -111,6 +112,59 @@ export default function App() {
     initializeNotifications();
     */
   }, [currentUser?.id, hasRequestedPermissions]);
+
+  // Refresh all data when app comes to foreground
+  useEffect(() => {
+    const refreshAllData = async () => {
+      try {
+        console.log('🔄 App returned to foreground - refreshing all data from server...');
+        
+        const store = useStore.getState();
+        
+        // Only refresh if user is authenticated and has an apartment
+        if (!currentUser?.id || !currentUser?.current_apartment_id) {
+          console.log('⏭️ Skipping refresh - no authenticated user or apartment');
+          return;
+        }
+        
+        // Refresh all data in parallel
+        await Promise.all([
+          store.refreshApartmentMembers?.(),
+          store.loadExpenses?.(),
+          store.loadDebtSettlements?.(),
+          store.loadShoppingItems?.(),
+          store.loadCleaningTask?.(),
+          store.loadCleaningChecklist?.(),
+          store.loadCleaningStats?.(),
+        ]);
+        
+        console.log('✅ All data refreshed successfully from server');
+      } catch (error) {
+        console.error('❌ Error refreshing data on app foreground:', error);
+      }
+    };
+
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // Check if app is coming to foreground (from background or inactive)
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App has come to the foreground - refresh all data
+        refreshAllData();
+      }
+      
+      appStateRef.current = nextAppState;
+    };
+
+    // Subscribe to app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.remove();
+    };
+  }, [currentUser?.id, currentUser?.current_apartment_id]);
 
   // RTL text alignment is now handled by ThemedText and AppTextInput components
   // No need for global defaultProps which don't work reliably
