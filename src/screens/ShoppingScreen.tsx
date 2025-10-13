@@ -27,6 +27,7 @@ import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { showThemedAlert } from '../components/ThemedAlert';
+import ShoppingListAd from '../components/ads/ShoppingListAd';
 
 
 // ---------- helpers: animated keyboard-aware card (בלי KAV, בלי גלילה) ----------
@@ -306,7 +307,33 @@ export default function ShoppingScreen() {
   const pendingItems = getFilteredItems();
   const purchasedItems = shoppingItems.filter(item => item.purchased);
 
-  const renderShoppingItem = ({ item }: { item: any }) => (
+  // Insert ads every 3 items (Mock ads for Expo Go - works now!)
+  // ADMOB RESTORE: Replace with real AdMob logic before App Store deployment
+  const insertAdsIntoList = (items: any[]) => {
+    const result: any[] = [];
+    items.forEach((item, index) => {
+      result.push(item);
+      // Insert ad after every 3 items
+      if ((index + 1) % 3 === 0 && index < items.length - 1) {
+        result.push({ 
+          id: `ad-${index}`, 
+          isAd: true,
+          type: 'shopping' 
+        });
+      }
+    });
+    return result;
+  };
+
+  const pendingItemsWithAds = insertAdsIntoList(pendingItems);
+
+  const renderShoppingItem = ({ item }: { item: any }) => {
+    // Check if this is an ad item
+    if (item.isAd) {
+      return <ShoppingListAd key={item.id} />;
+    }
+
+    return (
     <ThemedCard className={cn('rounded-xl p-4 mb-3 shadow-sm', item.purchased && '')}>
       <View 
         className="items-center"
@@ -476,7 +503,8 @@ export default function ShoppingScreen() {
         </Pressable>
       </View>
     </ThemedCard>
-  );
+    );
+  };
 
   if (!currentUser || !currentApartment) {
     return (
@@ -577,7 +605,7 @@ export default function ShoppingScreen() {
                 </ThemedText>
               )}
             </ThemedText>
-            <FlatList data={pendingItems} renderItem={renderShoppingItem} keyExtractor={item => item.id} scrollEnabled={false} />
+            <FlatList data={pendingItemsWithAds} renderItem={renderShoppingItem} keyExtractor={item => item.id} scrollEnabled={false} />
           </View>
         )}
 
@@ -661,8 +689,8 @@ export default function ShoppingScreen() {
                   value={newItemQuantity}
                   onChangeText={setNewItemQuantity}
                   placeholder="1"
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
-                  style={{ textAlign: 'center' }}
+                  className="border rounded-xl px-4 py-3 text-base"
+                  style={[themed.borderColor, themed.textPrimary, { textAlign: 'center' }]}
                   keyboardType="numeric"
                   returnKeyType="done"
                   onSubmitEditing={Keyboard.dismiss}
@@ -681,25 +709,31 @@ export default function ShoppingScreen() {
                         Keyboard.dismiss();
                         setNewItemPriority(priority.key as any);
                       }}
-                      className={cn(
-                        'flex-1 py-3 px-2 rounded-xl border-2 items-center',
-                        newItemPriority === priority.key ? 'bg-blue-100 border-blue-500' : 'bg-gray-50 border-gray-200'
-                      )}
+                      className="flex-1 py-3 px-2 rounded-xl border-2 items-center"
+                      style={{
+                        backgroundColor: newItemPriority === priority.key 
+                          ? (activeScheme === 'dark' ? '#1e40af' : '#dbeafe')
+                          : (activeScheme === 'dark' ? '#374151' : '#f9fafb'),
+                        borderColor: newItemPriority === priority.key 
+                          ? (activeScheme === 'dark' ? '#3b82f6' : '#3b82f6')
+                          : (activeScheme === 'dark' ? '#4b5563' : '#e5e7eb')
+                      }}
                     >
                       <Ionicons
                         name={priority.icon as any}
                         size={20}
-                        color={newItemPriority === priority.key ? priority.color : '#6b7280'}
+                        color={priority.color}
                       />
-                      <ThemedText
-                        className={cn(
-                          'text-sm font-medium mt-1 text-center',
-                          newItemPriority === priority.key ? priority.color : ''
-                        )}
-                        style={newItemPriority !== priority.key ? themed.buttonText : undefined}
+                      <Text
+                        className="text-sm font-medium mt-1 text-center"
+                        style={{ 
+                          color: newItemPriority === priority.key 
+                            ? (activeScheme === 'dark' ? '#f3f4f6' : priority.color)
+                            : (activeScheme === 'dark' ? '#9ca3af' : '#6b7280')
+                        }}
                       >
                         {priority.label}
-                      </ThemedText>
+                      </Text>
                     </Pressable>
                   ))}
                 </View>
@@ -707,12 +741,13 @@ export default function ShoppingScreen() {
 
               {/* Notes */}
               <View className="mb-6">
-                <ThemedText className="text-gray-700 text-base mb-2">{t('shopping.addModal.notes')}</ThemedText>
+                <ThemedText className="text-base mb-2" style={themed.textSecondary}>{t('shopping.addModal.notes')}</ThemedText>
                 <AppTextInput
                   value={newItemNotes}
                   onChangeText={setNewItemNotes}
                   placeholder={t('shopping.addModal.notesPh')}
-                  className="border border-gray-300 rounded-xl px-4 py-3 text-base"
+                  className="border rounded-xl px-4 py-3 text-base"
+                  style={themed.borderColor}
                   multiline
                   numberOfLines={3}
                   returnKeyType="done"
@@ -733,10 +768,25 @@ export default function ShoppingScreen() {
                     setNewItemPriority('normal');
                     setNewItemNotes('');
                   }}
-                  className="flex-1 bg-gray-100 py-3 px-4 rounded-xl mr-2"
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: activeScheme === 'dark' ? '#374151' : '#f3f4f6',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 12,
+                    marginRight: 8
+                  }}
                   disabled={isAddingItem}
                 >
-                  <ThemedText className="text-gray-700 font-medium text-center">{t('shopping.addModal.cancel')}</ThemedText>
+                  <Text 
+                    style={{ 
+                      color: activeScheme === 'dark' ? '#f3f4f6' : '#374151',
+                      fontWeight: '500',
+                      textAlign: 'center'
+                    }}
+                  >
+                    {t('shopping.addModal.cancel')}
+                  </Text>
                 </Pressable>
 
                 <Pressable
@@ -745,13 +795,19 @@ export default function ShoppingScreen() {
                     handleAddItem();
                   }}
                   disabled={!newItemName.trim() || isAddingItem}
-                  className={cn('flex-1 py-3 px-4 rounded-xl', !newItemName.trim() || isAddingItem ? 'bg-gray-400' : 'bg-blue-500')}
+                  style={{ 
+                    flex: 1,
+                    backgroundColor: !newItemName.trim() || isAddingItem ? '#9ca3af' : '#3b82f6',
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 12
+                  }}
                 >
-                  <View className="flex-row items-center justify-center">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                     {isAddingItem ? (<Ionicons name="hourglass" size={20} color="white" />) : (<Ionicons name="add" size={20} color="white" />)}
-                    <ThemedText className="text-white font-medium text-center mr-2">
+                    <Text style={{ color: 'white', fontWeight: '500', textAlign: 'center', marginLeft: 8 }}>
                       {isAddingItem ? t('shopping.addModal.adding') : t('shopping.addModal.add')}
-                    </ThemedText>
+                    </Text>
                   </View>
                 </Pressable>
               </View>
@@ -872,10 +928,22 @@ export default function ShoppingScreen() {
                       setPurchaseNote('');
                       setPurchaseDate(new Date());
                     }}
-                    className="flex-1 py-3 px-4 rounded-xl mr-2"
-                    style={themed.surfaceBg}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderRadius: 12,
+                      marginRight: 8,
+                      backgroundColor: activeScheme === 'dark' ? '#374151' : '#f3f4f6'
+                    }}
                   >
-                    <ThemedText className="font-medium" style={[themed.textSecondary, { textAlign: 'center' }]}>{t('shopping.purchaseModal.cancel')}</ThemedText>
+                    <Text style={{ 
+                      fontWeight: '500', 
+                      textAlign: 'center',
+                      color: activeScheme === 'dark' ? '#f3f4f6' : '#374151'
+                    }}>
+                      {t('shopping.purchaseModal.cancel')}
+                    </Text>
                   </Pressable>
 
                   <Pressable
@@ -884,18 +952,25 @@ export default function ShoppingScreen() {
                       handlePurchaseConfirm();
                     }}
                     disabled={isPurchasingItem === selectedItemId}
-                    className={cn(
-                      "flex-1 py-3 px-4 rounded-xl",
-                      isPurchasingItem === selectedItemId ? "bg-gray-400" : "bg-green-500"
-                    )}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderRadius: 12,
+                      backgroundColor: isPurchasingItem === selectedItemId ? '#9ca3af' : '#10b981'
+                    }}
                   >
                     {isPurchasingItem === selectedItemId ? (
-                      <View className="flex-row items-center justify-center">
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                         <Ionicons name="hourglass" size={20} color="white" />
-                        <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium mr-2">{t('shopping.purchaseModal.adding')}</Text>
+                        <Text style={{ textAlign: 'center', color: '#ffffff', fontWeight: '500', marginRight: 8 }}>
+                          {t('shopping.purchaseModal.adding')}
+                        </Text>
                       </View>
                     ) : (
-                      <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium">{t('shopping.purchaseModal.confirm')}</Text>
+                      <Text style={{ textAlign: 'center', color: '#ffffff', fontWeight: '500' }}>
+                        {t('shopping.purchaseModal.confirm')}
+                      </Text>
                     )}
                   </Pressable>
                 </View>
@@ -999,24 +1074,46 @@ export default function ShoppingScreen() {
                         setShowItemDetailsModal(false);
                         setSelectedItemId(null);
                       }}
-                      className="py-3 px-4 rounded-xl mr-2"
-                      style={themed.surfaceBg}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 16,
+                        borderRadius: 12,
+                        marginRight: 8,
+                        backgroundColor: activeScheme === 'dark' ? '#374151' : '#f3f4f6'
+                      }}
                     >
-                       <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="font-medium text-sm w-full">{t('shopping.detailsModal.close')}</Text>
+                       <Text style={{ 
+                         textAlign: 'center', 
+                         color: activeScheme === 'dark' ? '#f3f4f6' : '#374151',
+                         fontWeight: '500',
+                         fontSize: 14
+                       }}>
+                         {t('shopping.detailsModal.close')}
+                       </Text>
                     </Pressable>
 
                     <Pressable
                       onPress={() => selectedItemId && handleRepurchase(selectedItemId)}
                       disabled={isRepurchasingItem === selectedItemId}
-                      className="flex-1 bg-blue-500 py-3 px-3 rounded-xl"
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        paddingHorizontal: 12,
+                        borderRadius: 12,
+                        backgroundColor: '#3b82f6'
+                      }}
                     >
                       {isRepurchasingItem === selectedItemId ? (
-                        <View className="flex-row items-center justify-center">
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                           <Ionicons name="hourglass" size={20} color="white" />
-                          <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium mr-2 w-full">{t('shopping.detailsModal.adding')}</Text>
+                          <Text style={{ textAlign: 'center', color: '#ffffff', fontWeight: '500', marginRight: 8 }}>
+                            {t('shopping.detailsModal.adding')}
+                          </Text>
                         </View>
                       ) : (
-                        <Text style={{ textAlign: 'center', color: '#ffffff' }} className="font-medium w-full">{t('shopping.detailsModal.repurchase')}</Text>
+                        <Text style={{ textAlign: 'center', color: '#ffffff', fontWeight: '500' }}>
+                          {t('shopping.detailsModal.repurchase')}
+                        </Text>
                       )}
                     </Pressable>
                   </View>
