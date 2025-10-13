@@ -14,6 +14,7 @@ import {
   setDoc,
   updateDoc,
   collection,
+  collectionGroup,
   query,
   where,
   orderBy,
@@ -21,7 +22,8 @@ import {
   onSnapshot,
   Unsubscribe,
   Query,
-  CollectionReference
+  CollectionReference,
+  type WhereFilterOp
 } from 'firebase/firestore';
 import { db } from './firebase-sdk';
 import { firebaseAuth } from './firebase-auth';
@@ -189,6 +191,64 @@ export class FirestoreSDKService {
     }, (error) => {
       console.error(`❌ ${collectionName} subscription error:`, error);
     });
+  }
+
+  /**
+   * Subscribe to a Firestore collectionGroup with real-time updates
+   * Use this for subcollections that exist under different parent paths
+   * (e.g., checklistItems under cleaningTasks/{taskId}/checklistItems and apartments/{apartmentId}/tasks/{taskId}/checklistItems)
+   * 
+   * CRITICAL: Always filter by apartment_id to match security rules!
+   * 
+   * @param groupName - Collection group name (e.g., 'checklistItems')
+   * @param callback - Callback when data updates
+   * @param filters - Where filters to apply (MUST include apartment_id filter!)
+   * @param orderByField - Optional field to order by
+   * @param orderDir - Order direction
+   * @param onError - Optional error handler for permission errors
+   * @returns Unsubscribe function
+   */
+  subscribeToCollectionGroup<T = any>(
+    groupName: string,
+    callback: (docs: T[]) => void,
+    filters: { field: string; operator: WhereFilterOp; value: any }[] = [],
+    orderByField?: string,
+    orderDir: 'asc' | 'desc' = 'asc',
+    onError?: (error: any) => void
+  ): Unsubscribe {
+    console.log(`📡 Setting up real-time collectionGroup subscription for ${groupName}`);
+    
+    let q: Query = collectionGroup(db, groupName);
+
+    // Apply filters - CRITICAL: Must include apartment_id for security rules
+    for (const filter of filters) {
+      q = query(q, where(filter.field, filter.operator, filter.value));
+    }
+    
+    // Apply ordering if provided
+    if (orderByField) {
+      q = query(q, orderBy(orderByField, orderDir));
+    }
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as T[];
+        
+        console.log(`📊 ${groupName} collectionGroup update: ${items.length} documents`);
+        callback(items);
+      },
+      (error) => {
+        // Handle errors including PERMISSION_DENIED when current_apartment_id not set
+        console.warn(`❌ subscribeToCollectionGroup error (${groupName}):`, error?.code || error?.message);
+        onError?.(error);
+      }
+    );
+
+    return unsubscribe;
   }
 
   /**
