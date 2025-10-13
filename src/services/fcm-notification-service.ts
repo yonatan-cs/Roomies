@@ -145,11 +145,18 @@ export class FCMNotificationService {
     messaging().onMessage(async remoteMessage => {
       console.log('📨 Foreground FCM message received:', remoteMessage);
       
-      // Show a local notification when app is in foreground
+      // Handle checklist updates - if listener is active, don't show notification
+      if (remoteMessage.data?.type === 'checklist_update') {
+        console.log('✅ Checklist update received (real-time listener will handle UI update)');
+        // Don't show notification - the real-time listener already updated the UI
+        return;
+      }
+      
+      // Show a local notification when app is in foreground for other types
       if (remoteMessage.notification) {
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: remoteMessage.notification.title || 'New notification',
+            title: remoteMessage.notification.title || 'עדכון',
             body: remoteMessage.notification.body || '',
             data: remoteMessage.data,
           },

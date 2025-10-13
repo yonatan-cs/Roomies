@@ -636,66 +636,60 @@ export const useStore = create<AppState>()(
 
       startCleaningChecklistListener: () => {
         const state = get();
-        const { currentApartment, _checklistUnsubscribe } = state;
+        const { currentApartment, currentUser, _checklistUnsubscribe } = state;
         
-        // If already listening, don't start again
+        // Guard: already listening
         if (_checklistUnsubscribe) {
-          console.log('📡 Cleaning checklist listener already active');
+          console.log('📡 Checklist listener already active');
           return;
         }
         
-        if (!currentApartment?.id) {
-          console.warn('Cannot start cleaning checklist listener: no apartment');
+        // CRITICAL: Don't start listener without valid apartment context
+        if (!currentApartment?.id || !currentUser?.current_apartment_id) {
+          console.warn('Cannot start listener: missing apartment or current_apartment_id');
           return;
         }
         
-        console.log('📡 Starting polling-based checklist updates (Firebase rules compatible)');
+        console.log('📡 Starting real-time checklist listener (collectionGroup)');
         
-        // Use polling instead of realtime listener due to Firebase rules complexity
-        const pollInterval = setInterval(async () => {
-          try {
-            // Check for overdue tasks (automatic turn rotation)
-            await get().checkOverdueTasks();
-            
-            const items = await firestoreService.getCleaningChecklist();
+        // Use CollectionGroup listener - matches Firestore security rules:
+        // match /{path=**}/checklistItems/{itemId} { 
+        //   allow read: if apartment_id == currentUserApartmentId() 
+        // }
+        const unsubscribe = firestoreSDKService.subscribeToCollectionGroup(
+          'checklistItems',
+          (items) => {
             const { currentUser, currentApartment, cleaningTask } = get();
-            
-            // Calculate if it's my turn
             const currentTurnUserId = getCurrentTurnUserId(cleaningTask);
             const members = currentApartment?.members ?? [];
-            const isMyTurn = members.length === 1 ? 
-              !!(cleaningTask && currentUser && members[0].id === currentUser.id) :
-              !!(cleaningTask && currentUser && currentTurnUserId === currentUser.id);
+            const isMyTurn = members.length === 1
+              ? !!(cleaningTask && currentUser && members[0].id === currentUser.id)
+              : !!(cleaningTask && currentUser && currentTurnUserId === currentUser.id);
             
-            // Auto-reset checklist if it's my turn and all tasks are completed by someone else
-            if (isMyTurn && currentUser && items.length > 0) {
-              const allCompleted = items.every((item: any) => item.completed);
-              const completedByOther = items.some((item: any) => item.completed_by && item.completed_by !== currentUser.id);
-              
-              if (allCompleted && completedByOther) {
-                console.log('🔄 [Polling] Auto-resetting checklist for new turn');
-                try {
-                  await firestoreService.resetAllChecklistItems();
-                  return;
-                } catch (resetError) {
-                  console.error('[Polling] Error auto-resetting checklist:', resetError);
-                  // Continue with completed items if reset fails
-                }
-              }
-            }
-            
-            // Update state with new items
             set({
               checklistItems: items,
               isMyCleaningTurn: isMyTurn,
             });
-          } catch (error) {
-            console.error('Error in checklist polling:', error);
+            
+            // Optional: check overdue tasks on each update
+            // get().checkOverdueTasks();
+          },
+          [
+            // CRITICAL: Filter by apartment_id to match security rules
+            { field: 'apartment_id', operator: '==', value: currentApartment.id }
+          ],
+          'created_at',
+          'desc',
+          (error) => {
+            // Handle permission denied (e.g., user not yet joined apartment)
+            if (error?.code === 'permission-denied') {
+              console.warn('Checklist listener permission denied, will retry on focus/after join');
+              get().stopCleaningChecklistListener();
+            }
           }
-        }, 10000); // Poll every 10 seconds (reduced frequency for automatic turn rotation)
+        );
         
-        // Store the unsubscribe function
-        set({ _checklistUnsubscribe: () => clearInterval(pollInterval) });
+        set({ _checklistUnsubscribe: unsubscribe });
       },
 
       stopCleaningChecklistListener: () => {
