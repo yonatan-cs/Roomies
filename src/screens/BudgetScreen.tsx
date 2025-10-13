@@ -27,6 +27,7 @@ import { impactMedium, impactLight } from '../utils/haptics';
 import { ThemedView } from '../theme/components/ThemedView';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useFormatCurrency } from '../utils/hebrewFormatting';
+import ExpenseListAd from '../components/ads/ExpenseListAd';
 
 type RootStackParamList = {
   AddExpense: undefined;
@@ -180,8 +181,30 @@ export default function BudgetScreen() {
     // The store will automatically update
   }, []);
 
+  // Insert ads every 3 items (Mock ads for Expo Go - works now!)
+  // ADMOB RESTORE: Replace with real AdMob logic before App Store deployment
+  const insertAdsIntoExpenses = (expenses: any[]) => {
+    const result: any[] = [];
+    expenses.forEach((expense, index) => {
+      result.push(expense);
+      // Insert ad after every 3 items
+      if ((index + 1) % 3 === 0 && index < expenses.length - 1) {
+        result.push({ 
+          id: `ad-${index}`, 
+          isAd: true,
+          type: 'expense' 
+        });
+      }
+    });
+    return result;
+  };
 
   const renderExpenseItem = ({ item: expense }: { item: any }) => {
+    // Check if this is an ad item
+    if (expense.isAd) {
+      return <ExpenseListAd key={expense.id} />;
+    }
+
     return (
       <ExpenseRow
         item={expense}
@@ -398,7 +421,7 @@ export default function BudgetScreen() {
             </ThemedCard>
           ) : (
             <FlatList
-              data={monthlyData.expenses}
+              data={insertAdsIntoExpenses(monthlyData.expenses)}
               renderItem={renderExpenseItem}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}

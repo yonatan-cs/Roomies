@@ -565,6 +565,11 @@ export const resources = {
           networkIssue: 'Connection issue to Firebase. Check your internet',
           tokenExpired: 'Session expired. Please sign in again'
         }
+      },
+      ads: {
+        sponsored: 'Sponsored',
+        mockTitle: 'Recommended Product',
+        mockDescription: 'This is a sample advertisement'
       }
     }
   },
@@ -1153,6 +1158,11 @@ export const resources = {
           networkIssue: 'בעיית חיבור ל-Firebase. בדוק חיבור לאינטרנט',
           tokenExpired: 'תוקף ההתחברות פג. התחבר מחדש'
         }
+      },
+      ads: {
+        sponsored: 'ממומן',
+        mockTitle: 'מוצר מומלץ',
+        mockDescription: 'זוהי פרסומת לדוגמה'
       }
     }
   }
