@@ -24,7 +24,8 @@ type NotificationType =
   | 'cleaning_completed'
   | 'cleaning_task_added'
   | 'cleaning_reminder'
-  | 'purchase_followup';
+  | 'purchase_followup'
+  | 'checklist_item_completed';
 
 // Notification translations for Hebrew and English
 const notificationTranslations: Record<NotificationType, {
@@ -109,6 +110,16 @@ const notificationTranslations: Record<NotificationType, {
     he: ({ itemName }) => ({
       title: '💰 אל תשכח/י להוסיף הוצאה!',
       body: `קנית "${itemName}" אתמול. זכור/י להוסיף את זה להוצאות!`
+    })
+  },
+  checklist_item_completed: {
+    en: ({ userName, itemTitle }) => ({
+      title: '✅ Cleaning Task Completed',
+      body: `${userName} marked "${itemTitle}" as completed`
+    }),
+    he: ({ userName, itemTitle }) => ({
+      title: '✅ משימת ניקיון הושלמה',
+      body: `${userName} סימן/ה "${itemTitle}" כהושלם`
     })
   }
 };
@@ -894,6 +905,98 @@ export const onCleaningChecklistItemAdded = functions.firestore
       console.log(`✅ Sent cleaning task added notification for ${taskTitle}`);
     } catch (error) {
       console.error('❌ Error in onCleaningChecklistItemAdded:', error);
+    }
+  });
+
+/**
+ * Trigger: Checklist item updated (Legacy schema)
+ * Path: cleaningTasks/{taskId}/checklistItems/{itemId}
+ * Sends notification when checklist item is completed
+ */
+export const onChecklistItemUpdated = functions.firestore
+  .document('cleaningTasks/{taskId}/checklistItems/{itemId}')
+  .onUpdate(async (change, context) => {
+    try {
+      const before = change.before.data();
+      const after = change.after.data();
+      const apartmentId = after.apartment_id;
+      
+      if (!apartmentId) {
+        console.log('⚠️ Missing apartment_id in checklist item');
+        return;
+      }
+      
+      // Only notify if item was completed
+      if (!before.completed && after.completed) {
+        const completedBy = after.completed_by;
+        const itemTitle = after.title || 'משימה';
+        
+        if (completedBy) {
+          const userName = await getUserDisplayName(completedBy);
+          
+          await sendNotificationToApartment(
+            apartmentId,
+            'checklist_item_completed',
+            { userName, itemTitle },
+            { 
+              type: 'checklist_update',
+              itemId: context.params.itemId,
+              taskId: context.params.taskId
+            },
+            completedBy // Exclude the user who completed it
+          );
+          
+          console.log(`✅ Sent checklist item completed notification for "${itemTitle}" by ${userName}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in onChecklistItemUpdated:', error);
+    }
+  });
+
+/**
+ * Trigger: Checklist item updated (New schema)
+ * Path: apartments/{apartmentId}/tasks/{taskId}/checklistItems/{itemId}
+ * Sends notification when checklist item is completed
+ */
+export const onChecklistItemUpdatedV2 = functions.firestore
+  .document('apartments/{apartmentId}/tasks/{taskId}/checklistItems/{itemId}')
+  .onUpdate(async (change, context) => {
+    try {
+      const before = change.before.data();
+      const after = change.after.data();
+      const apartmentId = context.params.apartmentId;
+      
+      if (!apartmentId) {
+        console.log('⚠️ Missing apartmentId in context');
+        return;
+      }
+      
+      // Only notify if item was completed
+      if (!before.completed && after.completed) {
+        const completedBy = after.completed_by;
+        const itemTitle = after.title || 'משימה';
+        
+        if (completedBy) {
+          const userName = await getUserDisplayName(completedBy);
+          
+          await sendNotificationToApartment(
+            apartmentId,
+            'checklist_item_completed',
+            { userName, itemTitle },
+            { 
+              type: 'checklist_update',
+              itemId: context.params.itemId,
+              taskId: context.params.taskId
+            },
+            completedBy
+          );
+          
+          console.log(`✅ Sent checklist item completed notification (v2) for "${itemTitle}" by ${userName}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error in onChecklistItemUpdatedV2:', error);
     }
   });
 
