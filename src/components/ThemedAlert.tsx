@@ -22,6 +22,7 @@ interface ThemedAlertProps {
 /**
  * A themed alert component that adapts to dark mode and RTL
  * Replacement for React Native's Alert.alert()
+ * Updated with colored borders and backgrounds for better visibility
  */
 export function ThemedAlert({ 
   visible, 

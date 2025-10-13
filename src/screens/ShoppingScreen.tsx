@@ -164,7 +164,7 @@ export default function ShoppingScreen() {
     } else {
       showThemedAlert(
         t('shopping.deleteModal.title'),
-        '',
+        '', // Purchase confirmation dialog
         [
           {
             text: t('shopping.deleteModal.noJustDelete'),
