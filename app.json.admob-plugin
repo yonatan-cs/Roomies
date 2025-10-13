@@ -1,0 +1,17 @@
+{
+  "ADMOB_RESTORE_INSTRUCTIONS": "Before App Store deployment, add this plugin to app.json plugins array:",
+  "plugin": [
+    "react-native-google-mobile-ads",
+    {
+      "androidAppId": "ca-app-pub-4539954746841772~6975731872",
+      "iosAppId": "ca-app-pub-4539954746841772~9470743711"
+    }
+  ],
+  "instructions": [
+    "1. Open app.json",
+    "2. Find the 'plugins' array",
+    "3. Add a comma after 'expo-web-browser'",
+    "4. Add the plugin configuration from this file"
+  ]
+}
+
