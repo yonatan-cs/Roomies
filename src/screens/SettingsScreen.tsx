@@ -192,42 +192,47 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleRemoveMemberPress = async (member: any) => {
+  const handleRemoveMemberPress = (member: any) => {
     console.log('🟢 handleRemoveMemberPress called for member:', member.id, member.name);
-    try {
-      // Check if member can be removed first
-      console.log('🔍 Checking if member can be removed...');
-      const canBeRemoved = await checkMemberCanBeRemoved(member.id);
-      console.log('✅ Check result:', canBeRemoved);
+    
+    // Don't close menu immediately - let the async operation complete first
+    
+    // Run the check asynchronously but don't await it at the top level
+    (async () => {
+      try {
+        console.log('🔍 Checking if member can be removed...');
+        const canBeRemoved = await checkMemberCanBeRemoved(member.id);
+        console.log('✅ Check result:', canBeRemoved);
 
-      // Close menu after check completes
-      setShowMemberOptions(null);
+        // Close menu after check completes
+        setShowMemberOptions(null);
 
-      if (!canBeRemoved.canBeRemoved) {
-        console.log('❌ Cannot remove member:', canBeRemoved.reason);
-        showThemedAlert(
-          t('settings.alerts.cannotRemoveMember'),
-          t('settings.alerts.cannotRemoveMemberReason', {
-            name: getDisplayName(member),
-            reason: canBeRemoved.reason
-          }),
-          [{ text: t('common.ok') }]
-        );
-        return;
+        if (!canBeRemoved.canBeRemoved) {
+          console.log('❌ Cannot remove member:', canBeRemoved.reason);
+          showThemedAlert(
+            t('settings.alerts.cannotRemoveMember'),
+            t('settings.alerts.cannotRemoveMemberReason', {
+              name: getDisplayName(member),
+              reason: canBeRemoved.reason
+            }),
+            [{ text: t('common.ok') }]
+          );
+          return;
+        }
+
+        // Show confirmation dialog
+        console.log('✅ Member can be removed, showing confirmation dialog');
+        setMemberToRemove({
+          id: member.id,
+          name: getDisplayName(member)
+        });
+        setConfirmRemoveVisible(true);
+      } catch (error) {
+        console.error('❌ Error checking if member can be removed:', error);
+        setShowMemberOptions(null); // Close menu even on error
+        showThemedAlert(t('common.error'), t('settings.alerts.cannotCheckRemoval'));
       }
-
-      // Show confirmation dialog
-      console.log('✅ Member can be removed, showing confirmation dialog');
-      setMemberToRemove({
-        id: member.id,
-        name: getDisplayName(member)
-      });
-      setConfirmRemoveVisible(true);
-    } catch (error) {
-      console.error('❌ Error checking if member can be removed:', error);
-      setShowMemberOptions(null); // Close menu even on error
-      showThemedAlert(t('common.error'), t('settings.alerts.cannotCheckRemoval'));
-    }
+    })();
   };
 
   const handleConfirmRemoveMember = async () => {
@@ -369,24 +374,6 @@ export default function SettingsScreen() {
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      {/* Invisible overlay to close menu when clicking outside */}
-      {showMemberOptions && (
-        <Pressable
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 998, // Below the menu (which is 999)
-            elevation: 998, // For Android
-          }}
-          onPress={() => {
-            console.log('🔵 Overlay clicked, closing menu');
-            setShowMemberOptions(null);
-          }}
-        />
-      )}
 
       <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
         <Text className="text-2xl font-bold text-center w-full" style={themed.textPrimary}>{t('settings.title')}</Text>
@@ -397,6 +384,12 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
+        onScrollBeginDrag={() => {
+          // Close menu when user starts scrolling
+          if (showMemberOptions) {
+            setShowMemberOptions(null);
+          }
+        }}
       >
         {/* App Settings Section */}
         <AppSettingsSection />
@@ -593,24 +586,28 @@ export default function SettingsScreen() {
 
                     {/* Popup menu */}
                     {showMemberOptions === member.id && (
-                      <View
+                      <Pressable
+                        onPress={(e) => {
+                          // Prevent closing the menu when clicking on it
+                          e?.stopPropagation?.();
+                        }}
                         onStartShouldSetResponder={() => true}
-                        onTouchEnd={(e) => e.stopPropagation()}
                         className="absolute top-10 rounded-lg shadow-lg"
                         style={{
                           backgroundColor: theme.colors.status.error,
                           minWidth: 140,
                           maxWidth: 180,
                           [isRTL ? 'left' : 'right']: 0,
-                          zIndex: 999, // Above the overlay (which is 998)
-                          elevation: 999, // For Android
+                          zIndex: 999,
+                          elevation: 999,
                         }}
                       >
                         <Pressable
-                          onPress={async () => {
+                          onPress={(e) => {
+                            e?.stopPropagation?.();
                             console.log('🔴 Remove member button pressed for:', member.id);
                             warning(); // Haptic feedback for remove member action
-                            await handleRemoveMemberPress(member);
+                            handleRemoveMemberPress(member);
                           }}
                           className="px-4 py-3"
                         >
@@ -618,7 +615,7 @@ export default function SettingsScreen() {
                             {t('settings.removeMember')}
                           </ThemedText>
                         </Pressable>
-                      </View>
+                      </Pressable>
                     )}
                   </View>
                 ) : null}
@@ -743,7 +740,7 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {/* Modals - outside Pressable to prevent closing on modal interaction */}
+      {/* Modals */}
       <ConfirmModal
         visible={confirmLeaveVisible}
         title={t('settings.leaveApartmentTitle')}
