@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { v4 as uuidv4 } from 'uuid';
 import { firestoreService } from '../services/firestore-service';
 import { firestoreSDKService } from '../services/firestore-sdk-service';
+import { firebaseAuth } from '../services/firebase-auth';
 import { ThemeSetting, DEFAULT_THEME_SETTING } from '../theme/theme-settings';
 import {
   User,
@@ -83,6 +84,7 @@ interface AppState {
   _loadingChecklist: boolean;
   cleaningStats?: CleaningStats;
   _checklistUnsubscribe?: () => void; // Realtime listener unsubscribe function
+  _cleaningTaskUnsubscribe?: () => void; // Realtime listener for cleaningTask document
 
   // Expenses & Budget
   expenses: Expense[];
@@ -100,12 +102,20 @@ interface AppState {
   // Actions - Cleaning
   initializeCleaning: () => Promise<void>;
   updateQueueFromMembers: () => void;
+  updateCleaningRotationOrder: (newQueue: string[]) => Promise<void>;
   checkOverdueTasks: () => Promise<void>;
 
   // Cleaning settings
-  setCleaningIntervalDays: (days: number) => void;
-  setCleaningAnchorDow: (dow: number) => void; // 0..6
+  setCleaningIntervalDays: (days: number) => Promise<void>;
+  setCleaningAnchorDow: (dow: number) => Promise<void>; // 0..6
   setPreferredDay: (userId: string, dow?: number) => void; // undefined to clear
+  
+  // Cleaning task real-time listener
+  startCleaningTaskListener: () => Promise<void>;
+  stopCleaningTaskListener: () => void;
+  
+  // Helper functions (internal use)
+  _validateAuthAndApartmentContext: () => Promise<{ isValid: boolean; reason?: string }>;
 
   // Actions - Expenses
   addExpense: (expense: Omit<Expense, 'id' | 'date'> & { date?: Date }) => Promise<void>;
@@ -703,6 +713,133 @@ export const useStore = create<AppState>()(
         }
       },
 
+      // Helper function to validate authentication and apartment context
+      _validateAuthAndApartmentContext: async (): Promise<{ isValid: boolean; reason?: string }> => {
+        try {
+          // Check if user is authenticated
+          const currentUser = firebaseAuth.getCurrentUser();
+          if (!currentUser) {
+            return { isValid: false, reason: 'User not authenticated' };
+          }
+
+          // Check if we have a valid ID token
+          const idToken = await firebaseAuth.getCurrentIdToken();
+          if (!idToken) {
+            return { isValid: false, reason: 'No valid ID token' };
+          }
+
+          // Check local state
+          const state = get();
+          if (!state.currentUser) {
+            return { isValid: false, reason: 'No current user in local state' };
+          }
+
+          if (!state.currentApartment) {
+            return { isValid: false, reason: 'No current apartment in local state' };
+          }
+
+          if (!state.currentUser.current_apartment_id) {
+            return { isValid: false, reason: 'User has no current_apartment_id' };
+          }
+
+          if (state.currentUser.current_apartment_id !== state.currentApartment.id) {
+            return { isValid: false, reason: 'Apartment ID mismatch between user and current apartment' };
+          }
+
+          return { isValid: true };
+        } catch (error) {
+          console.error('❌ Error validating auth and apartment context:', error);
+          return { isValid: false, reason: `Validation error: ${error}` };
+        }
+      },
+
+      startCleaningTaskListener: async () => {
+        // Validate authentication and apartment context
+        const validation = await get()._validateAuthAndApartmentContext();
+        if (!validation.isValid) {
+          console.warn('⚠️ Cannot start cleaning task listener:', validation.reason);
+          return;
+        }
+        
+        const state = get();
+        const currentApartment = state.currentApartment!;
+        const currentUser = state.currentUser!;
+        
+        console.log('📡 Starting real-time listener for cleaningTask');
+        console.log('📡 User:', currentUser.id, 'Apartment:', currentApartment.id);
+        
+        const unsubscribe = firestoreSDKService.subscribeToDocument(
+          'cleaningTasks',
+          currentApartment.id,
+          (taskData) => {
+            if (!taskData) {
+              console.log('📡 CleaningTask document does not exist yet');
+              return;
+            }
+            
+            console.log('📡 CleaningTask updated:', taskData);
+            
+            // Update cleaningTask with new data
+            const s = get();
+            const intervalDays = taskData.frequency_days || 7;
+            const anchorDow = taskData.anchor_dow ?? 0;
+            
+            // Update settings and task
+            set({
+              cleaningSettings: {
+                ...s.cleaningSettings,
+                intervalDays,
+                anchorDow,
+              },
+              cleaningTask: s.cleaningTask ? {
+                ...s.cleaningTask,
+                user_id: taskData.user_id,
+                queue: taskData.rotation || taskData.queue || [],
+                frequency_days: intervalDays,
+                assigned_at: taskData.assigned_at,
+                last_completed_at: taskData.last_completed_at,
+                last_completed_by: taskData.last_completed_by,
+              } : undefined,
+            });
+          },
+          (error) => {
+            if (error?.code === 'permission-denied') {
+              console.error('🚫 PERMISSION DENIED - CleaningTask listener blocked');
+              console.error('🚫 This usually means:');
+              console.error('   1. User is not authenticated');
+              console.error('   2. User does not have access to this apartment');
+              console.error('   3. User\'s current_apartment_id is not set correctly');
+              console.error('🚫 Apartment ID:', currentApartment.id);
+              
+              // Get current user context for debugging
+              const currentUser = get().currentUser;
+              console.error('🚫 Current user:', currentUser ? `${currentUser.id} (${currentUser.email})` : 'NULL');
+              console.error('🚫 User apartment ID:', currentUser?.current_apartment_id || 'NULL');
+              
+              console.warn('⚠️ Stopping cleaningTask listener due to permission denied');
+              get().stopCleaningTaskListener();
+              
+              // TODO: Consider navigating to authentication screen or apartment selection
+              // This could be handled by a global error handler or navigation service
+            } else {
+              console.warn('⚠️ CleaningTask listener error:', error?.code || error?.message);
+            }
+          }
+        );
+        
+        set({ _cleaningTaskUnsubscribe: unsubscribe });
+      },
+
+      stopCleaningTaskListener: () => {
+        const { _cleaningTaskUnsubscribe } = get();
+        
+        if (_cleaningTaskUnsubscribe) {
+          console.log('📡 Stopping realtime cleaning task listener');
+          _cleaningTaskUnsubscribe();
+          set({ _cleaningTaskUnsubscribe: undefined });
+        }
+      },
+
       completeChecklistItem: async (itemId: string) => {
         const state = get();
         const { isMyCleaningTurn, checklistItems, currentUser, currentApartment } = state;
@@ -981,6 +1118,39 @@ export const useStore = create<AppState>()(
         });
       },
 
+      updateCleaningRotationOrder: async (newQueue: string[]) => {
+        const state = get();
+        const apt = state.currentApartment;
+        if (!apt || !state.cleaningTask) {
+          console.error('No apartment or cleaning task to update rotation order');
+          return;
+        }
+
+        try {
+          // Update Firestore
+          await firestoreService.updateCleaningRotationOrder(apt.id, newQueue);
+
+          // Update local state
+          const currentTurn = state.cleaningTask.user_id || state.cleaningTask.currentTurn || '';
+          const safeCurrent = currentTurn || '';
+          const nextTurn = newQueue.includes(safeCurrent) ? safeCurrent : newQueue[0];
+
+          set({
+            cleaningTask: {
+              ...state.cleaningTask,
+              user_id: nextTurn,
+              currentTurn: nextTurn,
+              queue: newQueue,
+            },
+          });
+
+          console.log('✅ Cleaning rotation order updated successfully');
+        } catch (error) {
+          console.error('❌ Error updating cleaning rotation order:', error);
+          throw error;
+        }
+      },
+
       refreshApartmentMembers: async () => {
         try {
           // Fast exit if no apartment
@@ -1143,11 +1313,14 @@ export const useStore = create<AppState>()(
       },
 
       // Cleaning settings actions
-      setCleaningIntervalDays: (days) => {
+      setCleaningIntervalDays: async (days) => {
         if (days < 1) return;
+        
+        // Update local state immediately for responsiveness
         set((state) => ({
           cleaningSettings: { ...state.cleaningSettings, intervalDays: days },
         }));
+        
         // Recompute due date for current task to align to new schedule
         const s = get();
         if (s.cleaningTask) {
@@ -1158,13 +1331,24 @@ export const useStore = create<AppState>()(
           );
           set({ cleaningTask: { ...s.cleaningTask, intervalDays: days, dueDate: periodEnd } });
         }
+        
+        // Sync to Firestore for all roommates
+        try {
+          await firestoreService.updateCleaningSettings({ frequency_days: days });
+          console.log('✅ Cleaning frequency synced to Firestore');
+        } catch (error) {
+          console.error('Error updating cleaning frequency in Firestore:', error);
+        }
       },
 
-      setCleaningAnchorDow: (dow) => {
+      setCleaningAnchorDow: async (dow) => {
         if (dow < 0 || dow > 6) return;
+        
+        // Update local state immediately
         set((state) => ({
           cleaningSettings: { ...state.cleaningSettings, anchorDow: dow },
         }));
+        
         const s = get();
         if (s.cleaningTask) {
           const { periodEnd } = computePeriodBounds(
@@ -1173,6 +1357,14 @@ export const useStore = create<AppState>()(
             s.cleaningSettings.intervalDays
           );
           set({ cleaningTask: { ...s.cleaningTask, dueDate: periodEnd } });
+        }
+        
+        // Sync to Firestore for all roommates
+        try {
+          await firestoreService.updateCleaningSettings({ anchor_dow: dow });
+          console.log('✅ Cleaning anchor day synced to Firestore');
+        } catch (error) {
+          console.error('Error updating anchor day in Firestore:', error);
         }
       },
 

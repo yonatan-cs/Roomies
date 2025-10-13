@@ -229,6 +229,13 @@ export const resources = {
           bathroom: 'Bathroom cleaning',
           garbage: 'Garbage disposal',
           dusting: 'Furniture dusting'
+        },
+        editRotationOrder: 'Edit Rotation Order',
+        rotationOrderModal: {
+          title: 'Rotation Order',
+          description: 'Long press and drag to reorder roommates',
+          save: 'Save',
+          cancel: 'Cancel'
         }
       },
       shopping: {
@@ -795,6 +802,13 @@ export const resources = {
           bathroom: 'ניקוי שירותים',
           garbage: 'פינוי אשפה',
           dusting: 'אבק רהיטים'
+        },
+        editRotationOrder: 'ערוך את סדר הניקיון',
+        rotationOrderModal: {
+          title: 'סדר הניקיון',
+          description: 'לחץ לחיצה ארוכה וגרור כדי לשנות את הסדר',
+          save: 'שמור',
+          cancel: 'ביטול'
         }
       },
       shopping: {
