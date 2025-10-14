@@ -220,39 +220,13 @@ export default function CleaningRotationOrderModal({
                   </ThemedText>
                 </View>
               ) : (
-                <View>
-                  {orderedUsers.map((item, index) => (
-                    <View key={item.id} style={[
-                      {
-                        flexDirection: isRTL ? 'row-reverse' : 'row',
-                        alignItems: 'center',
-                        paddingVertical: 12,
-                        paddingHorizontal: 16,
-                        marginBottom: 8,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                      },
-                      themed.itemBg,
-                      themed.itemBorder,
-                    ]}>
-                      <Ionicons
-                        name="menu"
-                        size={20}
-                        color={themed.textSecondary.color}
-                        style={{
-                          marginEnd: isRTL ? 0 : 12,
-                          marginStart: isRTL ? 12 : 0,
-                        }}
-                      />
-                      <ThemedText className="flex-1 text-base" style={themed.textPrimary}>
-                        {item.user.name}
-                      </ThemedText>
-                      <ThemedText style={{ fontSize: 12, color: themed.textSecondary.color, opacity: 0.7 }}>
-                        #{index + 1}
-                      </ThemedText>
-                    </View>
-                  ))}
-                </View>
+                <DraggableFlatList
+                  data={orderedUsers}
+                  onDragEnd={({ data }) => setOrderedUsers(data)}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderItem}
+                  containerStyle={{ marginBottom: 16 }}
+                />
               )}
             </View>
 

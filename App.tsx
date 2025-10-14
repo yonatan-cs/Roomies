@@ -12,8 +12,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useStore } from "./src/state/store";
 import i18n from "./src/i18n";
 import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
-// FCM disabled for Expo Go compatibility - restore before App Store deployment
-// import { fcmNotificationService } from './src/services/fcm-notification-service';
+import { fcmNotificationService } from './src/services/fcm-notification-service';
+import { initializeAdMob } from './src/services/admob-service';
 import { isRTL } from './src/utils/rtl';
 import Animated from 'react-native-reanimated';
 import { ThemedAlertProvider } from './src/components/ThemedAlert';
@@ -58,13 +58,13 @@ export default function App() {
     }
   }, [appLanguage]);
 
-  // FCM notifications disabled for Expo Go compatibility
-  // Restore this useEffect before App Store deployment
+  // Initialize AdMob
   useEffect(() => {
-    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
-    setHasRequestedPermissions(true);
-    
-    /* FCM RESTORE: Uncomment this block before App Store deployment
+    initializeAdMob();
+  }, []);
+
+  // Request FCM permissions on first launch
+  useEffect(() => {
     const requestFirstTimePermissions = async () => {
       try {
         // Check if we've already requested permissions
@@ -94,13 +94,10 @@ export default function App() {
     };
 
     requestFirstTimePermissions();
-    */
   }, []);
 
-  // FCM notifications disabled for Expo Go compatibility
-  // Restore this useEffect before App Store deployment
+  // Initialize FCM notifications when user is available
   useEffect(() => {
-    /* FCM RESTORE: Uncomment this block before App Store deployment
     const initializeNotifications = async () => {
       if (currentUser?.id && hasRequestedPermissions) {
         console.log('🚀 Initializing FCM notifications for user:', currentUser.id);
@@ -110,7 +107,6 @@ export default function App() {
     };
 
     initializeNotifications();
-    */
   }, [currentUser?.id, hasRequestedPermissions]);
 
   // Refresh all data when app comes to foreground

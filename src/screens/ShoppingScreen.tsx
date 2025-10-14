@@ -307,8 +307,7 @@ export default function ShoppingScreen() {
   const pendingItems = getFilteredItems();
   const purchasedItems = shoppingItems.filter(item => item.purchased);
 
-  // Insert ads every 3 items (Mock ads for Expo Go - works now!)
-  // ADMOB RESTORE: Replace with real AdMob logic before App Store deployment
+  // Insert ads every 3 items (Real AdMob ads)
   const insertAdsIntoList = (items: any[]) => {
     const result: any[] = [];
     items.forEach((item, index) => {

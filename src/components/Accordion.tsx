@@ -60,7 +60,7 @@ export function Accordion({
       {/* Accordion Header */}
       <Pressable
         onPress={handleToggle}
-        className="items-center mb-4"
+        className="items-center mb"
         style={{
           flexDirection: isRTL ? 'row-reverse' : 'row',
           alignItems: 'center',

@@ -21,8 +21,7 @@ import { ThemedText } from '../theme/components/ThemedText';
 import { useThemedStyles } from '../theme/useThemedStyles';
 import { useTheme } from '../theme/ThemeProvider';
 import { cn } from '../utils/cn';
-// FCM disabled for Expo Go compatibility - restore before App Store deployment
-// import { fcmNotificationService } from '../services/fcm-notification-service';
+import { fcmNotificationService } from '../services/fcm-notification-service';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { showThemedAlert } from '../components/ThemedAlert';
 import * as Notifications from 'expo-notifications';
@@ -57,25 +56,6 @@ export default function SettingsScreen() {
     }
   }, [currentApartment?.id]); // Only refresh when apartment ID changes
 
-  // FCM notifications disabled for Expo Go compatibility
-  useEffect(() => {
-    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
-    setNotificationStatus('not-determined');
-    setFcmToken(null);
-    
-    /* FCM RESTORE: Uncomment this block before App Store deployment
-    const checkNotificationStatus = async () => {
-      const status = await fcmNotificationService.getPermissionStatus();
-      setNotificationStatus(status);
-      
-      const token = fcmNotificationService.getCurrentToken();
-      setFcmToken(token);
-    };
-    
-    checkNotificationStatus();
-    */
-  }, []);
-
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(currentUser?.name || '');
   const [copied, setCopied] = useState(false);
@@ -87,9 +67,6 @@ export default function SettingsScreen() {
   const [memberToRemove, setMemberToRemove] = useState<{ id: string, name: string } | null>(null);
   const [showMemberOptions, setShowMemberOptions] = useState<string | null>(null);
 
-  // Notification states
-  const [notificationStatus, setNotificationStatus] = useState<'granted' | 'denied' | 'not-determined'>('not-determined');
-  const [fcmToken, setFcmToken] = useState<string | null>(null);
   const themed = useThemedStyles(tk => ({
     textPrimary: { color: tk.colors.text.primary },
     textSecondary: { color: tk.colors.text.secondary },
@@ -261,118 +238,6 @@ export default function SettingsScreen() {
     } finally {
       setRemovingMemberId(null);
     }
-  };
-
-  const handleEnableNotifications = async () => {
-    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
-    showThemedAlert(
-      'Notifications Disabled',
-      'FCM notifications are disabled for Expo Go compatibility. They will be enabled in the production build.',
-      [{ text: 'OK' }]
-    );
-    
-    /* FCM RESTORE: Uncomment this block before App Store deployment
-    try {
-      impactMedium();
-      
-      const currentStatus = await fcmNotificationService.getPermissionStatus();
-      
-      if (currentStatus === 'denied') {
-        // On iOS, if denied, we need to open Settings app
-        showThemedAlert(
-          t('settings.notifications.permissionDenied'),
-          t('settings.notifications.openSettings'),
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            { 
-              text: t('settings.notifications.openSettingsButton'), 
-              onPress: () => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('app-settings:');
-                } else {
-                  Linking.openSettings();
-                }
-              }
-            }
-          ]
-        );
-      } else {
-        // Request permissions
-        const granted = await fcmNotificationService.requestPermissions();
-        
-        if (granted && currentUser) {
-          // Get token and save to Firestore
-          const token = await fcmNotificationService.getFCMToken();
-          if (token && currentUser) {
-            await fcmNotificationService.saveTokenToFirestore(currentUser.id);
-            setFcmToken(token);
-          }
-          setNotificationStatus('granted');
-          success();
-          showThemedAlert(
-            t('common.success'),
-            t('settings.notifications.enabled')
-          );
-        } else {
-          setNotificationStatus('denied');
-          showThemedAlert(
-            t('settings.notifications.permissionDenied'),
-            t('settings.notifications.tryAgain')
-          );
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error enabling notifications:', error);
-      showThemedAlert(t('common.error'), t('settings.alerts.cannotEnableNotifications'));
-    }
-    */
-  };
-
-  const handleTestNotification = async () => {
-    console.log('⚠️ FCM notifications disabled for Expo Go compatibility');
-    showThemedAlert(
-      'Notifications Disabled',
-      'FCM notifications are disabled for Expo Go compatibility. They will be enabled in the production build.',
-      [{ text: 'OK' }]
-    );
-    
-    /* FCM RESTORE: Uncomment this block before App Store deployment
-    try {
-      impactMedium(); // Haptic feedback for test notification
-
-      console.log('🧪 Testing FCM notifications...');
-
-      // 1. Send local notification immediately (works even without backend)
-      await fcmNotificationService.sendTestLocalNotification();
-      console.log('✅ Local notification sent');
-
-      // 2. Try to send remote notification via cloud function (requires backend setup)
-      try {
-        console.log('📡 Calling cloud function to send remote FCM notification...');
-        const functions = getFunctions();
-        const sendTestNotification = httpsCallable(functions, 'sendTestNotificationV1');
-        const result = await sendTestNotification({
-          title: '🧪 Remote FCM Test',
-          body: 'This is a remote push notification from Firebase Cloud Messaging!'
-        });
-        console.log('✅ Remote FCM notification sent:', result.data);
-      } catch (remoteError: any) {
-        console.log('⚠️ Remote notification failed (cloud function may not be deployed):', remoteError.message);
-        // Don't throw - local notification already worked
-      }
-
-      showThemedAlert(
-        t('settings.alerts.testNotificationSuccess'),
-        'Local notification sent! Check your device.'
-      );
-    } catch (error) {
-      console.error('❌ Error sending test notification:', error);
-      showThemedAlert(
-        t('settings.alerts.testNotificationError'),
-        t('settings.alerts.testNotificationFailed')
-      );
-    }
-    */
   };
 
   if (!currentUser || !currentApartment) {
@@ -644,51 +509,6 @@ export default function SettingsScreen() {
 
         {/* 4. Cleaning Schedule & Tasks Section */}
         <CleaningScheduleSection />
-
-        {/* Notifications Section */}
-        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
-          <Text className="text-lg font-semibold mb-4 w-full text-center" style={themed.textPrimary}>🔔 Notifications</Text>
-          
-          {/* Notification Status */}
-          <View className="mb-4 p-4 rounded-xl" style={{ backgroundColor: themed.textSecondary.color + '15' }}>
-            <View className="flex-row items-center justify-center mb-2">
-              <Ionicons 
-                name={notificationStatus === 'granted' ? 'checkmark-circle' : notificationStatus === 'denied' ? 'close-circle' : 'help-circle'} 
-                size={20} 
-                color={notificationStatus === 'granted' ? '#10b981' : notificationStatus === 'denied' ? '#ef4444' : '#f59e0b'} 
-                style={{ marginRight: 8 }}
-              />
-              <Text style={themed.textPrimary} className="font-medium">
-                Status: {notificationStatus === 'granted' ? '✅ Enabled' : notificationStatus === 'denied' ? '❌ Disabled' : '⚠️ Not Set'}
-              </Text>
-            </View>
-            {fcmToken && (
-              <Text className="text-xs text-center" style={themed.textSecondary} numberOfLines={1}>
-                FCM Token: {fcmToken.substring(0, 20)}...
-              </Text>
-            )}
-          </View>
-
-          {/* Enable Notifications Button */}
-          {notificationStatus !== 'granted' && (
-            <Pressable
-              onPress={handleEnableNotifications}
-              className="bg-green-500 py-3 px-6 rounded-xl mb-3"
-            >
-              <Text className="text-white font-semibold text-center w-full">🔔 Enable Notifications</Text>
-            </Pressable>
-          )}
-
-          {/* Test Notification Button */}
-          <Pressable
-            onPress={handleTestNotification}
-            className="bg-purple-500 py-3 px-6 rounded-xl mb-3"
-            disabled={notificationStatus !== 'granted'}
-            style={{ opacity: notificationStatus !== 'granted' ? 0.5 : 1 }}
-          >
-            <Text className="text-white font-semibold text-center w-full">🧪 Test Notification</Text>
-          </Pressable>
-        </ThemedCard>
 
         {/* Feedback Section */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">

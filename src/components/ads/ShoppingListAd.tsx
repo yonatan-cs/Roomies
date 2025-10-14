@@ -1,14 +1,11 @@
 import React from 'react';
-import MockAdItem from './MockAdItem';
+import RealNativeAdItem from './RealNativeAdItem';
 
 /**
  * Shopping List Ad Component
- * Wrapper for MockAdItem with shopping list styling
- * 
- * ADMOB RESTORE: Replace MockAdItem import with RealNativeAdItem before App Store deployment
+ * Wrapper for RealNativeAdItem with shopping list styling
  */
 
 export default function ShoppingListAd() {
-  return <MockAdItem variant="shopping" />;
+  return <RealNativeAdItem variant="shopping" />;
 }
-

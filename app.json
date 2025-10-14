@@ -41,10 +41,19 @@
           "mode": "production"
         }
       ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       "expo-secure-store",
       "expo-sqlite",
       "expo-video",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4539954746841772~6975731872",
+          "iosAppId": "ca-app-pub-4539954746841772~9470743711"
+        }
+      ]
     ]
   }
 }
