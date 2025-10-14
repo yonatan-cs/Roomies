@@ -8,6 +8,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import AppSettingsSection from '../components/AppSettingsSection';
 import CleaningScheduleSection from '../components/CleaningScheduleSection';
 import { AppTextInput } from '../components/AppTextInput';
+import { Accordion } from '../components/Accordion';
 import { firebaseAuth } from '../services/firebase-auth';
 import { firestoreService } from '../services/firestore-service';
 import { Screen } from '../components/Screen';
@@ -401,9 +402,7 @@ export default function SettingsScreen() {
           }
         }}
       >
-        {/* App Settings Section */}
-        <AppSettingsSection />
-        {/* Apartment Details */}
+        {/* 1. Apartment Details (Roommates - פרטי הדירה והקוד) */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
           <ThemedText className="text-lg font-semibold mb-4" style={themed.textPrimary}>{t('dashboard.apartmentFallback')}</ThemedText>
 
@@ -451,8 +450,16 @@ export default function SettingsScreen() {
           {copied && <ThemedText className="text-xs text-green-600 mt-2">{t('settings.codeCopiedSuccess')}</ThemedText>}
         </ThemedCard>
 
-        {/* Roommates & My Profile */}
+        {/* 2. App Settings Section */}
+        <AppSettingsSection />
+
+        {/* 3. Profile & Roommates (Accordion) */}
         <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <Accordion
+            title={t('settings.profileAndRoommates')}
+            icon="people-outline"
+            defaultExpanded={false}
+          >
           {/* My Profile Section */}
           <View className="mb-6 pb-6" style={{ borderBottomWidth: 1, borderBottomColor: themed.borderColor.borderColor }}>
             <ThemedText className="text-lg font-semibold mb-4">{t('settings.myProfile')}</ThemedText>
@@ -537,7 +544,7 @@ export default function SettingsScreen() {
           </View>
 
           {/* Roommates List */}
-          <View className="mb-4">
+          <View className="mt-6 mb-4">
             <ThemedText className="text-lg font-semibold flex-1">
               {t('dashboard.roommates')} ({currentApartment.members.length})
             </ThemedText>
@@ -632,9 +639,10 @@ export default function SettingsScreen() {
               </View>
             </View>
           ))}
+          </Accordion>
         </ThemedCard>
 
-        {/* Cleaning Schedule & Tasks Section */}
+        {/* 4. Cleaning Schedule & Tasks Section */}
         <CleaningScheduleSection />
 
         {/* Notifications Section */}
