@@ -85,6 +85,8 @@ interface AppState {
   cleaningStats?: CleaningStats;
   _checklistUnsubscribe?: () => void; // Realtime listener unsubscribe function
   _cleaningTaskUnsubscribe?: () => void; // Realtime listener for cleaningTask document
+  _checklistPollingInterval?: NodeJS.Timeout; // Polling fallback when listener fails
+  _cleaningTaskPollingInterval?: NodeJS.Timeout; // Polling fallback when listener fails
 
   // Expenses & Budget
   expenses: Expense[];
@@ -685,8 +687,8 @@ export const useStore = create<AppState>()(
             // get().checkOverdueTasks();
           },
           [
-            // CRITICAL: Filter by apartment_id to match security rules
-            { field: 'apartment_id', operator: '==', value: currentApartment.id }
+            // CRITICAL: Filter by apartment_id to match security rules (use currentUser.current_apartment_id for Firestore permissions)
+            { field: 'apartment_id', operator: '==', value: currentUser.current_apartment_id }
           ],
           'created_at',
           'desc',
@@ -695,6 +697,19 @@ export const useStore = create<AppState>()(
             if (error?.code === 'permission-denied') {
               console.warn('Checklist listener permission denied, will retry on focus/after join');
               get().stopCleaningChecklistListener();
+              
+              // Fallback: Start polling every 5 seconds
+              const pollingInterval = setInterval(async () => {
+                try {
+                  await get().loadCleaningChecklist();
+                  console.log('📊 Polling fallback: Checklist loaded');
+                } catch (e) {
+                  console.warn('⚠️ Polling failed:', e);
+                }
+              }, 5000);
+              
+              // Store interval ID to clear it later
+              set({ _checklistPollingInterval: pollingInterval });
             }
           }
         );
@@ -704,12 +719,19 @@ export const useStore = create<AppState>()(
 
       stopCleaningChecklistListener: () => {
         const state = get();
-        const { _checklistUnsubscribe } = state;
+        const { _checklistUnsubscribe, _checklistPollingInterval } = state;
         
         if (_checklistUnsubscribe) {
           console.log('📡 Stopping realtime cleaning checklist listener');
           _checklistUnsubscribe();
           set({ _checklistUnsubscribe: undefined });
+        }
+        
+        // Clear polling interval if exists
+        if (_checklistPollingInterval) {
+          console.log('📡 Stopping checklist polling fallback');
+          clearInterval(_checklistPollingInterval);
+          set({ _checklistPollingInterval: undefined });
         }
       },
 
@@ -819,8 +841,18 @@ export const useStore = create<AppState>()(
               console.warn('⚠️ Stopping cleaningTask listener due to permission denied');
               get().stopCleaningTaskListener();
               
-              // TODO: Consider navigating to authentication screen or apartment selection
-              // This could be handled by a global error handler or navigation service
+              // Fallback: Start polling every 5 seconds
+              const pollingInterval = setInterval(async () => {
+                try {
+                  await get().loadCleaningTask();
+                  console.log('📊 Polling fallback: CleaningTask loaded');
+                } catch (e) {
+                  console.warn('⚠️ Polling failed:', e);
+                }
+              }, 5000);
+              
+              // Store interval ID to clear it later
+              set({ _cleaningTaskPollingInterval: pollingInterval });
             } else {
               console.warn('⚠️ CleaningTask listener error:', error?.code || error?.message);
             }
@@ -831,12 +863,19 @@ export const useStore = create<AppState>()(
       },
 
       stopCleaningTaskListener: () => {
-        const { _cleaningTaskUnsubscribe } = get();
+        const { _cleaningTaskUnsubscribe, _cleaningTaskPollingInterval } = get();
         
         if (_cleaningTaskUnsubscribe) {
           console.log('📡 Stopping realtime cleaning task listener');
           _cleaningTaskUnsubscribe();
           set({ _cleaningTaskUnsubscribe: undefined });
+        }
+        
+        // Clear polling interval if exists
+        if (_cleaningTaskPollingInterval) {
+          console.log('📡 Stopping cleaningTask polling fallback');
+          clearInterval(_cleaningTaskPollingInterval);
+          set({ _cleaningTaskPollingInterval: undefined });
         }
       },
 

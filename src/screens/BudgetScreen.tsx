@@ -181,8 +181,7 @@ export default function BudgetScreen() {
     // The store will automatically update
   }, []);
 
-  // Insert ads every 3 items (Mock ads for Expo Go - works now!)
-  // ADMOB RESTORE: Replace with real AdMob logic before App Store deployment
+  // Insert ads every 3 items (Real AdMob ads)
   const insertAdsIntoExpenses = (expenses: any[]) => {
     const result: any[] = [];
     expenses.forEach((expense, index) => {

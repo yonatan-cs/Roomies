@@ -2,18 +2,12 @@
  * AdMob Service
  * 
  * This service manages AdMob initialization and configuration for Native Advanced Ads.
- * 
- * ADMOB RESTORE: Uncomment all code blocks before App Store deployment
- * Currently disabled for Expo Go compatibility - uses Mock Ads instead
+ * Production-ready with real AdMob integration.
  */
 
 import { Platform } from 'react-native';
 
-// ADMOB disabled for Expo Go compatibility - restore before App Store deployment
-// import mobileAds, { MaxAdContentRating, TestIds } from 'react-native-google-mobile-ads';
-
-console.log('⚠️ AdMob service disabled for Expo Go compatibility');
-console.log('📢 Using Mock Ads for preview - Replace with real AdMob before App Store deployment');
+import mobileAds, { MaxAdContentRating, TestIds } from 'react-native-google-mobile-ads';
 
 /**
  * AdMob App IDs
@@ -41,12 +35,10 @@ export const getAdUnitId = (adType: 'nativeAdvanced' = 'nativeAdvanced'): string
   return ADMOB_AD_UNITS[adType][platformKey];
 };
 
-/* ADMOB RESTORE: Uncomment this block before App Store deployment
-
 /**
  * Initialize AdMob
  * Call this once when the app starts
- *\/
+ */
 export const initializeAdMob = async () => {
   try {
     // Initialize AdMob
@@ -74,17 +66,8 @@ export const initializeAdMob = async () => {
 
 /**
  * Get test Ad Unit IDs for development
- *\/
+ */
 export const getTestAdUnitId = () => {
-  return TestIds.NATIVE_ADVANCED;
-};
-
-*/
-
-// Export mock initialization for Expo Go
-export const initializeAdMob = async () => {
-  console.log('⚠️ AdMob initialization disabled for Expo Go');
-  console.log('📢 Using Mock Ads - No real ads will be shown');
-  return false;
+  return TestIds.NATIVE;
 };
 
