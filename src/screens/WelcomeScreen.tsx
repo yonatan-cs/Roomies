@@ -305,6 +305,16 @@ export default function WelcomeScreen() {
               } : state.currentUser,
             }));
 
+            // Sync current_apartment_id to Firestore (critical for permissions)
+            try {
+              await firestoreService.updateUser(authUser.localId, { 
+                current_apartment_id: currentApartment.id 
+              });
+              console.log('✅ Synced current_apartment_id to Firestore');
+            } catch (error) {
+              console.error('❌ Failed to sync current_apartment_id:', error);
+            }
+
             console.log('🏠 WelcomeScreen: Setting apartment in local state:', {
               id: currentApartment.id,
               name: currentApartment.name,

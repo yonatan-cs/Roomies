@@ -136,6 +136,30 @@ export class FCMNotificationService {
   setupFCMListeners(): void {
     console.log('🔊 Setting up FCM listeners...');
 
+    // Handle notification that opened the app from quit state
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+          console.log('🚀 Notification opened app from quit state:', remoteMessage);
+          // Handle navigation based on notification data
+          if (remoteMessage.data?.screen) {
+            console.log('📱 Navigate to screen:', remoteMessage.data.screen);
+            // Navigation will be handled after app is fully loaded
+          }
+        }
+      });
+
+    // Handle notification opened when app was in background
+    messaging().onNotificationOpenedApp(remoteMessage => {
+      console.log('📲 Notification opened app from background:', remoteMessage);
+      // Handle navigation based on notification data
+      if (remoteMessage.data?.screen) {
+        console.log('📱 Navigate to screen:', remoteMessage.data.screen);
+        // You can integrate with your navigation system here
+      }
+    });
+
     // Handle background messages (when app is in background/quit)
     messaging().setBackgroundMessageHandler(async remoteMessage => {
       console.log('📬 Background FCM message received:', remoteMessage);

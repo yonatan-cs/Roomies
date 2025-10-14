@@ -2,19 +2,11 @@
  * Real Native Ad Item Component
  * 
  * This component uses real AdMob Native Advanced Ads.
- * 
- * ADMOB RESTORE: Uncomment all code before App Store deployment
- * Replace MockAdItem imports with this component in:
- * - ShoppingListAd.tsx
- * - ExpenseListAd.tsx
  */
 
-/* ADMOB RESTORE: Uncomment all imports before App Store deployment
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { NativeAd, NativeAdView, HeadlineView, TaglineView, AdvertiserView, CallToActionView, IconView } from 'react-native-google-mobile-ads';
-import { ThemedCard } from '../../theme/components/ThemedCard';
+import { NativeAd, NativeAdView, NativeAsset, NativeAssetType, NativeMediaView } from 'react-native-google-mobile-ads';
 import { ThemedText } from '../../theme/components/ThemedText';
 import { useThemedStyles } from '../../theme/useThemedStyles';
 import { useTranslation } from 'react-i18next';
@@ -28,6 +20,7 @@ interface RealNativeAdItemProps {
 export default function RealNativeAdItem({ variant = 'shopping' }: RealNativeAdItemProps) {
   const { t } = useTranslation();
   const isRTL = useIsRTL();
+  const [nativeAd, setNativeAd] = useState<NativeAd | null>(null);
   const themed = useThemedStyles(tk => ({
     borderColor: { borderColor: tk.colors.border.primary },
     textSecondary: { color: tk.colors.text.secondary },
@@ -36,58 +29,89 @@ export default function RealNativeAdItem({ variant = 'shopping' }: RealNativeAdI
 
   const adUnitId = getAdUnitId('nativeAdvanced');
 
+  useEffect(() => {
+    let ad: NativeAd | null = null;
+    
+    const loadAd = async () => {
+      // createForAdRequest already loads the ad and returns a populated NativeAd
+      ad = await NativeAd.createForAdRequest(adUnitId);
+      setNativeAd(ad);
+    };
+    
+    loadAd();
+
+    return () => {
+      // Cleanup ad on unmount
+      if (ad) {
+        ad.destroy();
+      }
+    };
+  }, [adUnitId]);
+
+  if (!nativeAd) {
+    return null;
+  }
+
   return (
-    <NativeAd adUnitId={adUnitId}>
-      <NativeAdView style={styles.adContainer}>
+    <NativeAdView nativeAd={nativeAd} style={styles.adContainer}>
+      <View 
+        style={[
+          styles.adCard,
+          { borderWidth: 1, borderStyle: 'dashed' },
+          themed.borderColor,
+          themed.adBg
+        ]}
+      >
+        {/* Sponsored Tag */}
         <View 
           style={[
-            styles.adCard,
-            { borderWidth: 1, borderStyle: 'dashed' },
-            themed.borderColor,
-            themed.adBg
+            styles.sponsoredTag,
+            isRTL ? { left: 8 } : { right: 8 }
           ]}
         >
-          {/* Sponsored Tag *\/}
-          <View 
-            style={[
-              styles.sponsoredTag,
-              isRTL ? { left: 8 } : { right: 8 }
-            ]}
-          >
-            <View style={styles.sponsoredBadge}>
-              <Text style={styles.sponsoredText}>
-                {t('ads.sponsored')}
-              </Text>
-            </View>
-          </View>
-
-          {/* Ad Content *\/}
-          <View 
-            style={[
-              styles.adContent,
-              { 
-                flexDirection: isRTL ? 'row-reverse' : 'row',
-              }
-            ]}
-          >
-            {/* Ad Icon *\/}
-            <IconView style={styles.iconContainer} />
-
-            {/* Ad Text *\/}
-            <View style={styles.textContainer}>
-              <HeadlineView style={styles.headline} />
-              <TaglineView style={styles.tagline} />
-              <AdvertiserView style={styles.advertiser} />
-            </View>
-
-            {/* CTA Button *\/}
-            <CallToActionView style={styles.ctaButton}>
-              <Text style={styles.ctaText}>→</Text>
-            </CallToActionView>
+          <View style={styles.sponsoredBadge}>
+            <Text style={styles.sponsoredText}>
+              {t('ads.sponsored')}
+            </Text>
           </View>
         </View>
-      </NativeAdView>
-    </NativeAd>
+
+        {/* Ad Content */}
+        <View 
+          style={[
+            styles.adContent,
+            { 
+              flexDirection: isRTL ? 'row-reverse' : 'row',
+            }
+          ]}
+        >
+          {/* Ad Icon */}
+          <NativeAsset assetType={NativeAssetType.ICON}>
+            <View style={styles.iconContainer} />
+          </NativeAsset>
+
+          {/* Ad Text */}
+          <View style={styles.textContainer}>
+            <NativeAsset assetType={NativeAssetType.HEADLINE}>
+              <Text style={styles.headline} />
+            </NativeAsset>
+            <NativeAsset assetType={NativeAssetType.BODY}>
+              <Text style={styles.tagline} />
+            </NativeAsset>
+            <NativeAsset assetType={NativeAssetType.ADVERTISER}>
+              <Text style={styles.advertiser} />
+            </NativeAsset>
+          </View>
+
+          {/* CTA Button */}
+          <NativeAsset assetType={NativeAssetType.CALL_TO_ACTION}>
+            <View style={styles.ctaButton}>
+              <Text style={styles.ctaText}>→</Text>
+            </View>
+          </NativeAsset>
+        </View>
+      </View>
+    </NativeAdView>
   );
 }
 
@@ -152,19 +176,3 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
   },
 });
-
-*/
-
-// Temporary export for Expo Go compatibility
-// ADMOB RESTORE: Delete this mock export and uncomment the real component above
-import MockAdItem from './MockAdItem';
-
-interface RealNativeAdItemProps {
-  variant?: 'shopping' | 'expense';
-}
-
-export default function RealNativeAdItem({ variant = 'shopping' }: RealNativeAdItemProps) {
-  // In Expo Go, use mock ads
-  return <MockAdItem variant={variant} />;
-}
-
