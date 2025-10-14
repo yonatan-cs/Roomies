@@ -132,11 +132,12 @@
     "eslint-config-expo": "~9.2.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "lightningcss": "^1.27.0",
     "typescript": "~5.8.3"
   },
   "private": true,
   "patchedDependencies": {
-    "react-native@0.79.2": "patches/react-native@0.79.2.patch",
+    "react-native@0.79.6": "patches/react-native@0.79.6.patch",
     "expo-asset@11.1.5": "patches/expo-asset@11.1.5.patch"
   }
 }
