@@ -8,13 +8,16 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
-      }
+      },
+      "node": "22.12.0"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "node": "22.12.0"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "node": "22.12.0"
     }
   },
   "submit": {
