@@ -28,7 +28,15 @@
     },
     "plugins": [
       "expo-asset",
-      "expo-build-properties",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ],
+      "./plugins/withModularHeaders.js",
       "expo-dev-client",
       "expo-font",
       "expo-mail-composer",
