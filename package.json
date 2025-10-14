@@ -122,7 +122,8 @@
     "uuid": "^11.1.0",
     "victory-native": "^41.16.2",
     "zeego": "^3.0.6",
-    "zustand": "^5.0.4"
+    "zustand": "^5.0.4",
+    "lightningcss": "^1.27.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
