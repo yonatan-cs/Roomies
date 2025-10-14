@@ -4,7 +4,6 @@
     "slug": "roomies",
     "scheme": "roomies",
     "version": "1.0.0",
-    "projectId": "25750afa-5613-4fc5-9bcd-c68398815964",
     "orientation": "portrait",
     "icon": "./logo.png",
     "userInterfaceStyle": "automatic",
