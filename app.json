@@ -37,7 +37,6 @@
         {
           "icon": "./logo.png",
           "color": "#ffffff",
-          "sounds": ["./assets/notification.wav"],
           "mode": "production"
         }
       ],
