@@ -37,6 +37,7 @@
         }
       ],
       "./plugins/withModularHeaders.js",
+      "./plugins/withReactCommonHeaders.js",
       "expo-dev-client",
       "expo-font",
       "expo-mail-composer",
