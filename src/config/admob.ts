@@ -12,30 +12,38 @@ export const AdMobConfig = {
     appOpen: TestIds.APP_OPEN,
   },
   
-  // Production IDs (replace with your actual AdMob unit IDs)
+  // Production IDs - Real AdMob Unit IDs
   productionIds: {
     banner: Platform.select({
-      ios: 'ca-app-pub-4539954746841772/1234567890', // Replace with your iOS banner ID
-      android: 'ca-app-pub-4539954746841772/0987654321', // Replace with your Android banner ID
+      ios: 'ca-app-pub-4539954746841772/3600605401', // Real iOS banner ID
+      android: 'ca-app-pub-4539954746841772/9654151513', // Real Android banner ID
     }),
     interstitial: Platform.select({
-      ios: 'ca-app-pub-4539954746841772/2345678901', // Replace with your iOS interstitial ID
-      android: 'ca-app-pub-4539954746841772/1098765432', // Replace with your Android interstitial ID
+      ios: 'ca-app-pub-4539954746841772/3600605401', // Using banner ID for now
+      android: 'ca-app-pub-4539954746841772/9654151513', // Using banner ID for now
     }),
     rewarded: Platform.select({
-      ios: 'ca-app-pub-4539954746841772/3456789012', // Replace with your iOS rewarded ID
-      android: 'ca-app-pub-4539954746841772/2109876543', // Replace with your Android rewarded ID
+      ios: 'ca-app-pub-4539954746841772/3600605401', // Using banner ID for now
+      android: 'ca-app-pub-4539954746841772/9654151513', // Using banner ID for now
     }),
     appOpen: Platform.select({
-      ios: 'ca-app-pub-4539954746841772/4567890123', // Replace with your iOS app open ID
-      android: 'ca-app-pub-4539954746841772/3210987654', // Replace with your Android app open ID
+      ios: 'ca-app-pub-4539954746841772/3600605401', // Using banner ID for now
+      android: 'ca-app-pub-4539954746841772/9654151513', // Using banner ID for now
     }),
   },
   
   // Get the appropriate unit ID based on environment
   getUnitId: (adType: 'banner' | 'interstitial' | 'rewarded' | 'appOpen') => {
+    // In TestFlight, __DEV__ is false, but we still want to use test ads until app is approved
+    // Use test ads in development OR when app is not yet approved by AdMob
     const isDev = __DEV__;
-    const ids = isDev ? AdMobConfig.testIds : AdMobConfig.productionIds;
+    const useTestAds = isDev; // For now, use test ads in development only
+    
+    // IMPORTANT: Once AdMob approves the app, change this to:
+    // const useTestAds = false; // Use real ads in production
+    
+    const ids = useTestAds ? AdMobConfig.testIds : AdMobConfig.productionIds;
+    console.log(`🎯 Using ${useTestAds ? 'TEST' : 'PRODUCTION'} ads for ${adType}`);
     return ids[adType];
   },
   

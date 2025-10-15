@@ -15,6 +15,7 @@ export const AdMobBanner: React.FC<AdMobBannerProps> = ({
   style,
 }) => {
   const adUnitId = unitId || AdMobConfig.getUnitId('banner') || TestIds.BANNER;
+  console.log('🎯 Banner Ad Unit ID:', adUnitId, 'isDev:', __DEV__);
 
   return (
     <View style={[styles.container, style]}>
@@ -25,10 +26,10 @@ export const AdMobBanner: React.FC<AdMobBannerProps> = ({
           requestNonPersonalizedAdsOnly: __DEV__, // Use test ads in development
         }}
         onAdLoaded={() => {
-          console.log('Banner ad loaded');
+          console.log('✅ Banner ad loaded successfully');
         }}
         onAdFailedToLoad={(error) => {
-          console.log('Banner ad failed to load:', error);
+          console.error('❌ Banner ad failed to load:', error);
         }}
       />
     </View>
