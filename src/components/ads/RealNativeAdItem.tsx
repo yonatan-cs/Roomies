@@ -28,14 +28,21 @@ export default function RealNativeAdItem({ variant = 'shopping' }: RealNativeAdI
   }));
 
   const adUnitId = getAdUnitId('nativeAdvanced');
+  console.log('🎯 Native Ad Unit ID:', adUnitId, 'isDev:', __DEV__);
 
   useEffect(() => {
     let ad: NativeAd | null = null;
     
     const loadAd = async () => {
-      // createForAdRequest already loads the ad and returns a populated NativeAd
-      ad = await NativeAd.createForAdRequest(adUnitId);
-      setNativeAd(ad);
+      try {
+        console.log('📢 Loading Native Ad with ID:', adUnitId);
+        // createForAdRequest already loads the ad and returns a populated NativeAd
+        ad = await NativeAd.createForAdRequest(adUnitId);
+        console.log('✅ Native Ad loaded successfully');
+        setNativeAd(ad);
+      } catch (error) {
+        console.error('❌ Failed to load Native Ad:', error);
+      }
     };
     
     loadAd();
@@ -43,6 +50,7 @@ export default function RealNativeAdItem({ variant = 'shopping' }: RealNativeAdI
     return () => {
       // Cleanup ad on unmount
       if (ad) {
+        console.log('🧹 Cleaning up Native Ad');
         ad.destroy();
       }
     };

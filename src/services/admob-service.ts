@@ -18,12 +18,12 @@ export const ADMOB_APP_IDS = {
 };
 
 /**
- * Ad Unit IDs for Native Advanced Ads
+ * Ad Unit IDs for Native Advanced Ads - Real AdMob Unit IDs
  */
 export const ADMOB_AD_UNITS = {
   nativeAdvanced: {
-    ios: 'ca-app-pub-4539954746841772/8114565480',
-    android: 'ca-app-pub-4539954746841772/3516844926'
+    ios: 'ca-app-pub-4539954746841772/8114565480', // Real iOS Native Advanced ID
+    android: 'ca-app-pub-4539954746841772/3516844926' // Real Android Native Advanced ID
   }
 };
 
@@ -41,8 +41,11 @@ export const getAdUnitId = (adType: 'nativeAdvanced' = 'nativeAdvanced'): string
  */
 export const initializeAdMob = async () => {
   try {
+    console.log('🚀 Starting AdMob initialization...');
+    
     // Initialize AdMob
     await mobileAds().initialize();
+    console.log('📱 AdMob SDK initialized');
     
     // Configure settings
     await mobileAds().setRequestConfiguration({
@@ -55,6 +58,7 @@ export const initializeAdMob = async () => {
       // Tag for under age of consent
       tagForUnderAgeOfConsent: false,
     });
+    console.log('⚙️ AdMob configuration set');
     
     console.log('✅ AdMob initialized successfully');
     return true;
