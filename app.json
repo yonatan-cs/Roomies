@@ -110,7 +110,18 @@
           "ios": {
             "newArchEnabled": true,
             "useFrameworks": "static",
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "15.1",
+            "extraPods": [
+              {
+                "name": "React-RCTAppDelegate",
+                "path": "../node_modules/react-native/Libraries/AppDelegate"
+              },
+              {
+                "name": "ReactCommon",
+                "path": "../node_modules/react-native/ReactCommon",
+                "modular_headers": true
+              }
+            ]
           },
           "android": {
             "minSdkVersion": 21,
