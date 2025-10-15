@@ -13,7 +13,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.Roomies.app",
+      "bundleIdentifier": "com.yonrotem.roomies",
       "buildNumber": "1.0.0",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
@@ -99,7 +99,7 @@
     "android": {
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.Roomies.app",
+      "package": "com.yonrotem.roomies",
       "googleServicesFile": "./google-services.json"
     },
     "plugins": [
