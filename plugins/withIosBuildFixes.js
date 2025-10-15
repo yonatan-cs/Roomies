@@ -10,10 +10,6 @@ const withIosBuildFixes = (config) => {
     xcodeProject.addBuildProperty('CLANG_WARN_DOCUMENTATION_COMMENTS', 'NO');
     xcodeProject.addBuildProperty('GCC_WARN_INHIBIT_ALL_WARNINGS', 'YES');
     
-    // Fix for react-native-ios-utilities compilation
-    xcodeProject.addBuildProperty('CLANG_CXX_LANGUAGE_STANDARD', 'c++17');
-    xcodeProject.addBuildProperty('CLANG_CXX_LIBRARY', 'libc++');
-    
     return config;
   });
 };
