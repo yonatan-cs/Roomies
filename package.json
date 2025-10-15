@@ -11,12 +11,17 @@
     "prebuild": "expo prebuild --clean",
     "setup-dev": "./scripts/setup-dev-build.sh",
     "fix-build": "./scripts/fix-build-issues.sh",
+    "setup-external": "./scripts/external-build-setup.sh",
     "build:dev:ios": "eas build -p ios --profile development",
     "build:dev:android": "eas build -p android --profile development",
     "build:prod:ios": "eas build -p ios --profile production",
     "build:prod:android": "eas build -p android --profile production",
+    "build:local:ios": "eas build -p ios --profile development --local",
+    "build:local:android": "eas build -p android --profile development --local",
     "submit:ios": "eas submit -p ios --profile production",
-    "submit:android": "eas submit -p android --profile production"
+    "submit:android": "eas submit -p android --profile production",
+    "credentials:clear": "eas credentials:clear",
+    "credentials:setup": "eas credentials"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
