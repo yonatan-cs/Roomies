@@ -1,24 +1,52 @@
 <div align="center">
 
-# 🏠 Roomies - דירת שותפים
+# 🏠 **Roomies**
 
-### **The Ultimate Roommate Management App** 
-*Built with React Native & Firebase*
+<p align="center">
+  <img
+    src="https://readme-typing-svg.demolab.com?font=Inter&size=26&pause=1200&color=%231e3a8a&center=true&vCenter=true&width=600&height=40&lines=The+Smart+Way+to+Manage+Shared+Living"
+    alt="animated typing"
+  />
+</p>
 
-[![React Native](https://img.shields.io/badge/React%20Native-0.79.6-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactnative.dev/)
-[![Firebase](https://img.shields.io/badge/Firebase-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)](https://firebase.google.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+[![Version](https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge)](https://github.com/yonatan-cs/Roomies)
+[![React Native](https://img.shields.io/badge/React%20Native-0.79.5-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://reactnative.dev/)
+[![Firebase](https://img.shields.io/badge/Firebase-12.2.1-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)](https://firebase.google.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Expo](https://img.shields.io/badge/Expo-53.0.23-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
 
-![Roomies Logo](https://raw.githubusercontent.com/yonatan-cs/Roomies/main/logo.png)
+### **Transform Shared Living into Seamless Harmony** ✨
+
+*Built with cutting-edge technology for modern roommates*
+
+> ⚠️ **License**: Not open-source. All rights reserved.  
+> No copying, redistribution, or derivative works without permission.
 
 ---
 
-## 🚀 **Live Demo**
+## 📋 **Table of Contents**
+
+- [🚀 Downloads](#-downloads)
+- [🎯 What is Roomies?](#-what-is-roomies)
+- [✨ Features](#-features)
+- [🏗️ Architecture](#️-architecture)
+- [🛠️ Technology Stack](#️-technology-stack)
+- [🔧 Technical Overview](#-technical-overview)
+- [🌍 Internationalization](#-internationalization)
+- [🔒 Security & Privacy](#-security--privacy)
+- [📊 Performance](#-performance)
+- [🖼️ Branding & Assets](#️-branding--assets)
+- [📄 License](#-license)
+- [👥 Team](#-team)
+- [🙏 Acknowledgments](#-acknowledgments)
+
+---
+
+## 🚀 **Downloads**
 
 <div align="center">
 
-### **Download & Experience the Magic** ✨
+### **Download & Install** 📱
 
 [![Download iOS](https://img.shields.io/badge/Download-iOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/roomies)
 [![Download Android](https://img.shields.io/badge/Download-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://play.google.com/store/apps/details?id=com.yonrotem.roomies)
@@ -81,7 +109,74 @@
 - **Profile customization** and preferences
 - **Data synchronization** across all devices
 
+
 </div>
+
+---
+
+## 🏗️ **Architecture**
+
+<div align="center">
+
+```mermaid
+graph TB
+    subgraph "📱 Mobile App"
+        A[React Native App] --> B[Zustand State]
+        A --> C[NativeWind UI]
+        A --> D[React Navigation]
+        A --> E[Screen Components]
+    end
+    
+    subgraph "🎯 Core Screens"
+        E --> F[Dashboard]
+        E --> G[Expense Management]
+        E --> H[Cleaning Rotation]
+        E --> I[Shopping Lists]
+        E --> J[Group Debts]
+        E --> K[Settings]
+    end
+    
+    subgraph "🔥 Backend Services"
+        L[Firebase Auth] --> M[Firestore Database]
+        M --> N[Cloud Functions]
+        N --> O[FCM Notifications]
+    end
+    
+    subgraph "💰 External Services"
+        P[AdMob] --> Q[Monetization]
+    end
+    
+    A --> L
+    A --> P
+    
+    style A fill:#61DAFB,stroke:#333,stroke-width:3px,color:#fff
+    style B fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#06B6D4,stroke:#333,stroke-width:2px,color:#fff
+    style D fill:#61DAFB,stroke:#333,stroke-width:2px,color:#fff
+    style E fill:#8B5CF6,stroke:#333,stroke-width:2px,color:#fff
+    style F fill:#10B981,stroke:#333,stroke-width:2px,color:#fff
+    style G fill:#F59E0B,stroke:#333,stroke-width:2px,color:#fff
+    style H fill:#EF4444,stroke:#333,stroke-width:2px,color:#fff
+    style I fill:#8B5CF6,stroke:#333,stroke-width:2px,color:#fff
+    style J fill:#06B6D4,stroke:#333,stroke-width:2px,color:#fff
+    style K fill:#6B7280,stroke:#333,stroke-width:2px,color:#fff
+    style L fill:#FF6B6B,stroke:#333,stroke-width:3px,color:#fff
+    style M fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
+    style N fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
+    style O fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
+    style P fill:#FF6B6B,stroke:#333,stroke-width:3px,color:#fff
+    style Q fill:#FF6B6B,stroke:#333,stroke-width:2px,color:#fff
+```
+
+</div>
+
+### **System Overview**
+- **Frontend**: React Native with TypeScript for type safety
+- **State Management**: Zustand for efficient global state
+- **Backend**: Firebase for real-time data and authentication
+- **Core Features**: Expense tracking, cleaning rotation, shopping lists, debt management
+- **Real-time**: Firestore for instant data synchronization across all devices
+- **Monetization**: AdMob integration for revenue generation
 
 ---
 
@@ -90,176 +185,61 @@
 <div align="center">
 
 ### **Frontend & Mobile**
-![React Native](https://img.shields.io/badge/React%20Native-0.79.6-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![Expo](https://img.shields.io/badge/Expo-50.0.0-000020?style=for-the-badge&logo=expo&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.3.0-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
-![NativeWind](https://img.shields.io/badge/NativeWind-4.0.1-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![React Native](https://img.shields.io/badge/React%20Native-0.79.5-61DAFB?style=for-the-badge&logo=react&logoColor=white)
+![Expo](https://img.shields.io/badge/Expo-53.0.23-000020?style=for-the-badge&logo=expo&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![NativeWind](https://img.shields.io/badge/NativeWind-4.1.23-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
 ### **Backend & Database**
-![Firebase](https://img.shields.io/badge/Firebase-10.7.0-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-12.2.1-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)
 ![Firestore](https://img.shields.io/badge/Firestore-Real--time-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)
 ![Cloud Functions](https://img.shields.io/badge/Cloud%20Functions-v2-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)
 ![FCM](https://img.shields.io/badge/FCM-Push%20Notifications-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)
 
 ### **State Management & Navigation**
-![Zustand](https://img.shields.io/badge/Zustand-4.4.7-FF6B6B?style=for-the-badge&logo=zustand&logoColor=white)
-![React Navigation](https://img.shields.io/badge/React%20Navigation-7.0-61DAFB?style=for-the-badge&logo=react&logoColor=white)
+![Zustand](https://img.shields.io/badge/Zustand-5.0.4-FF6B6B?style=for-the-badge&logo=zustand&logoColor=white)
+![React Navigation](https://img.shields.io/badge/React%20Navigation-7.3.10-61DAFB?style=for-the-badge&logo=react&logoColor=white)
 ![AsyncStorage](https://img.shields.io/badge/AsyncStorage-2.1.2-61DAFB?style=for-the-badge&logo=react&logoColor=white)
 
 ### **UI & Styling**
-![NativeWind](https://img.shields.io/badge/NativeWind-4.0.1-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![React Native Elements](https://img.shields.io/badge/React%20Native%20Elements-4.0.0-61DAFB?style=for-the-badge&logo=react&logoColor=white)
+![React Native Reanimated](https://img.shields.io/badge/Reanimated-3.17.4-61DAFB?style=for-the-badge&logo=react&logoColor=white)
+![Lottie](https://img.shields.io/badge/Lottie-7.2.2-61DAFB?style=for-the-badge&logo=lottie&logoColor=white)
 ![Expo Vector Icons](https://img.shields.io/badge/Expo%20Vector%20Icons-14.1.0-000020?style=for-the-badge&logo=expo&logoColor=white)
+
+### **Monetization**
+![AdMob](https://img.shields.io/badge/AdMob-15.8.0-FF6B6B?style=for-the-badge&logo=google&logoColor=white)
+
+### **Analytics & Monitoring**
+![Firebase Analytics](https://img.shields.io/badge/Firebase%20Analytics-12.2.1-FF6B6B?style=for-the-badge&logo=firebase&logoColor=white)
 
 ### **Development & Build**
 ![EAS Build](https://img.shields.io/badge/EAS%20Build-7.0.0-000020?style=for-the-badge&logo=expo&logoColor=white)
 ![Metro](https://img.shields.io/badge/Metro-0.80.0-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![Babel](https://img.shields.io/badge/Babel-7.23.0-F9DC3E?style=for-the-badge&logo=babel&logoColor=white)
+![Babel](https://img.shields.io/badge/Babel-7.25.2-F9DC3E?style=for-the-badge&logo=babel&logoColor=white)
 
 </div>
 
 ---
 
-## 📱 **Screenshots**
-
-<div align="center">
-
-### **Dashboard & Overview**
-![Dashboard](https://via.placeholder.com/300x600/4CAF50/FFFFFF?text=Dashboard+View)
-
-### **Expense Management**
-![Expenses](https://via.placeholder.com/300x600/2196F3/FFFFFF?text=Expense+Tracking)
-
-### **Cleaning Schedule**
-![Cleaning](https://via.placeholder.com/300x600/FF9800/FFFFFF?text=Cleaning+Rotation)
-
-### **Shopping Lists**
-![Shopping](https://via.placeholder.com/300x600/9C27B0/FFFFFF?text=Shopping+Lists)
-
-</div>
+> **Source code is private.** This repository showcases product information, screenshots, and release notes only.
 
 ---
 
-## 🚀 **Installation & Setup**
+## 🔧 **Technical Overview**
 
-### **Prerequisites**
-- Node.js 18+ 
-- npm or yarn
-- Expo CLI
-- iOS Simulator (for iOS development)
-- Android Studio (for Android development)
+### **Architecture Highlights**
+- **Modern React Native** with Expo framework
+- **Real-time Firebase** backend integration
+- **TypeScript** for type safety and better development experience
+- **Zustand** for efficient state management
+- **NativeWind** for responsive styling
 
-### **Quick Start**
-
-```bash
-# Clone the repository
-git clone https://github.com/yonatan-cs/Roomies.git
-cd Roomies
-
-# Install dependencies
-npm install
-# or
-yarn install
-
-# Start the development server
-npm start
-# or
-yarn start
-
-# Run on iOS
-npm run ios
-# or
-yarn ios
-
-# Run on Android
-npm run android
-# or
-yarn android
-```
-
-### **Environment Setup**
-
-1. **Firebase Configuration**
-   ```bash
-   # Copy the example environment file
-   cp .env.example .env
-   
-   # Add your Firebase configuration
-   # Get your config from Firebase Console
-   ```
-
-2. **iOS Setup**
-   ```bash
-   # Install iOS dependencies
-   cd ios && pod install && cd ..
-   
-   # Run on iOS
-   npm run ios
-   ```
-
-3. **Android Setup**
-   ```bash
-   # Make sure Android Studio is installed
-   # Run on Android
-   npm run android
-   ```
-
----
-
-## 🏗️ **Project Structure**
-
-```
-Roomies/
-├── 📁 src/
-│   ├── 📁 components/          # Reusable UI components
-│   ├── 📁 screens/            # App screens
-│   ├── 📁 navigation/         # Navigation configuration
-│   ├── 📁 services/           # API and Firebase services
-│   ├── 📁 state/              # Zustand state management
-│   ├── 📁 types/              # TypeScript type definitions
-│   └── 📁 utils/              # Utility functions
-├── 📁 functions/              # Firebase Cloud Functions
-├── 📁 assets/                 # Images, fonts, and other assets
-├── 📁 scripts/                # Build and deployment scripts
-└── 📄 Configuration files
-```
-
----
-
-## 🔧 **Development**
-
-### **Available Scripts**
-
-```bash
-# Development
-npm start                 # Start Expo development server
-npm run ios              # Run on iOS simulator
-npm run android          # Run on Android emulator
-npm run web              # Run on web browser
-
-# Building
-npm run build:dev:ios    # Build development iOS app
-npm run build:dev:android # Build development Android app
-npm run build:prod:ios   # Build production iOS app
-npm run build:prod:android # Build production Android app
-
-# Deployment
-npm run submit:ios       # Submit iOS app to App Store
-npm run submit:android   # Submit Android app to Play Store
-```
-
-### **Code Quality**
-
-```bash
-# Linting
-npm run lint
-
-# Type checking
-npm run type-check
-
-# Testing
-npm test
-```
+### **Performance Features**
+- **Optimized bundle size** with code splitting
+- **Smooth animations** with React Native Reanimated
+- **Offline-first architecture** with data caching
+- **Real-time synchronization** across all devices
+- **Efficient memory management** and battery optimization
 
 ---
 
@@ -280,6 +260,7 @@ Roomies supports multiple languages with full RTL support:
 - **User authentication** with Firebase Auth
 - **Secure API endpoints** with proper validation
 - **Privacy-first design** - no unnecessary data collection
+- **GDPR compliant** data handling
 
 ---
 
@@ -290,26 +271,42 @@ Roomies supports multiple languages with full RTL support:
 - **Efficient state management** with Zustand
 - **Smooth animations** with React Native Reanimated
 - **Fast startup time** with optimized loading
+- **Offline-first architecture** with data caching
 
 ---
 
-## 🤝 **Contributing**
+## 🖼️ **Branding & Assets**
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+All Roomies names, logos, icons, screenshots, and related assets are copyright © Yonatan Rotem. All rights reserved. Not licensed for reuse.
 
-### **Development Workflow**
+### **Intellectual Property**
+- **Trademark**: "Roomies" and associated branding
+- **Design Assets**: UI/UX designs, icons, and visual elements
+- **Screenshots**: Application interface and user experience
+- **Documentation**: Technical specifications and user guides
+- **Source Code**: All implementation and business logic
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### **Usage Rights**
+This repository is provided for demonstration and portfolio purposes only. No permission is granted for:
+- Copying or redistributing any content
+- Creating derivative works
+- Commercial use of any assets
+- Reverse engineering or decompilation
+
+For licensing inquiries, please contact: yonatan.rotem@example.com
 
 ---
 
 ## 📄 **License**
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is **NOT open-source**. All rights reserved.
+
+- **Copyright © 2025 Yonatan Rotem**
+- **All Rights Reserved**
+- **No copying, redistribution, or derivative works permitted**
+- **Source code is private and proprietary**
+
+See the [LICENSE](LICENSE) file for complete terms and conditions.
 
 ---
 
@@ -319,7 +316,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### **Developed with ❤️ by**
 
-**Yonatan Rotem** - Full Stack Developer
+**Yonatan Rotem**
+
 [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/yonatan-cs)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/yonatan-rotem)
 
@@ -346,6 +344,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ and lots of ☕**
+**Made with ❤️ and lots of hot chocolate ☕**
 
 </div>
