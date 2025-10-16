@@ -1,0 +1,639 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, Pressable, ScrollView, Share, Linking, Platform, Keyboard, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useStore } from '../state/store';
+import { getUserDisplayInfo, getDisplayName } from '../utils/userDisplay';
+import * as Clipboard from 'expo-clipboard';
+import ConfirmModal from '../components/ConfirmModal';
+import AppSettingsSection from '../components/AppSettingsSection';
+import CleaningScheduleSection from '../components/CleaningScheduleSection';
+import { AppTextInput } from '../components/AppTextInput';
+import { Accordion } from '../components/Accordion';
+import { firebaseAuth } from '../services/firebase-auth';
+import { firestoreService } from '../services/firestore-service';
+import { Screen } from '../components/Screen';
+import { useTranslation } from 'react-i18next';
+import { useIsRTL } from '../hooks/useIsRTL';
+import { useGenderedText } from '../hooks/useGenderedText';
+import { success, impactMedium, impactLight, warning, selection } from '../utils/haptics';
+import { ThemedCard } from '../theme/components/ThemedCard';
+import { ThemedText } from '../theme/components/ThemedText';
+import { useThemedStyles } from '../theme/useThemedStyles';
+import { useTheme } from '../theme/ThemeProvider';
+import { cn } from '../utils/cn';
+import { fcmNotificationService } from '../services/fcm-notification-service';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { showThemedAlert } from '../components/ThemedAlert';
+import * as Notifications from 'expo-notifications';
+
+
+export default function SettingsScreen() {
+  const { t } = useTranslation();
+  const gt = useGenderedText();
+  const isRTL = useIsRTL();
+  const { activeScheme, theme } = useTheme();
+  const appLanguage = useStore(s => s.appLanguage);
+  const currency = useStore(s => s.currency);
+  const {
+    currentUser,
+    currentApartment,
+    setCurrentUser,
+    setCurrency,
+    refreshApartmentMembers,
+    checkMemberCanBeRemoved,
+    removeApartmentMember,
+  } = useStore();
+
+  // Refresh apartment members and load checklist when component mounts
+  useEffect(() => {
+    if (currentApartment) {
+      console.log('🔄 Settings: Refreshing apartment members on mount');
+      refreshApartmentMembers();
+
+      // Also load checklist items to show in settings
+      const { loadCleaningChecklist } = useStore.getState();
+      loadCleaningChecklist();
+    }
+  }, [currentApartment?.id]); // Only refresh when apartment ID changes
+
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState(currentUser?.name || '');
+  const [copied, setCopied] = useState(false);
+  const [confirmLeaveVisible, setConfirmLeaveVisible] = useState(false);
+
+  // Member removal states
+  const [removingMemberId, setRemovingMemberId] = useState<string | null>(null);
+  const [confirmRemoveVisible, setConfirmRemoveVisible] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string, name: string } | null>(null);
+  const [showMemberOptions, setShowMemberOptions] = useState<string | null>(null);
+
+  const themed = useThemedStyles(tk => ({
+    textPrimary: { color: tk.colors.text.primary },
+    textSecondary: { color: tk.colors.text.secondary },
+    borderColor: { borderColor: tk.colors.border.primary },
+    inputBg: { backgroundColor: tk.colors.card },
+    inputText: { color: tk.colors.text.primary },
+    buttonText: { color: '#111827' }, // Always dark for unselected buttons
+    nameDisplayBg: {
+      backgroundColor: activeScheme === 'dark' ? '#374151' : '#f9fafb' // Lighter gray in dark mode, light gray in light mode
+    },
+  }));
+
+  const handleSaveName = async () => {
+    if (!newName.trim() || !currentUser) return;
+
+    try {
+      console.log('💾 Saving profile name:', newName.trim());
+
+      // Update user name in Firestore (allowed field branch uses display_name)
+      await firestoreService.updateUserSafeProfileFields(currentUser.id, {
+        display_name: newName.trim(),
+      });
+
+      // Update local state - use setState to preserve all fields and prevent unwanted re-renders
+      useStore.setState(state => ({
+        currentUser: state.currentUser ? {
+          ...state.currentUser,
+          name: newName.trim(),
+          display_name: newName.trim()
+        } : undefined
+      }));
+
+      console.log('✅ Profile name saved successfully, staying on Settings screen');
+      setEditingName(false);
+    } catch (error: any) {
+      console.error('Update name error:', error);
+      showThemedAlert(t('common.error'), t('settings.alerts.cannotUpdateName'));
+    }
+  };
+
+  const handleCopyCode = async () => {
+    if (!currentApartment?.invite_code) return;
+    try {
+      await Clipboard.setStringAsync(currentApartment.invite_code);
+      setCopied(true);
+      success(); // Haptic feedback for successful copy
+      setTimeout(() => setCopied(false), 1500);
+    } catch (error) {
+      setCopied(false);
+    }
+  };
+
+  const handleShareCode = async () => {
+    if (!currentApartment) return;
+    try {
+      impactMedium(); // Haptic feedback for share action
+      await Share.share({
+        message: t('settings.shareMessage', {
+          apartmentName: currentApartment.name,
+          inviteCode: currentApartment.invite_code
+        }),
+        title: t('settings.joinApartmentTitle'),
+      });
+    } catch (error) { }
+  };
+
+  const handleLeaveApartment = () => {
+    warning(); // Haptic feedback for leave apartment action
+    setConfirmLeaveVisible(true);
+  };
+
+  const handleSendFeedback = () => {
+    impactMedium(); // Haptic feedback for send feedback action
+    const to = 'yonatan.cs23@gmail.com';
+    const subject = encodeURIComponent(t('settings.emailSubject'));
+    const body = encodeURIComponent(t('settings.emailBody', {
+      device: Platform.OS,
+      appVersion: '1.0.0',
+      userName: currentUser?.name || 'Unknown'
+    }));
+
+    const mailtoUrl = `mailto:${to}?subject=${subject}&body=${body}`;
+
+    Linking.openURL(mailtoUrl).catch((err) => {
+      console.error('Error opening mailto:', err);
+      showThemedAlert(t('common.error'), t('settings.alerts.cannotOpenEmail'));
+    });
+  };
+
+  const handleMemberOptionsPress = (member: any) => {
+    if (!currentUser || member.id === currentUser.id) {
+      // Don't show remove option for current user (they should use "Leave Apartment")
+      return;
+    }
+
+    // Toggle menu - if already open, close it
+    if (showMemberOptions === member.id) {
+      setShowMemberOptions(null);
+    } else {
+      setShowMemberOptions(member.id);
+    }
+  };
+
+  const handleRemoveMemberPress = (member: any) => {
+    console.log('🟢 handleRemoveMemberPress called for member:', member.id, member.name);
+    
+    // Don't close menu immediately - let the async operation complete first
+    
+    // Run the check asynchronously but don't await it at the top level
+    (async () => {
+      try {
+        console.log('🔍 Checking if member can be removed...');
+        const canBeRemoved = await checkMemberCanBeRemoved(member.id);
+        console.log('✅ Check result:', canBeRemoved);
+
+        // Close menu after check completes
+        setShowMemberOptions(null);
+
+        if (!canBeRemoved.canBeRemoved) {
+          console.log('❌ Cannot remove member:', canBeRemoved.reason);
+          showThemedAlert(
+            t('settings.alerts.cannotRemoveMember'),
+            t('settings.alerts.cannotRemoveMemberReason', {
+              name: getDisplayName(member),
+              reason: canBeRemoved.reason
+            }),
+            [{ text: t('common.ok') }]
+          );
+          return;
+        }
+
+        // Show confirmation dialog
+        console.log('✅ Member can be removed, showing confirmation dialog');
+        setMemberToRemove({
+          id: member.id,
+          name: getDisplayName(member)
+        });
+        setConfirmRemoveVisible(true);
+      } catch (error) {
+        console.error('❌ Error checking if member can be removed:', error);
+        setShowMemberOptions(null); // Close menu even on error
+        showThemedAlert(t('common.error'), t('settings.alerts.cannotCheckRemoval'));
+      }
+    })();
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!memberToRemove || removingMemberId) return; // Prevent double clicks
+
+    setRemovingMemberId(memberToRemove.id);
+    try {
+      await removeApartmentMember(memberToRemove.id);
+      setConfirmRemoveVisible(false);
+      setMemberToRemove(null);
+      
+      // Refresh apartment members after a short delay to avoid race condition
+      setTimeout(async () => {
+        try {
+          await refreshApartmentMembers();
+        } catch (error) {
+          console.error('Error refreshing apartment members:', error);
+        }
+      }, 1500);
+      
+      showThemedAlert(t('common.success'), t('settings.alerts.memberRemovedSuccess', { name: memberToRemove.name }));
+    } catch (error: any) {
+      console.error('Error removing member:', error);
+      showThemedAlert(t('common.error'), error.message || t('settings.alerts.cannotRemoveMemberError'));
+    } finally {
+      setRemovingMemberId(null);
+    }
+  };
+
+  if (!currentUser || !currentApartment) {
+    return (
+      <View className="flex-1 justify-center items-center">
+        <ThemedText style={themed.textSecondary}>{t('common.loading')}</ThemedText>
+      </View>
+    );
+  }
+
+  return (
+    <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
+
+      <ThemedCard className="px-6 pt-20 pb-6" variant="header">
+        <Text className="text-2xl font-bold text-center w-full heading-up" style={themed.textPrimary}>{t('settings.title')}</Text>
+      </ThemedCard>
+      <ScrollView
+        className="flex-1 px-6 py-6"
+        contentContainerStyle={{ alignItems: 'stretch' }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        onScrollBeginDrag={() => {
+          // Close menu when user starts scrolling
+          if (showMemberOptions) {
+            setShowMemberOptions(null);
+          }
+        }}
+      >
+        {/* 1. Apartment Details (Roommates - פרטי הדירה והקוד) */}
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <ThemedText className="text-lg font-semibold mb-4" style={themed.textPrimary}>{t('dashboard.apartmentFallback')}</ThemedText>
+
+          <View className="mb-4">
+            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptName')}</ThemedText>
+            <ThemedText className="text-lg font-medium" style={themed.textPrimary}>{currentApartment.name}</ThemedText>
+          </View>
+
+          <View className="mb-1">
+            <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('welcome.aptCode')}</ThemedText>
+            <View
+              className="items-center p-3 rounded-xl"
+              style={{
+                backgroundColor: themed.textSecondary.color + '15',
+                borderWidth: 1,
+                borderColor: themed.borderColor.borderColor,
+                flexDirection: isRTL ? 'row-reverse' : 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}
+            >
+              <ThemedText className="text-lg font-mono font-bold flex-1" style={themed.textPrimary}>{currentApartment.invite_code}</ThemedText>
+              <View
+                className="flex-row"
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
+                <Pressable
+                  onPress={handleCopyCode}
+                  className={cn(
+                    "bg-blue-100 p-2 rounded-lg",
+                    isRTL ? "ml-2" : "mr-2"
+                  )}
+                >
+                  <Ionicons name="copy-outline" size={20} color="#007AFF" />
+                </Pressable>
+                <Pressable onPress={handleShareCode} className="bg-green-100 p-2 rounded-lg">
+                  <Ionicons name="share-outline" size={20} color="#10b981" />
+                </Pressable>
+              </View>
+            </View>
+          </View>
+          {copied && <ThemedText className="text-xs text-green-600 mt-2">{t('settings.codeCopiedSuccess')}</ThemedText>}
+        </ThemedCard>
+
+        {/* 2. App Settings Section */}
+        <AppSettingsSection />
+
+        {/* 3. Profile & Roommates (Accordion) */}
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <Accordion
+            title={t('settings.profileAndRoommates')}
+            icon="people-outline"
+            defaultExpanded={false}
+          >
+          {/* My Profile Section */}
+          <View className="mb-6 pb-6" style={{ borderBottomWidth: 1, borderBottomColor: themed.borderColor.borderColor }}>
+            <ThemedText className="text-lg font-semibold mb-4">{t('settings.myProfile')}</ThemedText>
+            <View className="mb-4">
+              <ThemedText className="text-sm mb-2" style={themed.textSecondary}>{t('settings.fullName')}</ThemedText>
+              {editingName ? (
+                <View
+                  className="items-center"
+                  style={{
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center'
+                  }}
+                >
+                  <AppTextInput
+                    value={newName}
+                    onChangeText={setNewName}
+                    className="flex-1 border rounded-xl px-4 py-3 text-base"
+                    style={[themed.borderColor, themed.inputBg, themed.inputText]}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveName}
+                    placeholderTextColor={themed.textSecondary.color}
+                  />
+                  <View
+                    className="flex-row"
+                    style={{
+                      flexDirection: isRTL ? 'row-reverse' : 'row',
+                      alignItems: 'center',
+                      marginStart: isRTL ? 0 : 12,
+                      marginEnd: isRTL ? 12 : 0
+                    }}
+                  >
+                    <Pressable
+                      onPress={() => {
+                        impactMedium(); // Haptic feedback for save action
+                        handleSaveName();
+                      }}
+                      className={cn(
+                        "p-2 rounded-lg",
+                        newName.trim() ? 'bg-green-100' : 'bg-gray-100',
+                        isRTL ? "ml-2" : "mr-2"
+                      )}
+                    >
+                      <Ionicons name="checkmark" size={20} color={newName.trim() ? '#10b981' : '#9ca3af'} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => {
+                        impactLight(); // Haptic feedback for cancel action
+                        setEditingName(false);
+                        setNewName(getDisplayName(currentUser));
+                      }}
+                      className="bg-red-100 p-2 rounded-lg"
+                    >
+                      <Ionicons name="close" size={20} color="#ef4444" />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => {
+                    impactLight(); // Haptic feedback for edit action
+                    setEditingName(true);
+                  }}
+                  className="items-center p-3 rounded-xl"
+                  style={{
+                    ...themed.nameDisplayBg,
+                    flexDirection: isRTL ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <ThemedText className="text-base flex-1" style={themed.textPrimary}>{getDisplayName(currentUser)}</ThemedText>
+                  <Ionicons name="pencil-outline" size={20} color="#6b7280" />
+                </Pressable>
+              )}
+            </View>
+
+            <View>
+              <ThemedText className="text-sm mb-1" style={themed.textSecondary}>{t('settings.email')}</ThemedText>
+              <ThemedText style={themed.textSecondary}>{currentUser.email || t('settings.notDefined')}</ThemedText>
+            </View>
+          </View>
+
+          {/* Roommates List */}
+          <View className="mt-6 mb-4">
+            <ThemedText className="text-lg font-semibold flex-1">
+              {t('dashboard.roommates')} ({currentApartment.members.length})
+            </ThemedText>
+          </View>
+          {currentApartment.members.map((member) => (
+            <View key={member.id} className="mb-4">
+              <View
+                className="items-center"
+                style={{
+                  flexDirection: isRTL ? 'row-reverse' : 'row',
+                  alignItems: 'center'
+                }}
+              >
+                <View
+                  className={cn(
+                    "w-12 h-12 rounded-full items-center justify-center",
+                    activeScheme === 'dark' ? "bg-gray-700" : "bg-blue-100"
+                  )}
+                >
+                  <ThemedText
+                    className="font-semibold text-lg"
+                    style={{
+                      color: activeScheme === 'dark' ? '#ffffff' : '#1d4ed8'
+                    }}
+                  >
+                    {getUserDisplayInfo(member).initial}
+                  </ThemedText>
+                </View>
+                <View
+                  className="flex-1"
+                  style={{
+                    marginStart: isRTL ? 0 : 12,
+                    marginEnd: isRTL ? 12 : 0
+                  }}
+                >
+                  <ThemedText className="font-medium">
+                    {getDisplayName(member)} {member.id === currentUser.id && `(${gt('common.you')})`}
+                  </ThemedText>
+                  <ThemedText className="text-sm" style={themed.textSecondary}>{member.email || t('common.unknown')}</ThemedText>
+                </View>
+                {removingMemberId === member.id ? (
+                  <View className="ml-2">
+                    <Ionicons name="hourglass" size={20} color="#6b7280" />
+                  </View>
+                ) : member.id !== currentUser.id ? (
+                  <View className="relative">
+                    <Pressable
+                      onPress={() => {
+                        selection(); // Haptic feedback for member options
+                        handleMemberOptionsPress(member);
+                      }}
+                      className="p-2"
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={20} color="#9ca3af" />
+                    </Pressable>
+
+                    {/* Popup menu */}
+                    {showMemberOptions === member.id && (
+                      <Pressable
+                        onPress={(e) => {
+                          // Prevent closing the menu when clicking on it
+                          e?.stopPropagation?.();
+                        }}
+                        onStartShouldSetResponder={() => true}
+                        className="absolute top-10 rounded-lg shadow-lg"
+                        style={{
+                          backgroundColor: theme.colors.status.error,
+                          minWidth: 140,
+                          maxWidth: 180,
+                          [isRTL ? 'left' : 'right']: 0,
+                          zIndex: 999,
+                          elevation: 999,
+                        }}
+                      >
+                        <Pressable
+                          onPress={(e) => {
+                            e?.stopPropagation?.();
+                            console.log('🔴 Remove member button pressed for:', member.id);
+                            warning(); // Haptic feedback for remove member action
+                            handleRemoveMemberPress(member);
+                          }}
+                          className="px-4 py-3"
+                        >
+                          <ThemedText className="font-medium" style={{ color: '#ffffff' }}>
+                            {t('settings.removeMember')}
+                          </ThemedText>
+                        </Pressable>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          ))}
+          </Accordion>
+        </ThemedCard>
+
+        {/* 4. Cleaning Schedule & Tasks Section */}
+        <CleaningScheduleSection />
+
+        {/* Feedback Section */}
+        <ThemedCard className="rounded-2xl p-6 mb-6 shadow-sm">
+          <Text className="text-lg font-semibold mb-4 w-full text-center" style={themed.textPrimary}>{t('settings.feedbackTitle')}</Text>
+          <Text className="text-sm mb-4 w-full text-center" style={themed.textSecondary}>
+            {t('settings.feedbackDescription')}
+          </Text>
+
+          <Pressable
+            onPress={handleSendFeedback}
+            className="bg-blue-500 py-3 px-6 rounded-xl"
+          >
+            <View className="flex-row items-center justify-center">
+              <Ionicons name="mail-outline" size={20} color="white" className="ml-2" />
+              <Text className="text-white font-semibold text-center w-full"> {t('settings.feedbackCta')} </Text>
+            </View>
+          </Pressable>
+        </ThemedCard>
+
+        {/* Danger Zone */}
+        <ThemedCard className="rounded-2xl p-6 shadow-sm border-2" style={{ borderColor: '#dc2626' }}>
+          <Text className="text-lg font-semibold text-red-600 mb-4 w-full text-center">{t('settings.dangerZone')}</Text>
+
+          <Pressable
+            onPress={async () => {
+              try {
+                warning(); // Haptic feedback for sign out action
+                console.log('🚪 Signing out user...');
+
+                // Clear local state first to immediately trigger navigation
+                useStore.setState({
+                  currentUser: undefined,
+                  currentApartment: undefined,
+                  cleaningTask: undefined,
+                  expenses: [],
+                  shoppingItems: [],
+                  checklistItems: [],
+                  disableFirestoreForNewUsers: false, // Reset Firestore flag
+                });
+
+                // Then perform actual sign out
+                await firebaseAuth.signOut();
+                console.log('✅ Sign out completed successfully');
+              } catch (error) {
+                console.error('Sign out error:', error);
+                showThemedAlert(t('common.error'), t('settings.alerts.cannotSignOut'));
+              }
+            }}
+            className="bg-orange-500 py-3 px-6 rounded-xl mb-3"
+          >
+            <Text className="text-white font-semibold text-center w-full">{t('settings.signOut')}</Text>
+          </Pressable>
+
+          <Pressable onPress={handleLeaveApartment} className="bg-red-500 py-3 px-6 rounded-xl">
+            <Text className="text-white font-semibold text-center w-full">{t('settings.leaveApartment')}</Text>
+          </Pressable>
+          <Text className="text-xs text-center mt-2 w-full" style={themed.textSecondary}>{t('settings.actionWillRemove')}</Text>
+        </ThemedCard>
+
+        {/* Logo at bottom */}
+        <View className="items-center my-8">
+          <Image
+            source={require('../../logo_inside.png')}
+            style={{ width: 80, height: 80, opacity: 0.4 }}
+            resizeMode="contain"
+          />
+        </View>
+      </ScrollView>
+
+      {/* Modals */}
+      <ConfirmModal
+        visible={confirmLeaveVisible}
+        title={t('settings.leaveApartmentTitle')}
+        message={gt('settings.leaveApartmentMessage')}
+        confirmText={t('settings.confirmLeaveText')}
+        cancelText={t('settings.cancelText')}
+        onConfirm={async () => {
+          try {
+            if (currentUser && currentApartment) {
+              // Leave apartment in Firestore
+              await firestoreService.leaveApartment(currentApartment.id, currentUser.id);
+
+              // current_apartment_id is managed automatically through apartmentMembers
+            }
+
+            // Reset local state for apartment-scope data
+            useStore.setState({
+              currentApartment: undefined,
+              cleaningTask: undefined,
+              expenses: [],
+              shoppingItems: [],
+              checklistItems: [],
+            });
+
+            // Update current user to remove apartment reference
+            if (currentUser) {
+              setCurrentUser({
+                ...currentUser,
+                current_apartment_id: null
+              });
+            }
+
+            setConfirmLeaveVisible(false);
+          } catch (error: any) {
+            console.error('Leave apartment error:', error);
+            showThemedAlert(t('common.error'), t('settings.alerts.cannotLeaveApartment'));
+            setConfirmLeaveVisible(false);
+          }
+        }}
+        onCancel={() => setConfirmLeaveVisible(false)}
+      />
+
+      <ConfirmModal
+        visible={confirmRemoveVisible}
+        title={t('settings.removeMemberTitle')}
+        message={gt('settings.confirmRemoveMember', { name: memberToRemove?.name || '' })}
+        confirmText={t('settings.confirmRemoveText')}
+        cancelText={t('settings.cancelText')}
+        onConfirm={handleConfirmRemoveMember}
+        onCancel={() => {
+          setConfirmRemoveVisible(false);
+          setMemberToRemove(null);
+        }}
+        loading={removingMemberId !== null}
+      />
+    </Screen>
+  );
+}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "845572884017",
+    "project_id": "roomies-hub",
+    "storage_bucket": "roomies-hub.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:845572884017:android:37a56b35ad8ea53df6b710",
+        "android_client_info": {
+          "package_name": "com.yonatan.roomies"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdVexzHD5StQIK_w3GSbdYHYoE7fBqDps"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

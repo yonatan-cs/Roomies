@@ -1,0 +1,60 @@
+name: Build iOS App
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22.12.0'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Setup Expo CLI
+      run: npm install -g @expo/cli
+      
+    - name: Setup EAS CLI
+      run: npm install -g eas-cli
+      
+    - name: Login to EAS
+      run: eas login --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        
+    - name: Prebuild
+      run: npx expo prebuild --clean
+      
+    - name: Install iOS dependencies
+      run: |
+        cd ios
+        pod install --repo-update
+        cd ..
+        
+    - name: Build Development
+      if: github.ref == 'refs/heads/develop'
+      run: eas build -p ios --profile development --non-interactive
+      
+    - name: Build Production
+      if: github.ref == 'refs/heads/main'
+      run: eas build -p ios --profile production --non-interactive
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-build
+        path: |
+          *.ipa
+          *.app

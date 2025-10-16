@@ -1,0 +1,180 @@
+export interface User {
+  id: string;
+  name: string;
+  display_name?: string;
+  email: string;
+  phone?: string;
+  avatar?: string;
+  current_apartment_id: string | null; // Explicitly null for new users, string for users with apartment
+}
+
+export interface Apartment {
+  id: string;
+  name: string;
+  description?: string;
+  invite_code: string;
+  members: User[];
+  createdAt: Date;
+}
+
+export interface CleaningSettings {
+  intervalDays: number; // length of one cleaning period
+  anchorDow: number; // 0=Sun .. 6=Sat, period flips on this weekday
+  preferredDayByUser: { [userId: string]: number | undefined }; // optional preferred day per user
+  cycleStartAt?: Date; // optional anchor for custom cycles
+}
+
+export interface CleaningTask {
+  id: string;
+  user_id: string; // user id (compatible with Firestore rules)
+  queue: string[]; // array of user ids in rotation
+  dueDate: Date;
+  intervalDays: number;
+  lastCleaned?: Date;
+  lastCleanedBy?: string;
+  status: 'pending' | 'completed' | 'skipped';
+  history: CleaningHistory[];
+  // New fields for cycle calculation
+  assigned_at?: string | null; // ISO timestamp
+  frequency_days?: number;
+  last_completed_at?: string | null; // ISO timestamp
+  last_completed_by?: string | null;
+  // Legacy field for backward compatibility (deprecated)
+  currentTurn?: string;
+}
+
+export interface CleaningHistory {
+  id: string;
+  userId: string;
+  cleanedAt: Date;
+  status: 'completed' | 'skipped';
+}
+
+export interface CleaningStats {
+  totalCleans: number;
+  perUser: { [userId: string]: number };
+  lastUpdated: Date | null;
+}
+
+export interface CleaningChecklist {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  isCompleted?: boolean; // Legacy field for backward compatibility
+}
+
+// New type for individual checklist items
+export interface ChecklistItem {
+  id: string;
+  title: string;
+  completed: boolean;
+  completed_by?: string | null;
+  completed_at?: string | null; // ISO timestamp
+  order?: number | null;
+  created_at?: string | null; // ISO timestamp
+  // New fields for default tasks support
+  template_key?: string | null; // Translation key for default tasks
+  is_default?: boolean; // Whether this is a default task
+  user_modified?: boolean; // Whether user has modified this task
+  created_from_default_version?: number; // Version of default template when created
+}
+
+export interface CleaningTaskCompletion {
+  id: string;
+  taskId: string;
+  checklistItemId: string;
+  completed: boolean;
+}
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  paidBy: string; // user id - cannot be changed after creation
+  participants: string[]; // array of user ids
+  category: ExpenseCategory;
+  date: Date;
+  description?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+  createdBy?: string;
+  lastModifiedBy?: string;
+  isHiddenDebtSettlement?: boolean; // Flag for hidden debt settlement expenses
+  isDebtSettlementMessage?: boolean; // Flag for debt settlement message expenses
+}
+
+export type ExpenseCategory =
+  | 'groceries'
+  | 'utilities'
+  | 'rent'
+  | 'cleaning'
+  | 'internet'
+  | 'debt_settlement'
+  | 'other';
+
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  addedBy: string; // user id
+  addedAt: Date;
+  quantity?: number; // Quantity of the item
+  priority?: 'low' | 'normal' | 'high'; // Priority level
+  notes?: string; // Additional notes
+  purchased?: boolean;
+  purchasedBy?: string;
+  purchasePrice?: number;
+  purchasedAt?: Date;
+  purchaseDate?: Date; // Date when item was purchased
+  category?: ExpenseCategory; // Category for expense creation
+  note?: string; // Note for expense creation
+  needsRepurchase?: boolean; // Flag for re-adding to shopping list
+}
+
+export interface Balance {
+  userId: string;
+  owes: { [userId: string]: number };
+  owed: { [userId: string]: number };
+  netBalance: number;
+}
+
+export interface DebtSettlement {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  amount: number;
+  date: Date;
+  description?: string;
+}
+
+// New types for the debt management system
+export interface Debt {
+  id: string;
+  apartment_id: string;
+  from_user_id: string;
+  to_user_id: string;
+  amount: number;
+  status: 'open' | 'closed';
+  created_at: Date;
+  closed_at?: Date;
+  closed_by?: string;
+  description?: string;
+}
+
+export interface UserBalance {
+  user_id: string;
+  apartment_id: string;
+  balance: number;
+}
+
+export interface Action {
+  id: string;
+  apartment_id: string;
+  type: 'debt_closed' | 'debt_created' | 'purchase' | 'transfer';
+  debt_id?: string;
+  from_user_id?: string;
+  to_user_id?: string;
+  amount?: number;
+  actor_uid: string;
+  created_at: Date;
+  description?: string;
+}
