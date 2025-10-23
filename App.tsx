@@ -14,6 +14,7 @@ import i18n from "./src/i18n";
 import { configureReanimatedLogger, useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { fcmNotificationService } from './src/services/fcm-notification-service';
 import { initializeAdMob } from './src/services/admob-service';
+import { registerForPushNotificationsAsync } from './src/utils/notification-utils';
 import { isRTL } from './src/utils/rtl';
 import Animated from 'react-native-reanimated';
 import { ThemedAlertProvider } from './src/components/ThemedAlert';
@@ -79,6 +80,18 @@ export default function App() {
             console.log('✅ User granted FCM notification permissions');
           } else {
             console.log('⚠️ User denied FCM notification permissions');
+          }
+          
+          // Also test the standalone notification function
+          console.log('🔔 Testing standalone notification function...');
+          const result = await registerForPushNotificationsAsync();
+          if (result) {
+            console.log('✅ Standalone notification function got tokens:', result);
+            console.log('📱 Expo Token:', result.expoToken);
+            console.log('📱 Device Token Type:', result.deviceToken?.type);
+            console.log('📱 Device Token:', result.deviceToken?.data);
+          } else {
+            console.log('⚠️ Standalone notification function failed to get tokens');
           }
           
           // Mark that we've asked (whether granted or denied)
