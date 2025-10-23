@@ -109,7 +109,10 @@ service cloud.firestore {
             'photo_url',
             'photoURL',
             'email',
-            'locale'
+            'locale',
+            'fcmToken',
+            'platform',
+            'updatedAt'
           ])
         )
       );
