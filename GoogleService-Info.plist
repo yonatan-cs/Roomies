@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyCdVexzHD5StQIK_w3GSbdYHYoE7fBqDps</string>
+	<string>AIzaSyBH2pJN3G6EygGGTQkDoNNgPjYekO_v6tY</string>
 	<key>GCM_SENDER_ID</key>
 	<string>845572884017</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.vibecode.app</string>
+	<string>com.yonatan.roomies</string>
 	<key>PROJECT_ID</key>
 	<string>roomies-hub</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,8 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:845572884017:ios:37a56b35ad8ea53df6b710</string>
+	<string>1:845572884017:ios:bbeb4d579902df6af6b710</string>
+	<key>ADMOB_APP_ID</key>
+	<string>ca-app-pub-4539954746841772~9470743711</string>
 </dict>
 </plist>

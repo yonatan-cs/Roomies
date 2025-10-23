@@ -40,3 +40,8 @@ expo.log
 ios/
 android/
 expo.log
+
+# Firebase credentials and sensitive files
+roomies-hub-firebase-adminsdk-*.json
+firebase-adminsdk-*.json
+*firebase-adminsdk*.json

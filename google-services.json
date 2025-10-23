@@ -7,7 +7,7 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:845572884017:android:37a56b35ad8ea53df6b710",
+        "mobilesdk_app_id": "1:845572884017:android:5e258f17808f2b9ff6b710",
         "android_client_info": {
           "package_name": "com.yonatan.roomies"
         }
@@ -15,7 +15,27 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCdVexzHD5StQIK_w3GSbdYHYoE7fBqDps"
+          "current_key": "AIzaSyDACDtE7neSDZAzc_uQCZtO88riZu4fxew"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      },
+      "admob_app_id": "ca-app-pub-4539954746841772~6975731872"
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:845572884017:android:1fcaa3b3fa24f732f6b710",
+        "android_client_info": {
+          "package_name": "com.yonrotem.roomies"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDACDtE7neSDZAzc_uQCZtO88riZu4fxew"
         }
       ],
       "services": {
