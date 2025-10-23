@@ -45,3 +45,20 @@ expo.log
 roomies-hub-firebase-adminsdk-*.json
 firebase-adminsdk-*.json
 *firebase-adminsdk*.json
+
+# Google Services and API Keys
+GoogleService-Info.plist
+google-services.json
+AuthKey_*.p8
+AuthKey_*.p12
+AuthKey_*.key
+AuthKey_*.pem
+
+# Additional sensitive files
+*.keystore
+*.jks
+*.mobileprovision
+*.p8
+*.p12
+*.key
+*.pem
