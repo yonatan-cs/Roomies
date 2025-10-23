@@ -59,4 +59,5 @@ AuthKey_*.pem
 
 # Test files and debugging scripts
 tests/
+test-scripts/
 test-*.js
