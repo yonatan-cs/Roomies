@@ -116,13 +116,19 @@ export class FCMNotificationService {
       const appLanguage = useStore.getState().appLanguage;
       
       await firestoreService.updateUserSafeProfileFields(userId, {
+        // New format
+        fcmToken: this.fcmToken,
+        platform: Platform.OS as "ios" | "android",
+        updatedAt: new Date().toISOString(),
+        
+        // Old format (backwards compatibility)
         fcm_token: this.fcmToken,
         device_type: Platform.OS,
         last_seen: new Date().toISOString(),
         locale: appLanguage, // Save user's language preference for notifications
       });
 
-      console.log('✅ FCM token and language preference saved to Firestore');
+      console.log('✅ FCM token and language preference saved to Firestore (both formats)');
       return true;
     } catch (error) {
       console.error('❌ Error saving FCM token to Firestore:', error);
@@ -211,7 +217,13 @@ export class FCMNotificationService {
       this.fcmToken = token;
       
       // Update token in Firestore if we have a user
-      // You'll need to get the current user ID here
+      const currentUser = useStore.getState().currentUser;
+      if (currentUser?.id) {
+        console.log('💾 Updating refreshed token in Firestore for user:', currentUser.id);
+        await this.saveTokenToFirestore(currentUser.id);
+      } else {
+        console.log('⚠️ No current user - token will be saved on next app launch');
+      }
     });
 
     console.log('✅ FCM listeners setup complete');
@@ -282,6 +294,28 @@ export class FCMNotificationService {
     } catch (error) {
       console.error('❌ Error checking permission status:', error);
       return 'not-determined';
+    }
+  }
+
+  /**
+   * Refresh FCM token (e.g., when app comes to foreground)
+   */
+  async refreshToken(userId: string): Promise<void> {
+    try {
+      console.log('🔄 Refreshing FCM token...');
+      const token = await messaging().getToken();
+      
+      if (token && token !== this.fcmToken) {
+        console.log('🆕 FCM token changed, updating Firestore');
+        this.fcmToken = token;
+        await this.saveTokenToFirestore(userId);
+      } else if (token) {
+        console.log('✅ FCM token unchanged');
+      } else {
+        console.log('⚠️ Failed to get FCM token during refresh');
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing FCM token:', error);
     }
   }
 

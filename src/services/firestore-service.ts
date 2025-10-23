@@ -1219,6 +1219,7 @@ export class FirestoreService {
    * Only the following fields are permitted here:
    *  - fcm_token, device_type, last_seen, last_active, device_info,
    *    push_enabled, display_name, photo_url, photoURL, email, locale
+   *  - fcmToken, platform, updatedAt (new format)
    */
   async updateUserSafeProfileFields(
     userId: string,
@@ -1234,6 +1235,9 @@ export class FirestoreService {
       photoURL: string
       email: string
       locale: string
+      fcmToken: string
+      platform: string
+      updatedAt: string
     }>
   ): Promise<any> {
     const allowedKeys = new Set([
@@ -1248,6 +1252,9 @@ export class FirestoreService {
       'photoURL',
       'email',
       'locale',
+      'fcmToken',
+      'platform',
+      'updatedAt',
     ]);
 
     const filteredEntries = Object.entries(userData).filter(([k, v]) => allowedKeys.has(k) && v !== undefined);

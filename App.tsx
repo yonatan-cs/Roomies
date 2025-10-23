@@ -130,9 +130,22 @@ export default function App() {
         
         const store = useStore.getState();
         
-        // Only refresh if user is authenticated and has an apartment
-        if (!currentUser?.id || !currentUser?.current_apartment_id) {
-          console.log('⏭️ Skipping refresh - no authenticated user or apartment');
+        // Only refresh if user is authenticated
+        if (!currentUser?.id) {
+          console.log('⏭️ Skipping refresh - no authenticated user');
+          return;
+        }
+        
+        // Refresh FCM token when app comes to foreground
+        try {
+          await fcmNotificationService.refreshToken(currentUser.id);
+        } catch (error) {
+          console.error('❌ Error refreshing FCM token:', error);
+        }
+        
+        // Only refresh apartment data if user has an apartment
+        if (!currentUser?.current_apartment_id) {
+          console.log('⏭️ Skipping apartment data refresh - no apartment');
           return;
         }
         
