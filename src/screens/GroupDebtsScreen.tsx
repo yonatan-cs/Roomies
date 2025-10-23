@@ -270,7 +270,7 @@ export default function GroupDebtsScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
       {/* Header */}
-      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-20 pb-6" variant="header">
         <View className="flex-row items-center justify-between mb-4">
           <Pressable
             onPress={() => navigation.goBack()}
@@ -280,7 +280,7 @@ export default function GroupDebtsScreen() {
             <Ionicons name="arrow-back" size={24} color="#374151" />
           </Pressable>
           
-          <ThemedText className="text-2xl font-bold">
+          <ThemedText className="text-2xl font-bold heading-up">
             {t('debts.title')}
           </ThemedText>
           

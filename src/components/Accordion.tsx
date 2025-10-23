@@ -98,7 +98,7 @@ export function Accordion({
 
       {/* Accordion Content */}
       {isExpanded && (
-        <View>
+        <View style={{ marginTop: 16 }}>
           {children}
         </View>
       )}

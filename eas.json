@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 9.0.0"
+    "version": ">= 9.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
@@ -34,7 +35,7 @@
         "buildConfiguration": "Release"
       },
       "android": {
-        "buildType": "aab"
+        "buildType": "app-bundle"
       },
       "channel": "production",
       "node": "22.12.0",
@@ -56,4 +57,3 @@
     }
   }
 }
-

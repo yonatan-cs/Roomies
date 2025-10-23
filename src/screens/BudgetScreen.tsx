@@ -228,9 +228,9 @@ export default function BudgetScreen() {
 
   return (
     <ThemedView className="flex-1" style={themed.backgroundBg}>
-      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-20 pb-6" variant="header">
         <View className="flex-row items-center justify-center mb-4 relative">
-          <ThemedText className="text-2xl font-bold text-center">{t('budget.title')}</ThemedText>
+          <ThemedText className="text-2xl font-bold text-center heading-up">{t('budget.title')}</ThemedText>
           <Pressable
             onPress={() => {
               impactMedium(); // Haptic feedback for add expense

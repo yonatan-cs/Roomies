@@ -3,57 +3,54 @@ import { View, ViewProps, StyleSheet, StyleProp, ViewStyle } from 'react-native'
 import { useTheme } from '../ThemeProvider';
 
 // English-only comments
-// Card wrapper that applies consistent styling like expense cards
-export function ThemedCard({ style, ...rest }: ViewProps) {
-  const { theme, activeScheme } = useTheme();
+// Card wrapper that applies default background and border styling
+type ThemedCardProps = ViewProps & {
+  variant?: 'default' | 'header';
+};
+
+export function ThemedCard({ style, variant = 'default', ...rest }: ThemedCardProps) {
+  const { theme } = useTheme();
   const base = React.useMemo(
     () =>
       StyleSheet.create({
         card: {
-          backgroundColor: activeScheme === 'dark' ? '#1f2937' : '#F8FAFC', // Consistent background like expense cards
-          borderWidth: StyleSheet.hairlineWidth,
+          backgroundColor: theme.colors.card,
+          borderWidth: 1,
           borderColor: theme.colors.border.primary,
-          shadowColor: '#000',
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 4 },
-          elevation: 2,
           borderRadius: 12,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 0.5 },
+          shadowOpacity: 0.05,
+          shadowRadius: 1,
+          elevation: 1,
         } as ViewStyle,
         headerCard: {
-          backgroundColor: activeScheme === 'dark' ? '#1f2937' : '#F8FAFC', // Same background as regular cards
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: theme.colors.border.primary,
+          backgroundColor: theme.colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border.primary,
+          borderRadius: 0,
           shadowColor: '#000',
-          shadowOpacity: 0.1, // Stronger shadow for headers
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 4, // Higher elevation for headers
-          borderRadius: 0, // No border radius for headers
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 2,
+          elevation: 1,
         } as ViewStyle,
       }),
-    [theme, activeScheme]
+    [theme]
   );
 
   const styleArray: StyleProp<ViewStyle>[] = Array.isArray(style) ? (style as any) : [style as any];
   const hasBg = styleArray.some((s) => s && (s as ViewStyle).backgroundColor != null);
   const hasBorderColor = styleArray.some((s) => s && (s as ViewStyle).borderColor != null);
   const hasBorderWidth = styleArray.some((s) => s && (s as ViewStyle).borderWidth != null);
-  const hasShadow = styleArray.some((s) => s && (s as ViewStyle).shadowColor != null);
-  const hasElevation = styleArray.some((s) => s && (s as ViewStyle).elevation != null);
-  
-  // Check if this is a header card (has pt-20 class or similar header styling)
-  const isHeader = rest.className?.includes('pt-20') || rest.className?.includes('shadow-sm');
+
+  const cardStyle = variant === 'header' ? base.headerCard : base.card;
 
   return (
     <View
       style={[
-        isHeader ? base.headerCard : base.card,
-        // Apply default styling only if not overridden
-        !hasBg && (isHeader ? base.headerCard : base.card),
-        !hasBorderColor && !hasBorderWidth && (isHeader ? base.headerCard : base.card),
-        !hasShadow && (isHeader ? base.headerCard : base.card),
-        !hasElevation && (isHeader ? base.headerCard : base.card),
+        !hasBg && cardStyle,
+        // Apply default borders for consistent styling across themes
         style,
       ]}
       {...rest}

@@ -36,7 +36,7 @@ export default function QuickStatsCard({
           <Ionicons name={iconName} size={20} color="#6b7280" />
           <ThemedText className="text-sm mr-2">{title}</ThemedText>
         </View>
-        <ThemedText className={cn("text-2xl font-bold", colorClasses[valueColor])}>
+        <ThemedText className={cn("text-2xl font-bold heading-up", colorClasses[valueColor])}>
           {value}
         </ThemedText>
         {subtitle && (

@@ -318,7 +318,7 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             style={{ width: 140, height: 140 }}
             resizeMode="contain"
           />
-          <ThemedText className="text-3xl font-bold mt-4 text-center">{t('auth.title')}</ThemedText>
+          <ThemedText className="text-3xl font-bold mt-4 text-center heading-up">{t('auth.title')}</ThemedText>
           <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>{t('auth.subtitle')}</ThemedText>
         </View>
 

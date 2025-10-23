@@ -31,11 +31,15 @@ module.exports = {
         "8xl": "72px",
         "9xl": "80px",
       },
+      // Custom spacing for heading adjustments
+      spacing: {
+        'heading-up': '-8px', // Move headings up by 8 pixels
+      },
     },
   },
   darkMode: "class",
   plugins: [
-    plugin(({ matchUtilities, theme }) => {
+    plugin(({ matchUtilities, theme, addUtilities }) => {
       const spacing = theme("spacing");
 
       // space-{n}  ->  gap: {n}
@@ -55,6 +59,13 @@ module.exports = {
         { "space-y": (value) => ({ rowGap: value }) },
         { values: spacing, type: ["length", "number", "percentage"] }
       );
+
+      // Add custom heading-up utility
+      addUtilities({
+        '.heading-up': {
+          marginTop: '-8px',
+        },
+      });
     }),
   ],
 };

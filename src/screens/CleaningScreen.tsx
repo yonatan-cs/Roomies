@@ -388,8 +388,8 @@ export default function CleaningScreen() {
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <Text style={{ textAlign: 'center', ...themed.textPrimary }} className="text-2xl font-bold mb-2 w-full">{t('cleaning.title')}</Text>
+      <ThemedCard className="px-6 pt-20 pb-6" variant="header">
+        <Text style={{ textAlign: 'center', ...themed.textPrimary }} className="text-2xl font-bold mb-2 w-full heading-up">{t('cleaning.title')}</Text>
         <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="w-full">{currentApartment.name}</Text>
         <View className="flex-row items-center justify-center mt-2">
           <View className="px-3 py-1 rounded-full" style={themed.surfaceBg}>
@@ -412,7 +412,7 @@ export default function CleaningScreen() {
 
       <ScrollView 
         className="flex-1 px-6 py-6"
-        contentContainerStyle={{ alignItems: 'stretch', paddingBottom: 10 }}
+        contentContainerStyle={{ alignItems: 'stretch', paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled
@@ -647,9 +647,9 @@ export default function CleaningScreen() {
                       },
                       isCompleted && !showAsCompletedAndDisabled ? {
                         shadowColor: '#10b981',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowRadius: 4,
-                        elevation: 3,
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowRadius: 2,
+                        elevation: 1,
                       } : undefined
                     ]}
                     disabled={isDisabled}

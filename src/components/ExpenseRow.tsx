@@ -129,7 +129,7 @@ export default function ExpenseRow({
   }
 
   return (
-    <ThemedCard style={[styles.row, { borderWidth: 1, ...themed.borderColor }]}>
+    <ThemedCard className="rounded-xl p-4 mb-3 shadow-sm">
       <View 
         style={[
           styles.content,
@@ -249,17 +249,9 @@ const styles = StyleSheet.create({
   row: {
     backgroundColor: 'transparent',
     marginBottom: 8,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
     paddingBottom: 8,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
@@ -319,10 +311,9 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingHorizontal: 16,
     paddingVertical: 0,
     gap: 8,
-    marginTop: -8,
+    marginTop: 8,
   },
   editButton: {
     flexDirection: 'row',

@@ -37,9 +37,9 @@ export const GestureConfigs = {
   dragAndDrop: {
     activeScale: 1.05,
     activeOpacity: 0.8,
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
 
   // Modal configuration

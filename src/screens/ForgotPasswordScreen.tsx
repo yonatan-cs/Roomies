@@ -87,7 +87,7 @@ export default function ForgotPasswordScreen({ onBack }: ForgotPasswordScreenPro
             {/* Header */}
             <View className="items-center mb-12">
               <Ionicons name="key" size={80} color="#007AFF" />
-              <ThemedText className="text-3xl font-bold mt-4 text-center">{t('forgot.title')}</ThemedText>
+              <ThemedText className="text-3xl font-bold mt-4 text-center heading-up">{t('forgot.title')}</ThemedText>
               <ThemedText className="text-lg mt-2 text-center" style={themed.textSecondary}>{t('forgot.subtitle')}</ThemedText>
             </View>
 

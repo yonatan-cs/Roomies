@@ -251,8 +251,8 @@ export default function SettingsScreen() {
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
 
-      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <Text className="text-2xl font-bold text-center w-full" style={themed.textPrimary}>{t('settings.title')}</Text>
+      <ThemedCard className="px-6 pt-20 pb-6" variant="header">
+        <Text className="text-2xl font-bold text-center w-full heading-up" style={themed.textPrimary}>{t('settings.title')}</Text>
       </ThemedCard>
       <ScrollView
         className="flex-1 px-6 py-6"
@@ -529,7 +529,7 @@ export default function SettingsScreen() {
         </ThemedCard>
 
         {/* Danger Zone */}
-        <ThemedCard className="rounded-2xl p-6 shadow-sm border-2 border-red-100">
+        <ThemedCard className="rounded-2xl p-6 shadow-sm border-2" style={{ borderColor: '#dc2626' }}>
           <Text className="text-lg font-semibold text-red-600 mb-4 w-full text-center">{t('settings.dangerZone')}</Text>
 
           <Pressable

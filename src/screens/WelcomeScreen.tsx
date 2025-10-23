@@ -776,7 +776,7 @@ export default function WelcomeScreen() {
           />
         </View>
 
-        <Text className="text-2xl font-bold text-center mb-8" style={themed.titleText}>
+        <Text className="text-2xl font-bold text-center mb-8 heading-up" style={themed.titleText}>
           {mode === 'create' ? t('welcome.createTitle') : t('welcome.joinTitle')}
         </Text>
 

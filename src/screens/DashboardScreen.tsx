@@ -579,7 +579,7 @@ export default function DashboardScreen() {
 
   return (
     <View className="flex-1" style={themed.backgroundBg}>
-      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
+      <ThemedCard className="px-6 pt-20 pb-6" variant="header">
         <View 
           className="items-center justify-between mb-2"
           style={{ 
@@ -587,7 +587,7 @@ export default function DashboardScreen() {
             alignItems: 'center'
           }}
         >
-          <ThemedText className="text-2xl font-bold flex-1">
+          <ThemedText className="text-2xl font-bold flex-1 heading-up">
             {t('dashboard.greeting', { name: getDisplayName(currentUser) })}
           </ThemedText>
           <Pressable
@@ -619,10 +619,10 @@ export default function DashboardScreen() {
             className="bg-blue-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
             style={{
               shadowColor: '#3b82f6',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 4,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.15,
+              shadowRadius: 2,
+              elevation: 2,
             }}
           >
             <View className="flex-row items-center">
@@ -639,10 +639,10 @@ export default function DashboardScreen() {
             className="bg-green-500 rounded-full px-8 py-4 shadow-lg active:scale-95"
             style={{
               shadowColor: '#10b981',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 4,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.15,
+              shadowRadius: 2,
+              elevation: 2,
             }}
           >
             <View className="flex-row items-center">
@@ -663,10 +663,10 @@ export default function DashboardScreen() {
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1,
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
@@ -703,10 +703,10 @@ export default function DashboardScreen() {
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1,
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
@@ -741,10 +741,10 @@ export default function DashboardScreen() {
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1,
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
@@ -773,10 +773,10 @@ export default function DashboardScreen() {
             className="w-[48%] mb-2"
             style={{
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1,
             }}
           >
             <ThemedCard className="p-4 rounded-2xl">
@@ -926,10 +926,10 @@ export default function DashboardScreen() {
             accessibilityHint={t('dashboard.quickLook')}
             style={{
               shadowColor: '#f97316',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 8,
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 4,
+              elevation: 3,
             }}
           >
             <View 
@@ -957,7 +957,7 @@ export default function DashboardScreen() {
       >
         <ThemedView className="flex-1" style={themed.surfaceBg}>
           {/* Header */}
-          <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
+          <ThemedCard className="px-6 pt-20 pb-6" variant="header">
             <View className="flex-row items-center mb-4">
               <Pressable
                 onPress={() => setShowHighlightsModal(false)}

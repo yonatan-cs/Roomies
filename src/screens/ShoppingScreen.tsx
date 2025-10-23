@@ -526,8 +526,8 @@ export default function ShoppingScreen() {
 
   return (
     <Screen withPadding={false} keyboardVerticalOffset={0} scroll={false}>
-      <ThemedCard className="px-6 pt-20 pb-6 shadow-sm">
-        <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="text-2xl font-bold mb-4 w-full">{t('shopping.title')}</Text>
+      <ThemedCard className="px-6 pt-20 pb-6" variant="header">
+        <Text style={{ textAlign: 'center', color: themed.textPrimary.color }} className="text-2xl font-bold mb-4 w-full heading-up">{t('shopping.title')}</Text>
         <Text style={{ textAlign: 'center', color: themed.textSecondary.color }} className="w-full">
           {t('shopping.itemsToBuy', { count: pendingItems.length })}
           {selectedPriorityFilter !== 'all' && (
