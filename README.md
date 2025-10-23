@@ -48,7 +48,7 @@
 
 ### **Download & Install** 📱
 
-[![Download iOS](https://img.shields.io/badge/Download-iOS-000000?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/roomies)
+[![Download iOS](https://img.shields.io/badge/Download-iOS-000000?style=for-the-badge&logo=apple&logoColor=white)]([https://apps.apple.com/app/roomies](https://apps.apple.com/il/app/roomies-smart-shared-living/id6753794415))
 [![Download Android](https://img.shields.io/badge/Download-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://play.google.com/store/apps/details?id=com.yonrotem.roomies)
 
 </div>
