@@ -56,3 +56,7 @@ AuthKey_*.pem
 *.p12
 *.key
 *.pem
+
+# Test files and debugging scripts
+tests/
+test-*.js
